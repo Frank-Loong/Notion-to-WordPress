@@ -42,6 +42,7 @@ foreach ($options as $option) {
 
 // 清理计划任务
 wp_clear_scheduled_hook('notion_cron_import');
+wp_clear_scheduled_hook('ntw_process_media_queue');
 
 // 查找所有使用计划任务的页面并清理
 $query = new WP_Query(array(
@@ -150,4 +151,6 @@ foreach ( $transients as $transient_option ) {
 flush_rewrite_rules();
 
 // 移除最后同步时间等单独记录的选项
-delete_option( 'notion_to_wordpress_last_sync' ); 
+delete_option( 'notion_to_wordpress_last_sync' );
+delete_option( 'ntw_download_queue' );
+delete_option( 'ntw_download_history' ); 

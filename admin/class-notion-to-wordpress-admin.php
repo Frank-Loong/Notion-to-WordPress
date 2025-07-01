@@ -456,10 +456,12 @@ class Notion_To_WordPress_Admin {
             }
             
             wp_send_json_success([
-                'imported_count' => $imported_count,
+                'imported_count'  => $imported_count,
                 'published_count' => $published_count,
-                'last_update' => $last_update,
-                'next_run' => $next_run
+                'last_update'     => $last_update,
+                'next_run'        => $next_run,
+                'queue_size'      => Notion_Download_Queue::size(),
+                'queue_history'   => array_slice( Notion_Download_Queue::history(), -10 ),
             ]);
             
         } catch (Exception $e) {
