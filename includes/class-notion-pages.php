@@ -1000,17 +1000,18 @@ class Notion_Pages {
      * @return   boolean               是否成功
      */
     private function set_featured_image($post_id, $image_url) {
-        if (empty($image_url)) {
+        if ( empty( $image_url ) ) {
             return;
         }
 
-        $attachment_id = $this->download_and_insert_image($image_url, get_the_title($post_id));
-
-        if ( ! is_wp_error($attachment_id) ) {
-            set_post_thumbnail($post_id, $attachment_id);
-        } else {
-            Notion_To_WordPress_Helper::debug_log('Featured image download failed: ' . $attachment_id->get_error_message());
-        }
+        // 加入队列，由后台任务处理
+        Notion_Download_Queue::push([
+            'type'        => 'image',
+            'url'         => $image_url,
+            'post_id'     => (int) $post_id,
+            'is_featured' => true,
+            'caption'     => get_the_title( $post_id ),
+        ]);
     }
 
     /**
@@ -1022,6 +1023,18 @@ class Notion_Pages {
      * @return   int                  WordPress附件ID
      */
     private function download_and_insert_image( string $url, string $caption = '' ) {
+        // 延迟下载：将任务加入队列并返回0
+        Notion_Download_Queue::push([
+            'type'        => 'image',
+            'url'         => $url,
+            'post_id'     => 0, // 后续可根据上下文填充
+            'is_featured' => false,
+            'caption'     => $caption,
+        ]);
+
+        return 0;
+
+        // ---- 以下为旧同步下载逻辑，已被延迟替代 ----
         // 去掉查询参数用于去重
         $base_url = strtok( $url, '?' );
 
@@ -1254,7 +1267,8 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            return '<!-- File download error -->';
+            // 回退：使用原始 Notion URL（可能过期）
+            return '<div class="file-download-box notion-temp-file"><span class="file-download-name">' . esc_html( $display ) . '</span> <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（外链，可能过期）', 'notion-to-wordpress' ) . '</a></div>';
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
@@ -1271,6 +1285,17 @@ class Notion_Pages {
      * @return int|WP_Error        附件 ID 或错误
      */
     private function download_and_insert_file( string $url, string $caption = '', string $override_name = '' ) {
+        // 队列延迟处理
+        Notion_Download_Queue::push([
+            'type'    => 'file',
+            'url'     => $url,
+            'post_id' => 0,
+            'caption' => $caption,
+        ]);
+
+        return 0;
+
+        // ---- 旧即时下载逻辑 ----
         // 检查是否已下载过
         $base_url = strtok( $url, '?' );
         $existing = $this->get_attachment_by_url( $base_url );
