@@ -185,6 +185,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                     </button>
                                                 </div>
                                                 <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。', 'notion-to-wordpress'); ?></p>
+                                                <p class="description" style="color:#2271b1;"><strong><?php esc_html_e('提示：请在 Notion 端发送一次 Webhook 验证请求后，刷新本页面即可查看 verification_token。', 'notion-to-wordpress'); ?></strong></p>
                                             </div>
                                             <div class="notion-wp-field">
                                                 <label for="webhook_url"><?php esc_html_e('Webhook URL', 'notion-to-wordpress'); ?></label>
