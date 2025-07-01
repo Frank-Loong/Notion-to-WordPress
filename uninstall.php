@@ -90,6 +90,26 @@ if ($delete_content) {
             wp_delete_post($image_id, true);
         }
     }
+
+    // 删除由插件下载到媒体库的附件（通过 _notion_original_url 标识）
+    $attachments = new WP_Query(array(
+        'post_type'      => 'attachment',
+        'post_status'    => 'inherit',
+        'posts_per_page' => -1,
+        'meta_query'     => array(
+            array(
+                'key'     => '_notion_original_url',
+                'compare' => 'EXISTS',
+            ),
+        ),
+        'fields' => 'ids'
+    ));
+
+    if ( $attachments->have_posts() ) {
+        foreach ( $attachments->posts as $att_id ) {
+            wp_delete_attachment( $att_id, true );
+        }
+    }
 } else {
     // 保留文章，但清理与插件相关的 post_meta，避免后续重新安装时仍被统计
     if ( $query->have_posts() ) {
