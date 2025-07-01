@@ -1,0 +1,158 @@
+/**
+ * 工具提示样式
+ *
+ * @since      1.0.5
+ * @package    Notion_To_WordPress
+ */
+
+/* 工具提示样式 */
+:root {
+  --tooltip-bg: #333;
+  --tooltip-text: #fff;
+  --tooltip-arrow-size: 6px;
+}
+
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]:before,
+[data-tooltip]:after {
+  position: absolute;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
+  z-index: 9999;
+}
+
+[data-tooltip]:before {
+  content: "";
+  border-style: solid;
+  border-width: var(--tooltip-arrow-size) var(--tooltip-arrow-size) 0 var(--tooltip-arrow-size);
+  border-color: var(--tooltip-bg) transparent transparent transparent;
+  bottom: 100%;
+  left: 50%;
+  margin-left: calc(var(--tooltip-arrow-size) * -1);
+  margin-bottom: -5px;
+}
+
+[data-tooltip]:after {
+  content: attr(data-tooltip);
+  background-color: var(--tooltip-bg);
+  color: var(--tooltip-text);
+  text-align: center;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  min-width: 150px;
+  max-width: 300px;
+  border-radius: 4px;
+  white-space: normal;
+  word-wrap: break-word;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* 显示工具提示 */
+[data-tooltip]:hover:before,
+[data-tooltip]:hover:after,
+[data-tooltip]:focus:before,
+[data-tooltip]:focus:after {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* 右侧工具提示 */
+[data-tooltip-position="right"]:before {
+  border-width: var(--tooltip-arrow-size) var(--tooltip-arrow-size) var(--tooltip-arrow-size) 0;
+  border-color: transparent var(--tooltip-bg) transparent transparent;
+  bottom: auto;
+  left: 100%;
+  top: 50%;
+  margin-left: -5px;
+  margin-top: calc(var(--tooltip-arrow-size) * -1);
+}
+
+[data-tooltip-position="right"]:after {
+  bottom: auto;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 10px;
+  margin-bottom: 0;
+}
+
+/* 左侧工具提示 */
+[data-tooltip-position="left"]:before {
+  border-width: var(--tooltip-arrow-size) 0 var(--tooltip-arrow-size) var(--tooltip-arrow-size);
+  border-color: transparent transparent transparent var(--tooltip-bg);
+  bottom: auto;
+  left: auto;
+  right: 100%;
+  top: 50%;
+  margin-right: -5px;
+  margin-top: calc(var(--tooltip-arrow-size) * -1);
+  margin-left: 0;
+}
+
+[data-tooltip-position="left"]:after {
+  bottom: auto;
+  left: auto;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 10px;
+  margin-bottom: 0;
+}
+
+/* 底部工具提示 */
+[data-tooltip-position="bottom"]:before {
+  border-width: 0 var(--tooltip-arrow-size) var(--tooltip-arrow-size) var(--tooltip-arrow-size);
+  border-color: transparent transparent var(--tooltip-bg) transparent;
+  bottom: auto;
+  top: 100%;
+  margin-top: -5px;
+}
+
+[data-tooltip-position="bottom"]:after {
+  bottom: auto;
+  top: 100%;
+  margin-top: 10px;
+}
+
+/* 复制按钮工具提示 */
+.copy-button {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #f1f1f1;
+    color: #333;
+    border: none;
+    border-radius: 3px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.copy-button:hover {
+    opacity: 1;
+}
+
+pre {
+    position: relative;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 480px) {
+    .notion-wp-tooltip .notion-wp-tooltiptext {
+        width: 160px;
+        margin-left: -80px;
+    }
+}

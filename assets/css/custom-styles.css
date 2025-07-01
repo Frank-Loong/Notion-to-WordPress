@@ -1,0 +1,667 @@
+/* css/custom-styles.css */
+
+#notion-to-wordpress-plugin-admin {
+    padding: 5px 20px;
+}
+
+
+#notion-to-wordpress-plugin-admin .widefat {
+    width: 100%; /* Makes the text fields use full width */
+    max-width: 900px; /* Set a maximum width if desired */
+    min-height: 40px; /* Adjust height if necessary */
+    padding: 10px; /* Add some padding */
+}
+
+
+#notion-to-wordpress-plugin-admin .widetable {
+    max-width: 100%;
+}
+
+#notion-to-wordpress-plugin-admin .red-text {
+    color: red;
+}
+
+#notion-to-wordpress-plugin-admin #loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: none;
+}
+
+#notion-to-wordpress-plugin-admin .loading-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+
+.notion-to-wordpress-header {
+    background-color: #2e65a8; /* Dark blue background */
+    color: white;
+    width: 100%;
+    position: sticky;
+    top: 32px;
+    left: 0;
+    margin: 0;
+    padding: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+.notion-to-wordpress-header-inner {
+    max-width: 100%; /* Ensure it spans the full content width */
+    padding: 5px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notion-to-wordpress-logo {
+    height: 50px; /* Adjust to fit desired size */
+    max-height: 100%; /* Prevent overflowing */
+    width: auto; /* Maintain aspect ratio */
+    margin-right: 20px; /* Spacing between logo and title */
+}
+
+
+.notion-to-wordpress-title {
+    font-size: 24px;
+    margin: 0;
+    font-weight: bold;
+    color: white;
+
+
+}
+
+.notion-to-wordpress-nav  {
+    display: flex;
+    justify-content: flex-start; /* Aligns the nav items to the left */
+    flex-grow: 1; /* Allows the nav to expand and take available space */
+    margin-left: 20px;
+
+}
+
+
+.notion-to-wordpress-nav a {
+    margin-left: 15px;
+    text-decoration: none;
+    color: #ffffff; /* White text for links */
+    font-weight: 500;
+}
+.notion-to-wordpress-nav a:hover {
+    text-decoration: underline;
+}
+.notion-to-wordpress-nav a.active {
+    font-weight: bold;
+    color: #ffcc00; /* Highlighted tab color */
+}
+.notion-to-wordpress-body {
+    margin: 0;
+    padding: 20px;
+    background: #ffffff;
+}
+
+
+/* Remove extra margin between admin menu and plugin header */
+#wpcontent {
+    padding-left: 0 !important;
+}
+.notion-to-wordpress-header {
+    margin-left: 0 !important;
+}
+
+/* ================ Notion 内容渲染样式 ================ */
+
+/* 通用容器样式 */
+.notion-page-content {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.5;
+    color: #37352f;
+    margin: 0 auto;
+    max-width: 100%;
+}
+
+/* 标题样式 */
+.notion-page-content h1 {
+    font-size: 2em;
+    margin: 1em 0 0.5em;
+    font-weight: 600;
+}
+
+.notion-page-content h2 {
+    font-size: 1.5em;
+    margin: 1em 0 0.5em;
+    font-weight: 600;
+}
+
+.notion-page-content h3 {
+    font-size: 1.25em;
+    margin: 1em 0 0.5em;
+    font-weight: 600;
+}
+
+/* 段落和列表样式*/
+.notion-page-content p,
+.notion-page-content li {
+    margin-bottom: 0.5em;
+}
+
+.notion-page-content ul,
+.notion-page-content ol {
+    margin: 0.5em 0 1em;
+    padding-left: 1.5em;
+}
+
+/* 待办事项样式 */
+.notion-page-content input[type="checkbox"] {
+    margin-right: 0.5em;
+    position: relative;
+    top: -1px;
+}
+
+/* 图片显示样式优化 */
+.wp-block-image {
+    margin: 1.5em 0;
+    max-width: 100%;
+}
+
+.wp-block-image img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+.notion-image-caption {
+    text-align: center;
+    font-size: 0.9em;
+    color: #555;
+    margin-top: 0.5em;
+}
+
+/* 表格样式 */
+.notion-page-content table {
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    width: 100%;
+    overflow-x: auto;
+    display: block;
+}
+
+.notion-page-content table td,
+.notion-page-content table th {
+    border: 1px solid #e1e1e1;
+    padding: 8px 12px;
+}
+
+.notion-page-content table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+/* 公式显示样式 */
+.notion-equation {
+    text-align: center;
+    margin: 1.5em 0;
+    overflow-x: auto;
+    max-width: 100%;
+    font-size: 1.1em;
+    padding: 0.5em 0;
+}
+
+.notion-inline-equation {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 1.05em;
+}
+
+/* 确保行内公式不会被截断*/
+.mjx-chtml {
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+}
+
+/* 块级公式样式 */
+.mjx-chtml.MJXc-display {
+    margin: 1em 0;
+    padding: 0.5em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+}
+
+/* Mermaid 图表样式 */
+.mermaid {
+    text-align: center;
+    margin: 1.5em auto;
+    max-width: 100%;
+    overflow-x: auto;
+    background: transparent;
+    padding: 0;
+    overflow: visible;
+}
+
+/* 保证 Mermaid 渲染后的 SVG 充满容器并字体可读*/
+pre.mermaid > svg,
+.mermaid > svg {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100%;
+}
+
+/* 调整 Mermaid 节点与文本默认字号*/
+.mermaid svg text {
+    font-size: 16px;
+}
+
+/* 避免 svg 缩放太小 */
+.mermaid svg {
+    transform: none !important;
+}
+
+/* 化学方程式样式*/
+.notion-chem-equation {
+    display: inline-block;
+    vertical-align: middle;
+    font-size: 1.05em;
+    margin: 0 2px;
+}
+
+/* 代码块样式优化*/
+.wp-block-code {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 1em;
+    overflow-x: auto;
+    margin: 1.5em 0;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.9em;
+}
+
+.wp-block-code code {
+    font-family: monospace;
+    white-space: pre;
+    tab-size: 2;
+}
+
+/* 语法高亮支持 */
+.wp-block-code .language-javascript,
+.wp-block-code .language-python,
+.wp-block-code .language-css,
+.wp-block-code .language-html,
+.wp-block-code .language-json {
+    display: block;
+}
+
+/* 内联代码 */
+code {
+    background: #f0f0f0;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+    font-size: 0.9em;
+}
+
+/* 引用*/
+blockquote {
+    border-left: 4px solid #ddd;
+    padding-left: 1em;
+    margin-left: 0;
+    color: #555;
+}
+
+/* 分割线*/
+.notion-page-content hr {
+    border: none;
+    border-top: 1px solid #e1e1e1;
+    margin: 2em 0;
+}
+
+/* Toggle 折叠*/
+.notion-toggle {
+    margin: 1em 0;
+    border: 1px solid #f0f0f0;
+    border-radius: 4px;
+}
+
+.notion-toggle summary {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #f9f9f9;
+    font-weight: 500;
+}
+
+.notion-toggle summary:hover {
+    background-color: #f0f0f0;
+}
+
+.notion-toggle[open] > summary {
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.notion-toggle > *:not(summary) {
+    padding: 10px;
+}
+
+/* Notion Callout 样式 */
+.notion-callout {
+    padding: 16px;
+    border-radius: 3px;
+    border-left: 4px solid #ddd;
+    background-color: #f8f9fa;
+    margin: 1em 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.notion-callout-icon {
+    margin-right: 8px;
+    font-size: 1.2em;
+}
+
+/* 嵌入内容（如视频）样式*/
+.notion-page-content iframe {
+    max-width: 100%;
+    margin: 1em 0;
+    border: none;
+}
+
+/* 视频容器保持宽高*/
+.wp-block-zibllblock-iframe,
+.wp-block-zibllblock-dplayer {
+    position: relative;
+    width: 100%;
+    margin: 1.5em 0;
+}
+
+.wp-block-zibllblock-iframe > div,
+.wp-block-zibllblock-dplayer > div {
+    position: relative;
+    width: 100%;
+}
+
+.wp-block-zibllblock-iframe iframe,
+.wp-block-zibllblock-dplayer iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* 文件下载样式 */
+.file-download-box {
+    border: 1px solid #e1e1e1;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 1.5em 0;
+    background-color: #f9f9f9;
+}
+
+.file-download-name {
+    font-weight: 500;
+    margin-right: 10px;
+}
+
+.file-download-icon {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    background-color: #4a89dc;
+    border-radius: 4px;
+    position: relative;
+}
+
+.file-download-icon:before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 12px;
+    height: 12px;
+    background-color: white;
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E");
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'/%3E%3C/svg%3E");
+    mask-size: cover;
+    -webkit-mask-size: cover;
+}
+
+.file-download-btn {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 4px;
+    background-color: #4a89dc;
+    color: white !important;
+    text-decoration: none;
+    font-size: 0.9em;
+}
+
+.file-download-btn:hover {
+    background-color: #3a7bd5;
+}
+
+/* 链接样式 */
+.notion-page-content a {
+    color: #0366d6;
+    text-decoration: none;
+}
+
+.notion-page-content a:hover {
+    text-decoration: underline;
+}
+
+/* 书签样式 */
+.notion-bookmark {
+    border: 1px solid #e1e1e1;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 1em 0;
+    background-color: #f9f9f9;
+}
+
+/* 字体颜色支持 */
+.notion-page-content span[style*="color:"] {
+    display: inline;
+}
+
+.notion-page-content span[style*="background-color:"] {
+    padding: 0 3px;
+}
+
+/* 音频播放器样式*/
+.notion-page-content audio {
+    width: 100%;
+    margin: 1em 0;
+}
+
+/* PDF 嵌入样式 */
+.notion-page-content iframe[src$=".pdf"] {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #e1e1e1;
+}
+
+/* 表格内容区块 */
+.notion-toc-placeholder {
+    background-color: #f9f9f9;
+    border: 1px solid #e1e1e1;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 1.5em 0;
+}
+
+/* 移动设备响应式样式*/
+@media (max-width: 768px) {
+    .notion-page-content iframe,
+    .notion-page-content iframe[src$=".pdf"] {
+        height: 400px;
+    }
+    
+    .notion-page-content table {
+        font-size: 0.9em;
+    }
+    
+    .notion-callout {
+        padding: 12px;
+    }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+    .notion-page-content {
+        color: #e1e1e1;
+    }
+    
+    .notion-page-content code,
+    .wp-block-code {
+        background-color: #2d2d2d;
+        color: #e1e1e1;
+        border-color: #444;
+    }
+    
+    .notion-page-content table tr:nth-child(even) {
+        background-color: #2a2a2a;
+    }
+    
+    .notion-page-content table td,
+    .notion-page-content table th {
+        border-color: #444;
+    }
+    
+    .notion-toggle,
+    .notion-toggle summary,
+    .notion-callout,
+    .file-download-box,
+    .notion-bookmark,
+    .notion-toc-placeholder {
+        background-color: #2a2a2a;
+        border-color: #444;
+    }
+    
+    blockquote {
+        border-left-color: #555;
+        color: #aaa;
+    }
+}
+
+/* Notion颜色样式支持 */
+/* 文本颜色 */
+.notion-color-gray { color: #787774 !important; }
+.notion-color-brown { color: #9f6b53 !important; }
+.notion-color-orange { color: #d9730d !important; }
+.notion-color-yellow { color: #cb912f !important; }
+.notion-color-green { color: #448361 !important; }
+.notion-color-blue { color: #337ea9 !important; }
+.notion-color-purple { color: #9065b0 !important; }
+.notion-color-pink { color: #c14c8a !important; }
+.notion-color-red { color: #d44c47 !important; }
+
+/* 背景颜色 */
+.notion-color-gray_background { background-color: #f1f1ef !important; }
+.notion-color-brown_background { background-color: #f9e9e3 !important; }
+.notion-color-orange_background { background-color: #faebdd !important; }
+.notion-color-yellow_background { background-color: #fbf3db !important; }
+.notion-color-green_background { background-color: #edf3ec !important; }
+.notion-color-blue_background { background-color: #e6f1f8 !important; }
+.notion-color-purple_background { background-color: #f4eefe !important; }
+.notion-color-pink_background { background-color: #fbe4ee !important; }
+.notion-color-red_background { background-color: #fdebec !important; }
+
+/* 图片容器优化 */
+.notion-image {
+    margin: 1.5em 0;
+    text-align: center;
+}
+
+.notion-image img {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+}
+
+.notion-image figcaption {
+    text-align: center;
+    font-size: 0.9em;
+    color: #555;
+    margin-top: 0.5em;
+}
+
+/* 公式渲染优化 */
+.notion-equation {
+    margin: 1.5em 0;
+    text-align: center;
+    overflow-x: auto;
+}
+
+.notion-equation-fallback {
+    max-width: 100%;
+    height: auto;
+    display: inline-block;
+}
+
+/* 图片错误处理 */
+.notion-image-error {
+    border: 1px dashed #ddd;
+    border-radius: 4px;
+    padding: 1em;
+    text-align: center;
+    margin: 1.5em 0;
+}
+
+.notion-image-placeholder {
+    color: #888;
+    font-style: italic;
+    padding: 2em 0;
+}
+
+/* 数学公式和图表样式 */
+.math-display {
+    display: block;
+    margin: 1em 0;
+    text-align: center;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.math-inline {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 0.2em;
+}
+
+.mermaid {
+    margin: 2em 0;
+    text-align: center;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 1em;
+    background: #f9f9f9;
+    border-radius: 5px;
+}
+
+/* 针对某些主题可能的样式冲突进行修复 */
+.katex-display {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5em 0;
+}
+
+/* 解决某些主题中的公式溢出问题 */
+.katex-display > .katex {
+    max-width: 100%;
+}
+
+.katex-display > .katex > .katex-html {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-right: 1em;
+}
