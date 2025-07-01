@@ -1,0 +1,87 @@
+/**
+ * LaTeX 数学公式样式
+ *
+ * @since      1.0.7
+ * @package    Notion_To_WordPress
+ */
+
+/* 块级公式样式 */
+.latex-block {
+    display: block;
+    margin: 1.5em 0;
+    text-align: center;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* 行内公式样式 */
+.latex-inline {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 0.2em;
+}
+
+/* MathJax相关样式调整 */
+.MathJax {
+    outline: 0;
+}
+
+.MJX-TEX {
+    outline: 0;
+    font-size: 100% !important;
+}
+
+/* 针对溢出的公式容器 */
+mjx-container {
+    display: inline-block;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    padding: 0.2em 0;
+}
+
+mjx-container[jax="CHTML"][display="true"] {
+    display: block;
+    text-align: center;
+    margin: 1em 0;
+    padding: 0.5em 0;
+}
+
+/* 化学方程式样式 */
+mjx-chem {
+    font-size: 100% !important;
+}
+
+/* 确保图表和公式正常显示 */
+.mermaid {
+    margin: 2em 0;
+    text-align: center;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 1em;
+    background: #f9f9f9;
+    border-radius: 5px;
+}
+
+/* 暗色主题适配 */
+@media (prefers-color-scheme: dark) {
+    mjx-container {
+        color: #f0f0f0;
+    }
+    
+    .mermaid {
+        background: #2d2d2d;
+        color: #f0f0f0;
+    }
+}
+
+/* 媒体查询适配移动设备 */
+@media (max-width: 768px) {
+    mjx-container[jax="CHTML"][display="true"] {
+        font-size: 95% !important;
+    }
+    
+    .mermaid {
+        font-size: 90%;
+    }
+} 
