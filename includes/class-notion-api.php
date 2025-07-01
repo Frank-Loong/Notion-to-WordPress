@@ -159,13 +159,23 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_page_content(string $block_id): array {
+        $cache_key = 'ntw_pg_content_' . md5($block_id);
+        $cached    = get_transient( $cache_key );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $blocks = $this->get_block_children($block_id);
 
         foreach ($blocks as $i => $block) {
-            if ($block['has_children']) {
+            if (($block['has_children'] ?? false)) {
                 $blocks[$i]['children'] = $this->get_page_content($block['id']);
             }
         }
+
+        // 缓存 5 分钟
+        set_transient( $cache_key, $blocks, 300 );
 
         return $blocks;
     }
@@ -180,6 +190,13 @@ class Notion_API {
      * @throws Exception 如果 API 请求失败。
      */
     private function get_block_children(string $block_id): array {
+        $cache_key = 'ntw_blk_children_' . md5($block_id);
+        $cached    = get_transient( $cache_key );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
@@ -199,6 +216,8 @@ class Notion_API {
             $has_more = $response['has_more'] ?? false;
             $start_cursor = $response['next_cursor'] ?? null;
         }
+
+        set_transient( $cache_key, $all_results, 300 );
 
         return $all_results;
     }
