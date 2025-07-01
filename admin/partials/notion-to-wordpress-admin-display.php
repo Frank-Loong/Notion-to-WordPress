@@ -698,17 +698,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
     </div>
 </div>
 
-<!-- Toast提示组件 -->
-<div id="notion-wp-toast" class="notion-wp-toast">
-    <div class="notion-wp-toast-icon">
-        <span class="dashicons"></span>
-    </div>
-    <div class="notion-wp-toast-content"></div>
-    <button class="notion-wp-toast-close">
-        <span class="dashicons dashicons-no-alt"></span>
-    </button>
-</div>
-
 <div id="loading-overlay" style="display: none;">
     <div class="loading-message">
         <span class="spinner is-active"></span>
