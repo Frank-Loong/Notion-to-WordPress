@@ -465,18 +465,20 @@ body.admin-color-dark .ncf-admin-aside {
   border-radius: var(--notion-border-radius);
   box-shadow: 0 10px 25px rgba(0,0,0,0.15);
   z-index: 9999;
-  display: flex;
+  display: none; /* 默认隐藏，避免扰乱布局 */
   align-items: center;
   gap: 10px;
-  opacity: 0.95;
+  opacity: 0; /* 默认透明 */
   transform: translateX(100%);
-  transition: transform 0.3s ease-out;
-  animation: toastSlideIn 0.3s ease-out;
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
   border-left: 4px solid var(--notion-primary);
 }
 
 .notion-wp-toast.show {
+  display: flex;
+  opacity: 0.95;
   transform: translateX(0);
+  animation: toastSlideIn 0.3s ease-out;
 }
 
 .notion-wp-toast.success {
@@ -1021,3 +1023,21 @@ code {
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;} 
 .info-item{display:flex;gap:6px;font-size:13px;color:var(--notion-gray-700);} 
 .info-label{font-weight:600;color:var(--notion-gray-800);} 
+
+/* ===== 按钮操作条 ===== */
+.notion-wp-actions-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.notion-wp-actions-bar .left-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.notion-wp-actions-bar p.submit {
+  margin: 0;
+}

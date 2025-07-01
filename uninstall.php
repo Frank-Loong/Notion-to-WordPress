@@ -90,10 +90,64 @@ if ($delete_content) {
             wp_delete_post($image_id, true);
         }
     }
+
+    // 删除由插件下载到媒体库的附件（通过 _notion_original_url 标识）
+    $attachments = new WP_Query(array(
+        'post_type'      => 'attachment',
+        'post_status'    => 'inherit',
+        'posts_per_page' => -1,
+        'meta_query'     => array(
+            array(
+                'key'     => '_notion_original_url',
+                'compare' => 'EXISTS',
+            ),
+        ),
+        'fields' => 'ids'
+    ));
+
+    if ( $attachments->have_posts() ) {
+        foreach ( $attachments->posts as $att_id ) {
+            wp_delete_attachment( $att_id, true );
+        }
+    }
+} else {
+    // 保留文章，但清理与插件相关的 post_meta，避免后续重新安装时仍被统计
+    if ( $query->have_posts() ) {
+        foreach ( $query->posts as $post_id ) {
+            delete_post_meta( $post_id, '_notion_page_id' );
+        }
+    }
 }
 
 // 最后删除插件设置
 delete_option( 'notion_to_wordpress_options' );
 
+// ---------------- 额外清理 ----------------
+// 1. 删除日志目录（/uploads/notion-to-wordpress-logs）
+$upload_dir = wp_upload_dir();
+$log_dir    = trailingslashit( $upload_dir['basedir'] ) . 'notion-to-wordpress-logs';
+
+if ( is_dir( $log_dir ) ) {
+    // 递归删除目录
+    $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $log_dir, RecursiveDirectoryIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
+    foreach ( $files as $fileinfo ) {
+        $todo = $fileinfo->isDir() ? 'rmdir' : 'unlink';
+        @$todo( $fileinfo->getRealPath() );
+    }
+    @rmdir( $log_dir );
+}
+
+// 2. 清理与插件相关的 transient 缓存（ntw_ 前缀）
+global $wpdb;
+$transients = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '_transient_ntw_%' OR option_name LIKE '_transient_timeout_ntw_%'" );
+
+foreach ( $transients as $transient_option ) {
+    // WordPress 内部会同时有 timeout 和 data 两条记录，这里直接 delete_option 即可
+    delete_option( $transient_option );
+}
+
 // 刷新重写规则
-flush_rewrite_rules(); 
+flush_rewrite_rules();
+
+// 移除最后同步时间等单独记录的选项
+delete_option( 'notion_to_wordpress_last_sync' ); 
