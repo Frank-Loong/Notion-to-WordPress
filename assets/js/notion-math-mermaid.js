@@ -163,21 +163,27 @@
         });
     }
     
-    // 检查MathJax是否已加载
+    // ===== MathJax 检测与回退 =====
+    var mjAttempts = 0;
     function checkMathJaxLoaded() {
         if (typeof MathJax === 'undefined') {
-            console.warn('MathJax未加载，等待加载...');
+            mjAttempts++;
+            if (mjAttempts > 6) { // ~3 秒
+                console.warn('MathJax 长时间未加载，切换到 KaTeX 回退渲染');
+                initKaTeXFallback();
+                return;
+            }
             setTimeout(checkMathJaxLoaded, 500);
             return;
         }
-        
+
         console.log('MathJax已加载，版本:', MathJax.version);
-        
+
         // MathJax已加载，可以处理公式
         processChemicalEquations();
         processMathScriptTags();
         processNotionEquations();
-        
+
         // 再次触发渲染，确保动态替换的内容也被处理
         if (typeof MathJax.typesetPromise === 'function') {
             MathJax.typesetPromise()
@@ -188,6 +194,42 @@
                     console.error('MathJax 渲染出错:', err);
                 });
         }
+    }
+
+    // -------- KaTeX 回退 ----------
+    function initKaTeXFallback() {
+        if (typeof katex !== 'undefined') {
+            renderWithKaTeX();
+            return;
+        }
+
+        // 动态加载 KaTeX JS & CSS
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css';
+        document.head.appendChild(link);
+
+        var script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
+        script.onload = renderWithKaTeX;
+        document.body.appendChild(script);
+    }
+
+    function renderWithKaTeX() {
+        if (typeof katex === 'undefined') {
+            console.error('KaTeX 加载失败');
+            return;
+        }
+
+        document.querySelectorAll('.latex-block, .latex-inline').forEach(function(el) {
+            var tex = el.textContent.replace(/^[\$]+|[\$]+$/g, '').trim();
+            var display = el.classList.contains('latex-block');
+            try {
+                katex.render(tex, el, {displayMode: display, throwOnError: false});
+            } catch (e) {
+                console.error('KaTeX 渲染错误:', e);
+            }
+        });
     }
     
     // 文档加载完成后初始化

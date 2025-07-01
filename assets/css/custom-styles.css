@@ -665,3 +665,23 @@ blockquote {
     overflow-y: hidden;
     padding-right: 1em;
 }
+
+/* --- Notion 列布局 --- */
+.notion-column-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin: 1.5em 0;
+}
+
+.notion-column {
+    flex: 1 1 50%;
+    min-width: 240px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+    .notion-column {
+        flex: 1 1 100%;
+    }
+}

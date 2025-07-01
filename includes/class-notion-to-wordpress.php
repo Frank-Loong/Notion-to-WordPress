@@ -310,7 +310,19 @@ class Notion_To_WordPress {
 		}
 
 		try {
-			$pages = $this->notion_api->get_database_pages( $database_id );
+			// 构造增量同步过滤器（仅拉取自上次同步后有改动的页面）
+			$filter = array();
+			if ( ! empty( $options['last_sync_time'] ) ) {
+				$iso_time = date( 'c', strtotime( $options['last_sync_time'] ) );
+				$filter   = array(
+					'timestamp'       => 'last_edited_time',
+					'last_edited_time' => array(
+						'after' => $iso_time,
+					),
+				);
+			}
+
+			$pages = $this->notion_api->get_database_pages( $database_id, $filter );
 
 			if ( empty( $pages ) ) {
 				$lock->release();
