@@ -108,6 +108,14 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_database_pages(string $database_id, array $filter = []): array {
+        // 使用 transient 缓存结果，减少短时间内的重复 API 调用
+        $cache_key = 'ntw_db_pages_' . md5($database_id . wp_json_encode($filter));
+        $cached     = get_transient($cache_key);
+
+        if ( is_array( $cached ) && ! empty( $cached ) ) {
+            return $cached;
+        }
+
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
@@ -135,6 +143,9 @@ class Notion_API {
             $has_more = $response['has_more'] ?? false;
             $start_cursor = $response['next_cursor'] ?? null;
         }
+
+        // 将结果缓存 2 分钟，避免频繁请求（可在设置中调整）
+        set_transient( $cache_key, $all_results, 120 );
 
         return $all_results;
     }

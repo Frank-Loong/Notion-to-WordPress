@@ -185,8 +185,12 @@ class Notion_Pages {
             $metadata['status'] = 'draft';
         }
 
-        // 添加调试日志
-        error_log('Notion页面状态: ' . $status_val . ' 转换为WordPress状态: ' . $metadata['status']);
+        // 添加调试日志（使用统一日志助手）
+        Notion_To_WordPress_Helper::debug_log(
+            'Notion页面状态: ' . $status_val . ' 转换为WordPress状态: ' . $metadata['status'],
+            'Notion Info',
+            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+        );
 
         $metadata['post_type']      = $this->get_property_value( $props, $field_mapping['post_type'], 'select', 'name' ) ?? 'post';
         $metadata['date']           = $this->get_property_value( $props, $field_mapping['date'], 'date', 'start' );
@@ -404,13 +408,13 @@ class Notion_Pages {
                     }
                 } catch (Exception $e) {
                     // 记录错误并添加注释
-                    error_log('Notion块转换错误: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage());
                     $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
                 }
             } else {
                 // 未知块类型，添加调试注释
                 $html .= '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
-                error_log('未支持的Notion块类型: ' . $block_type);
+                Notion_To_WordPress_Helper::debug_log('未支持的Notion块类型: ' . $block_type);
             }
         }
 
