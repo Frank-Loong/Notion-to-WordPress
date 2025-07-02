@@ -452,9 +452,10 @@ class Notion_To_WordPress {
 		// MathJax 主库（依赖配置脚本）
 		wp_register_script(
 			'mathjax',
+			// 使用 @3 主干始终获取最新 3.x 版本
 			'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
 			array('mathjax-config'),
-			'3.2.2',
+			'3',
 			true
 		);
 

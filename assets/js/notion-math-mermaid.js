@@ -211,7 +211,13 @@
 
         var script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js';
-        script.onload = renderWithKaTeX;
+        script.onload = function() {
+            // 加载化学公式扩展
+            var mhchem = document.createElement('script');
+            mhchem.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js';
+            mhchem.onload = renderWithKaTeX;
+            document.body.appendChild(mhchem);
+        };
         document.body.appendChild(script);
     }
 
