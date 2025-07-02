@@ -372,8 +372,8 @@ class Notion_To_WordPress_Admin {
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
             $lock_timeout = $options['lock_timeout'] ?? 300;
             
-            // 实例化API和Pages对象
-            $notion_api = new Notion_API( $api_key );
+            // 获取（或初始化）API 单例
+            $notion_api = Notion_API::instance( $api_key );
             $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping, $lock_timeout );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
             
