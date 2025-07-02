@@ -145,7 +145,7 @@ class Notion_To_WordPress {
 		$api_key       = $options['notion_api_key'] ?? '';
 		$database_id   = $options['notion_database_id'] ?? '';
 		$field_mapping = $options['field_mapping'] ?? array();
-		$lock_timeout  = $options['lock_timeout'] ?? 300;
+		$lock_timeout  = $options['lock_timeout'] ?? 120;
 
 		// 获取（或初始化）单例 API 处理器
 		$this->notion_api = Notion_API::instance( $api_key );
