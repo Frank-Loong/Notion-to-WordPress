@@ -147,8 +147,8 @@ class Notion_To_WordPress {
 		$field_mapping = $options['field_mapping'] ?? array();
 		$lock_timeout  = $options['lock_timeout'] ?? 300;
 
-		// 实例化API处理器
-		$this->notion_api = new Notion_API( $api_key );
+		// 获取（或初始化）单例 API 处理器
+		$this->notion_api = Notion_API::instance( $api_key );
 
 		// 实例化页面处理器
 		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping, $lock_timeout );

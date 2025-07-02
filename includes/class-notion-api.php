@@ -14,6 +14,20 @@ declare(strict_types=1);
 class Notion_API {
 
     /**
+     * 全局单例实例
+     *
+     * @var self|null
+     */
+    private static ?self $instance = null;
+
+    /**
+     * Requests Session，用于复用连接
+     *
+     * @var \WpOrg\Requests\Session|null
+     */
+    private static $requests_session = null;
+
+    /**
      * Notion API 密钥。
      *
      * @since    1.0.8
@@ -361,28 +375,23 @@ class Notion_API {
             ];
         }
 
-        // WordPress 捆绑的 Requests 库 6.2+ 使用命名空间。
-        $requests_class = null;
-        if ( class_exists( '\\WpOrg\\Requests\\Requests' ) ) {
-            $requests_class = '\\WpOrg\\Requests\\Requests';
-        } elseif ( class_exists( '\\Requests' ) ) {
-            $requests_class = '\\Requests';
-        }
+        // 优先使用共享 Session（可复用连接池）
+        $session = $this->get_requests_session();
 
-        if ( $requests_class ) {
+        if ( $session ) {
             // 按照 Notion API 速率限制（每秒最多 3 次）对请求进行分组
             $chunks = array_chunk( $reqs, 3, true );
             foreach ( $chunks as $chunk ) {
                 try {
-                    $responses = $requests_class::request_multiple( $chunk, [ 'timeout' => 30 ] );
+                    $responses = $session->request_multiple( $chunk );
                 } catch ( Exception $e ) {
-                    // 若批量请求失败则回退为单请求
+                    // 若批量请求失败则回退为逐个会话请求
                     $responses = [];
                     foreach ( $chunk as $id => $r ) {
                         try {
-                            $responses[ $id ] = $requests_class::request( $r['url'], $r['headers'], [], $r['type'], [ 'timeout' => 30 ] );
+                            $responses[ $id ] = $session->request( $r['url'], $r['headers'] ?? [], $r['data'] ?? [], $r['type'] ?? 'GET' );
                         } catch ( Exception $e2 ) {
-                            // 留空，稍后使用传统方法兜底
+                            // 留空，稍后使用顺序函数兜底
                         }
                     }
                 }
@@ -412,5 +421,40 @@ class Notion_API {
         }
 
         return $results;
+    }
+
+    /**
+     * 获取（或初始化）共享 Requests Session
+     *
+     * @return \WpOrg\Requests\Session|null
+     */
+    private function get_requests_session() {
+        if ( null !== self::$requests_session ) {
+            return self::$requests_session;
+        }
+
+        // 仅在环境已加载 Requests 时启用
+        if ( class_exists( '\\WpOrg\\Requests\\Session' ) ) {
+            $default_headers = [
+                'Authorization'  => 'Bearer ' . $this->api_key,
+                'Notion-Version' => '2022-06-28',
+            ];
+            // 初始化 Session（基址已包含，不必每次拼接）
+            self::$requests_session = new \WpOrg\Requests\Session( $this->api_base, $default_headers, [], [ 'timeout' => 30 ] );
+        }
+
+        return self::$requests_session;
+    }
+
+    public static function instance( ?string $api_key = null ): self {
+        if ( null === self::$instance || ( $api_key && $api_key !== self::$instance->api_key ) ) {
+            // 若未显式提供，则从选项读取
+            if ( ! $api_key ) {
+                $opts    = get_option( 'notion_to_wordpress_options', [] );
+                $api_key = $opts['notion_api_key'] ?? '';
+            }
+            self::$instance = new self( $api_key );
+        }
+        return self::$instance;
     }
 } 
