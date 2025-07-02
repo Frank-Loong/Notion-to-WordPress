@@ -193,18 +193,24 @@ class Notion_Pages {
             }
         }
 
-        $status_val_lc = strtolower( trim( $status_val ) );
+        // ---- 状态值清洗：去除 Emoji、控制字符、零宽空格等不可见字符 ----
+        $raw_status = preg_replace( '/[[:^print:]\p{C}]+/u', '', $status_val );
+        $raw_status_lc = strtolower( trim( $raw_status ) );
 
-        // 通过包含关键词而非完全匹配，提高兼容性（处理"Private 🔒"等带图标/空格情况）
-        if ( false !== strpos( $status_val_lc, 'private' ) || false !== mb_strpos( $status_val_lc, '私密' ) ) {
+        if ( false !== strpos( $raw_status_lc, 'private' ) || false !== mb_strpos( $raw_status, '私密' ) ) {
             $metadata['status'] = 'private';
-        } elseif ( false !== strpos( $status_val_lc, 'publish' ) || false !== mb_strpos( $status_val_lc, '已发布' ) ) {
+        } elseif ( false !== strpos( $raw_status_lc, 'publish' ) || false !== mb_strpos( $raw_status, '已发布' ) ) {
             $metadata['status'] = 'publish';
-        } elseif ( false !== strpos( $status_val_lc, 'invisible' ) || false !== mb_strpos( $status_val_lc, '隐藏' ) ) {
+        } elseif ( false !== strpos( $raw_status_lc, 'invisible' ) || false !== mb_strpos( $raw_status, '隐藏' ) ) {
             $metadata['status'] = 'draft';
         } else {
-            // 默认为草稿
             $metadata['status'] = 'draft';
+            // 写入调试日志方便追踪
+            Notion_To_WordPress_Helper::debug_log(
+                '未能识别的状态值: ' . $status_val . ' (清洗后: ' . $raw_status . ')，已回退为 draft',
+                'Notion Warn',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_WARN
+            );
         }
 
         // 添加调试日志（使用统一日志助手）

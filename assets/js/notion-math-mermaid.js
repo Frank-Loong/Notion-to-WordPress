@@ -51,36 +51,65 @@
             return;
         }
 
+        // 先初始化全局配置，保持与 NotionNext 一致
         mermaid.initialize({
             startOnLoad: false,
             theme: 'default',
-            securityLevel: 'loose'
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true },
+            er: { useMaxWidth: true },
+            sequence: { useMaxWidth: true, noteFontWeight: '14px', actorFontSize: '14px', messageFontSize: '16px' }
         });
 
-        const selector = '.mermaid, pre.mermaid, pre code.language-mermaid';
+        // 等待 DOM 稳定后再查找 mermaid 代码块
+        setTimeout(() => {
+            try {
+                // 将 <pre><code> 形式的 mermaid 图表替换为 div.mermaid
+                document.querySelectorAll('pre.mermaid, pre code.language-mermaid').forEach(element => {
+                    const content = element.tagName === 'CODE' ? element.textContent : element.innerHTML;
+                    const div = document.createElement('div');
+                    div.className = 'mermaid';
+                    div.textContent = content.trim();
+                    if (element.tagName === 'CODE') {
+                        element.parentNode.parentNode.replaceChild(div, element.parentNode);
+                    } else {
+                        element.parentNode.replaceChild(div, element);
+                    }
+                });
 
-        // 将 <pre><code> 转换为 div.mermaid
-        document.querySelectorAll('pre.mermaid, pre code.language-mermaid').forEach(element => {
-            const content = element.tagName === 'CODE' ? element.textContent : element.innerHTML;
-            const div = document.createElement('div');
-            div.className = 'mermaid';
-            div.textContent = content.trim();
-            if (element.tagName === 'CODE') {
-                element.parentNode.parentNode.replaceChild(div, element.parentNode);
-            } else {
-                element.parentNode.replaceChild(div, element);
+                const mermaidElements = document.querySelectorAll('.mermaid');
+                if (mermaidElements.length === 0) {
+                    console.log('未找到 Mermaid 图表');
+                    return;
+                }
+
+                // 使用 mermaid 10 的 run API；若不存在则回退
+                if (typeof mermaid.run === 'function') {
+                    mermaid.run({ querySelector: '.mermaid' }).then(() => {
+                        console.log('Mermaid 图表渲染成功');
+                    }).catch(err => {
+                        console.error('Mermaid run 错误:', err);
+                        fallbackMermaidRendering();
+                    });
+                } else {
+                    fallbackMermaidRendering();
+                }
+            } catch (e) {
+                console.error('Mermaid 初始化错误:', e);
+                fallbackMermaidRendering();
             }
-        });
+        }, 800); // 延时稍长，保证 mermaid 脚本完全加载
+    }
 
-        // 渲染
+    // 回退方案：兼容旧版 mermaid.init()
+    function fallbackMermaidRendering() {
         try {
-            if (typeof mermaid.run === 'function') {
-                mermaid.run({ querySelector: '.mermaid' });
-            } else if (typeof mermaid.init === 'function') {
+            console.log('尝试 mermaid.init() 回退渲染');
+            if (typeof mermaid.init === 'function') {
                 mermaid.init(undefined, document.querySelectorAll('.mermaid'));
             }
         } catch (e) {
-            console.error('Mermaid 渲染失败:', e);
+            console.error('Mermaid 回退渲染失败:', e);
         }
     }
 
