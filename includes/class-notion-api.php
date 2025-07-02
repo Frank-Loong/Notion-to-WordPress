@@ -46,6 +46,13 @@ class Notion_API {
     private string $api_base = 'https://api.notion.com/v1/';
 
     /**
+     * 进程内块缓存（仅当前请求）
+     *
+     * @var array<string,array>
+     */
+    private static array $local_block_cache = [];
+
+    /**
      * 构造函数，初始化 API 客户端。
      *
      * @since    1.0.8
@@ -228,10 +235,17 @@ class Notion_API {
      * @throws Exception 如果 API 请求失败。
      */
     private function get_block_children(string $block_id): array {
+        // 先检查请求级缓存
+        if ( isset( self::$local_block_cache[ $block_id ] ) ) {
+            return self::$local_block_cache[ $block_id ];
+        }
+
         $cache_key = 'ntw_blk_children_' . md5($block_id);
         $cached    = get_transient( $cache_key );
 
         if ( is_array( $cached ) ) {
+            // 同时写入本地缓存，后续命中
+            self::$local_block_cache[ $block_id ] = $cached;
             return $cached;
         }
 
@@ -255,7 +269,9 @@ class Notion_API {
             $start_cursor = $response['next_cursor'] ?? null;
         }
 
+        // 写缓存
         set_transient( $cache_key, $all_results, 300 );
+        self::$local_block_cache[ $block_id ] = $all_results;
 
         return $all_results;
     }
