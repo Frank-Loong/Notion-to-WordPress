@@ -114,8 +114,8 @@ class Notion_To_WordPress_Helper {
             file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
         }
         
-        // 日志文件路径
-        $log_file = $log_dir . '/error-' . date('Y-m-d') . '.log';
+        // 日志文件路径（统一使用 debug_log-YYYY-MM-DD.log）
+        $log_file = $log_dir . '/debug_log-' . date('Y-m-d') . '.log';
         
         // 写入日志
         file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
