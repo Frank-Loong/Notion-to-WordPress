@@ -365,12 +365,6 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            // 尝试获取锁，避免并发
-            $lock = new Notion_To_WordPress_Lock( $options['notion_database_id'], $options['lock_timeout'] ?? 300 );
-            if ( ! $lock->acquire() ) {
-                wp_send_json_error( [ 'message' => '已有同步任务正在进行，请稍后再试。' ] );
-            }
-
             // 即使用户离开页面，仍继续执行同步
             if ( function_exists( 'ignore_user_abort' ) ) {
                 ignore_user_abort( true );
@@ -393,9 +387,6 @@ class Notion_To_WordPress_Admin {
             }
 
             wp_send_json_success( [ 'message' => sprintf( '同步完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'] ) ] );
-
-            // 释放锁
-            $lock->release();
 
             return;
         } catch ( Exception $e ) {
