@@ -487,6 +487,11 @@ class Notion_To_WordPress_Admin {
     private function get_imported_posts_count() {
         global $wpdb;
         
+        // 若从未同步，则直接返回0，避免误计
+        if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
+            return 0;
+        }
+        
         $count = $wpdb->get_var(
             "SELECT COUNT(DISTINCT p.ID) 
              FROM {$wpdb->posts} p
@@ -508,6 +513,10 @@ class Notion_To_WordPress_Admin {
      */
     private function get_published_posts_count() {
         global $wpdb;
+        
+        if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
+            return 0;
+        }
         
         $count = $wpdb->get_var(
             "SELECT COUNT(*) FROM $wpdb->posts p 

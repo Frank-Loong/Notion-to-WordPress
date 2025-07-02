@@ -140,6 +140,7 @@ body.wp-admin {
     color: var(--notion-gray-700);
     font-size: 14px;
     font-weight: 500;
+    display: block;
 }
 
 /* 响应式：小屏表格横向滚动 */
