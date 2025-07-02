@@ -1310,9 +1310,15 @@ class Notion_Pages {
                 'total' => count($pages),
                 'imported' => 0,
                 'updated' => 0,
-                'failed' => 0
+                'failed' => 0,
+                'processed' => 0,
+                'done' => false,
+                'start_time' => time(),
             ];
             
+            // 初始化进度缓存
+            set_transient( 'ntw_sync_progress', $stats, 600 );
+
             foreach ($pages as $page) {
                 // 检查页面是否已存在
                 $existing_post_id = $this->get_post_by_notion_id($page['id']);
@@ -1328,8 +1334,20 @@ class Notion_Pages {
                 } else {
                     $stats['failed']++;
                 }
+
+                $stats['processed']++;
+
+                // 每处理5条或最后一条时更新 transient
+                if ( $stats['processed'] % 5 === 0 || $stats['processed'] === $stats['total'] ) {
+                    set_transient( 'ntw_sync_progress', $stats, 600 );
+                }
             }
-            
+
+            // 标记完成
+            $stats['done']      = true;
+            $stats['end_time']  = time();
+            set_transient( 'ntw_sync_progress', $stats, 600 );
+
             // 更新同步时间（全局与嵌入设置）
             $now = current_time( 'mysql' );
             update_option( 'notion_to_wordpress_last_sync', $now, false );

@@ -687,6 +687,12 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                     </div>
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
                 </div>
+
+                <!-- 同步进度条 -->
+                <div id="ntw-sync-progress" style="display:none;margin-top:15px;">
+                    <progress id="ntw-sync-bar" value="0" max="100" style="width:100%;height:16px;"></progress>
+                    <p id="ntw-sync-tip" style="margin:4px 0 0;font-size:13px;color:#555;"></p>
+                </div>
             </form>
         </div>
     </div>
