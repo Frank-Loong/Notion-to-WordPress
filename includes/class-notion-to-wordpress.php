@@ -234,8 +234,6 @@ class Notion_To_WordPress {
 		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
 		// 定义所有钩子后，注册队列cron处理程序
 		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
-		// 手动同步单次事件
-		add_action( 'ntw_manual_sync', [ $this, 'cron_import_pages' ] );
 	}
 
 	/**

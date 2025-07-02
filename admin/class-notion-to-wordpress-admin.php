@@ -365,16 +365,13 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            // 若已存在锁则提示正在进行中
+            // 尝试获取锁，避免并发
             $lock = new Notion_To_WordPress_Lock( $options['notion_database_id'], $options['lock_timeout'] ?? 300 );
             if ( ! $lock->acquire() ) {
                 wp_send_json_error( [ 'message' => '已有同步任务正在进行，请稍后再试。' ] );
-                return;
             }
-            // 立即释放占位锁，让实际任务重新获取，防止误判
-            $lock->release();
 
-            // 初始化进度 transient
+            // 初始化进度
             set_transient( 'ntw_sync_progress', [
                 'total' => 0,
                 'processed' => 0,
@@ -385,13 +382,48 @@ class Notion_To_WordPress_Admin {
                 'start_time' => time(),
             ], 600 );
 
-            // 调度 1 秒后的单次事件
-            if ( ! wp_next_scheduled( 'ntw_manual_sync' ) ) {
-                wp_schedule_single_event( time() + 1, 'ntw_manual_sync' );
+            // 立即向浏览器返回成功，之后继续后台执行
+            $response = [ 'success' => true, 'data' => [ 'message' => '同步已启动，您可在日志中查看进度。' ] ];
+            header( 'Content-Type: application/json; charset=utf-8' );
+            echo wp_json_encode( $response );
+
+            // 结束输出并关闭连接
+            if ( function_exists( 'fastcgi_finish_request' ) ) {
+                fastcgi_finish_request();
+            } else {
+                // Fallback
+                ignore_user_abort( true );
+                ob_flush();
+                flush();
             }
 
-            wp_send_json_success( [ 'message' => '同步已开始，您可以在进度条中查看状态。' ] );
+            // 后台继续执行同步
+            $api_key              = $options['notion_api_key'];
+            $database_id          = $options['notion_database_id'];
+            $field_mapping        = $options['field_mapping'] ?? [];
+            $custom_field_mappings = $options['custom_field_mappings'] ?? [];
+            $lock_timeout         = $options['lock_timeout'] ?? 300;
 
+            $notion_api   = Notion_API::instance( $api_key );
+            $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping, $lock_timeout );
+            $notion_pages->set_custom_field_mappings( $custom_field_mappings );
+
+            $result = $notion_pages->import_pages();
+
+            // 结束后更新最后同步时间
+            update_option( 'notion_to_wordpress_last_sync', current_time( 'mysql' ) );
+
+            // 释放锁
+            $lock->release();
+
+            // 写完成状态（若未在循环末尾写入）
+            if ( is_array( $result ) ) {
+                $result['done']     = true;
+                $result['end_time'] = time();
+                set_transient( 'ntw_sync_progress', $result, 600 );
+            }
+
+            exit; // 确保后面 WP 不再处理
         } catch ( Exception $e ) {
             wp_send_json_error( [ 'message' => '同步启动失败: ' . $e->getMessage() ] );
         }
