@@ -168,13 +168,37 @@ class Notion_API {
 
         $blocks = $this->get_block_children($block_id);
 
-        foreach ($blocks as $i => $block) {
-            if (($block['has_children'] ?? false)) {
-                $blocks[$i]['children'] = $this->get_page_content($block['id']);
+        // 收集所有需要加载子块的块ID
+        $child_ids = [];
+        foreach ( $blocks as $blk ) {
+            if ( ( $blk['has_children'] ?? false ) ) {
+                $child_ids[] = $blk['id'];
             }
         }
 
-        // 缓存 5 分钟
+        // 并发获取子块
+        $children_map = [];
+        if ( ! empty( $child_ids ) ) {
+            $children_map = $this->get_blocks_children_batch( $child_ids );
+        }
+
+        // 递归构建完整结构
+        foreach ( $blocks as $i => $blk ) {
+            if ( ( $blk['has_children'] ?? false ) ) {
+                $first_level_children = $children_map[ $blk['id'] ] ?? $this->get_block_children( $blk['id'] );
+
+                // 深度处理其子级（递归，内部仍将尝试并发）
+                foreach ( $first_level_children as $j => $child_block ) {
+                    if ( ( $child_block['has_children'] ?? false ) ) {
+                        $first_level_children[ $j ]['children'] = $this->get_page_content( $child_block['id'] );
+                    }
+                }
+
+                $blocks[ $i ]['children'] = $first_level_children;
+            }
+        }
+
+        // 缓存
         set_transient( $cache_key, $blocks, 300 );
 
         return $blocks;
@@ -299,5 +323,94 @@ class Notion_API {
     public function get_page(string $page_id): array {
         $endpoint = 'pages/' . $page_id;
         return $this->send_request($endpoint);
+    }
+
+    private function get_blocks_children_batch( array $block_ids ): array {
+        // 批量并发获取多个块的直接子块，用于加速页面内容递归处理
+        $results  = [];
+        $uncached = [];
+
+        // 先检查缓存，避免重复请求
+        foreach ( $block_ids as $bid ) {
+            $cache_key = 'ntw_blk_children_' . md5( $bid );
+            $cached    = get_transient( $cache_key );
+            if ( is_array( $cached ) ) {
+                $results[ $bid ] = $cached;
+            } else {
+                $uncached[] = $bid;
+            }
+        }
+
+        if ( empty( $uncached ) ) {
+            return $results; // 全部命中缓存
+        }
+
+        // 构建 Requests::request_multiple 需要的请求数组
+        $reqs = [];
+        foreach ( $uncached as $bid ) {
+            $endpoint         = 'blocks/' . $bid . '/children?page_size=100';
+            $reqs[ $bid ] = [
+                'url'     => $this->api_base . $endpoint,
+                'type'    => 'GET',
+                'headers' => [
+                    'Authorization'  => 'Bearer ' . $this->api_key,
+                    'Notion-Version' => '2022-06-28',
+                ],
+                'cookies' => [],
+                'data'    => []
+            ];
+        }
+
+        // WordPress 捆绑的 Requests 库 6.2+ 使用命名空间。
+        $requests_class = null;
+        if ( class_exists( '\\WpOrg\\Requests\\Requests' ) ) {
+            $requests_class = '\\WpOrg\\Requests\\Requests';
+        } elseif ( class_exists( '\\Requests' ) ) {
+            $requests_class = '\\Requests';
+        }
+
+        if ( $requests_class ) {
+            // 按照 Notion API 速率限制（每秒最多 3 次）对请求进行分组
+            $chunks = array_chunk( $reqs, 3, true );
+            foreach ( $chunks as $chunk ) {
+                try {
+                    $responses = $requests_class::request_multiple( $chunk, [ 'timeout' => 30 ] );
+                } catch ( Exception $e ) {
+                    // 若批量请求失败则回退为单请求
+                    $responses = [];
+                    foreach ( $chunk as $id => $r ) {
+                        try {
+                            $responses[ $id ] = $requests_class::request( $r['url'], $r['headers'], [], $r['type'], [ 'timeout' => 30 ] );
+                        } catch ( Exception $e2 ) {
+                            // 留空，稍后使用传统方法兜底
+                        }
+                    }
+                }
+
+                foreach ( $chunk as $bid => $_ ) {
+                    $res = $responses[ $bid ] ?? null;
+                    if ( $res && isset( $res->status_code ) && $res->status_code >= 200 && $res->status_code < 300 ) {
+                        $data          = json_decode( $res->body, true );
+                        $children      = $data['results'] ?? [];
+                        $results[ $bid ] = $children;
+                        // 缓存
+                        set_transient( 'ntw_blk_children_' . md5( $bid ), $children, 300 );
+                    } else {
+                        // 回退：使用顺序方式强制拉取，保证完整性
+                        $results[ $bid ] = $this->get_block_children( $bid );
+                    }
+                }
+
+                // 避免超过速率限制，适当暂停
+                usleep( 400000 ); // 0.4 秒
+            }
+        } else {
+            // 若环境缺少 Requests 库，则顺序拉取
+            foreach ( $uncached as $bid ) {
+                $results[ $bid ] = $this->get_block_children( $bid );
+            }
+        }
+
+        return $results;
     }
 } 
