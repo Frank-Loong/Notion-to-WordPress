@@ -154,15 +154,14 @@ class Notion_Pages {
         // 获取保存的选项，包括字段映射
         $options       = get_option( 'notion_to_wordpress_options', [] );
         $field_mapping = $options['field_mapping'] ?? [
-            'title'          => 'Title,标题',
-            'status'         => 'Status,状态',
-            'post_type'      => 'Type,类型',
-            'date'           => 'Date,日期',
-            'excerpt'        => 'Excerpt,摘要',
-            'featured_image' => 'Featured Image,特色图片',
-            'categories'     => 'Categories,分类',
-            'tags'           => 'Tags,标签',
-            'visibility'     => 'Visibility,可见性',
+            'title'          => 'title,标题',
+            'status'         => 'status,状态',
+            'post_type'      => 'type,类型',
+            'date'           => 'date,日期',
+            'excerpt'        => 'summary,摘要',
+            'featured_image' => 'featured image,特色图片',
+            'categories'     => 'category,分类',
+            'tags'           => 'tags,标签',
         ];
 
         // 将逗号分隔的字符串转换为数组
@@ -177,12 +176,31 @@ class Notion_Pages {
         if ( ! $status_val ) {
             $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
         }
-        if ( $status_val ) {
-            // 扩展状态值检测范围，增加更多可能的"已发布"状态值
-            $published_values = ['published', '已发布', 'publish', 'public', '公开', 'live', '上线'];
-            $metadata['status'] = in_array( strtolower( trim($status_val) ), $published_values ) ? 'publish' : 'draft';
-        } else {
-            $metadata['status'] = 'draft';
+
+        $status_val_lc = strtolower( trim( $status_val ) );
+        switch ( $status_val_lc ) {
+            case 'published':
+            case 'publish':
+            case '已发布':
+                $metadata['status'] = 'publish';
+                break;
+
+            case 'private':
+            case '私密':
+                $metadata['status'] = 'private';
+                break;
+
+            case 'invisible':
+            case '隐藏':
+                // 视为草稿，不对外显示
+                $metadata['status'] = 'draft';
+                break;
+
+            case 'draft':
+            case '草稿':
+            default:
+                $metadata['status'] = 'draft';
+                break;
         }
 
         // 添加调试日志（使用统一日志助手）
@@ -197,8 +215,8 @@ class Notion_Pages {
         $metadata['excerpt']        = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
         $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
         
-        // 提取可见性设置
-        $metadata['visibility']     = $this->get_property_value( $props, $field_mapping['visibility'], 'select', 'name' );
+        // 若用户在 Notion 创建了 Password 文本属性，则读取其值，供加密文章使用
+        $metadata['password']       = $this->get_property_value( $props, [ 'password', '密码', 'encryptpassword' ], 'rich_text', 'plain_text' );
 
         // 处理分类和标签
         $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
@@ -320,9 +338,16 @@ class Notion_Pages {
      * @return mixed
      */
     private function get_property_value(array $props, array $names, string $type, string $key = null, $default = null) {
-        foreach ($names as $name) {
-            if (isset($props[$name][$type])) {
-                $prop = $props[$name][$type];
+        // 构建小写索引映射以实现大小写无关
+        $props_ci = [];
+        foreach ( $props as $k => $v ) {
+            $props_ci[ strtolower( $k ) ] = $v;
+        }
+
+        foreach ( $names as $name ) {
+            $lookup = strtolower( $name );
+            if ( isset( $props_ci[ $lookup ][ $type ] ) ) {
+                $prop = $props_ci[ $lookup ][ $type ];
                 if ('url' === $key && 'files' === $type) { // 特殊处理文件URL
                     return $prop[0]['file']['url'] ?? $prop[0]['external']['url'] ?? $default;
                 }
@@ -921,29 +946,11 @@ class Notion_Pages {
             ],
         ];
 
-        // 处理可见性设置
-        if (isset($metadata['visibility'])) {
-            $visibility = strtolower($metadata['visibility']);
-            
-            // 设置文章可见性
-            switch ($visibility) {
-                case 'private':
-                case '私密':
-                    $post_data['post_status'] = 'private';
-                    break;
-                    
-                case 'password':
-                case 'password protected':
-                case '密码保护':
-                    $post_data['post_password'] = wp_generate_password(12, false); // 生成随机密码
-                    break;
-                    
-                case 'public':
-                case '公开':
-                default:
-                    // 默认为公开，不需要特殊处理
-                    break;
-            }
+        // 若提供密码字段，则直接设为密码保护
+        if ( ! empty( $metadata['password'] ) ) {
+            $post_data['post_password'] = $metadata['password'];
+            // 确保已发布状态
+            $post_data['post_status'] = 'publish';
         }
 
         if (isset($metadata['date'])) {
@@ -1220,6 +1227,15 @@ class Notion_Pages {
                 }
             }
             
+            // 更新同步时间（全局与嵌入设置）
+            $now = current_time( 'mysql' );
+            update_option( 'notion_to_wordpress_last_sync', $now, false );
+
+            // 同时写入主设置数组，供增量同步使用
+            $opts = get_option( 'notion_to_wordpress_options', [] );
+            $opts['last_sync_time'] = $now;
+            update_option( 'notion_to_wordpress_options', $opts, false );
+
             $lock->release();
             return $stats;
             
