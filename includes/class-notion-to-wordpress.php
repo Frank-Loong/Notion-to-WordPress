@@ -439,26 +439,27 @@ class Notion_To_WordPress {
 			$this->version
 		);
 
-		// MathJax 配置（必须在库之前加载，放在 <head> 以便立即生效）
-		wp_register_script(
-			'mathjax-config',
-			Notion_To_WordPress_Helper::plugin_url('assets/js/mathjax-config.js'),
-			array(),
-			$this->version,
-			false // 不放到 footer，确保先于库
-		);
+		// 如定义 NTW_DISABLE_MATH 则跳过公式相关脚本
+		if ( ! defined( 'NTW_DISABLE_MATH' ) || ! NTW_DISABLE_MATH ) {
+			wp_register_script(
+				'mathjax-config',
+				Notion_To_WordPress_Helper::plugin_url('assets/js/mathjax-config.js'),
+				array(),
+				$this->version,
+				false // 不放到 footer，确保先于库
+			);
 
-		// MathJax 主库（依赖配置脚本）
-		wp_register_script(
-			'mathjax',
-			// 使用 @3 主干始终获取最新 3.x 版本
-			'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
-			array('mathjax-config'),
-			'3',
-			true
-		);
+			// MathJax 主库（依赖配置脚本）
+			wp_register_script(
+				'mathjax',
+				'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
+				array('mathjax-config'),
+				'3',
+				true
+			);
 
-		wp_enqueue_script('mathjax');
+			wp_enqueue_script('mathjax');
+		}
 
 		// Mermaid 图表渲染库
 		wp_enqueue_script(
@@ -469,11 +470,15 @@ class Notion_To_WordPress {
 			true
 		);
 
-		// 处理公式与Mermaid渲染的脚本
+		// 处理公式与Mermaid渲染的脚本（可禁用公式，仅保留Mermaid）
+		$deps = array( 'jquery', 'mermaid' );
+		if ( ! defined( 'NTW_DISABLE_MATH' ) || ! NTW_DISABLE_MATH ) {
+			$deps[] = 'mathjax';
+		}
 		wp_enqueue_script(
 			$this->plugin_name . '-math-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/notion-math-mermaid.js'),
-			array('jquery', 'mermaid', 'mathjax'),
+			$deps,
 			$this->version,
 			true
 		);

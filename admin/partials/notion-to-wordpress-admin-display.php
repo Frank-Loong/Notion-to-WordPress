@@ -240,14 +240,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="mapping_status"><?php esc_html_e('状态', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[status]" type="text" id="mapping_status" value="<?php echo esc_attr($field_mapping['status']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('值为 "Published" 或 "已发布" 的页面会被设为 "已发布" 状态，其他则为 "草稿"。', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('用于确定发布的文章/页面的Notion属性名称。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="mapping_post_type"><?php esc_html_e('文章类型', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[post_type]" type="text" id="mapping_post_type" value="<?php echo esc_attr($field_mapping['post_type']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('用于确定WordPress文章类型的Notion属性名称', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('用于确定发布为文章/页面类型的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
