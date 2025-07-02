@@ -436,9 +436,13 @@ class Notion_Pages {
                     // 尝试转换块
                     $block_html = $this->{$converter_method}($block, $notion_api);
 
-                    // 为所有块添加锚点 span，供内部/跨文章跳转
-                    $anchor_id = str_replace( '-', '', $block['id'] );
-                    $html .= '<span id="' . esc_attr( $anchor_id ) . '"></span>' . $block_html;
+                    // 为可定位块添加锚点；列容器不需要，避免干扰布局
+                    if ( ! in_array( $block_type, [ 'column', 'column_list' ], true ) ) {
+                        $anchor_id = str_replace( '-', '', $block['id'] );
+                        $html .= '<span id="' . esc_attr( $anchor_id ) . '"></span>' . $block_html;
+                    } else {
+                        $html .= $block_html;
+                    }
                     
                     // 检查是否有子块
                     if (isset($block['has_children']) && $block['has_children'] && !$is_list_item) {
@@ -486,7 +490,12 @@ class Notion_Pages {
 
     private function _convert_block_paragraph(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['paragraph']['rich_text']);
-        $html = empty($text) ? '<p>&nbsp;</p>' : '<p>' . $text . '</p>';
+        // 若段落无文本且无子块，跳过以避免产生空元素影响布局
+        if ( empty( trim( $text ) ) && ! ( $block['has_children'] ?? false ) ) {
+            return '';
+        }
+
+        $html = '<p>' . ( $text ?: '&nbsp;' ) . '</p>';
         $html .= $this->_convert_child_blocks($block, $notion_api);
         return $html;
     }
