@@ -170,7 +170,7 @@ class Notion_To_WordPress_Admin {
             'manage_options',
             $this->plugin_name,
             array($this, 'display_plugin_setup_page'),
-            'dashicons-cloud-upload', // 更改了图标
+            'dashicons-database-import', // 数据库加箭头
             99
         );
     }
@@ -291,7 +291,16 @@ class Notion_To_WordPress_Admin {
         // 更新 cron
         $this->update_cron_schedule( $options );
 
-        wp_redirect( admin_url( 'admin.php?page=' . $this->plugin_name . '&status=updated' ) );
+        // 添加设置成功提示
+        add_settings_error(
+            'notion_wp_messages',
+            'notion_wp_settings_saved',
+            __( '设置已成功保存！', 'notion-to-wordpress' ),
+            'updated'
+        );
+
+        // 重定向并显示提示
+        wp_redirect( admin_url( 'admin.php?page=' . $this->plugin_name . '&settings-updated=true' ) );
         exit;
     }
 
