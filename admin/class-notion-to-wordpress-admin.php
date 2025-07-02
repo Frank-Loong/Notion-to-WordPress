@@ -371,33 +371,11 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error( [ 'message' => '已有同步任务正在进行，请稍后再试。' ] );
             }
 
-            // 初始化进度
-            set_transient( 'ntw_sync_progress', [
-                'total' => 0,
-                'processed' => 0,
-                'imported' => 0,
-                'updated' => 0,
-                'failed' => 0,
-                'done' => false,
-                'start_time' => time(),
-            ], 600 );
-
-            // 立即向浏览器返回成功，之后继续后台执行
-            $response = [ 'success' => true, 'data' => [ 'message' => '同步已启动，您可在日志中查看进度。' ] ];
-            header( 'Content-Type: application/json; charset=utf-8' );
-            echo wp_json_encode( $response );
-
-            // 结束输出并关闭连接
-            if ( function_exists( 'fastcgi_finish_request' ) ) {
-                fastcgi_finish_request();
-            } else {
-                // Fallback
+            // 即使用户离开页面，仍继续执行同步
+            if ( function_exists( 'ignore_user_abort' ) ) {
                 ignore_user_abort( true );
-                ob_flush();
-                flush();
             }
 
-            // 后台继续执行同步
             $api_key              = $options['notion_api_key'];
             $database_id          = $options['notion_database_id'];
             $field_mapping        = $options['field_mapping'] ?? [];
@@ -410,74 +388,18 @@ class Notion_To_WordPress_Admin {
 
             $result = $notion_pages->import_pages();
 
-            // 结束后更新最后同步时间
-            update_option( 'notion_to_wordpress_last_sync', current_time( 'mysql' ) );
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+            }
+
+            wp_send_json_success( [ 'message' => sprintf( '同步完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'] ) ] );
 
             // 释放锁
             $lock->release();
 
-            // 写完成状态（若未在循环末尾写入）
-            if ( is_wp_error( $result ) ) {
-                set_transient( 'ntw_sync_progress', [
-                    'total' => 0,
-                    'processed' => 0,
-                    'imported' => 0,
-                    'updated' => 0,
-                    'failed' => 0,
-                    'done' => true,
-                    'error' => $result->get_error_message(),
-                    'end_time' => time(),
-                ], 600 );
-            }
-
-            exit; // 确保后面 WP 不再处理
+            return;
         } catch ( Exception $e ) {
             wp_send_json_error( [ 'message' => '同步启动失败: ' . $e->getMessage() ] );
-        }
-    }
-
-    /**
-     * 查询同步进度
-     */
-    public function handle_get_sync_progress() {
-        check_ajax_referer( 'notion_to_wordpress_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => '权限不足' ] );
-            return;
-        }
-
-        $data = get_transient( 'ntw_sync_progress' );
-
-        if ( ! is_array( $data ) ) {
-            $data = [ 'done' => true ];
-        }
-
-        wp_send_json_success( $data );
-    }
-
-    /**
-     * 处理刷新全部内容请求
-     *
-     * @since    1.0.5
-     */
-    public function handle_refresh_all() {
-        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => '权限不足']);
-            return;
-        }
-
-        try {
-            // 清除缓存并重新导入
-            delete_option('notion_to_wordpress_page_cache');
-            
-            // 调用手动导入处理函数
-            $this->handle_manual_import();
-            
-        } catch (Exception $e) {
-            wp_send_json_error(['message' => '刷新失败: ' . $e->getMessage()]);
         }
     }
 
@@ -651,7 +573,6 @@ class Notion_To_WordPress_Admin {
         $this->loader->add_action('wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats');
         $this->loader->add_action('wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs');
         $this->loader->add_action('wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log');
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress');
         
         // 注册定时任务钩子
         $options = get_option( 'notion_to_wordpress_options', [] );
