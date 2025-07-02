@@ -125,7 +125,10 @@ class Notion_To_WordPress_Webhook {
 
         // 处理不同类型的事件
         if (preg_match('/^(page|block)\./', $event_type)) {
-            // 直接触发一次数据库同步（轻量化实现）
+            // 清理与插件相关的 transient 缓存，避免使用过期的块内容
+            global $wpdb;
+            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_ntw_%' OR option_name LIKE '_transient_timeout_ntw_%'" );
+
             try {
                 $this->notion_pages->import_pages();
                 return new WP_REST_Response(['status' => 'success', 'message' => '已触发同步'], 200);

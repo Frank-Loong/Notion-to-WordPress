@@ -112,6 +112,7 @@ class Notion_To_WordPress {
 	 * - Notion_Pages. 处理页面处理。
 	 * - Notion_To_WordPress_Lock. 在同步期间处理文件锁定。
 	 * - Notion_To_WordPress_Webhook. 处理 Webhook 请求。
+	 * - Notion_To_WordPress_Download_Queue. 处理下载队列。
 	 *
 	 * @since    1.0.5
 	 * @access   private
@@ -124,6 +125,7 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-lock.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-download-queue.php' );
 
 		$this->loader = new Notion_To_WordPress_Loader();
 	}
@@ -226,6 +228,8 @@ class Notion_To_WordPress {
 	public function run() {
 		$this->loader->run();
 		$this->define_webhook_hooks();
+		// 注册下载队列处理钩子
+		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
 	}
 
 	/**
@@ -356,15 +360,14 @@ class Notion_To_WordPress {
 			'sync_schedule'       => 'manual',
 			'delete_on_uninstall' => 0,
 			'field_mapping'       => array(
-				'title'          => 'Title,标题',
-				'status'         => 'Status,状态',
-				'post_type'      => 'Type,类型',
-				'date'           => 'Date,日期',
-				'excerpt'        => 'Excerpt,摘要',
-				'featured_image' => 'Featured Image,特色图片',
-				'categories'     => 'Categories,分类',
-				'tags'           => 'Tags,标签',
-				'visibility'     => 'Visibility,可见性',
+				'title'          => 'title,标题',
+				'status'         => 'status,状态',
+				'post_type'      => 'type,类型',
+				'date'           => 'date,日期',
+				'excerpt'        => 'summary,摘要',
+				'featured_image' => 'featured image,特色图片',
+				'categories'     => 'category,分类',
+				'tags'           => 'tags,标签',
 			),
 			'custom_field_mappings' => array(),
 			'debug_level'         => Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR,
@@ -381,6 +384,11 @@ class Notion_To_WordPress {
 			if ( ! wp_next_scheduled( 'notion_cron_import' ) ) {
 				wp_schedule_event( time(), $options['sync_schedule'], 'notion_cron_import' );
 			}
+		}
+
+		// 队列下载任务：每5分钟
+		if ( ! wp_next_scheduled( 'ntw_process_media_queue' ) ) {
+			wp_schedule_event( time() + 300, 'ntw_five_minutes', 'ntw_process_media_queue' );
 		}
 
 		// 刷新重写规则
@@ -405,6 +413,7 @@ class Notion_To_WordPress {
 
 		// 同时清除此钩子的任何其他计划
 		wp_clear_scheduled_hook( 'notion_cron_import' );
+		wp_clear_scheduled_hook( 'ntw_process_media_queue' );
 
 		// 刷新重写规则
 		flush_rewrite_rules();
@@ -442,9 +451,10 @@ class Notion_To_WordPress {
 		// MathJax 主库（依赖配置脚本）
 		wp_register_script(
 			'mathjax',
+			// 使用 @3 主干始终获取最新 3.x 版本
 			'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
 			array('mathjax-config'),
-			'3.2.2',
+			'3',
 			true
 		);
 
@@ -498,6 +508,14 @@ class Notion_To_WordPress {
 			$schedules['monthly'] = array(
 				'interval' => 30 * DAY_IN_SECONDS,
 				'display'  => __( '每月一次', 'notion-to-wordpress' ),
+			);
+		}
+
+		// 每5分钟一次
+		if ( ! isset( $schedules['ntw_five_minutes'] ) ) {
+			$schedules['ntw_five_minutes'] = array(
+				'interval' => 5 * MINUTE_IN_SECONDS,
+				'display'  => __( '每5分钟', 'notion-to-wordpress' ),
 			);
 		}
 

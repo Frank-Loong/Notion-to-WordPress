@@ -154,15 +154,14 @@ class Notion_Pages {
         // 获取保存的选项，包括字段映射
         $options       = get_option( 'notion_to_wordpress_options', [] );
         $field_mapping = $options['field_mapping'] ?? [
-            'title'          => 'Title,标题',
-            'status'         => 'Status,状态',
-            'post_type'      => 'Type,类型',
-            'date'           => 'Date,日期',
-            'excerpt'        => 'Excerpt,摘要',
-            'featured_image' => 'Featured Image,特色图片',
-            'categories'     => 'Categories,分类',
-            'tags'           => 'Tags,标签',
-            'visibility'     => 'Visibility,可见性',
+            'title'          => 'title,标题',
+            'status'         => 'status,状态',
+            'post_type'      => 'type,类型',
+            'date'           => 'date,日期',
+            'excerpt'        => 'summary,摘要',
+            'featured_image' => 'featured image,特色图片',
+            'categories'     => 'category,分类',
+            'tags'           => 'tags,标签',
         ];
 
         // 将逗号分隔的字符串转换为数组
@@ -177,12 +176,31 @@ class Notion_Pages {
         if ( ! $status_val ) {
             $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
         }
-        if ( $status_val ) {
-            // 扩展状态值检测范围，增加更多可能的"已发布"状态值
-            $published_values = ['published', '已发布', 'publish', 'public', '公开', 'live', '上线'];
-            $metadata['status'] = in_array( strtolower( trim($status_val) ), $published_values ) ? 'publish' : 'draft';
-        } else {
-            $metadata['status'] = 'draft';
+
+        $status_val_lc = strtolower( trim( $status_val ) );
+        switch ( $status_val_lc ) {
+            case 'published':
+            case 'publish':
+            case '已发布':
+                $metadata['status'] = 'publish';
+                break;
+
+            case 'private':
+            case '私密':
+                $metadata['status'] = 'private';
+                break;
+
+            case 'invisible':
+            case '隐藏':
+                // 视为草稿，不对外显示
+                $metadata['status'] = 'draft';
+                break;
+
+            case 'draft':
+            case '草稿':
+            default:
+                $metadata['status'] = 'draft';
+                break;
         }
 
         // 添加调试日志（使用统一日志助手）
@@ -197,8 +215,8 @@ class Notion_Pages {
         $metadata['excerpt']        = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
         $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
         
-        // 提取可见性设置
-        $metadata['visibility']     = $this->get_property_value( $props, $field_mapping['visibility'], 'select', 'name' );
+        // 若用户在 Notion 创建了 Password 文本属性，则读取其值，供加密文章使用
+        $metadata['password']       = $this->get_property_value( $props, [ 'password', '密码', 'encryptpassword' ], 'rich_text', 'plain_text' );
 
         // 处理分类和标签
         $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
@@ -320,9 +338,16 @@ class Notion_Pages {
      * @return mixed
      */
     private function get_property_value(array $props, array $names, string $type, string $key = null, $default = null) {
-        foreach ($names as $name) {
-            if (isset($props[$name][$type])) {
-                $prop = $props[$name][$type];
+        // 构建小写索引映射以实现大小写无关
+        $props_ci = [];
+        foreach ( $props as $k => $v ) {
+            $props_ci[ strtolower( $k ) ] = $v;
+        }
+
+        foreach ( $names as $name ) {
+            $lookup = strtolower( $name );
+            if ( isset( $props_ci[ $lookup ][ $type ] ) ) {
+                $prop = $props_ci[ $lookup ][ $type ];
                 if ('url' === $key && 'files' === $type) { // 特殊处理文件URL
                     return $prop[0]['file']['url'] ?? $prop[0]['external']['url'] ?? $default;
                 }
@@ -730,8 +755,14 @@ class Notion_Pages {
             }
         }
         
+        // PDF 文件预览
+        if ( preg_match( '/\.pdf(\?|$)/i', $url ) ) {
+            // 尝试浏览器原生 <embed>，如不支持也可点链接下载
+            return '<div class="notion-embed notion-embed-pdf"><embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+        }
+
         // 通用网页嵌入
-        return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0"></iframe></div>';
+        return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="no-referrer"></iframe></div>';
     }
 
     private function _convert_block_video(array $block, Notion_API $notion_api): string {
@@ -806,7 +837,7 @@ class Notion_Pages {
             // 处理 inline equation
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr    = $text['equation']['expression'] ?? '';
-                $content = '<span class="notion-inline-equation">$' . $expr . '$</span>';
+                $content = '<span class="notion-inline-equation latex-inline">$' . $expr . '$</span>';
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
@@ -915,43 +946,37 @@ class Notion_Pages {
             ],
         ];
 
-        // 处理可见性设置
-        if (isset($metadata['visibility'])) {
-            $visibility = strtolower($metadata['visibility']);
-            
-            // 设置文章可见性
-            switch ($visibility) {
-                case 'private':
-                case '私密':
-                    $post_data['post_status'] = 'private';
-                    break;
-                    
-                case 'password':
-                case 'password protected':
-                case '密码保护':
-                    $post_data['post_password'] = wp_generate_password(12, false); // 生成随机密码
-                    break;
-                    
-                case 'public':
-                case '公开':
-                default:
-                    // 默认为公开，不需要特殊处理
-                    break;
-            }
+        // 若提供密码字段，则直接设为密码保护
+        if ( ! empty( $metadata['password'] ) ) {
+            $post_data['post_password'] = $metadata['password'];
+            // 确保已发布状态
+            $post_data['post_status'] = 'publish';
         }
 
         if (isset($metadata['date'])) {
             $post_data['post_date'] = $metadata['date'];
         }
 
-        $post_id = 0;
-        if ($existing_post_id) {
-            $post_data['ID'] = $existing_post_id;
-            $post_id = wp_update_post($post_data, true);
-        } else {
-            $post_id = wp_insert_post($post_data, true);
+        // ---- 权限兼容：在 WP-Cron 环境下 current_user 为 0，直接插入 "private" 或 "publish" 会被降级为 draft ----
+        $switched_user = false;
+        if ( 0 === get_current_user_id() && in_array( $post_data['post_status'], [ 'publish', 'private' ], true ) ) {
+            wp_set_current_user( $author_id );
+            $switched_user = true;
         }
 
+        $post_id = 0;
+        if ( $existing_post_id ) {
+            $post_data['ID'] = $existing_post_id;
+            $post_id = wp_update_post( $post_data, true );
+        } else {
+            $post_id = wp_insert_post( $post_data, true );
+        }
+
+        // 还原用户上下文
+        if ( $switched_user ) {
+            wp_set_current_user( 0 );
+        }
+         
         // 如果创建/更新成功，处理自定义字段
         if (!is_wp_error($post_id) && $post_id > 0 && !empty($metadata['custom_fields'])) {
             $this->apply_custom_fields($post_id, $metadata['custom_fields']);
@@ -986,8 +1011,8 @@ class Notion_Pages {
      * 处理特色图片
      */
     private function apply_featured_image(int $post_id, array $metadata): void {
-        if (!empty($metadata['featured_image'])) {
-            $this->set_featured_image($post_id, $metadata['featured_image']);
+        if ( ! empty( $metadata['featured_image'] ) ) {
+            $this->set_featured_image( $post_id, $metadata['featured_image'] );
         }
     }
 
@@ -1000,17 +1025,63 @@ class Notion_Pages {
      * @return   boolean               是否成功
      */
     private function set_featured_image($post_id, $image_url) {
-        if (empty($image_url)) {
+        if ( empty( $image_url ) ) {
             return;
         }
 
-        $attachment_id = $this->download_and_insert_image($image_url, get_the_title($post_id));
-
-        if ( ! is_wp_error($attachment_id) ) {
-            set_post_thumbnail($post_id, $attachment_id);
-        } else {
-            Notion_To_WordPress_Helper::debug_log('Featured image download failed: ' . $attachment_id->get_error_message());
+        // 如果不是 Notion 临时链接，则先尝试直接作为外链。部分主题可通过自定义字段读取。
+        if ( ! $this->is_notion_temp_url( $image_url ) ) {
+            update_post_meta( $post_id, '_ntw_external_thumbnail', esc_url_raw( $image_url ) );
         }
+
+        // ---- 尝试立即下载并设置特色图 ----
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+
+        $tmp = download_url( $image_url );
+        if ( is_wp_error( $tmp ) ) {
+            // 下载失败，放入队列
+            Notion_Download_Queue::push([
+                'type'        => 'image',
+                'url'         => $image_url,
+                'post_id'     => (int) $post_id,
+                'is_featured' => true,
+                'caption'     => get_the_title( $post_id ),
+            ]);
+            return;
+        }
+
+        $file_name = basename( parse_url( $image_url, PHP_URL_PATH ) );
+        if ( ! $file_name ) {
+            $file_name = 'notion-featured-' . time();
+        }
+
+        $file = [
+            'name'     => $file_name,
+            'tmp_name' => $tmp,
+        ];
+
+        $attachment_id = media_handle_sideload( $file, $post_id, get_the_title( $post_id ) );
+
+        if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
+            @unlink( $tmp );
+            // 设置失败，退回队列
+            Notion_Download_Queue::push([
+                'type'        => 'image',
+                'url'         => $image_url,
+                'post_id'     => (int) $post_id,
+                'is_featured' => true,
+                'caption'     => get_the_title( $post_id ),
+            ]);
+            return;
+        }
+
+        set_post_thumbnail( $post_id, $attachment_id );
+
+        // 存储源 URL，避免重复
+        update_post_meta( $attachment_id, '_notion_original_url', esc_url_raw( $image_url ) );
+        update_post_meta( $attachment_id, '_notion_base_url', esc_url_raw( strtok( $image_url, '?' ) ) );
     }
 
     /**
@@ -1022,57 +1093,33 @@ class Notion_Pages {
      * @return   int                  WordPress附件ID
      */
     private function download_and_insert_image( string $url, string $caption = '' ) {
+        // --- 优先尝试立即下载 ---
+
         // 去掉查询参数用于去重
         $base_url = strtok( $url, '?' );
 
         // 若已存在同源附件，直接返回ID
         $existing = $this->get_attachment_by_url( $base_url );
         if ( $existing ) {
-            Notion_To_WordPress_Helper::debug_log( "Image already exists in media library (Attachment ID: {$existing}).", 'Notion Info' );
             return $existing;
         }
 
-        // 读取插件设置
-        $options            = get_option( 'notion_to_wordpress_options', [] );
-        $allowed_mime_string = $options['allowed_image_types'] ?? 'image/jpeg,image/png,image/gif,image/webp';
-        $max_size_mb         = isset( $options['max_image_size'] ) ? (int) $options['max_image_size'] : 5;
-        $max_size_bytes      = $max_size_mb * 1024 * 1024;
-
-        // HEAD 请求仅用于获取大小和 MIME，可容错
-        $head = wp_remote_head( $url, [ 'timeout' => 10 ] );
-        if ( ! is_wp_error( $head ) ) {
-            $mime_type = wp_remote_retrieve_header( $head, 'content-type' );
-            $file_size = intval( wp_remote_retrieve_header( $head, 'content-length' ) );
-
-            // 检查类型（若未设置为 *）
-            if ( trim( $allowed_mime_string ) !== '*' ) {
-                $allowed_mime = array_filter( array_map( 'trim', explode( ',', $allowed_mime_string ) ) );
-                if ( ! in_array( $mime_type, $allowed_mime, true ) ) {
-                    Notion_To_WordPress_Helper::error_log( '不允许的图片类型：' . $mime_type, 'Notion Image' );
-                    // 继续，但记录日志
-                }
-            }
-
-            // 检查大小
-            if ( $file_size > 0 && $file_size > $max_size_bytes ) {
-                Notion_To_WordPress_Helper::error_log( sprintf( '图片文件过大（%sMB），超过限制（%sMB）', round( $file_size / ( 1024 * 1024 ), 2 ), $max_size_mb ), 'Notion Image' );
-                // 继续，但记录日志
-            }
-        } else {
-            Notion_To_WordPress_Helper::debug_log( 'HEAD 获取失败：' . $head->get_error_message() . '，尝试直接下载。', 'Notion Image' );
-        }
-
-        Notion_To_WordPress_Helper::debug_log( 'Downloading image: ' . $url, 'Notion Image' );
-
-        // 引入核心文件
+        // 引入必要的核心文件
         require_once ABSPATH . 'wp-admin/includes/media.php';
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/image.php';
 
-        // 下载到临时文件
         $tmp = download_url( $url );
         if ( is_wp_error( $tmp ) ) {
-            return $tmp; // 由调用方处理
+            // 下载失败：推送队列并返回0
+            Notion_Download_Queue::push([
+                'type'        => 'image',
+                'url'         => $url,
+                'post_id'     => 0,
+                'is_featured' => false,
+                'caption'     => $caption,
+            ]);
+            return 0;
         }
 
         $file_name = basename( parse_url( $url, PHP_URL_PATH ) );
@@ -1085,17 +1132,25 @@ class Notion_Pages {
             'tmp_name' => $tmp,
         ];
 
-        // 保存到媒体库
         $attachment_id = media_handle_sideload( $file, 0, $caption );
-        if ( is_wp_error( $attachment_id ) ) {
-            return $attachment_id;
+
+        if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
+            // 失败则仍加入队列
+            @unlink( $tmp );
+            Notion_Download_Queue::push([
+                'type'        => 'image',
+                'url'         => $url,
+                'post_id'     => 0,
+                'is_featured' => false,
+                'caption'     => $caption,
+            ]);
+            return 0;
         }
 
-        // 存储源 URL 方便后续去重
         update_post_meta( $attachment_id, '_notion_original_url', esc_url_raw( $url ) );
         update_post_meta( $attachment_id, '_notion_base_url', esc_url_raw( $base_url ) );
 
-        return $attachment_id;
+        return (int) $attachment_id;
     }
 
     /**
@@ -1201,6 +1256,15 @@ class Notion_Pages {
                 }
             }
             
+            // 更新同步时间（全局与嵌入设置）
+            $now = current_time( 'mysql' );
+            update_option( 'notion_to_wordpress_last_sync', $now, false );
+
+            // 同时写入主设置数组，供增量同步使用
+            $opts = get_option( 'notion_to_wordpress_options', [] );
+            $opts['last_sync_time'] = $now;
+            update_option( 'notion_to_wordpress_options', $opts, false );
+
             $lock->release();
             return $stats;
             
@@ -1223,8 +1287,9 @@ class Notion_Pages {
     private function _convert_block_column(array $block, Notion_API $notion_api): string {
         // 计算列宽（Notion API 提供 ratio，可选）
         $ratio = $block['column']['width_ratio'] ?? 1;
-        $width_percent = 100 / max(1, $ratio); // 简化处理
-        $html = '<div class="notion-column" style="flex:1 1 ' . esc_attr($width_percent) . '%;">';
+        // Notion API ratio 通常为 0-1 之间的小数，表示占整体比例
+        $width_percent = max( 5, round( $ratio * 100, 2 ) );
+        $html = '<div class="notion-column" style="flex:0 0 ' . esc_attr( $width_percent ) . '%;">';
         $html .= $this->_convert_child_blocks($block, $notion_api);
         $html .= '</div>';
         return $html;
@@ -1254,7 +1319,8 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            return '<!-- File download error -->';
+            // 回退：使用原始 Notion URL（可能过期）
+            return '<div class="file-download-box notion-temp-file"><span class="file-download-name">' . esc_html( $display ) . '</span> <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（外链，可能过期）', 'notion-to-wordpress' ) . '</a></div>';
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
@@ -1271,6 +1337,8 @@ class Notion_Pages {
      * @return int|WP_Error        附件 ID 或错误
      */
     private function download_and_insert_file( string $url, string $caption = '', string $override_name = '' ) {
+        // --- 优先尝试立即下载 ---
+
         // 检查是否已下载过
         $base_url = strtok( $url, '?' );
         $existing = $this->get_attachment_by_url( $base_url );
@@ -1278,40 +1346,46 @@ class Notion_Pages {
             return (int) $existing;
         }
 
-        // 引入 WP 媒体处理
         require_once ABSPATH . 'wp-admin/includes/media.php';
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/image.php';
 
-        // 下载到临时文件
         $tmp = download_url( $url );
         if ( is_wp_error( $tmp ) ) {
-            Notion_To_WordPress_Helper::error_log( '下载附件失败: ' . $tmp->get_error_message(), 'Notion File' );
-            return $tmp;
+            // 下载失败，加入队列并返回0
+            Notion_Download_Queue::push([
+                'type'    => 'file',
+                'url'     => $url,
+                'post_id' => 0,
+                'caption' => $caption,
+            ]);
+            return 0;
         }
 
-        // 文件名
         $file_name = $override_name ?: basename( parse_url( $url, PHP_URL_PATH ) );
         if ( empty( $file_name ) ) {
             $file_name = 'notion-file-' . time();
         }
 
-        // 构造 $_FILES 兼容数组
         $file = [
             'name'     => $file_name,
             'tmp_name' => $tmp,
         ];
 
-        // 上传到媒体库
         $attachment_id = media_handle_sideload( $file, 0, $caption );
 
         if ( is_wp_error( $attachment_id ) ) {
-            Notion_To_WordPress_Helper::error_log( 'media_handle_sideload 错误: ' . $attachment_id->get_error_message(), 'Notion File' );
             @unlink( $tmp );
-            return $attachment_id;
+            // 失败则仍加入队列
+            Notion_Download_Queue::push([
+                'type'    => 'file',
+                'url'     => $url,
+                'post_id' => 0,
+                'caption' => $caption,
+            ]);
+            return 0;
         }
 
-        // 存储原始 URL 及 base_url，避免重复下载
         update_post_meta( $attachment_id, '_notion_original_url', esc_url( $url ) );
         update_post_meta( $attachment_id, '_notion_base_url', esc_url( $base_url ) );
 

@@ -42,6 +42,7 @@ foreach ($options as $option) {
 
 // 清理计划任务
 wp_clear_scheduled_hook('notion_cron_import');
+wp_clear_scheduled_hook('ntw_process_media_queue');
 
 // 查找所有使用计划任务的页面并清理
 $query = new WP_Query(array(
@@ -112,8 +113,16 @@ if ($delete_content) {
     }
 } else {
     // 保留文章，但清理与插件相关的 post_meta，避免后续重新安装时仍被统计
-    if ( $query->have_posts() ) {
-        foreach ( $query->posts as $post_id ) {
+    $posts_query = new WP_Query( array(
+        'post_type'      => array( 'post', 'page' ),
+        'meta_key'       => '_notion_page_id',
+        'meta_compare'   => 'EXISTS',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+    ) );
+
+    if ( $posts_query->have_posts() ) {
+        foreach ( $posts_query->posts as $post_id ) {
             delete_post_meta( $post_id, '_notion_page_id' );
         }
     }
@@ -150,4 +159,6 @@ foreach ( $transients as $transient_option ) {
 flush_rewrite_rules();
 
 // 移除最后同步时间等单独记录的选项
-delete_option( 'notion_to_wordpress_last_sync' ); 
+delete_option( 'notion_to_wordpress_last_sync' );
+delete_option( 'ntw_download_queue' );
+delete_option( 'ntw_download_history' ); 
