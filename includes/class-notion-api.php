@@ -283,8 +283,20 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_page_metadata(string $page_id): array {
+        $cache_key = 'ntw_page_meta_' . md5( $page_id );
+        $cached    = get_transient( $cache_key );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $endpoint = 'pages/' . $page_id;
-        return $this->send_request($endpoint);
+        $data     = $this->send_request( $endpoint );
+
+        // 缓存 5 分钟
+        set_transient( $cache_key, $data, 300 );
+
+        return $data;
     }
 
     /**
@@ -335,8 +347,19 @@ class Notion_API {
      * @throws Exception
      */
     public function get_page(string $page_id): array {
+        $cache_key = 'ntw_page_obj_' . md5( $page_id );
+        $cached    = get_transient( $cache_key );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $endpoint = 'pages/' . $page_id;
-        return $this->send_request($endpoint);
+        $data     = $this->send_request( $endpoint );
+
+        set_transient( $cache_key, $data, 300 );
+
+        return $data;
     }
 
     private function get_blocks_children_batch( array $block_ids ): array {
