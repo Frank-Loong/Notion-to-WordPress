@@ -356,6 +356,11 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
+            // 即使用户离开页面（关闭标签/跳转），仍继续执行同步
+            if ( function_exists( 'ignore_user_abort' ) ) {
+                ignore_user_abort( true );
+            }
+
             // 获取选项
             $options = get_option( 'notion_to_wordpress_options', [] );
             
