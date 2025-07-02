@@ -84,9 +84,9 @@ jQuery(document).ready(function($) {
                 
                 showModal(message, status);
                 
-                // 如果成功启动，开始轮询进度
+                // 如果成功，刷新统计信息
                 if (response.success) {
-                    startProgressPoll();
+                    fetchStats();
                 }
             },
             error: function() {
@@ -97,38 +97,6 @@ jQuery(document).ready(function($) {
             }
         });
     });
-    
-    // --- 同步进度条 ---
-    function startProgressPoll(){
-        const $log = $('#ntw-sync-log');
-        $log.text('').show();
-
-        const timer = setInterval(function(){
-            $.ajax({
-                url: notionToWp.ajax_url,
-                type:'POST',
-                data:{ action:'notion_to_wordpress_get_sync_progress', nonce:notionToWp.nonce },
-                success:function(res){
-                    if(!res.success){return;}
-                    const p = res.data;
-                    if(typeof p.processed === 'undefined'){return;}
-                    const line = '['+new Date().toLocaleTimeString()+'] '+p.processed+'/'+p.total+' 已处理 | 导入:'+p.imported+' 更新:'+p.updated+' 失败:'+p.failed+'\n';
-                    $log.append(line);
-                    $log.scrollTop($log[0].scrollHeight);
-                    if(p.done){
-                        clearInterval(timer);
-                        if(p.error){
-                          $log.append('同步失败: '+p.error+'\n');
-                        }else{
-                          $log.append('同步完成!\n');
-                        }
-                        // 同步完成后刷新统计
-                        fetchStats();
-                    }
-                }
-            });
-        },1000);
-    }
     
     // 测试连接
     $('#notion-test-connection').on('click', function(e) {

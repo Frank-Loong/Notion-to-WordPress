@@ -687,9 +687,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                     </div>
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
                 </div>
-
-                <!-- 同步日志 -->
-                <pre id="ntw-sync-log" style="display:none;margin-top:15px;background:#f7f7f7;border:1px solid #ddd;padding:8px;font-size:12px;line-height:1.4;max-height:200px;overflow:auto;"></pre>
             </form>
         </div>
     </div>
