@@ -472,8 +472,8 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_sync || '从未');
-                    $('.stat-next-run').text(stats.next_sync || '未计划');
+                    $('.stat-last-update').text(stats.last_update || '从未');
+                    $('.stat-next-run').text(stats.next_run || '未计划');
                 } else {
                     showModal('无法加载统计信息: ' + (response.data.message || '未知错误'), 'error');
                 }

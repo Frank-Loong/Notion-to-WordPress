@@ -177,30 +177,26 @@ class Notion_Pages {
             $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
         }
 
+        // 若仍为空，尝试使用 visibility 字段
+        if ( ! $status_val && isset( $field_mapping['visibility'] ) ) {
+            $status_val = $this->get_property_value( $props, $field_mapping['visibility'], 'select', 'name' );
+            if ( ! $status_val ) {
+                $status_val = $this->get_property_value( $props, $field_mapping['visibility'], 'status', 'name' );
+            }
+        }
+
         $status_val_lc = strtolower( trim( $status_val ) );
-        switch ( $status_val_lc ) {
-            case 'published':
-            case 'publish':
-            case '已发布':
-                $metadata['status'] = 'publish';
-                break;
 
-            case 'private':
-            case '私密':
-                $metadata['status'] = 'private';
-                break;
-
-            case 'invisible':
-            case '隐藏':
-                // 视为草稿，不对外显示
-                $metadata['status'] = 'draft';
-                break;
-
-            case 'draft':
-            case '草稿':
-            default:
-                $metadata['status'] = 'draft';
-                break;
+        // 通过包含关键词而非完全匹配，提高兼容性（处理"Private 🔒"等带图标/空格情况）
+        if ( false !== strpos( $status_val_lc, 'private' ) || false !== mb_strpos( $status_val_lc, '私密' ) ) {
+            $metadata['status'] = 'private';
+        } elseif ( false !== strpos( $status_val_lc, 'publish' ) || false !== mb_strpos( $status_val_lc, '已发布' ) ) {
+            $metadata['status'] = 'publish';
+        } elseif ( false !== strpos( $status_val_lc, 'invisible' ) || false !== mb_strpos( $status_val_lc, '隐藏' ) ) {
+            $metadata['status'] = 'draft';
+        } else {
+            // 默认为草稿
+            $metadata['status'] = 'draft';
         }
 
         // 添加调试日志（使用统一日志助手）
@@ -763,6 +759,60 @@ class Notion_Pages {
 
         // 通用网页嵌入
         return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="no-referrer"></iframe></div>';
+    }
+
+    /**
+     * 转换 Notion PDF 块
+     *
+     * @param array       $block      块数据
+     * @param Notion_API  $notion_api API 实例
+     * @return string                  HTML 代码
+     * @since 1.1.1
+     */
+    private function _convert_block_pdf(array $block, Notion_API $notion_api): string {
+        $pdf_data = $block['pdf'] ?? [];
+        $type     = $pdf_data['type'] ?? 'external';
+        $url      = '';
+
+        if ( 'file' === $type ) {
+            $url = $pdf_data['file']['url'] ?? '';
+        } else {
+            $url = $pdf_data['external']['url'] ?? '';
+        }
+
+        if ( empty( $url ) ) {
+            return '<!-- 无效的 PDF URL -->';
+        }
+
+        // 提取 caption（如有）
+        $caption = '';
+        if ( isset( $pdf_data['caption'] ) ) {
+            $caption = $this->extract_rich_text( $pdf_data['caption'] );
+        }
+
+        // 非 Notion 临时链接，直接嵌入
+        if ( ! $this->is_notion_temp_url( $url ) ) {
+            $embed    = '<embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" />';
+            $download = '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
+            return '<div class="notion-pdf">' . $embed . $download . '</div>';
+        }
+
+        // Notion 临时链接：尝试下载
+        $file_name      = basename( parse_url( $url, PHP_URL_PATH ) );
+        $attachment_id  = $this->download_and_insert_file( $url, $caption, $file_name );
+
+        if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
+            // 下载失败 => 使用外链（可能过期）
+            $embed    = '<embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" />';
+            $download = '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF（外链，可能过期）', 'notion-to-wordpress' ) . '</a></p>';
+            return '<div class="notion-pdf notion-temp-pdf">' . $embed . $download . '</div>';
+        }
+
+        $local_url = wp_get_attachment_url( $attachment_id );
+        $embed     = '<embed src="' . esc_url( $local_url ) . '" type="application/pdf" width="100%" height="600px" />';
+        $download  = '<p><a href="' . esc_url( $local_url ) . '" target="_blank" rel="noopener" download>' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
+
+        return '<div class="notion-pdf">' . $embed . $download . '</div>';
     }
 
     private function _convert_block_video(array $block, Notion_API $notion_api): string {
