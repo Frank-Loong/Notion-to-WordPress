@@ -117,7 +117,11 @@ jQuery(document).ready(function($) {
                     $log.scrollTop($log[0].scrollHeight);
                     if(p.done){
                         clearInterval(timer);
-                        $log.append('同步完成!\n');
+                        if(p.error){
+                          $log.append('同步失败: '+p.error+'\n');
+                        }else{
+                          $log.append('同步完成!\n');
+                        }
                         // 同步完成后刷新统计
                         fetchStats();
                     }

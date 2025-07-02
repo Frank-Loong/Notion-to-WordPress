@@ -1310,9 +1310,16 @@ class Notion_Pages {
             // 获取数据库中的页面（可能带筛选）
             $pages = $this->notion_api->get_database_pages( $this->database_id, $filter );
             
-            if (empty($pages)) {
+            // 若增量拉取无结果，则回退全量拉取一次（防止 last_sync_time 错误或 Notion 时间漂移）
+            if ( empty( $pages ) && ! empty( $filter ) ) {
+                Notion_To_WordPress_Helper::info_log( '增量同步无结果，回退全量拉取' );
+                $filter = [];
+                $pages  = $this->notion_api->get_database_pages( $this->database_id, [] );
+            }
+
+            if ( empty( $pages ) ) {
                 $lock->release();
-                return new WP_Error('no_pages', '未检索到任何页面。');
+                return new WP_Error( 'no_pages', '未检索到任何页面。' );
             }
             
             $stats = [
@@ -1357,14 +1364,16 @@ class Notion_Pages {
             $stats['end_time']  = time();
             set_transient( 'ntw_sync_progress', $stats, 600 );
 
-            // 更新同步时间（全局与嵌入设置）
-            $now = current_time( 'mysql' );
-            update_option( 'notion_to_wordpress_last_sync', $now, false );
+            // 仅在实际处理过页面后更新同步时间
+            if ( $stats['processed'] > 0 ) {
+                $now = current_time( 'mysql' );
+                update_option( 'notion_to_wordpress_last_sync', $now, false );
 
-            // 同时写入主设置数组，供增量同步使用
-            $opts = get_option( 'notion_to_wordpress_options', [] );
-            $opts['last_sync_time'] = $now;
-            update_option( 'notion_to_wordpress_options', $opts, false );
+                // 同时写入主设置数组，供增量同步使用
+                $opts = get_option( 'notion_to_wordpress_options', [] );
+                $opts['last_sync_time'] = $now;
+                update_option( 'notion_to_wordpress_options', $opts, false );
+            }
 
             $lock->release();
             return $stats;
