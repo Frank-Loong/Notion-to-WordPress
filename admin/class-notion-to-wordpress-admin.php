@@ -374,7 +374,7 @@ class Notion_To_WordPress_Admin {
             $database_id          = $options['notion_database_id'];
             $field_mapping        = $options['field_mapping'] ?? [];
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
-            $lock_timeout         = $options['lock_timeout'] ?? 300;
+            $lock_timeout         = $options['lock_timeout'] ?? 120;
 
             $notion_api   = Notion_API::instance( $api_key );
             $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping, $lock_timeout );
