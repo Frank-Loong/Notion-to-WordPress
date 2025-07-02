@@ -240,7 +240,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="mapping_status"><?php esc_html_e('状态', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[status]" type="text" id="mapping_status" value="<?php echo esc_attr($field_mapping['status']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('用于确定发布的文章/页面的Notion属性名称。', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('用于确定发布的文章/页面的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>

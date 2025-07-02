@@ -493,12 +493,12 @@ class Notion_To_WordPress_Admin {
         }
         
         $count = $wpdb->get_var(
-            "SELECT COUNT(DISTINCT p.ID) 
+            "SELECT COUNT(DISTINCT pm.meta_value)
              FROM {$wpdb->posts} p
              JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
              WHERE pm.meta_key = '_notion_page_id'
              AND pm.meta_value <> ''
-             AND p.post_status NOT IN ('auto-draft', 'inherit')
+             AND p.post_status NOT IN ('auto-draft', 'inherit', 'trash')
              AND p.post_type IN ('post', 'page')"
         );
         
@@ -519,7 +519,8 @@ class Notion_To_WordPress_Admin {
         }
         
         $count = $wpdb->get_var(
-            "SELECT COUNT(*) FROM $wpdb->posts p 
+            "SELECT COUNT(DISTINCT pm.meta_value)
+             FROM $wpdb->posts p 
              JOIN $wpdb->postmeta pm ON p.ID = pm.post_id 
              WHERE pm.meta_key = '_notion_page_id' 
              AND pm.meta_value <> ''

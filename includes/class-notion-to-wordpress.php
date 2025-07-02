@@ -439,42 +439,45 @@ class Notion_To_WordPress {
 			$this->version
 		);
 
-		// 如定义 NTW_DISABLE_MATH 则跳过公式相关脚本
-		if ( ! defined( 'NTW_DISABLE_MATH' ) || ! NTW_DISABLE_MATH ) {
-			wp_register_script(
-				'mathjax-config',
-				Notion_To_WordPress_Helper::plugin_url('assets/js/mathjax-config.js'),
-				array(),
-				$this->version,
-				false // 不放到 footer，确保先于库
-			);
-
-			// MathJax 主库（依赖配置脚本）
-			wp_register_script(
-				'mathjax',
-				'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
-				array('mathjax-config'),
-				'3',
-				true
-			);
-
-			wp_enqueue_script('mathjax');
-		}
-
-		// Mermaid 图表渲染库
-		wp_enqueue_script(
-			'mermaid',
-			'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
+		// ---------------- 公式相关（KaTeX） ----------------
+		// KaTeX 样式
+		wp_enqueue_style(
+			'katex',
+			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css',
 			array(),
-			'10.4.0',
+			'0.16.22'
+		);
+
+		// KaTeX 主库
+		wp_register_script(
+			'katex',
+			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js',
+			array(),
+			'0.16.22',
 			true
 		);
 
-		// 处理公式与Mermaid渲染的脚本（可禁用公式，仅保留Mermaid）
-		$deps = array( 'jquery', 'mermaid' );
-		if ( ! defined( 'NTW_DISABLE_MATH' ) || ! NTW_DISABLE_MATH ) {
-			$deps[] = 'mathjax';
-		}
+		// mhchem 扩展（化学公式）依赖 KaTeX
+		wp_register_script(
+			'katex-mhchem',
+			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+			array( 'katex' ),
+			'0.16.22',
+			true
+		);
+
+		// ---------------- Mermaid ----------------
+		wp_enqueue_script(
+			'mermaid',
+			'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+			array(),
+			'11.7.0',
+			true
+		);
+
+		// 处理公式与Mermaid渲染的脚本
+		$deps = array( 'jquery', 'mermaid', 'katex-mhchem' );
+
 		wp_enqueue_script(
 			$this->plugin_name . '-math-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/notion-math-mermaid.js'),
