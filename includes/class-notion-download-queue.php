@@ -26,9 +26,14 @@ class Notion_Download_Queue {
      * @param array $task [type,url,post_id,is_featured,caption]
      */
     public static function push( array $task ): void {
-        $queue        = get_option( self::OPTION_QUEUE, [] );
-        $queue[]      = $task;
+        $queue   = get_option( self::OPTION_QUEUE, [] );
+        $queue[] = $task;
         update_option( self::OPTION_QUEUE, $queue, false );
+
+        // 调度一次性后台事件，尽快处理队列
+        if ( ! wp_next_scheduled( 'ntw_async_media' ) ) {
+            wp_schedule_single_event( time() + 1, 'ntw_async_media' );
+        }
     }
 
     /**
@@ -67,6 +72,11 @@ class Notion_Download_Queue {
         foreach ( $batch as $task ) {
             $result = self::handle_single( $task );
             self::log_history( $task, $result );
+        }
+
+        // 若队列仍有剩余任务，继续调度下一次事件
+        if ( self::size() > 0 && ! wp_next_scheduled( 'ntw_async_media' ) ) {
+            wp_schedule_single_event( time() + 60, 'ntw_async_media' ); // 下一分钟继续
         }
     }
 

@@ -230,6 +230,8 @@ class Notion_To_WordPress {
 		$this->define_webhook_hooks();
 		// 注册下载队列处理钩子
 		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
+		// 定义所有钩子后，注册队列cron处理程序
+		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
 	}
 
 	/**
