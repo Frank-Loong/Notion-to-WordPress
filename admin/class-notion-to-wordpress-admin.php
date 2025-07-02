@@ -417,10 +417,17 @@ class Notion_To_WordPress_Admin {
             $lock->release();
 
             // 写完成状态（若未在循环末尾写入）
-            if ( is_array( $result ) ) {
-                $result['done']     = true;
-                $result['end_time'] = time();
-                set_transient( 'ntw_sync_progress', $result, 600 );
+            if ( is_wp_error( $result ) ) {
+                set_transient( 'ntw_sync_progress', [
+                    'total' => 0,
+                    'processed' => 0,
+                    'imported' => 0,
+                    'updated' => 0,
+                    'failed' => 0,
+                    'done' => true,
+                    'error' => $result->get_error_message(),
+                    'end_time' => time(),
+                ], 600 );
             }
 
             exit; // 确保后面 WP 不再处理
