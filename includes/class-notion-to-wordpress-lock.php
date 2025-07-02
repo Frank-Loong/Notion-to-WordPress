@@ -43,13 +43,20 @@ class Notion_To_WordPress_Lock {
      * @return bool 如果成功获取锁则返回true，否则返回false
      */
     public function acquire(): bool {
-        if (get_transient($this->lock_key)) {
-            // 锁已存在
-            return false;
+        $existing = get_transient( $this->lock_key );
+
+        if ( $existing ) {
+            // 计算锁存在时长，若超过阈值则视为僵尸锁并回收
+            if ( time() - (int) $existing > 2 * $this->lock_expiration ) {
+                delete_transient( $this->lock_key ); // 清理脏锁
+            } else {
+                // 正常锁仍有效
+                return false;
+            }
         }
 
-        // 设置锁
-        set_transient($this->lock_key, time(), $this->lock_expiration);
+        // 设置新锁（写入当前时间戳便于后续判断）
+        set_transient( $this->lock_key, time(), $this->lock_expiration );
         return true;
     }
 

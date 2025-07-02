@@ -18,7 +18,8 @@ class Notion_Download_Queue {
     const OPTION_QUEUE   = 'ntw_download_queue';
     const OPTION_HISTORY = 'ntw_download_history';
     const MAX_HISTORY    = 100;
-    const CONCURRENCY    = 5; // 每批并发数
+    const CONCURRENCY    = 2; // 每批并发数，降低并发避免主机限制
+    const MAX_RETRY      = 3; // 每任务最大重试次数
 
     /**
      * 推送任务到队列
@@ -93,6 +94,13 @@ class Notion_Download_Queue {
         $tmp = download_url( $url );
         if ( is_wp_error( $tmp ) ) {
             Notion_To_WordPress_Helper::error_log( '队列下载失败: ' . $tmp->get_error_message(), 'Notion Queue' );
+            // 若未超过重试次数，则重新入队，稍后再试
+            $retry = (int) ( $t['retry'] ?? 0 );
+            if ( $retry < self::MAX_RETRY ) {
+                $t['retry'] = $retry + 1;
+                // 退避：延后 60 秒再加入队列
+                wp_schedule_single_event( time() + 60, 'ntw_async_media', [ $t ] );
+            }
             return false;
         }
 
