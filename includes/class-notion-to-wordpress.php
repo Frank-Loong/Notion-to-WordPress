@@ -306,7 +306,7 @@ class Notion_To_WordPress {
 	 * @param array  $options 插件设置选项
 	 */
 	private function _core_import_process( string $database_id, array $options ): void {
-		$lock_timeout = $options['lock_timeout'] ?? 300;
+		$lock_timeout = $options['lock_timeout'] ?? 120;
 
 		// 实例化锁
 		$lock = new Notion_To_WordPress_Lock( $database_id, $lock_timeout );
