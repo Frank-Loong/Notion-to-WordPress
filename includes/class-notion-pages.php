@@ -954,34 +954,45 @@ class Notion_Pages {
                 // 内/跨文章锚点转换
                 $href_converted = $href;
 
-                if ( str_contains( $href, '#' ) && str_contains( $href, 'notion.so' ) ) {
-                    [$url_part, $anchor_part] = explode( '#', $href, 2 );
+                // ---- Notion 链接转换 ----
+                if ( ( str_contains( $href, 'notion.so' ) || str_contains( $href, 'notion.site' ) ) ) {
+                    $anchor_part = '';
+                    $url_part    = $href;
 
-                    // 提取页面id（去除横线的32位字符）
-                    $trimmed = substr( $url_part, -32 );
-                    if ( strlen( $trimmed ) === 32 ) {
-                        $dashed_id = preg_replace('/(.{8})(.{4})(.{4})(.{4})(.{12})/', '$1-$2-$3-$4-$5', $trimmed );
+                    // 拆分锚点
+                    if ( str_contains( $href, '#' ) ) {
+                        [$url_part, $anchor_part] = explode( '#', $href, 2 );
+                    }
 
-                        // 判断是否同页
+                    // 取路径末段尝试获取32位ID
+                    $path      = wp_parse_url( $url_part, PHP_URL_PATH );
+                    $segments  = explode( '/', rtrim( $path, '/' ) );
+                    $last_part = end( $segments );
+
+                    if ( preg_match( '/([0-9a-fA-F]{32})$/', $last_part, $m ) ) {
+                        $trimmed   = $m[1];
+                        $dashed_id = preg_replace( '/(.{8})(.{4})(.{4})(.{4})(.{12})/', '$1-$2-$3-$4-$5', $trimmed );
+
+                        // 同页锚点
                         if ( $this->current_page_id && $dashed_id === $this->current_page_id ) {
-                            $href_converted = '#' . $anchor_part;
+                            $href_converted = $anchor_part ? '#' . $anchor_part : '#';
                         } else {
-                            // 查找对应WP文章
-                            $post = get_posts([
+                            // 查询WordPress文章
+                            $post_ids = get_posts([
                                 'post_type'   => 'any',
                                 'post_status' => 'publish',
                                 'meta_query'  => [[
                                     'key'   => '_notion_page_id',
                                     'value' => $dashed_id,
                                 ]],
-                                'fields' => 'ids',
+                                'fields'      => 'ids',
                                 'numberposts' => 1,
                             ]);
 
-                            if ( ! empty( $post ) ) {
-                                $permalink = get_permalink( $post[0] );
+                            if ( ! empty( $post_ids ) ) {
+                                $permalink = get_permalink( $post_ids[0] );
                                 if ( $permalink ) {
-                                    $href_converted = $permalink . '#' . $anchor_part;
+                                    $href_converted = $permalink . ( $anchor_part ? '#' . $anchor_part : '' );
                                 }
                             }
                         }

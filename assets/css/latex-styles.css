@@ -85,18 +85,3 @@ mjx-chem {
         font-size: 90%;
     }
 }
-
-/* === KaTeX 新增样式 === */
-.notion-equation-block {
-    display: block;
-    margin: 1.5em 0;
-    text-align: center;
-    overflow-x: auto;
-    max-width: 100%;
-}
-
-.notion-equation-inline {
-    display: inline-block;
-    vertical-align: middle;
-    margin: 0 0.2em;
-} 
