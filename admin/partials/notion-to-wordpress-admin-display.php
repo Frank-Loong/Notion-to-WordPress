@@ -240,14 +240,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="mapping_status"><?php esc_html_e('状态', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[status]" type="text" id="mapping_status" value="<?php echo esc_attr($field_mapping['status']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('值为 "Published" 或 "已发布" 的页面会被设为 "已发布" 状态，其他则为 "草稿"。', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('用于确定发布的文章/页面的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="mapping_post_type"><?php esc_html_e('文章类型', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[post_type]" type="text" id="mapping_post_type" value="<?php echo esc_attr($field_mapping['post_type']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('用于确定WordPress文章类型的Notion属性名称', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('用于确定发布为文章/页面类型的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -686,6 +686,12 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </button>
                     </div>
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
+                </div>
+
+                <!-- 同步进度条 -->
+                <div id="ntw-sync-progress" style="display:none;margin-top:15px;">
+                    <progress id="ntw-sync-bar" value="0" max="100" style="width:100%;height:16px;"></progress>
+                    <p id="ntw-sync-tip" style="margin:4px 0 0;font-size:13px;color:#555;"></p>
                 </div>
             </form>
         </div>

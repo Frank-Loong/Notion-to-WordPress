@@ -14,6 +14,20 @@ declare(strict_types=1);
 class Notion_API {
 
     /**
+     * 全局单例实例
+     *
+     * @var self|null
+     */
+    private static ?self $instance = null;
+
+    /**
+     * Requests Session，用于复用连接
+     *
+     * @var \WpOrg\Requests\Session|null
+     */
+    private static $requests_session = null;
+
+    /**
      * Notion API 密钥。
      *
      * @since    1.0.8
@@ -30,6 +44,13 @@ class Notion_API {
      * @var      string
      */
     private string $api_base = 'https://api.notion.com/v1/';
+
+    /**
+     * 进程内块缓存（仅当前请求）
+     *
+     * @var array<string,array>
+     */
+    private static array $local_block_cache = [];
 
     /**
      * 构造函数，初始化 API 客户端。
@@ -168,13 +189,37 @@ class Notion_API {
 
         $blocks = $this->get_block_children($block_id);
 
-        foreach ($blocks as $i => $block) {
-            if (($block['has_children'] ?? false)) {
-                $blocks[$i]['children'] = $this->get_page_content($block['id']);
+        // 收集所有需要加载子块的块ID
+        $child_ids = [];
+        foreach ( $blocks as $blk ) {
+            if ( ( $blk['has_children'] ?? false ) ) {
+                $child_ids[] = $blk['id'];
             }
         }
 
-        // 缓存 5 分钟
+        // 并发获取子块
+        $children_map = [];
+        if ( ! empty( $child_ids ) ) {
+            $children_map = $this->get_blocks_children_batch( $child_ids );
+        }
+
+        // 递归构建完整结构
+        foreach ( $blocks as $i => $blk ) {
+            if ( ( $blk['has_children'] ?? false ) ) {
+                $first_level_children = $children_map[ $blk['id'] ] ?? $this->get_block_children( $blk['id'] );
+
+                // 深度处理其子级（递归，内部仍将尝试并发）
+                foreach ( $first_level_children as $j => $child_block ) {
+                    if ( ( $child_block['has_children'] ?? false ) ) {
+                        $first_level_children[ $j ]['children'] = $this->get_page_content( $child_block['id'] );
+                    }
+                }
+
+                $blocks[ $i ]['children'] = $first_level_children;
+            }
+        }
+
+        // 缓存
         set_transient( $cache_key, $blocks, 300 );
 
         return $blocks;
@@ -190,10 +235,17 @@ class Notion_API {
      * @throws Exception 如果 API 请求失败。
      */
     private function get_block_children(string $block_id): array {
+        // 先检查请求级缓存
+        if ( isset( self::$local_block_cache[ $block_id ] ) ) {
+            return self::$local_block_cache[ $block_id ];
+        }
+
         $cache_key = 'ntw_blk_children_' . md5($block_id);
         $cached    = get_transient( $cache_key );
 
         if ( is_array( $cached ) ) {
+            // 同时写入本地缓存，后续命中
+            self::$local_block_cache[ $block_id ] = $cached;
             return $cached;
         }
 
@@ -217,7 +269,9 @@ class Notion_API {
             $start_cursor = $response['next_cursor'] ?? null;
         }
 
+        // 写缓存
         set_transient( $cache_key, $all_results, 300 );
+        self::$local_block_cache[ $block_id ] = $all_results;
 
         return $all_results;
     }
@@ -245,8 +299,20 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_page_metadata(string $page_id): array {
+        $cache_key = 'ntw_page_meta_' . md5( $page_id );
+        $cached    = get_transient( $cache_key );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $endpoint = 'pages/' . $page_id;
-        return $this->send_request($endpoint);
+        $data     = $this->send_request( $endpoint );
+
+        // 缓存 5 分钟
+        set_transient( $cache_key, $data, 300 );
+
+        return $data;
     }
 
     /**
@@ -297,7 +363,137 @@ class Notion_API {
      * @throws Exception
      */
     public function get_page(string $page_id): array {
+        $cache_key = 'ntw_page_obj_' . md5( $page_id );
+        $cached    = get_transient( $cache_key );
+
+        if ( is_array( $cached ) ) {
+            return $cached;
+        }
+
         $endpoint = 'pages/' . $page_id;
-        return $this->send_request($endpoint);
+        $data     = $this->send_request( $endpoint );
+
+        set_transient( $cache_key, $data, 300 );
+
+        return $data;
+    }
+
+    private function get_blocks_children_batch( array $block_ids ): array {
+        // 批量并发获取多个块的直接子块，用于加速页面内容递归处理
+        $results  = [];
+        $uncached = [];
+
+        // 先检查缓存，避免重复请求
+        foreach ( $block_ids as $bid ) {
+            $cache_key = 'ntw_blk_children_' . md5( $bid );
+            $cached    = get_transient( $cache_key );
+            if ( is_array( $cached ) ) {
+                $results[ $bid ] = $cached;
+            } else {
+                $uncached[] = $bid;
+            }
+        }
+
+        if ( empty( $uncached ) ) {
+            return $results; // 全部命中缓存
+        }
+
+        // 构建 Requests::request_multiple 需要的请求数组
+        $reqs = [];
+        foreach ( $uncached as $bid ) {
+            $endpoint         = 'blocks/' . $bid . '/children?page_size=100';
+            $reqs[ $bid ] = [
+                'url'     => $this->api_base . $endpoint,
+                'type'    => 'GET',
+                'headers' => [
+                    'Authorization'  => 'Bearer ' . $this->api_key,
+                    'Notion-Version' => '2022-06-28',
+                ],
+                'cookies' => [],
+                'data'    => []
+            ];
+        }
+
+        // 优先使用共享 Session（可复用连接池）
+        $session = $this->get_requests_session();
+
+        if ( $session ) {
+            // 按照 Notion API 速率限制（每秒最多 3 次）对请求进行分组
+            $chunks = array_chunk( $reqs, 3, true );
+            foreach ( $chunks as $chunk ) {
+                try {
+                    $responses = $session->request_multiple( $chunk );
+                } catch ( Exception $e ) {
+                    // 若批量请求失败则回退为逐个会话请求
+                    $responses = [];
+                    foreach ( $chunk as $id => $r ) {
+                        try {
+                            $responses[ $id ] = $session->request( $r['url'], $r['headers'] ?? [], $r['data'] ?? [], $r['type'] ?? 'GET' );
+                        } catch ( Exception $e2 ) {
+                            // 留空，稍后使用顺序函数兜底
+                        }
+                    }
+                }
+
+                foreach ( $chunk as $bid => $_ ) {
+                    $res = $responses[ $bid ] ?? null;
+                    if ( $res && isset( $res->status_code ) && $res->status_code >= 200 && $res->status_code < 300 ) {
+                        $data          = json_decode( $res->body, true );
+                        $children      = $data['results'] ?? [];
+                        $results[ $bid ] = $children;
+                        // 缓存
+                        set_transient( 'ntw_blk_children_' . md5( $bid ), $children, 300 );
+                    } else {
+                        // 回退：使用顺序方式强制拉取，保证完整性
+                        $results[ $bid ] = $this->get_block_children( $bid );
+                    }
+                }
+
+                // 避免超过速率限制，适当暂停
+                usleep( 400000 ); // 0.4 秒
+            }
+        } else {
+            // 若环境缺少 Requests 库，则顺序拉取
+            foreach ( $uncached as $bid ) {
+                $results[ $bid ] = $this->get_block_children( $bid );
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * 获取（或初始化）共享 Requests Session
+     *
+     * @return \WpOrg\Requests\Session|null
+     */
+    private function get_requests_session() {
+        if ( null !== self::$requests_session ) {
+            return self::$requests_session;
+        }
+
+        // 仅在环境已加载 Requests 时启用
+        if ( class_exists( '\\WpOrg\\Requests\\Session' ) ) {
+            $default_headers = [
+                'Authorization'  => 'Bearer ' . $this->api_key,
+                'Notion-Version' => '2022-06-28',
+            ];
+            // 初始化 Session（基址已包含，不必每次拼接）
+            self::$requests_session = new \WpOrg\Requests\Session( $this->api_base, $default_headers, [], [ 'timeout' => 30 ] );
+        }
+
+        return self::$requests_session;
+    }
+
+    public static function instance( ?string $api_key = null ): self {
+        if ( null === self::$instance || ( $api_key && $api_key !== self::$instance->api_key ) ) {
+            // 若未显式提供，则从选项读取
+            if ( ! $api_key ) {
+                $opts    = get_option( 'notion_to_wordpress_options', [] );
+                $api_key = $opts['notion_api_key'] ?? '';
+            }
+            self::$instance = new self( $api_key );
+        }
+        return self::$instance;
     }
 } 

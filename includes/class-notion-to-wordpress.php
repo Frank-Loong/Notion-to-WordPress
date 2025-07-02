@@ -147,8 +147,8 @@ class Notion_To_WordPress {
 		$field_mapping = $options['field_mapping'] ?? array();
 		$lock_timeout  = $options['lock_timeout'] ?? 300;
 
-		// 实例化API处理器
-		$this->notion_api = new Notion_API( $api_key );
+		// 获取（或初始化）单例 API 处理器
+		$this->notion_api = Notion_API::instance( $api_key );
 
 		// 实例化页面处理器
 		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping, $lock_timeout );
@@ -199,6 +199,8 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
+		// 同步进度查询
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -230,6 +232,10 @@ class Notion_To_WordPress {
 		$this->define_webhook_hooks();
 		// 注册下载队列处理钩子
 		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
+		// 定义所有钩子后，注册队列cron处理程序
+		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
+		// 手动同步单次事件
+		add_action( 'ntw_manual_sync', [ $this, 'cron_import_pages' ] );
 	}
 
 	/**
@@ -314,6 +320,13 @@ class Notion_To_WordPress {
 		}
 
 		try {
+			// 同步前：暂停对象缓存写入和分类/评论计数，提高性能
+			wp_suspend_cache_addition( true );
+			wp_defer_term_counting( true );
+			if ( function_exists( 'wp_defer_comment_counting' ) ) {
+				wp_defer_comment_counting( true );
+			}
+
 			// 构造增量同步过滤器（仅拉取自上次同步后有改动的页面）
 			$filter = array();
 			if ( ! empty( $options['last_sync_time'] ) ) {
@@ -339,6 +352,13 @@ class Notion_To_WordPress {
 		} catch ( Exception $e ) {
 			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );
 		} finally {
+			// 同步结束：恢复 WP 默认行为
+			wp_suspend_cache_addition( false );
+			wp_defer_term_counting( false );
+			if ( function_exists( 'wp_defer_comment_counting' ) ) {
+				wp_defer_comment_counting( false );
+			}
+
 			$lock->release();
 		}
 	}
@@ -439,41 +459,49 @@ class Notion_To_WordPress {
 			$this->version
 		);
 
-		// MathJax 配置（必须在库之前加载，放在 <head> 以便立即生效）
-		wp_register_script(
-			'mathjax-config',
-			Notion_To_WordPress_Helper::plugin_url('assets/js/mathjax-config.js'),
+		// ---------------- 公式相关（KaTeX） ----------------
+		// KaTeX 样式
+		wp_enqueue_style(
+			'katex',
+			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css',
 			array(),
-			$this->version,
-			false // 不放到 footer，确保先于库
+			'0.16.22'
 		);
 
-		// MathJax 主库（依赖配置脚本）
+		// KaTeX 主库
 		wp_register_script(
-			'mathjax',
-			// 使用 @3 主干始终获取最新 3.x 版本
-			'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js',
-			array('mathjax-config'),
-			'3',
+			'katex',
+			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js',
+			array(),
+			'0.16.22',
 			true
 		);
 
-		wp_enqueue_script('mathjax');
+		// mhchem 扩展（化学公式）依赖 KaTeX
+		wp_register_script(
+			'katex-mhchem',
+			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+			array( 'katex' ),
+			'0.16.22',
+			true
+		);
 
-		// Mermaid 图表渲染库
+		// ---------------- Mermaid ----------------
 		wp_enqueue_script(
 			'mermaid',
-			'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
+			'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
 			array(),
-			'10.4.0',
+			'11.7.0',
 			true
 		);
 
 		// 处理公式与Mermaid渲染的脚本
+		$deps = array( 'jquery', 'mermaid', 'katex-mhchem' );
+
 		wp_enqueue_script(
 			$this->plugin_name . '-math-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/notion-math-mermaid.js'),
-			array('jquery', 'mermaid', 'mathjax'),
+			$deps,
 			$this->version,
 			true
 		);
