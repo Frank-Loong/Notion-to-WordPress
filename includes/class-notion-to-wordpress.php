@@ -314,6 +314,13 @@ class Notion_To_WordPress {
 		}
 
 		try {
+			// 同步前：暂停对象缓存写入和分类/评论计数，提高性能
+			wp_suspend_cache_addition( true );
+			wp_defer_term_counting( true );
+			if ( function_exists( 'wp_defer_comment_counting' ) ) {
+				wp_defer_comment_counting( true );
+			}
+
 			// 构造增量同步过滤器（仅拉取自上次同步后有改动的页面）
 			$filter = array();
 			if ( ! empty( $options['last_sync_time'] ) ) {
@@ -339,6 +346,13 @@ class Notion_To_WordPress {
 		} catch ( Exception $e ) {
 			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );
 		} finally {
+			// 同步结束：恢复 WP 默认行为
+			wp_suspend_cache_addition( false );
+			wp_defer_term_counting( false );
+			if ( function_exists( 'wp_defer_comment_counting' ) ) {
+				wp_defer_comment_counting( false );
+			}
+
 			$lock->release();
 		}
 	}
