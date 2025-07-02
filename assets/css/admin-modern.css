@@ -135,11 +135,13 @@ body.wp-admin {
     font-size: 28px;
     font-weight: 700;
     color: var(--notion-primary);
+    line-height: 1.3;
 }
 .stat-card span {
     color: var(--notion-gray-700);
     font-size: 14px;
     font-weight: 500;
+    display: block;
 }
 
 /* 响应式：小屏表格横向滚动 */

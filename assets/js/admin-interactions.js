@@ -84,9 +84,9 @@ jQuery(document).ready(function($) {
                 
                 showModal(message, status);
                 
-                // 如果成功，刷新统计信息
+                // 如果成功启动，开始轮询进度
                 if (response.success) {
-                    fetchStats();
+                    startProgressPoll();
                 }
             },
             error: function() {
@@ -97,6 +97,36 @@ jQuery(document).ready(function($) {
             }
         });
     });
+    
+    // --- 同步进度条 ---
+    function startProgressPoll(){
+        const $container = $('#ntw-sync-progress');
+        const $bar       = $('#ntw-sync-bar');
+        const $tip       = $('#ntw-sync-tip');
+
+        $container.show();
+
+        const timer = setInterval(function(){
+            $.ajax({
+                url: notionToWp.ajax_url,
+                type:'POST',
+                data:{ action:'notion_to_wordpress_get_sync_progress', nonce:notionToWp.nonce },
+                success:function(res){
+                    if(!res.success){return;}
+                    const p = res.data;
+                    if(!p.total){ return; }
+                    $bar.attr('max', p.total).val(p.processed || 0);
+                    $tip.text(p.processed + '/' + p.total + ' 已处理，成功: ' + (p.imported + p.updated) + ' 失败:' + p.failed);
+                    if(p.done){
+                        clearInterval(timer);
+                        $tip.append(' ✓');
+                        // 同步完成后刷新统计
+                        fetchStats();
+                    }
+                }
+            });
+        },1000);
+    }
     
     // 测试连接
     $('#notion-test-connection').on('click', function(e) {
@@ -472,8 +502,15 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_sync || '从未');
-                    $('.stat-next-run').text(stats.next_sync || '未计划');
+
+                    const formatDateTime = (val, fallback) => {
+                        if (!val || val === fallback) return fallback;
+                        // 将日期与时间间的第一个空格替换为换行，以避免文字重叠
+                        return val.replace(/\s+/, '<br>');
+                    };
+
+                    $('.stat-last-update').html(formatDateTime(stats.last_update, '从未'));
+                    $('.stat-next-run').html(formatDateTime(stats.next_run, '未计划'));
                 } else {
                     showModal('无法加载统计信息: ' + (response.data.message || '未知错误'), 'error');
                 }
