@@ -731,7 +731,7 @@ class Notion_Pages {
     }
 
     private function _convert_block_equation(array $block, Notion_API $notion_api): string {
-        $expression = $block['equation']['expression'];
+        $expression = str_replace('\\', '\\\\', $block['equation']['expression']);
         return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
@@ -906,7 +906,8 @@ class Notion_Pages {
         foreach ($rich_text as $text) {
             // 处理 inline equation
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
-                $expr    = $text['equation']['expression'] ?? '';
+                $expr_raw = $text['equation']['expression'] ?? '';
+                $expr = str_replace('\\', '\\\\', $expr_raw);
                 $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
             } else {
                 // 对纯文本内容进行转义
