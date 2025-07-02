@@ -730,8 +730,14 @@ class Notion_Pages {
             }
         }
         
+        // PDF 文件预览
+        if ( preg_match( '/\.pdf(\?|$)/i', $url ) ) {
+            // 尝试浏览器原生 <embed>，如不支持也可点链接下载
+            return '<div class="notion-embed notion-embed-pdf"><embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+        }
+
         // 通用网页嵌入
-        return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0"></iframe></div>';
+        return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="no-referrer"></iframe></div>';
     }
 
     private function _convert_block_video(array $block, Notion_API $notion_api): string {
@@ -806,7 +812,7 @@ class Notion_Pages {
             // 处理 inline equation
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr    = $text['equation']['expression'] ?? '';
-                $content = '<span class="notion-inline-equation">$' . $expr . '$</span>';
+                $content = '<span class="notion-inline-equation latex-inline">$' . $expr . '$</span>';
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
@@ -1236,8 +1242,9 @@ class Notion_Pages {
     private function _convert_block_column(array $block, Notion_API $notion_api): string {
         // 计算列宽（Notion API 提供 ratio，可选）
         $ratio = $block['column']['width_ratio'] ?? 1;
-        $width_percent = 100 / max(1, $ratio); // 简化处理
-        $html = '<div class="notion-column" style="flex:1 1 ' . esc_attr($width_percent) . '%;">';
+        // Notion API ratio 通常为 0-1 之间的小数，表示占整体比例
+        $width_percent = max( 5, round( $ratio * 100, 2 ) );
+        $html = '<div class="notion-column" style="flex:0 0 ' . esc_attr( $width_percent ) . '%;">';
         $html .= $this->_convert_child_blocks($block, $notion_api);
         $html .= '</div>';
         return $html;
