@@ -199,6 +199,8 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
+		// 同步进度查询
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -232,6 +234,8 @@ class Notion_To_WordPress {
 		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
 		// 定义所有钩子后，注册队列cron处理程序
 		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
+		// 手动同步单次事件
+		add_action( 'ntw_manual_sync', [ $this, 'cron_import_pages' ] );
 	}
 
 	/**
