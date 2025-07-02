@@ -100,11 +100,8 @@ jQuery(document).ready(function($) {
     
     // --- 同步进度条 ---
     function startProgressPoll(){
-        const $container = $('#ntw-sync-progress');
-        const $bar       = $('#ntw-sync-bar');
-        const $tip       = $('#ntw-sync-tip');
-
-        $container.show();
+        const $log = $('#ntw-sync-log');
+        $log.text('').show();
 
         const timer = setInterval(function(){
             $.ajax({
@@ -114,12 +111,13 @@ jQuery(document).ready(function($) {
                 success:function(res){
                     if(!res.success){return;}
                     const p = res.data;
-                    if(!p.total){ return; }
-                    $bar.attr('max', p.total).val(p.processed || 0);
-                    $tip.text(p.processed + '/' + p.total + ' 已处理，成功: ' + (p.imported + p.updated) + ' 失败:' + p.failed);
+                    if(typeof p.processed === 'undefined'){return;}
+                    const line = '['+new Date().toLocaleTimeString()+'] '+p.processed+'/'+p.total+' 已处理 | 导入:'+p.imported+' 更新:'+p.updated+' 失败:'+p.failed+'\n';
+                    $log.append(line);
+                    $log.scrollTop($log[0].scrollHeight);
                     if(p.done){
                         clearInterval(timer);
-                        $tip.append(' ✓');
+                        $log.append('同步完成!\n');
                         // 同步完成后刷新统计
                         fetchStats();
                     }

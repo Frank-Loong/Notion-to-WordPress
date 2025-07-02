@@ -35,10 +35,11 @@
         // 预处理化学公式 ce{..} => \ce{..}
         $('.notion-equation-inline, .notion-equation-block').each(function () {
             let html = $(this).html();
-            if (html.indexOf('ce{') !== -1) {
-                html = html.replace(/ce\{([^}]+)\}/g, '\\ce{$1}');
-                $(this).html(html);
-            }
+            // 仅当 ce{ 前面不是反斜杠时才加上 \
+            html = html.replace(/(^|[^\\])ce\{/g, function(match, p1){
+                return p1 + '\\ce{';
+            });
+            $(this).html(html);
         });
 
         document.querySelectorAll('.notion-equation-inline, .notion-equation-block').forEach(renderKatexElement);
