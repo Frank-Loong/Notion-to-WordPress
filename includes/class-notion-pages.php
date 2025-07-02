@@ -107,6 +107,7 @@ class Notion_Pages {
      */
     public function import_notion_page(array $page): bool {
         if (empty($page) || !isset($page['id'])) {
+            Notion_To_WordPress_Helper::error_log( '导入失败：页面数据为空或缺少 ID', 'Notion Import' );
             return false;
         }
 
@@ -116,12 +117,14 @@ class Notion_Pages {
         $metadata = $this->extract_page_metadata($page);
         
         if (empty($metadata['title'])) {
+            Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 缺少标题', 'Notion Import' );
             return false;
         }
 
         // 获取页面内容
         $blocks = $this->notion_api->get_page_content($page_id);
         if (empty($blocks)) {
+            Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 获取 blocks 为空', 'Notion Import' );
             return false;
         }
 
@@ -138,6 +141,7 @@ class Notion_Pages {
         $post_id = $this->create_or_update_post($metadata, $content, $author_id, $page_id, $existing_post_id);
 
         if (is_wp_error($post_id)) {
+            Notion_To_WordPress_Helper::error_log( '导入失败：WP_Error -> ' . $post_id->get_error_message(), 'Notion Import' );
             return false;
         }
 
@@ -450,8 +454,8 @@ class Notion_Pages {
                     }
                 } catch (Exception $e) {
                     // 记录错误并添加注释
-                    Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage());
-                    $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
+                    Notion_To_WordPress_Helper::error_log( '块转换异常 ' . $block_type . ': ' . $e->getMessage(), 'Block Convert' );
+                    $html .= '<!-- 块转换错误: ' . esc_html( $block_type ) . ' -->';
                 }
             } else {
                 // 未知块类型，添加调试注释
@@ -1336,12 +1340,23 @@ class Notion_Pages {
             set_transient( 'ntw_sync_progress', $stats, 600 );
 
             foreach ($pages as $page) {
+                // --- 详细日志：开始处理页面 ---
+                $dbg_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+                Notion_To_WordPress_Helper::debug_log( "开始处理页面 {$dbg_title} | {$page['id']}", 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+
                 // 检查页面是否已存在
                 $existing_post_id = $this->get_post_by_notion_id($page['id']);
                 
                 $result = $this->import_notion_page($page);
                 
-                if ($result) {
+                // --- 处理返回 ---
+                if ( is_wp_error( $result ) ) {
+                    $stats['failed']++;
+                    Notion_To_WordPress_Helper::error_log( '页面导入 WP_Error: ' . $result->get_error_message(), 'Notion Page' );
+                    continue;
+                }
+
+                if ( $result ) {
                     if ($existing_post_id) {
                         $stats['updated']++;
                     } else {
@@ -1349,6 +1364,7 @@ class Notion_Pages {
                     }
                 } else {
                     $stats['failed']++;
+                    Notion_To_WordPress_Helper::error_log( '页面导入失败（返回 false）', 'Notion Page' );
                 }
 
                 $stats['processed']++;

@@ -31,6 +31,8 @@ class Notion_Download_Queue {
         $queue[] = $task;
         update_option( self::OPTION_QUEUE, $queue, false );
 
+        Notion_To_WordPress_Helper::debug_log( '入队任务: ' . ( $task['url'] ?? 'unknown' ) . ' | 队列长度: ' . count( $queue ), 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+
         // 调度一次性后台事件，尽快处理队列
         if ( ! wp_next_scheduled( 'ntw_async_media' ) ) {
             wp_schedule_single_event( time() + 1, 'ntw_async_media' );
@@ -66,6 +68,8 @@ class Notion_Download_Queue {
             return;
         }
 
+        Notion_To_WordPress_Helper::debug_log( '开始处理下载批次, 大小: ' . count( $batch ), 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+
         require_once ABSPATH . 'wp-admin/includes/media.php';
         require_once ABSPATH . 'wp-admin/includes/file.php';
         require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -74,6 +78,8 @@ class Notion_Download_Queue {
             $result = self::handle_single( $task );
             self::log_history( $task, $result );
         }
+
+        Notion_To_WordPress_Helper::debug_log( '批次处理完成, 队列剩余: ' . self::size(), 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
 
         // 若队列仍有剩余任务，继续调度下一次事件
         if ( self::size() > 0 && ! wp_next_scheduled( 'ntw_async_media' ) ) {
@@ -89,6 +95,8 @@ class Notion_Download_Queue {
         if ( empty( $url ) ) {
             return false;
         }
+
+        Notion_To_WordPress_Helper::debug_log( '处理下载: ' . $url . ' (retry ' . ( $t['retry'] ?? 0 ) . ')', 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
 
         // 下载到临时文件
         $tmp = download_url( $url );
@@ -120,6 +128,8 @@ class Notion_Download_Queue {
             Notion_To_WordPress_Helper::error_log( 'media_handle_sideload 错误: ' . $attachment_id->get_error_message(), 'Notion Queue' );
             return false;
         }
+
+        Notion_To_WordPress_Helper::debug_log( '下载成功并插入附件 ID: ' . $attachment_id, 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
 
         // 标记来源，便于卸载清理
         update_post_meta( $attachment_id, '_notion_original_url', esc_url( $url ) );

@@ -86,6 +86,9 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败或返回错误。
      */
     private function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
+        $start_time = microtime( true );
+        Notion_To_WordPress_Helper::debug_log( '调用 Notion API: ' . $endpoint, 'Notion API', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+
         $url = $this->api_base . $endpoint;
         
         $args = [
@@ -105,7 +108,9 @@ class Notion_API {
         $response = wp_remote_request($url, $args);
         
         if (is_wp_error($response)) {
-            throw new Exception('API请求失败: ' . $response->get_error_message());
+            $msg = 'API请求失败: ' . $response->get_error_message();
+            Notion_To_WordPress_Helper::error_log( $msg, 'Notion API' );
+            throw new Exception( $msg );
         }
         
         $response_code = wp_remote_retrieve_response_code($response);
@@ -114,6 +119,9 @@ class Notion_API {
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);
             throw new Exception('API错误 (' . $response_code . '): ' . $error_message);
         }
+        
+        $duration = round( ( microtime( true ) - $start_time ) * 1000 );
+        Notion_To_WordPress_Helper::debug_log( 'Notion API 返回 ' . $response_code . ' | 耗时: ' . $duration . 'ms', 'Notion API', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
         
         $body = wp_remote_retrieve_body($response);
         return json_decode($body, true) ?: [];
@@ -134,6 +142,7 @@ class Notion_API {
         $cached     = get_transient($cache_key);
 
         if ( is_array( $cached ) && ! empty( $cached ) ) {
+            Notion_To_WordPress_Helper::debug_log( '命中数据库页面缓存: ' . $database_id, 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
             return $cached;
         }
 
@@ -184,6 +193,7 @@ class Notion_API {
         $cached    = get_transient( $cache_key );
 
         if ( is_array( $cached ) ) {
+            Notion_To_WordPress_Helper::debug_log( '命中页面内容缓存: ' . $block_id, 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
             return $cached;
         }
 
@@ -237,6 +247,7 @@ class Notion_API {
     private function get_block_children(string $block_id): array {
         // 先检查请求级缓存
         if ( isset( self::$local_block_cache[ $block_id ] ) ) {
+            Notion_To_WordPress_Helper::debug_log( '命中本地块缓存: ' . $block_id, 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
             return self::$local_block_cache[ $block_id ];
         }
 
