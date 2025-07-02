@@ -168,7 +168,7 @@
     function checkMathJaxLoaded() {
         if (typeof MathJax === 'undefined') {
             mjAttempts++;
-            if (mjAttempts > 6) { // ~3 秒
+            if (mjAttempts > 20) { // ~10 秒
                 console.warn('MathJax 长时间未加载，切换到 KaTeX 回退渲染');
                 initKaTeXFallback();
                 return;
