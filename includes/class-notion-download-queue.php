@@ -112,9 +112,16 @@ class Notion_Download_Queue {
             return false;
         }
 
-        $file_name = basename( parse_url( $url, PHP_URL_PATH ) );
-        if ( empty( $file_name ) ) {
-            $file_name = 'notion-file-' . time();
+        // 使用指定文件名或从URL解析
+        $file_name = '';
+        if (!empty($t['name'])) {
+            $file_name = sanitize_file_name($t['name']);
+            Notion_To_WordPress_Helper::debug_log( '使用指定文件名: ' . $file_name, 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+        } else {
+            $file_name = basename( parse_url( $url, PHP_URL_PATH ) );
+            if ( empty( $file_name ) ) {
+                $file_name = 'notion-file-' . time();
+            }
         }
 
         $file = [

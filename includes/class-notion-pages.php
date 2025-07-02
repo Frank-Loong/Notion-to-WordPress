@@ -111,45 +111,84 @@ class Notion_Pages {
             return false;
         }
 
-        $page_id  = $page['id'];
+        $page_id = $page['id'] ?? '';
+        $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+        Notion_To_WordPress_Helper::debug_log( '开始导入页面内容: ' . $page_title . ' | ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        
         // 记录当前页面 ID 供后续锚点处理
         $this->current_page_id = $page_id;
-        $metadata = $this->extract_page_metadata($page);
         
-        if (empty($metadata['title'])) {
-            Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 缺少标题', 'Notion Import' );
+        try {
+            // 提取页面元数据
+            $metadata = $this->extract_page_metadata($page);
+            
+            if (empty($metadata['title'])) {
+                Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 缺少标题', 'Notion Import' );
+                return false;
+            }
+            
+            // 如果页面状态为"草稿"，则跳过
+            if ($metadata['status'] === 'draft') {
+                Notion_To_WordPress_Helper::debug_log( '页面状态为草稿，跳过: ' . $page_title, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+                return true;
+            }
+            
+            // 获取页面内容
+            Notion_To_WordPress_Helper::debug_log( '获取页面块内容: ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            $blocks = $this->notion_api->get_page_content($page['id']);
+            if (empty($blocks)) {
+                Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 获取 blocks 为空', 'Notion Import' );
+                return false;
+            }
+            Notion_To_WordPress_Helper::debug_log( '获取到 ' . count($blocks) . ' 个顶级块', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            
+            // 重置处理状态
+            $this->processed_blocks = [];
+            
+            // 将Notion块转换为HTML
+            Notion_To_WordPress_Helper::debug_log( '开始转换块为HTML', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+            Notion_To_WordPress_Helper::debug_log( '块转换完成，HTML长度: ' . strlen($raw_content), 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            
+            // 应用内容过滤
+            $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
+            
+            // 检查页面是否已存在
+            $existing_post_id = $this->get_post_by_notion_id($page['id']);
+            
+            // 获取作者ID
+            $author_id = $this->get_author_id();
+            
+            // 创建或更新文章
+            Notion_To_WordPress_Helper::debug_log( '准备' . ($existing_post_id ? '更新' : '创建') . 'WordPress文章', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            $post_id = $this->create_or_update_post($metadata, $content, $author_id, $page['id'], $existing_post_id);
+            
+            if (is_wp_error($post_id)) {
+                Notion_To_WordPress_Helper::error_log( '导入失败：WP_Error -> ' . $post_id->get_error_message(), 'Notion Import' );
+                return false;
+            }
+            
+            if (!$post_id) {
+                Notion_To_WordPress_Helper::error_log( '创建/更新WordPress文章失败', 'Notion Import' );
+                return false;
+            }
+            
+            // 分类 / 标签 / 特色图
+            $this->apply_taxonomies($post_id, $metadata);
+            $this->apply_featured_image($post_id, $metadata);
+            
+            // 应用自定义字段
+            if (!empty($metadata['custom_fields'])) {
+                $this->apply_custom_fields($post_id, $metadata['custom_fields']);
+            }
+            
+            Notion_To_WordPress_Helper::debug_log( 'WordPress文章ID: ' . $post_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            return true;
+            
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log( '导入页面异常: ' . $page_title . ' | ' . $page_id . ' - ' . $e->getMessage(), 'Notion Import' );
             return false;
         }
-
-        // 获取页面内容
-        $blocks = $this->notion_api->get_page_content($page_id);
-        if (empty($blocks)) {
-            Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 获取 blocks 为空', 'Notion Import' );
-            return false;
-        }
-
-        // 转换内容为 HTML 并做 KSES 过滤
-        $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
-        $content     = Notion_To_WordPress_Helper::custom_kses($raw_content);
-        
-        $existing_post_id = $this->get_post_by_notion_id($page_id);
-
-        // 获取文章作者
-        $author_id = $this->get_author_id();
-
-        // 创建或更新文章
-        $post_id = $this->create_or_update_post($metadata, $content, $author_id, $page_id, $existing_post_id);
-
-        if (is_wp_error($post_id)) {
-            Notion_To_WordPress_Helper::error_log( '导入失败：WP_Error -> ' . $post_id->get_error_message(), 'Notion Import' );
-            return false;
-        }
-
-        // 分类 / 标签 / 特色图
-        $this->apply_taxonomies($post_id, $metadata);
-        $this->apply_featured_image($post_id, $metadata);
-
-        return true;
     }
 
     /**
@@ -584,10 +623,17 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_image( $url, $caption );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 下载失败：直接使用原始 Notion URL，并提示可能过期
-            $notice      = esc_html__( '此为 Notion 临时图片链接，可能会过期。请考虑替换为图床或本地媒体库图片。', 'notion-to-wordpress' );
-            $figcaption  = $caption ? esc_html( $caption ) . ' - ' . $notice : $notice;
-            return '<figure class="wp-block-image size-large notion-temp-image"><img src="' . esc_url( $url ) . '" alt="' . esc_attr( $caption ) . '"><figcaption>' . $figcaption . '</figcaption></figure>';
+            // 图片入队异步下载，但目前还没有本地副本
+            // 使用数据占位符，便于后续替换
+            $placeholder_id = 'ntw-img-' . substr(md5($url), 0, 10);
+            $notice = esc_html__( '图片正在后台下载中...', 'notion-to-wordpress' );
+            $figcaption = $caption ? esc_html( $caption ) . ' - ' . $notice : $notice;
+            
+            // 将原始URL保存为data属性，便于下载完成后替换
+            return '<figure class="wp-block-image size-large notion-temp-image" data-ntw-url="' . esc_attr($url) . '" id="' . esc_attr($placeholder_id) . '">
+                <img src="' . esc_url( $url ) . '" alt="' . esc_attr( $caption ) . '">
+                <figcaption>' . $figcaption . '</figcaption>
+            </figure>';
         }
 
         // 下载成功，使用本地附件 URL
@@ -1112,9 +1158,8 @@ class Notion_Pages {
          
         // 如果创建/更新成功，处理自定义字段
         if (!is_wp_error($post_id) && $post_id > 0) {
-            if (!empty($metadata['custom_fields'])) {
-                $this->apply_custom_fields($post_id, $metadata['custom_fields']);
-            }
+            // 注意：自定义字段在import_notion_page中统一处理，避免重复应用
+            Notion_To_WordPress_Helper::debug_log( '文章' . ($existing_post_id ? '更新' : '创建') . '成功: ID ' . $post_id, 'Post', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
 
             // ---- 状态校正：有时因权限或 WP 内部过滤导致状态被降级为 draft ----
             $intended_status = $post_data['post_status'];
@@ -1216,6 +1261,13 @@ class Notion_Pages {
      * @return   int                  WordPress附件ID
      */
     private function download_and_insert_image( string $url, string $caption = '' ) {
+        // 先检查是否已经有相同URL的附件
+        $existing_id = $this->get_attachment_by_url( $url );
+        if ( $existing_id > 0 ) {
+            Notion_To_WordPress_Helper::debug_log( '找到已存在的图片附件: ' . $existing_id . ' 对应URL: ' . $url, 'Image', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            return $existing_id;
+        }
+        
         // 直接入队，后台异步处理
         Notion_Download_Queue::push([
             'type'        => 'image',
@@ -1224,6 +1276,11 @@ class Notion_Pages {
             'is_featured' => false,
             'caption'     => $caption,
         ]);
+        
+        // 记录日志
+        Notion_To_WordPress_Helper::debug_log( '图片入队下载: ' . $url, 'Image', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        
+        // 返回0表示需要后续处理
         return 0;
     }
 
@@ -1326,6 +1383,8 @@ class Notion_Pages {
                 return new WP_Error( 'no_pages', '未检索到任何页面。' );
             }
             
+            Notion_To_WordPress_Helper::info_log( '获取到 ' . count($pages) . ' 个页面准备同步', 'Notion Pages' );
+            
             $stats = [
                 'total' => count($pages),
                 'imported' => 0,
@@ -1352,19 +1411,21 @@ class Notion_Pages {
                 // --- 处理返回 ---
                 if ( is_wp_error( $result ) ) {
                     $stats['failed']++;
-                    Notion_To_WordPress_Helper::error_log( '页面导入 WP_Error: ' . $result->get_error_message(), 'Notion Page' );
+                    Notion_To_WordPress_Helper::error_log( '页面导入失败 ' . $dbg_title . ' | ' . $page['id'] . ' - WP_Error: ' . $result->get_error_message(), 'Notion Page' );
                     continue;
                 }
 
                 if ( $result ) {
                     if ($existing_post_id) {
                         $stats['updated']++;
+                        Notion_To_WordPress_Helper::info_log( '页面更新成功 ' . $dbg_title . ' | ' . $page['id'] . ' - WordPress ID: ' . $existing_post_id, 'Notion Page' );
                     } else {
                         $stats['imported']++;
+                        Notion_To_WordPress_Helper::info_log( '页面导入成功 ' . $dbg_title . ' | ' . $page['id'], 'Notion Page' );
                     }
                 } else {
                     $stats['failed']++;
-                    Notion_To_WordPress_Helper::error_log( '页面导入失败（返回 false）', 'Notion Page' );
+                    Notion_To_WordPress_Helper::error_log( '页面导入失败 ' . $dbg_title . ' | ' . $page['id'] . ' - 返回 false', 'Notion Page' );
                 }
 
                 $stats['processed']++;
@@ -1372,6 +1433,7 @@ class Notion_Pages {
                 // 每处理5条或最后一条时更新 transient
                 if ( $stats['processed'] % 5 === 0 || $stats['processed'] === $stats['total'] ) {
                     set_transient( 'ntw_sync_progress', $stats, 600 );
+                    Notion_To_WordPress_Helper::debug_log( '更新同步进度: ' . $stats['processed'] . '/' . $stats['total'] . ' (导入:' . $stats['imported'] . ' 更新:' . $stats['updated'] . ' 失败:' . $stats['failed'] . ')', 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
                 }
             }
 
@@ -1380,6 +1442,9 @@ class Notion_Pages {
             $stats['end_time']  = time();
             set_transient( 'ntw_sync_progress', $stats, 600 );
 
+            // 记录最终统计
+            Notion_To_WordPress_Helper::info_log( '同步完成: 总计' . $stats['total'] . '页面, 导入' . $stats['imported'] . ', 更新' . $stats['updated'] . ', 失败' . $stats['failed'], 'Notion Page' );
+            
             // 仅在实际处理过页面后更新同步时间
             if ( $stats['processed'] > 0 ) {
                 $now = current_time( 'mysql' );
@@ -1389,12 +1454,15 @@ class Notion_Pages {
                 $opts = get_option( 'notion_to_wordpress_options', [] );
                 $opts['last_sync_time'] = $now;
                 update_option( 'notion_to_wordpress_options', $opts, false );
+                
+                Notion_To_WordPress_Helper::debug_log( '更新最后同步时间: ' . $now, 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
             }
 
             $lock->release();
             return $stats;
             
         } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log( '同步过程异常: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), 'Notion Page' );
             $lock->release();
             return new WP_Error('import_failed', '导入失败: ' . $e->getMessage());
         }
@@ -1445,8 +1513,15 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 回退：使用原始 Notion URL（可能过期）
-            return '<div class="file-download-box notion-temp-file"><span class="file-download-name">' . esc_html( $display ) . '</span> <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（外链，可能过期）', 'notion-to-wordpress' ) . '</a></div>';
+            // 文件入队异步下载，但目前还没有本地副本
+            // 使用数据占位符，便于后续替换
+            $placeholder_id = 'ntw-file-' . substr(md5($url), 0, 10);
+            
+            // 将原始URL保存为data属性，便于下载完成后替换
+            return '<div class="file-download-box notion-temp-file" data-ntw-url="' . esc_attr($url) . '" id="' . esc_attr($placeholder_id) . '">
+                <span class="file-download-name">' . esc_html( $display ) . '</span> 
+                <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（后台处理中...）', 'notion-to-wordpress' ) . '</a>
+            </div>';
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
@@ -1463,13 +1538,25 @@ class Notion_Pages {
      * @return int|WP_Error        附件 ID 或错误
      */
     private function download_and_insert_file( string $url, string $caption = '', string $override_name = '' ) {
+        // 先检查是否已经有相同URL的附件
+        $existing_id = $this->get_attachment_by_url( $url );
+        if ( $existing_id > 0 ) {
+            Notion_To_WordPress_Helper::debug_log( '找到已存在的文件附件: ' . $existing_id . ' 对应URL: ' . $url, 'File', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            return $existing_id;
+        }
+        
         // 直接入队，后台异步处理
         Notion_Download_Queue::push([
             'type'    => 'file',
             'url'     => $url,
             'post_id' => 0,
             'caption' => $caption,
+            'name'    => $override_name,
         ]);
+        
+        // 记录日志
+        Notion_To_WordPress_Helper::debug_log( '文件入队下载: ' . $url . ($override_name ? ' 指定文件名: ' . $override_name : ''), 'File', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        
         return 0;
     }
 
