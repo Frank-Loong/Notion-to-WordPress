@@ -113,8 +113,16 @@ if ($delete_content) {
     }
 } else {
     // 保留文章，但清理与插件相关的 post_meta，避免后续重新安装时仍被统计
-    if ( $query->have_posts() ) {
-        foreach ( $query->posts as $post_id ) {
+    $posts_query = new WP_Query( array(
+        'post_type'      => array( 'post', 'page' ),
+        'meta_key'       => '_notion_page_id',
+        'meta_compare'   => 'EXISTS',
+        'posts_per_page' => -1,
+        'fields'         => 'ids',
+    ) );
+
+    if ( $posts_query->have_posts() ) {
+        foreach ( $posts_query->posts as $post_id ) {
             delete_post_meta( $post_id, '_notion_page_id' );
         }
     }
