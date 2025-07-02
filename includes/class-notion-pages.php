@@ -1285,8 +1285,21 @@ class Notion_Pages {
         }
         
         try {
-            // 获取数据库中的所有页面
-            $pages = $this->notion_api->get_database_pages($this->database_id);
+            // 获取上次同步时间，若有则增量拉取（向前回溯5分钟以覆盖边缘情况）
+            $opts          = get_option( 'notion_to_wordpress_options', [] );
+            $last_sync_raw = $opts['last_sync_time'] ?? '';
+            $filter        = [];
+
+            if ( $last_sync_raw ) {
+                $last_sync_gmt = gmdate( 'c', strtotime( $last_sync_raw ) - 300 ); // 5分钟缓冲
+                $filter        = [
+                    'timestamp'       => 'last_edited_time',
+                    'last_edited_time' => [ 'on_or_after' => $last_sync_gmt ],
+                ];
+            }
+
+            // 获取数据库中的页面（可能带筛选）
+            $pages = $this->notion_api->get_database_pages( $this->database_id, $filter );
             
             if (empty($pages)) {
                 $lock->release();
