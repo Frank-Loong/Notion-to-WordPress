@@ -285,13 +285,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <p class="description"><?php esc_html_e('用于设置WordPress文章标签的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
-                                <tr>
-                                    <th scope="row"><label for="mapping_visibility"><?php esc_html_e('可见性', 'notion-to-wordpress'); ?></label></th>
-                                    <td>
-                                        <input name="field_mapping[visibility]" type="text" id="mapping_visibility" value="<?php echo esc_attr($field_mapping['visibility']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('用于设置WordPress文章可见性的Notion属性名称（公开、私密、密码保护）', 'notion-to-wordpress'); ?></p>
-                                    </td>
-                                </tr>
                             </tbody>
                         </table>
 
