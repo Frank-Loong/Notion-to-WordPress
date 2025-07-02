@@ -66,6 +66,12 @@ class Notion_Pages {
     private int $lock_timeout;
     
     /**
+     * 当前正在处理的 Notion 页面 ID（用于内部锚点转换）
+     * @var string
+     */
+    private string $current_page_id = '';
+    
+    /**
      * 构造函数
      *
      * @since    1.0.8
@@ -105,6 +111,8 @@ class Notion_Pages {
         }
 
         $page_id  = $page['id'];
+        // 记录当前页面 ID 供后续锚点处理
+        $this->current_page_id = $page_id;
         $metadata = $this->extract_page_metadata($page);
         
         if (empty($metadata['title'])) {
@@ -421,7 +429,10 @@ class Notion_Pages {
                 try {
                     // 尝试转换块
                     $block_html = $this->{$converter_method}($block, $notion_api);
-                    $html .= $block_html;
+
+                    // 为所有块添加锚点 span，供内部/跨文章跳转
+                    $anchor_id = str_replace( '-', '', $block['id'] );
+                    $html .= '<span id="' . esc_attr( $anchor_id ) . '"></span>' . $block_html;
                     
                     // 检查是否有子块
                     if (isset($block['has_children']) && $block['has_children'] && !$is_list_item) {
@@ -476,17 +487,20 @@ class Notion_Pages {
 
     private function _convert_block_heading_1(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_1']['rich_text']);
-        return '<h1>' . $text . '</h1>' . $this->_convert_child_blocks($block, $notion_api);
+        $anchor = str_replace( '-', '', $block['id'] );
+        return '<h1 id="' . esc_attr( $anchor ) . '">' . $text . '</h1>' . $this->_convert_child_blocks($block, $notion_api);
     }
     
     private function _convert_block_heading_2(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_2']['rich_text']);
-        return '<h2>' . $text . '</h2>' . $this->_convert_child_blocks($block, $notion_api);
+        $anchor = str_replace( '-', '', $block['id'] );
+        return '<h2 id="' . esc_attr( $anchor ) . '">' . $text . '</h2>' . $this->_convert_child_blocks($block, $notion_api);
     }
 
     private function _convert_block_heading_3(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_3']['rich_text']);
-        return '<h3>' . $text . '</h3>' . $this->_convert_child_blocks($block, $notion_api);
+        $anchor = str_replace( '-', '', $block['id'] );
+        return '<h3 id="' . esc_attr( $anchor ) . '">' . $text . '</h3>' . $this->_convert_child_blocks($block, $notion_api);
     }
 
     private function _convert_block_bulleted_list_item(array $block, Notion_API $notion_api): string {
@@ -712,7 +726,7 @@ class Notion_Pages {
 
     private function _convert_block_equation(array $block, Notion_API $notion_api): string {
         $expression = $block['equation']['expression'];
-        return '<div class="notion-equation latex-block">$$' . $expression . '$$</div>';
+        return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
     private function _convert_block_embed(array $block, Notion_API $notion_api): string {
@@ -887,7 +901,7 @@ class Notion_Pages {
             // 处理 inline equation
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr    = $text['equation']['expression'] ?? '';
-                $content = '<span class="notion-inline-equation latex-inline">$' . $expr . '$</span>';
+                $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
@@ -930,7 +944,44 @@ class Notion_Pages {
             
             // 处理链接
             if (!empty($href)) {
-                $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
+                // 内/跨文章锚点转换
+                $href_converted = $href;
+
+                if ( str_contains( $href, '#' ) && str_contains( $href, 'notion.so' ) ) {
+                    [$url_part, $anchor_part] = explode( '#', $href, 2 );
+
+                    // 提取页面id（去除横线的32位字符）
+                    $trimmed = substr( $url_part, -32 );
+                    if ( strlen( $trimmed ) === 32 ) {
+                        $dashed_id = preg_replace('/(.{8})(.{4})(.{4})(.{4})(.{12})/', '$1-$2-$3-$4-$5', $trimmed );
+
+                        // 判断是否同页
+                        if ( $this->current_page_id && $dashed_id === $this->current_page_id ) {
+                            $href_converted = '#' . $anchor_part;
+                        } else {
+                            // 查找对应WP文章
+                            $post = get_posts([
+                                'post_type'   => 'any',
+                                'post_status' => 'publish',
+                                'meta_query'  => [[
+                                    'key'   => '_notion_page_id',
+                                    'value' => $dashed_id,
+                                ]],
+                                'fields' => 'ids',
+                                'numberposts' => 1,
+                            ]);
+
+                            if ( ! empty( $post ) ) {
+                                $permalink = get_permalink( $post[0] );
+                                if ( $permalink ) {
+                                    $href_converted = $permalink . '#' . $anchor_part;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $content = '<a href="' . esc_url( $href_converted ) . '">' . $content . '</a>';
             }
             
             $result .= $content;
@@ -1028,8 +1079,37 @@ class Notion_Pages {
         }
          
         // 如果创建/更新成功，处理自定义字段
-        if (!is_wp_error($post_id) && $post_id > 0 && !empty($metadata['custom_fields'])) {
-            $this->apply_custom_fields($post_id, $metadata['custom_fields']);
+        if (!is_wp_error($post_id) && $post_id > 0) {
+            if (!empty($metadata['custom_fields'])) {
+                $this->apply_custom_fields($post_id, $metadata['custom_fields']);
+            }
+
+            // ---- 状态校正：有时因权限或 WP 内部过滤导致状态被降级为 draft ----
+            $intended_status = $post_data['post_status'];
+            $current_status  = get_post_status($post_id);
+
+            if (in_array($intended_status, ['private', 'publish'], true) && $current_status !== $intended_status) {
+                $did_switch = false;
+                if (0 === get_current_user_id()) {
+                    wp_set_current_user($author_id);
+                    $did_switch = true;
+                }
+
+                wp_update_post([
+                    'ID'          => $post_id,
+                    'post_status' => $intended_status,
+                ]);
+
+                if ($did_switch) {
+                    wp_set_current_user(0);
+                }
+
+                Notion_To_WordPress_Helper::debug_log(
+                    "强制校正文章状态: {$current_status} → {$intended_status} (Post ID: {$post_id})",
+                    'Notion Info',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+                );
+            }
         }
 
         return $post_id;
@@ -1336,7 +1416,7 @@ class Notion_Pages {
 
     private function _convert_block_column(array $block, Notion_API $notion_api): string {
         // 计算列宽（Notion API 提供 ratio，可选）
-        $ratio = $block['column']['width_ratio'] ?? 1;
+        $ratio = $block['column']['ratio'] ?? ( $block['column']['width_ratio'] ?? 1 );
         // Notion API ratio 通常为 0-1 之间的小数，表示占整体比例
         $width_percent = max( 5, round( $ratio * 100, 2 ) );
         $html = '<div class="notion-column" style="flex:0 0 ' . esc_attr( $width_percent ) . '%;">';

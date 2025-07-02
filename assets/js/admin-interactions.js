@@ -472,8 +472,15 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_update || '从未');
-                    $('.stat-next-run').text(stats.next_run || '未计划');
+
+                    const formatDateTime = (val, fallback) => {
+                        if (!val || val === fallback) return fallback;
+                        // 将日期与时间间的第一个空格替换为换行，以避免文字重叠
+                        return val.replace(/\s+/, '<br>');
+                    };
+
+                    $('.stat-last-update').html(formatDateTime(stats.last_update, '从未'));
+                    $('.stat-next-run').html(formatDateTime(stats.next_run, '未计划'));
                 } else {
                     showModal('无法加载统计信息: ' + (response.data.message || '未知错误'), 'error');
                 }
