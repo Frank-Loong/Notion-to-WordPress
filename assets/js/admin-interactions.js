@@ -6,11 +6,13 @@
  */
 
 jQuery(document).ready(function($) {
+    const debug = !!(notionToWp && notionToWp.debug);
+    const dlog = (...args) => { if (debug) console.log(...args); };
     const $overlay = $('#loading-overlay');
     
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
-      console.log('正在加载统计信息...');
+      dlog('正在加载统计信息...');
       fetchStats();
     }
 
@@ -163,18 +165,18 @@ jQuery(document).ready(function($) {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text)
                     .then(() => {
-                        console.log('文本已成功复制到剪贴板');
+                        dlog('文本已成功复制到剪贴板');
                         if (callback) callback(true);
                     })
                     .catch(err => {
-                        console.error('使用 Clipboard API 复制失败:', err);
+                        if(debug) console.error('使用 Clipboard API 复制失败:', err);
                         fallbackCopyToClipboard(text, callback);
                     });
             } else {
                 fallbackCopyToClipboard(text, callback);
             }
         } catch (e) {
-            console.error('复制过程中发生错误:', e);
+            if(debug) console.error('复制过程中发生错误:', e);
             if (callback) callback(false, e.message);
         }
     };
@@ -194,14 +196,14 @@ jQuery(document).ready(function($) {
             document.body.removeChild(textarea);
             
             if (successful) {
-                console.log('使用备用方法成功复制文本');
+                dlog('使用备用方法成功复制文本');
                 if (callback) callback(true);
             } else {
                 console.warn('execCommand 复制命令失败');
                 if (callback) callback(false, 'execCommand 复制命令失败');
             }
         } catch (e) {
-            console.error('备用复制方法错误:', e);
+            if(debug) console.error('备用复制方法错误:', e);
             if (callback) callback(false, e.message);
         }
     }
@@ -436,7 +438,7 @@ jQuery(document).ready(function($) {
         success: function(resp) {
           $overlay.fadeOut(300);
           if (resp.success) {
-            showModal('页面已刷新完成！', 'success');
+            showModal(notionToWp.i18n.page_refreshed || '页面已刷新完成！', 'success');
             // 刷新统计信息
             fetchStats();
           } else {
@@ -545,14 +547,14 @@ jQuery(document).ready(function($) {
     // 初始化复制按钮函数
     function initCopyButtons() {
         const copyButtons = $('.copy-to-clipboard');
-        console.log('找到复制按钮数量:', copyButtons.length);
+        dlog('找到复制按钮数量:', copyButtons.length);
         
         copyButtons.each(function(index) {
             const $btn = $(this);
             const target = $btn.data('clipboard-target');
             const $target = $(target);
             
-            console.log(`按钮 ${index + 1}:`, {
+            dlog(`按钮 ${index + 1}:`, {
                 '目标选择器': target,
                 '目标元素存在': $target.length > 0,
                 '目标元素值': $target.val() || '(空)',
