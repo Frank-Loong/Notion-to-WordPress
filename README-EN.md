@@ -4,7 +4,7 @@ A modern, professional WordPress plugin for synchronizing Notion database conten
 
 ---
 
-**Version: 1.0.9**  
+**Version: 1.1.0**  
 **Author: Frank-Loong**  
 **GitHub: https://github.com/Frank-Loong/Notion-to-WordPress**
 
@@ -86,4 +86,4 @@ This plugin is licensed under GPL v3 or later. See LICENSE for details.
 
 ---
 
-> © 2024 Frank-Loong. Notion·to-WordPress v1.0.9
+> © 2024 Frank-Loong. Notion·to-WordPress v1.1.0
