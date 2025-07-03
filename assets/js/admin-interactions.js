@@ -62,14 +62,14 @@ jQuery(document).ready(function($) {
     });
     
     // 手动导入
-    $('#notion-manual-import').on('click', function(e) {
+    $('#notion-manual-import').on('click', async function(e) {
         e.preventDefault();
-        var button = $(this);
-        
-        // 确认操作
-        if (!confirm('确定要开始同步Notion内容吗？')) {
+        const ok = await window.showConfirm('确定要开始同步Notion内容吗？');
+        if (!ok) {
             return;
         }
+        
+        var button = $(this);
         
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.importing);
         
@@ -240,10 +240,11 @@ jQuery(document).ready(function($) {
     });
     
     // 清除日志按钮点击事件
-    $('#clear-logs-button').on('click', function(e) {
+    $('#clear-logs-button').on('click', async function(e) {
         e.preventDefault();
         
-        if (!confirm('确定要清除所有日志文件吗？此操作不可恢复。')) {
+        const ok = await window.showConfirm('确定要清除所有日志文件吗？此操作不可恢复。');
+        if (!ok) {
             return;
         }
         
@@ -320,7 +321,7 @@ jQuery(document).ready(function($) {
     window.showModal = function(message, status) {
         const toast = $('<div class="notion-wp-toast ' + (status || 'info') + '"></div>');
         const icon = $('<div class="notion-wp-toast-icon"></div>');
-        const content = $('<div class="notion-wp-toast-content">' + message + '</div>');
+        const content = $('<div class="notion-wp-toast-content"></div>').text(message);
         const close = $('<button class="notion-wp-toast-close"><span class="dashicons dashicons-no-alt"></span></button>');
         
         // 根据状态设置 Emoji 图标
@@ -371,13 +372,14 @@ jQuery(document).ready(function($) {
     });
 
     // 刷新全部内容
-    $('.refresh-all-content').on('click', function(e) {
+    $('.refresh-all-content').on('click', async function(e) {
         e.preventDefault();
-        var button = $(this);
-        
-        if (!confirm('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。')) {
+        const ok = await window.showConfirm('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。');
+        if (!ok) {
             return;
         }
+        
+        var button = $(this);
         
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.refreshing);
         
@@ -538,6 +540,9 @@ jQuery(document).ready(function($) {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
             }
+            /* 确认对话样式 */
+            .notion-wp-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index: 10000; }
+            .notion-wp-modal { background:#fff; border-radius: var(--notion-border-radius); padding:24px; box-shadow:0 8px 20px rgba(0,0,0,0.15); max-width:360px; width:90%; }
         `)
         .appendTo('head');
 
@@ -567,6 +572,35 @@ jQuery(document).ready(function($) {
             }
         });
     }
+
+    /* ---------- 全局确认对话 ---------- */
+    window.showConfirm = function(message) {
+        return new Promise(function(resolve) {
+            const overlay = $('<div class="notion-wp-overlay"></div>').hide();
+            const modal   = $('<div class="notion-wp-modal"></div>');
+            const content = $('<div class="notion-wp-toast-content"></div>').text(message);
+            const actions = $('<div style="display:flex; gap:12px; margin-top:18px; justify-content:flex-end;"></div>');
+            const btnYes = $('<button class="button button-primary">确定</button>');
+            const btnNo  = $('<button class="button">取消</button>');
+
+            actions.append(btnNo, btnYes);
+            modal.append(content).append(actions);
+            overlay.append(modal);
+            $('body').append(overlay);
+
+            overlay.fadeIn(150);
+
+            function close(result) {
+                overlay.fadeOut(150, function() {
+                    overlay.remove();
+                    resolve(result);
+                });
+            }
+
+            btnYes.on('click', function() { close(true); });
+            btnNo.on('click',  function() { close(false); });
+        });
+    };
 });
 
 // 从 copy_button.js 合并的代码
@@ -607,7 +641,7 @@ jQuery(document).ready(function($) {
             
             // 根据复制结果更新按钮文本
             if (success) {
-                var originalText = $button.text();
+                const originalText = $button.text();
                 $button.text('已复制!');
                 
                 // 2秒后恢复原始文本
@@ -615,7 +649,13 @@ jQuery(document).ready(function($) {
                     $button.text(originalText);
                 }, 2000);
             } else {
-                alert('复制失败，请手动复制。');
+                // 使用统一 Toast，而非阻塞式 alert，提高用户体验并避免原生弹窗
+                if ( typeof window.showModal === 'function' ) {
+                    showModal('复制失败: 请手动复制。', 'error');
+                } else {
+                    // 兜底：仍使用 alert，保证信息可见
+                    alert('复制失败，请手动复制。');
+                }
             }
         }
     });

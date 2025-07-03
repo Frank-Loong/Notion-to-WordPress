@@ -16,7 +16,7 @@ Notion·to-WordPress provides a one-stop solution for creators, teams, and devel
 ## Features
 - **Automatic/Manual Sync**: Schedule or one-click import of Notion database content to WordPress
 - **Webhook Support**: Automatically trigger sync when Notion content changes
-- **Advanced Format Compatibility**: MathJax, Mermaid diagrams, code blocks, tables, images, etc.
+- **Advanced Format Compatibility**: c, Mermaid diagrams, code blocks, tables, images, etc.
 - **Field Mapping**: Custom mapping between Notion properties and WordPress fields
 - **Categories/Tags/Featured Images**: Auto-detection and sync
 - **Concurrency Lock**: Prevent duplicate imports, ensure data consistency
