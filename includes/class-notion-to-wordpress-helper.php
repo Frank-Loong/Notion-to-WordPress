@@ -541,6 +541,36 @@ class Notion_To_WordPress_Helper {
         }
         delete_transient( $key );
     }
+
+    public static function get_attachment_id_by_url( string $search_url ): int {
+        // 按 _notion_original_url 或 _notion_base_url 查找
+        $posts = get_posts([
+            'post_type'      => 'attachment',
+            'post_status'    => 'inherit',
+            'posts_per_page' => 1,
+            'meta_query'     => [
+                'relation' => 'OR',
+                [
+                    'key'     => '_notion_original_url',
+                    'value'   => esc_url( $search_url ),
+                    'compare' => '=',
+                ],
+                [
+                    'key'     => '_notion_base_url',
+                    'value'   => esc_url( $search_url ),
+                    'compare' => '=',
+                ],
+            ],
+            'fields' => 'ids',
+        ]);
+        if ( ! empty( $posts ) ) {
+            return (int) $posts[0];
+        }
+        // 兜底通过 guid 精确匹配
+        global $wpdb;
+        $aid = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE guid=%s LIMIT 1", $search_url ) );
+        return $aid ? (int) $aid : 0;
+    }
 }
 
 // 初始化静态帮助类
