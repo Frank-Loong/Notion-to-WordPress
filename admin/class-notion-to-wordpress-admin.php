@@ -544,6 +544,112 @@ class Notion_To_WordPress_Admin {
         wp_send_json_success($content);
     }
 
+    // 新增：刷新全部内容
+    public function handle_refresh_all() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            // 读取设置
+            $options = get_option('notion_to_wordpress_options', []);
+            if (empty($options['notion_api_key']) || empty($options['notion_database_id'])) {
+                wp_send_json_error(['message' => '请先配置API密钥和数据库ID']);
+                return;
+            }
+
+            // 忽略用户中断，避免长任务被终止
+            if (function_exists('ignore_user_abort')) {
+                ignore_user_abort(true);
+            }
+
+            $api_key       = $options['notion_api_key'];
+            $database_id   = $options['notion_database_id'];
+            $field_mapping = $options['field_mapping'] ?? [];
+            $custom_field_mappings = $options['custom_field_mappings'] ?? [];
+            $lock_timeout  = $options['lock_timeout'] ?? 120;
+
+            // 使用最新配置实例化
+            $notion_api   = Notion_API::instance($api_key);
+            $notion_pages = new Notion_Pages($notion_api, $database_id, $field_mapping, $lock_timeout);
+            $notion_pages->set_custom_field_mappings($custom_field_mappings);
+
+            // 强制刷新全部
+            $result = $notion_pages->import_pages(true);
+
+            if (is_wp_error($result)) {
+                wp_send_json_error(['message' => $result->get_error_message()]);
+                return;
+            }
+
+            wp_send_json_success(['message' => sprintf('刷新完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'])]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '刷新失败: ' . $e->getMessage()]);
+        }
+    }
+
+    // 新增：刷新单个页面
+    public function handle_refresh_single() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $page_id = isset($_POST['page_id']) ? sanitize_text_field($_POST['page_id']) : '';
+        if (empty($page_id)) {
+            wp_send_json_error(['message' => '无效的页面ID']);
+            return;
+        }
+
+        try {
+            $options = get_option('notion_to_wordpress_options', []);
+            if (empty($options['notion_api_key']) || empty($options['notion_database_id'])) {
+                wp_send_json_error(['message' => '请先配置API密钥和数据库ID']);
+                return;
+            }
+
+            $api_key       = $options['notion_api_key'];
+            $database_id   = $options['notion_database_id'];
+            $field_mapping = $options['field_mapping'] ?? [];
+            $custom_field_mappings = $options['custom_field_mappings'] ?? [];
+            $lock_timeout  = $options['lock_timeout'] ?? 120;
+
+            $notion_api   = Notion_API::instance($api_key);
+            $notion_pages = new Notion_Pages($notion_api, $database_id, $field_mapping, $lock_timeout);
+            $notion_pages->set_custom_field_mappings($custom_field_mappings);
+
+            // 强制刷新单个页面
+            $result = $notion_pages->import_pages(true, $page_id);
+
+            if (is_wp_error($result)) {
+                wp_send_json_error(['message' => $result->get_error_message()]);
+                return;
+            }
+
+            wp_send_json_success(['message' => '页面已刷新完成！']);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '刷新失败: ' . $e->getMessage()]);
+        }
+    }
+
+    // 新增：同步进度查询（当前返回下载队列长度，可按需扩展）
+    public function handle_get_sync_progress() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $queue_size = Notion_Download_Queue::size();
+        wp_send_json_success(['queue_size' => $queue_size]);
+    }
+
     /**
      * 注册与管理区域功能相关的所有钩子
      *
@@ -564,6 +670,7 @@ class Notion_To_WordPress_Admin {
         $this->loader->add_action('wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats');
         $this->loader->add_action('wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs');
         $this->loader->add_action('wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log');
+        $this->loader->add_action('wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress');
         
         // 注册定时任务钩子
         $options = get_option( 'notion_to_wordpress_options', [] );
