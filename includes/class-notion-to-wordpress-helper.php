@@ -63,15 +63,9 @@ class Notion_To_WordPress_Helper {
      * @since 1.1.0
      */
     public static function fix_theme_session_issues() {
-        // 检查是否在导入过程中
-        if (isset($_POST['action']) && $_POST['action'] === 'notion_to_wordpress_manual_sync') {
-            // 如果会话已经启动，避免主题重复启动
-            if (!headers_sent() && !session_id()) {
-                @session_start();
-            }
-            
-            // 为ZIB主题添加特定兼容性处理
-            add_filter('zib_session_start', '__return_false');
+        if ( isset( $_POST['action'] ) && $_POST['action'] === 'notion_to_wordpress_manual_sync' ) {
+            // 直接屏蔽主题启动 session，避免产生 PHPSESSID Cookie
+            add_filter( 'zib_session_start', '__return_false' );
         }
     }
 
