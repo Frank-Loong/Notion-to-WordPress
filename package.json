@@ -8,7 +8,10 @@
   },
   "scripts": {
     "build:css": "sass --no-source-map assets/scss/admin.scss assets/css/admin.css --style=compressed",
-    "watch:css": "sass --watch assets/scss/admin.scss:assets/css/admin.css --no-source-map --style=expanded"
+    "watch:css": "sass --watch assets/scss/admin.scss:assets/css/admin.css --no-source-map --style=expanded",
+    "build:frontend": "sass --no-source-map assets/scss/frontend.scss assets/css/frontend.css --style=compressed",
+    "watch:frontend": "sass --watch assets/scss/frontend.scss:assets/css/frontend.css --no-source-map --style=expanded",
+    "build:all": "npm run build:css && npm run build:frontend"
   },
   "license": "GPL-3.0-or-later"
 } 

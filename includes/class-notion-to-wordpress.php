@@ -480,15 +480,10 @@ class Notion_To_WordPress {
 		}
 
 		// 样式
+		// 直接加载编译后的前端单文件样式（assets/css/frontend.css）
 		wp_enqueue_style(
-			$this->plugin_name . '-latex',
-			Notion_To_WordPress_Helper::plugin_url('assets/css/latex-styles.css'),
-			array(),
-			$this->version
-		);
-		wp_enqueue_style(
-			$this->plugin_name . '-custom',
-			Notion_To_WordPress_Helper::plugin_url('assets/css/custom-styles.css'),
+			$this->plugin_name . '-frontend',
+			Notion_To_WordPress_Helper::plugin_url( 'assets/css/frontend.css' ),
 			array(),
 			$this->version
 		);
