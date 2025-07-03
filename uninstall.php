@@ -169,10 +169,19 @@ if ( is_dir( $log_dir ) ) {
     // 递归删除目录
     $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $log_dir, RecursiveDirectoryIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
     foreach ( $files as $fileinfo ) {
-        $todo = $fileinfo->isDir() ? 'rmdir' : 'unlink';
-        @$todo( $fileinfo->getRealPath() );
+        $path = $fileinfo->getRealPath();
+        if ( $fileinfo->isDir() ) {
+            // 尝试删除子目录
+            if ( ! @rmdir( $path ) && file_exists( $path ) ) {
+                error_log( '[Notion-to-WP Uninstall] 无法删除目录: ' . $path );
+            }
+        } else {
+            // 尝试删除文件
+            if ( ! @unlink( $path ) && file_exists( $path ) ) {
+                error_log( '[Notion-to-WP Uninstall] 无法删除文件: ' . $path );
+            }
+        }
     }
-    @rmdir( $log_dir );
 }
 
 // 2. 清理与插件相关的 transient 缓存（ntw_ 前缀）
