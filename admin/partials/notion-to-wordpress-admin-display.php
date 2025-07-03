@@ -59,27 +59,21 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         <div class="notion-wp-sidebar">
             <div class="notion-wp-menu">
                 <button class="notion-wp-menu-item active" data-tab="api-settings">
-                    <span class="dashicons dashicons-admin-settings"></span>
                     <?php esc_html_e('🛠️ 主要设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="field-mapping">
-                    <span class="dashicons dashicons-networking"></span>
                     <?php esc_html_e('🔗 字段映射', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="other-settings">
-                    <span class="dashicons dashicons-admin-generic"></span>
                     <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
-                    <span class="dashicons dashicons-hammer"></span>
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="help">
-                    <span class="dashicons dashicons-editor-help"></span>
                     <?php esc_html_e('📖 帮助与指南', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="about-author">
-                    <span class="dashicons dashicons-admin-users"></span>
                     <?php esc_html_e('👨‍💻 关于作者', 'notion-to-wordpress'); ?>
                 </button>
             </div>
