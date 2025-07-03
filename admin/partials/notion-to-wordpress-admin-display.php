@@ -566,11 +566,34 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><?php esc_html_e('错误日志', 'notion-to-wordpress'); ?></th>
                                     <td>
                                         <div id="log-viewer-container">
+                                            <?php
+                                            // --- 日志文件分页 ---
+                                            $all_logs   = Notion_To_WordPress_Helper::get_log_files();
+                                            $per_page   = 20; // 每页显示数量
+                                            $total      = count( $all_logs );
+                                            $total_pages = max( 1, (int) ceil( $total / $per_page ) );
+                                            $current    = isset( $_GET['log_page'] ) ? max( 1, min( $total_pages, intval( $_GET['log_page'] ) ) ) : 1;
+                                            $offset     = ( $current - 1 ) * $per_page;
+                                            $logs_page  = array_slice( $all_logs, $offset, $per_page );
+                                            ?>
+
                                             <select id="log-file-selector">
-                                                <?php foreach (Notion_To_WordPress_Helper::get_log_files() as $file): ?>
-                                                    <option value="<?php echo esc_attr($file); ?>"><?php echo esc_html($file); ?></option>
+                                                <?php foreach ( $logs_page as $file ): ?>
+                                                    <option value="<?php echo esc_attr( $file ); ?>"><?php echo esc_html( $file ); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
+
+                                            <?php if ( $total_pages > 1 ) : ?>
+                                                <div class="log-pagination" style="margin-top:6px;">
+                                                    <?php if ( $current > 1 ) : ?>
+                                                        <a class="button" href="<?php echo esc_url( add_query_arg( 'log_page', $current - 1 ) ); ?>#debug">&laquo; <?php esc_html_e( '上一页', 'notion-to-wordpress' ); ?></a>
+                                                    <?php endif; ?>
+                                                    <span style="margin:0 8px;"><?php echo sprintf( __( '第 %d / %d 页', 'notion-to-wordpress' ), $current, $total_pages ); ?></span>
+                                                    <?php if ( $current < $total_pages ) : ?>
+                                                        <a class="button" href="<?php echo esc_url( add_query_arg( 'log_page', $current + 1 ) ); ?>#debug"><?php esc_html_e( '下一页', 'notion-to-wordpress' ); ?> &raquo;</a>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <button type="button" class="button button-secondary" id="view-log-button"><?php esc_html_e('查看日志', 'notion-to-wordpress'); ?></button>
                                             <button type="button" class="button button-danger" id="clear-logs-button"><?php esc_html_e('清除所有日志', 'notion-to-wordpress'); ?></button>
                                             <textarea id="log-viewer" class="large-text code" rows="18" readonly
