@@ -196,6 +196,12 @@ foreach ( $transients as $transient_option ) {
 // 刷新重写规则
 flush_rewrite_rules();
 
+// ---------- 清理对象缓存 ----------
+if ( function_exists( 'wp_cache_flush' ) ) {
+    // Flushing entire object cache to确保删除 ntw 前缀缓存；在卸载阶段影响可忽略
+    wp_cache_flush();
+}
+
 // 移除最后同步时间等单独记录的选项
 delete_option( 'notion_to_wordpress_last_sync' );
 delete_option( 'ntw_download_queue' );

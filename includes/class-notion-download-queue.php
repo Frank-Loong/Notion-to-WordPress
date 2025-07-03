@@ -122,8 +122,15 @@ class Notion_Download_Queue {
             $retry = (int) ( $t['retry'] ?? 0 );
             if ( $retry < self::MAX_RETRY ) {
                 $t['retry'] = $retry + 1;
-                // 退避：延后 60 秒再加入队列
-                wp_schedule_single_event( time() + 60, 'ntw_async_media', [ $t ] );
+                // 将任务重新入队
+                $queue = get_option( self::OPTION_QUEUE, [] );
+                $queue[] = $t;
+                update_option( self::OPTION_QUEUE, $queue, false );
+
+                // 退避：延后 60 秒再次调度处理，无需携带参数
+                if ( ! wp_next_scheduled( 'ntw_async_media' ) ) {
+                    wp_schedule_single_event( time() + 60, 'ntw_async_media' );
+                }
             }
             return false;
         }

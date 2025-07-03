@@ -72,6 +72,13 @@ class Notion_Pages {
     private string $current_page_id = '';
     
     /**
+     * 静态缓存：Notion 页面 ID → WP Post ID，避免同一次导入过程中重复查询。
+     *
+     * @var array<string,int>
+     */
+    private static array $notion_post_cache = [];
+    
+    /**
      * 构造函数
      *
      * @since    1.0.8
@@ -1121,24 +1128,46 @@ class Notion_Pages {
      * @param    string    $notion_id    Notion页面ID
      * @return   int                     WordPress文章ID
      */
-    private function get_post_by_notion_id($notion_id) {
-        $args = array(
+    private function get_post_by_notion_id( string $notion_id ): int {
+        // 1. 进程级静态缓存
+        if ( isset( self::$notion_post_cache[ $notion_id ] ) ) {
+            return self::$notion_post_cache[ $notion_id ];
+        }
+
+        // 2. 对象缓存（含持久化支持）
+        $cache_key = 'ntw_postid_' . $notion_id;
+        $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
+        if ( false !== $cached ) {
+            $pid = (int) $cached;
+            self::$notion_post_cache[ $notion_id ] = $pid;
+            return $pid;
+        }
+
+        // 3. 数据库查询（最后兜底）
+        $args = [
             'post_type'      => 'any',
             'post_status'    => 'any',
             'posts_per_page' => 1,
-            'meta_query'     => array(
-                array(
+            'meta_query'     => [
+                [
                     'key'     => '_notion_page_id',
                     'value'   => $notion_id,
-                    'compare' => '='
-                )
-            ),
-            'fields' => 'ids' // 仅获取ID以提高性能
-        );
-        
-        $posts = get_posts($args);
-        
-        return !empty($posts) ? $posts[0] : 0;
+                    'compare' => '=',
+                ],
+            ],
+            'fields'         => 'ids', // 仅获取ID以提高性能
+            'no_found_rows'  => true,
+            'cache_results'  => false,
+        ];
+
+        $posts   = get_posts( $args );
+        $post_id = ! empty( $posts ) ? (int) $posts[0] : 0;
+
+        // 写入缓存（24 小时），若无结果也缓存，避免穿透
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $post_id, DAY_IN_SECONDS );
+        self::$notion_post_cache[ $notion_id ] = $post_id;
+
+        return $post_id;
     }
 
     /**
