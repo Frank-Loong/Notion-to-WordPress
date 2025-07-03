@@ -165,6 +165,12 @@ class Notion_To_WordPress {
 		$this->webhook = new Notion_To_WordPress_Webhook(
 			$this->notion_pages
 		);
+
+		// 根据后台设置调整下载并发过滤器
+		add_filter( 'ntw_download_queue_concurrency', function( $default ) use ( $options ) {
+			$val = isset( $options['download_concurrency'] ) ? intval( $options['download_concurrency'] ) : $default;
+			return max( 1, min( 10, $val ) );
+		} );
 	}
 
 	/**

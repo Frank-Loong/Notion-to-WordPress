@@ -18,7 +18,7 @@ class Notion_Download_Queue {
     const OPTION_QUEUE   = 'ntw_download_queue';
     const OPTION_HISTORY = 'ntw_download_history';
     const MAX_HISTORY    = 100;
-    const CONCURRENCY    = 2; // 每批并发数，降低并发避免主机限制
+    const CONCURRENCY    = 2; // 默认每批并发数，可通过 ntw_download_queue_concurrency 过滤器覆盖
     const MAX_RETRY      = 3; // 每任务最大重试次数
 
     /**
@@ -63,7 +63,11 @@ class Notion_Download_Queue {
      * 处理一批任务（cron 调用）
      */
     public static function process_queue(): void {
-        $batch = self::pop_batch( self::CONCURRENCY );
+        // 允许开发者通过过滤器调整并发批大小
+        $concurrency = (int) apply_filters( 'ntw_download_queue_concurrency', self::CONCURRENCY );
+        $concurrency = max( 1, $concurrency ); // 保底 1
+
+        $batch = self::pop_batch( $concurrency );
         if ( empty( $batch ) ) {
             return;
         }
@@ -150,8 +154,12 @@ class Notion_Download_Queue {
             $attachment_url = wp_get_attachment_url( $attachment_id );
             $post           = get_post( $post_id );
             if ( $post && strpos( $post->post_content, $url ) !== false ) {
-                $updated = str_replace( $url, $attachment_url, $post->post_content );
-                wp_update_post( [ 'ID' => $post_id, 'post_content' => $updated ] );
+                // 使用正则匹配包含可能 querystring 的原始 URL
+                $pattern  = '#'. preg_quote( $url, '#' ) . '(?:\?[^"\']*)?#';
+                $updated  = preg_replace( $pattern, $attachment_url, $post->post_content );
+                if ( null !== $updated ) {
+                    wp_update_post( [ 'ID' => $post_id, 'post_content' => $updated ] );
+                }
             }
         }
 

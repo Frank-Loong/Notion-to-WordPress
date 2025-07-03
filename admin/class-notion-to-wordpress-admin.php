@@ -130,6 +130,7 @@ class Notion_To_WordPress_Admin {
             'nonce'    => wp_create_nonce('notion_to_wordpress_nonce'),
             'version'  => $this->version,
             'script_nonce' => $script_nonce, // 添加脚本nonce
+            'debug'    => ( defined('WP_DEBUG') && WP_DEBUG ),
             'i18n'     => [ // 国际化字符串
                 'importing' => __('导入中...', 'notion-to-wordpress'),
                 'import' => __('手动导入', 'notion-to-wordpress'),
@@ -146,6 +147,7 @@ class Notion_To_WordPress_Admin {
                 'refresh_error' => __('刷新失败', 'notion-to-wordpress'),
                 'clearing' => __('清除中...', 'notion-to-wordpress'),
                 'clear_logs' => __('清除所有日志', 'notion-to-wordpress'),
+                'page_refreshed' => __('页面已刷新完成！', 'notion-to-wordpress'),
             ]
         ));
         
@@ -232,6 +234,9 @@ class Notion_To_WordPress_Admin {
         
         // 最大图片大小
         $options['max_image_size'] = isset( $_POST['max_image_size'] ) ? min( 20, max( 1, intval( $_POST['max_image_size'] ) ) ) : 5; // 1-20MB 范围
+
+        // 下载并发数量
+        $options['download_concurrency'] = isset( $_POST['download_concurrency'] ) ? max( 1, min( 10, intval( $_POST['download_concurrency'] ) ) ) : 2;
 
         // Field Mapping
         if ( isset( $_POST['field_mapping'] ) && is_array( $_POST['field_mapping'] ) ) {
@@ -368,6 +373,9 @@ class Notion_To_WordPress_Admin {
             // 即使用户离开页面，仍继续执行同步
             if ( function_exists( 'ignore_user_abort' ) ) {
                 ignore_user_abort( true );
+            }
+            if ( function_exists( 'set_time_limit' ) ) {
+                @set_time_limit( 0 );
             }
 
             $api_key              = $options['notion_api_key'];
@@ -566,6 +574,9 @@ class Notion_To_WordPress_Admin {
             if (function_exists('ignore_user_abort')) {
                 ignore_user_abort(true);
             }
+            if ( function_exists( 'set_time_limit' ) ) {
+                @set_time_limit( 0 );
+            }
 
             $api_key       = $options['notion_api_key'];
             $database_id   = $options['notion_database_id'];
@@ -578,6 +589,10 @@ class Notion_To_WordPress_Admin {
             if (!$lock->acquire()) {
                 wp_send_json_error(['message' => '已有同步任务正在运行，请稍后再试']);
                 return;
+            }
+
+            if ( function_exists( 'set_time_limit' ) ) {
+                @set_time_limit( 0 );
             }
 
             try {
@@ -637,6 +652,10 @@ class Notion_To_WordPress_Admin {
             if (!$lock->acquire()) {
                 wp_send_json_error(['message' => '已有同步任务正在运行，请稍后再试']);
                 return;
+            }
+
+            if ( function_exists( 'set_time_limit' ) ) {
+                @set_time_limit( 0 );
             }
 
             try {

@@ -24,6 +24,7 @@ $database_id           = $options['notion_database_id'] ?? '';
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
 $delete_on_uninstall   = $options['delete_on_uninstall'] ?? 0;
 $lock_timeout          = $options['lock_timeout'] ?? 120;
+$download_concurrency  = $options['download_concurrency'] ?? 2;
 $field_mapping         = $options['field_mapping'] ?? [
     'title'          => 'Title,标题',
     'status'         => 'Status,状态',
@@ -503,6 +504,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <input type="number" id="lock_timeout" name="lock_timeout" value="<?php echo esc_attr($lock_timeout); ?>" class="small-text" min="60" step="30">
                                         <span><?php esc_html_e('秒', 'notion-to-wordpress'); ?></span>
                                         <p class="description"><?php esc_html_e('在导入过程中为防止并发执行而设置的锁的持续时间。如果您的导入经常因超时而失败，可以适当增加此值。', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="download_concurrency"><?php esc_html_e('下载并发数量', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <input type="number" id="download_concurrency" name="download_concurrency" value="<?php echo esc_attr($download_concurrency); ?>" class="small-text" min="1" max="10" step="1">
+                                        <span><?php esc_html_e('任务/批', 'notion-to-wordpress'); ?></span>
+                                        <p class="description"><?php esc_html_e('控制附件下载队列每批并发量。过大可能导致主机连接数耗尽，建议 1-5。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
