@@ -465,7 +465,13 @@ class Notion_To_WordPress_Admin {
         if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
             return 0;
         }
-        
+
+        // 5分钟缓存，减少频繁查询
+        $cached = get_transient( 'ntw_imported_posts_count' );
+        if ( false !== $cached ) {
+            return (int) $cached;
+        }
+
         $count = $wpdb->get_var(
             "SELECT COUNT(DISTINCT pm.meta_value)
              FROM {$wpdb->posts} p
@@ -476,7 +482,10 @@ class Notion_To_WordPress_Admin {
              AND p.post_type IN ('post', 'page')"
         );
         
-        return intval($count ?: 0);
+        $count_int = intval( $count ?: 0 );
+        set_transient( 'ntw_imported_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
+
+        return $count_int;
     }
     
     /**
@@ -491,17 +500,25 @@ class Notion_To_WordPress_Admin {
         if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
             return 0;
         }
-        
+
+        $cached = get_transient( 'ntw_published_posts_count' );
+        if ( false !== $cached ) {
+            return (int) $cached;
+        }
+
         $count = $wpdb->get_var(
             "SELECT COUNT(DISTINCT pm.meta_value)
-             FROM $wpdb->posts p 
-             JOIN $wpdb->postmeta pm ON p.ID = pm.post_id 
+             FROM {$wpdb->posts} p 
+             JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
              WHERE pm.meta_key = '_notion_page_id' 
              AND pm.meta_value <> ''
              AND p.post_status = 'publish'"
         );
         
-        return intval($count ?: 0);
+        $count_int = intval( $count ?: 0 );
+        set_transient( 'ntw_published_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
+
+        return $count_int;
     }
 
     /**
