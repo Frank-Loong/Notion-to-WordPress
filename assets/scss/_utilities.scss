@@ -1,0 +1,54 @@
+@use 'variables' as *;
+
+/* ===== 工具类 ===== */
+.error {
+  border-color: #d63638 !important;
+  box-shadow: 0 0 0 1px #d63638 !important;
+}
+
+.highlight {
+  animation: highlight 1.5s ease-in-out;
+}
+
+@keyframes highlight {
+  0% { color: var(--notion-primary); }
+  50% { color: var(--notion-accent); }
+  100% { color: var(--notion-primary); }
+}
+
+.spin {
+  animation: spin 1.5s infinite linear;
+  display: inline-block;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 日志文件列表 */
+.notion-wp-log-files {
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  li {
+    display: flex;
+    padding: 10px 15px;
+    border-bottom: 1px solid #eee;
+    background-color: #f9f9f9;
+    align-items: center;
+
+    &:last-child { border-bottom: none; }
+    &:nth-child(odd) { background-color: #fff; }
+  }
+
+  .log-file-name { flex: 2; font-family: monospace; color: #333; }
+  .log-file-size { flex: 1; text-align: center; color: #666; }
+  .log-file-date { flex: 1; text-align: right; color: #666; }
+} 

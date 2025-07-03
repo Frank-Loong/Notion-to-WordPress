@@ -1,0 +1,115 @@
+@use 'variables' as *;
+
+/* ===== Toast Notice ===== */
+.notion-wp-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  min-width: 250px;
+  max-width: 350px;
+  background: var(--notion-gray-900);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: var(--notion-border-radius);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  border-left: 4px solid var(--notion-primary);
+
+  &.show {
+    display: flex;
+    opacity: 0.95;
+    transform: translateX(0);
+    animation: toastSlideIn 0.3s ease-out;
+  }
+
+  &.success {
+    background: var(--notion-accent);
+    border-left-color: #047857;
+  }
+
+  &.error {
+    background: var(--notion-danger);
+    border-left-color: #b91c1c;
+  }
+
+  &.info {
+    background: var(--notion-info);
+    border-left-color: var(--notion-primary-dark);
+  }
+
+  .notion-wp-toast-content {
+    flex-grow: 1;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .notion-wp-toast-close {
+    background: transparent;
+    border: none;
+    color: var(--notion-gray-500);
+    cursor: pointer;
+    padding: 0;
+    margin-left: 10px;
+    transition: var(--notion-transition);
+
+    &:hover {
+      color: var(--notion-gray-900);
+    }
+  }
+}
+
+@keyframes toastSlideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 0.95; }
+}
+
+/* ===== 通用按钮辅助 ===== */
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ===== 统计卡片 ===== */
+.stat-card {
+  background-color: #fff;
+  border-radius: var(--notion-border-radius);
+  box-shadow: var(--notion-box-shadow);
+  padding: 20px;
+  transition: var(--notion-transition);
+  
+  .stat-number {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--notion-primary);
+    margin-bottom: 8px;
+  }
+  
+  .stat-label {
+    font-size: 14px;
+    color: var(--notion-gray-600);
+  }
+  
+  .stat-icon {
+    color: var(--notion-primary-light);
+    margin-bottom: 12px;
+  }
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.notion-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+  margin: 20px 0;
+}

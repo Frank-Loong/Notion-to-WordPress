@@ -1,0 +1,14 @@
+{
+  "name": "notion-to-wordpress",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build tooling for Notion-to-WordPress plugin assets",
+  "devDependencies": {
+    "sass": "^1.75.0"
+  },
+  "scripts": {
+    "build:css": "sass --no-source-map assets/scss/admin.scss assets/css/admin.css --style=compressed",
+    "watch:css": "sass --watch assets/scss/admin.scss:assets/css/admin.css --no-source-map --style=expanded"
+  },
+  "license": "GPL-3.0-or-later"
+} 
