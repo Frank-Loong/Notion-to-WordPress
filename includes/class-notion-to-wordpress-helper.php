@@ -50,6 +50,34 @@ class Notion_To_WordPress_Helper {
         
         // 注册自定义错误处理器
         set_error_handler([__CLASS__, 'custom_error_handler']);
+        
+        // 添加主题会话兼容性修复
+        self::fix_theme_session_issues();
+    }
+
+    /**
+     * 修复主题中可能的会话（session）问题，如"headers already sent"警告
+     * 
+     * 通过屏蔽特定错误报告和处理特定主题的会话启动问题
+     *
+     * @since 1.1.0
+     */
+    public static function fix_theme_session_issues() {
+        // 检查是否在导入过程中
+        if (isset($_POST['action']) && $_POST['action'] === 'notion_to_wordpress_manual_sync') {
+            // 在导入过程中暂时屏蔽session警告
+            $current_error_level = error_reporting();
+            // 取消E_WARNING级别的报告，防止session_start()警告
+            error_reporting($current_error_level & ~E_WARNING);
+            
+            // 如果会话已经启动，避免主题重复启动
+            if (!headers_sent() && !session_id()) {
+                @session_start();
+            }
+            
+            // 为ZIB主题添加特定兼容性处理
+            add_filter('zib_session_start', '__return_false');
+        }
     }
 
     /**
@@ -91,6 +119,18 @@ class Notion_To_WordPress_Helper {
         
         // 提取文件名（不含路径）
         $file_name = basename($errfile);
+        
+        // 忽略主题中的session_start警告
+        if ($errno === E_WARNING && strpos($errstr, 'session_start()') !== false && 
+            strpos($errstr, 'headers already been sent') !== false) {
+            // 仅记录不传递，避免PHP标准错误处理继续显示
+            self::debug_log(
+                "PHP {$error_type}: {$errstr} in {$file_name} on line {$errline} (已屏蔽)",
+                'PHP Error',
+                $level
+            );
+            return true; // 抑制标准错误处理
+        }
         
         // 记录错误
         self::debug_log(

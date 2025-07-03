@@ -1387,166 +1387,120 @@ class Notion_Pages {
     }
 
     /**
-     * 导入所有Notion页面
+     * 从Notion导入页面到WordPress。
      *
-     * @since    1.0.8
-     * @return   array|WP_Error    导入结果统计或错误
+     * @since    1.0.9
+     * @param    bool    $force_update    是否强制更新所有页面，即使它们没有变化。
+     * @param    string  $filter_page_id  如果设置，只导入该特定ID的页面。
+     * @return   array<mixed>             导入统计信息
+     * @throws   Exception               如果API请求失败或导入过程出错。
      */
-    public function import_pages() {
-        // 创建锁，防止并发操作
-        $lock = new Notion_To_WordPress_Lock($this->database_id, $this->lock_timeout);
+    public function import_pages(bool $force_update = false, string $filter_page_id = ''): array {
+        // 修复可能的会话冲突
+        $this->fix_session_conflicts();
         
-        if (!$lock->acquire()) {
-            return new WP_Error('lock_failed', '已有同步任务在进行中，请稍后再试。');
+        // 尝试获取锁，如果失败则返回
+        $lock = Notion_To_WordPress_Lock::instance($this->lock_timeout);
+        $import_lock_key = 'ntw_import_lock_' . md5($this->database_id);
+
+        if (!$lock->acquire($import_lock_key)) {
+            throw new Exception('无法获取锁定，有另一个导入进程正在运行');
         }
-        
+
+        // 记录PHP执行环境信息
+        $max_execution_time = ini_get('max_execution_time');
+        $memory_limit = ini_get('memory_limit');
+        Notion_To_WordPress_Helper::info_log("PHP执行环境: 最大执行时间 {$max_execution_time}秒, 内存限制 {$memory_limit}", 'System Info');
+
+        // 尝试延长脚本执行时间
+        $original_time_limit = (int)$max_execution_time;
+        $new_time_limit = max(300, $original_time_limit * 2);
+        if ($original_time_limit > 0 && $original_time_limit < $new_time_limit) {
+            @set_time_limit($new_time_limit);
+            Notion_To_WordPress_Helper::info_log("已调整最大执行时间: {$original_time_limit}秒 → {$new_time_limit}秒", 'System Info');
+        }
+
         try {
-            // 记录PHP执行环境信息
-            $max_execution_time = ini_get('max_execution_time');
-            $memory_limit = ini_get('memory_limit');
-            Notion_To_WordPress_Helper::info_log(
-                "PHP执行环境: 最大执行时间 {$max_execution_time}秒, 内存限制 {$memory_limit}",
-                'System Info'
-            );
-            
-            // 尝试增加执行时间
-            @set_time_limit(600); // 尝试设置为10分钟
-            $new_time_limit = ini_get('max_execution_time');
-            if ($new_time_limit != $max_execution_time) {
-                Notion_To_WordPress_Helper::info_log(
-                    "已调整最大执行时间: {$max_execution_time}秒 → {$new_time_limit}秒",
-                    'System Info'
-                );
+            // 如果指定了页面ID，则直接获取该页面信息并导入
+            if (!empty($filter_page_id)) {
+                $page_info = $this->get_page_from_database($filter_page_id);
+                if (!$page_info) {
+                    throw new Exception('指定的页面ID不存在于数据库中: ' . $filter_page_id);
+                }
+                
+                return $this->process_single_page($page_info, $force_update);
             }
             
-            // 获取上次同步时间，若有则增量拉取（向前回溯5分钟以覆盖边缘情况）
-            $opts          = get_option( 'notion_to_wordpress_options', [] );
-            $last_sync_raw = $opts['last_sync_time'] ?? '';
-            $filter        = [];
-
-            if ( $last_sync_raw ) {
-                $last_sync_gmt = gmdate( 'c', strtotime( $last_sync_raw ) - 300 ); // 5分钟缓冲
-                $filter        = [
-                    'timestamp'       => 'last_edited_time',
-                    'last_edited_time' => [ 'on_or_after' => $last_sync_gmt ],
-                ];
-            }
-
-            // 获取数据库中的页面（可能带筛选）
-            $pages = $this->notion_api->get_database_pages( $this->database_id, $filter );
+            // 否则，获取数据库中的所有页面并导入
+            $pages = $this->get_database_pages();
             
-            // 若增量拉取无结果，则回退全量拉取一次（防止 last_sync_time 错误或 Notion 时间漂移）
-            if ( empty( $pages ) && ! empty( $filter ) ) {
-                Notion_To_WordPress_Helper::info_log( '增量同步无结果，回退全量拉取' );
-                $filter = [];
-                $pages  = $this->notion_api->get_database_pages( $this->database_id, [] );
-            }
-
-            if ( empty( $pages ) ) {
-                $lock->release();
-                return new WP_Error( 'no_pages', '未检索到任何页面。' );
-            }
+            Notion_To_WordPress_Helper::info_log('获取到 ' . count($pages) . ' 个页面准备同步', 'Notion Pages');
             
-            Notion_To_WordPress_Helper::info_log( '获取到 ' . count($pages) . ' 个页面准备同步', 'Notion Pages' );
+            // 记录内存使用情况
+            $memory_usage = memory_get_usage(true) / 1024 / 1024;
+            $memory_peak = memory_get_peak_usage(true) / 1024 / 1024;
+            Notion_To_WordPress_Helper::debug_log(sprintf('内存使用: %.2fMB (峰值: %.2fMB)', $memory_usage, $memory_peak), 'System');
             
+            // 统计
             $stats = [
                 'total' => count($pages),
-                'imported' => 0,
-                'updated' => 0,
+                'success' => 0,
+                'skipped' => 0,
                 'failed' => 0,
-                'processed' => 0,
-                'done' => false,
-                'start_time' => time(),
+                'errors' => [],
             ];
             
-            // 初始化进度缓存
-            set_transient( 'ntw_sync_progress', $stats, 600 );
-
+            // 循环处理每个页面
             foreach ($pages as $page) {
-                // 记录内存使用情况
-                $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
-                $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
-                Notion_To_WordPress_Helper::debug_log(
-                    "内存使用: {$memory_usage}MB (峰值: {$memory_peak}MB)",
-                    'System',
-                    Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
-                );
+                $page_stats = $this->process_single_page($page, $force_update);
                 
-                // --- 详细日志：开始处理页面 ---
-                $dbg_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
-                Notion_To_WordPress_Helper::debug_log( "开始处理页面 {$dbg_title} | {$page['id']}", 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-
-                // 检查页面是否已存在
-                $existing_post_id = $this->get_post_by_notion_id($page['id']);
+                // 更新统计信息
+                $stats['success'] += $page_stats['success'];
+                $stats['skipped'] += $page_stats['skipped'];
+                $stats['failed'] += $page_stats['failed'];
                 
-                try {
-                    $result = $this->import_notion_page($page);
-                } catch (Exception $page_e) {
-                    Notion_To_WordPress_Helper::error_log(
-                        "页面处理异常: {$dbg_title} | {$page['id']} - " . $page_e->getMessage() . "\n" . $page_e->getTraceAsString(),
-                        'Notion Error'
-                    );
-                    $result = false;
+                if (!empty($page_stats['errors'])) {
+                    $stats['errors'] = array_merge($stats['errors'], $page_stats['errors']);
                 }
                 
-                // --- 处理返回 ---
-                if ( is_wp_error( $result ) ) {
-                    $stats['failed']++;
-                    Notion_To_WordPress_Helper::error_log( '页面导入失败 ' . $dbg_title . ' | ' . $page['id'] . ' - WP_Error: ' . $result->get_error_message(), 'Notion Page' );
-                    continue;
-                }
-
-                if ( $result ) {
-                    if ($existing_post_id) {
-                        $stats['updated']++;
-                        Notion_To_WordPress_Helper::info_log( '页面更新成功 ' . $dbg_title . ' | ' . $page['id'] . ' - WordPress ID: ' . $existing_post_id, 'Notion Page' );
-                    } else {
-                        $stats['imported']++;
-                        Notion_To_WordPress_Helper::info_log( '页面导入成功 ' . $dbg_title . ' | ' . $page['id'], 'Notion Page' );
-                    }
-                } else {
-                    $stats['failed']++;
-                    Notion_To_WordPress_Helper::error_log( '页面导入失败 ' . $dbg_title . ' | ' . $page['id'] . ' - 返回 false', 'Notion Page' );
-                }
-
-                $stats['processed']++;
-
-                // 每处理5条或最后一条时更新 transient
-                if ( $stats['processed'] % 5 === 0 || $stats['processed'] === $stats['total'] ) {
-                    set_transient( 'ntw_sync_progress', $stats, 600 );
-                    Notion_To_WordPress_Helper::debug_log( '更新同步进度: ' . $stats['processed'] . '/' . $stats['total'] . ' (导入:' . $stats['imported'] . ' 更新:' . $stats['updated'] . ' 失败:' . $stats['failed'] . ')', 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+                // 刷新输出缓冲区，以便实时更新进度
+                if (function_exists('ob_flush') && function_exists('flush')) {
+                    @ob_flush();
+                    @flush();
                 }
             }
-
-            // 标记完成
-            $stats['done']      = true;
-            $stats['end_time']  = time();
-            set_transient( 'ntw_sync_progress', $stats, 600 );
-
-            // 记录最终统计
-            Notion_To_WordPress_Helper::info_log( '同步完成: 总计' . $stats['total'] . '页面, 导入' . $stats['imported'] . ', 更新' . $stats['updated'] . ', 失败' . $stats['failed'], 'Notion Page' );
             
-            // 仅在实际处理过页面后更新同步时间
-            if ( $stats['processed'] > 0 ) {
-                $now = current_time( 'mysql' );
-                update_option( 'notion_to_wordpress_last_sync', $now, false );
-
-                // 同时写入主设置数组，供增量同步使用
-                $opts = get_option( 'notion_to_wordpress_options', [] );
-                $opts['last_sync_time'] = $now;
-                update_option( 'notion_to_wordpress_options', $opts, false );
-                
-                Notion_To_WordPress_Helper::debug_log( '更新最后同步时间: ' . $now, 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-            }
-
-            $lock->release();
+            // 处理下载队列中的项目
+            Notion_Download_Queue::instance()->process_queue();
+            
             return $stats;
-            
-        } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log( '同步过程异常: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), 'Notion Page' );
-            $lock->release();
-            return new WP_Error('import_failed', '导入失败: ' . $e->getMessage());
+        } finally {
+            // 无论成功与否，都释放锁
+            $lock->release($import_lock_key);
         }
+    }
+    
+    /**
+     * 修复在页面导入过程中可能发生的会话冲突
+     * 
+     * @since 1.1.0
+     * @access private
+     */
+    private function fix_session_conflicts() {
+        // 抑制session_start警告
+        $current_error_level = error_reporting();
+        error_reporting($current_error_level & ~E_WARNING);
+        
+        // 如果会话未开始且没有发送头部，则安全启动会话
+        if (!session_id() && !headers_sent()) {
+            @session_start();
+        }
+        
+        // 禁用主题的session_start尝试，尤其是ZIB主题
+        add_filter('zib_session_start', '__return_false');
+        
+        // 恢复正常错误报告级别
+        error_reporting($current_error_level);
     }
 
     // --- Column Blocks ---
