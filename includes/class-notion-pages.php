@@ -508,7 +508,8 @@ class Notion_Pages {
 
     // --- Block Converters ---
 
-    private function _convert_block_paragraph(array $block, Notion_API $notion_api): string {
+    // 以下函数已迁移到 Notion_Block_Converter，仅保留兼容实现。
+    private function _legacy_block_paragraph(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['paragraph']['rich_text']);
         // 若段落无文本且无子块，跳过以避免产生空元素影响布局
         if ( empty( trim( $text ) ) && ! ( $block['has_children'] ?? false ) ) {
@@ -520,35 +521,35 @@ class Notion_Pages {
         return $html;
     }
 
-    private function _convert_block_heading_1(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_heading_1(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_1']['rich_text']);
         $anchor = str_replace( '-', '', $block['id'] );
         return '<h1 id="' . esc_attr( $anchor ) . '">' . $text . '</h1>' . $this->_convert_child_blocks($block, $notion_api);
     }
     
-    private function _convert_block_heading_2(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_heading_2(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_2']['rich_text']);
         $anchor = str_replace( '-', '', $block['id'] );
         return '<h2 id="' . esc_attr( $anchor ) . '">' . $text . '</h2>' . $this->_convert_child_blocks($block, $notion_api);
     }
 
-    private function _convert_block_heading_3(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_heading_3(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_3']['rich_text']);
         $anchor = str_replace( '-', '', $block['id'] );
         return '<h3 id="' . esc_attr( $anchor ) . '">' . $text . '</h3>' . $this->_convert_child_blocks($block, $notion_api);
     }
 
-    private function _convert_block_bulleted_list_item(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_bulleted_list_item(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['bulleted_list_item']['rich_text']);
         return '<li>' . $text . $this->_convert_child_blocks($block, $notion_api) . '</li>';
     }
 
-    private function _convert_block_numbered_list_item(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_numbered_list_item(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['numbered_list_item']['rich_text']);
         return '<li>' . $text . $this->_convert_child_blocks($block, $notion_api) . '</li>';
     }
 
-    private function _convert_block_to_do(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_to_do(array $block, Notion_API $notion_api): string {
         $text    = $this->extract_rich_text($block['to_do']['rich_text']);
         $checked = isset($block['to_do']['checked']) && $block['to_do']['checked'] ? ' checked' : '';
 
@@ -564,12 +565,12 @@ class Notion_Pages {
         return $html;
     }
     
-    private function _convert_block_toggle(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_toggle(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['toggle']['rich_text']);
         return '<details class="notion-toggle"><summary>' . $text . '</summary>' . $this->_convert_child_blocks($block, $notion_api) . '</details>';
     }
 
-    private function _convert_block_child_page(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_child_page(array $block, Notion_API $notion_api): string {
         $title = $block['child_page']['title'];
         return '<div class="notion-child-page"><span>' . esc_html($title) . '</span></div>';
     }
@@ -692,16 +693,16 @@ class Notion_Pages {
         return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="no-referrer"></iframe></div>';
     }
 
-    private function _convert_block_quote(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_quote(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['quote']['rich_text']);
         return '<blockquote>' . $text . '</blockquote>';
     }
 
-    private function _convert_block_divider(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_divider(array $block, Notion_API $notion_api): string {
         return '<hr>';
     }
 
-    private function _convert_block_table(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_table(array $block, Notion_API $notion_api): string {
         // 获取所有行（优先复用 children）
         if ( isset( $block['children'] ) && is_array( $block['children'] ) ) {
             $rows = $block['children'];
@@ -758,7 +759,7 @@ class Notion_Pages {
         return '<table>' . $thead . $tbody . '</table>';
     }
 
-    private function _convert_block_table_row(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_table_row(array $block, Notion_API $notion_api): string {
         // 优先使用 children 避免额外请求
         if ( isset( $block['children'] ) && is_array( $block['children'] ) ) {
             $cells = $block['children'];
@@ -783,7 +784,7 @@ class Notion_Pages {
         return $html;
     }
 
-    private function _convert_block_callout(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_callout(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['callout']['rich_text']);
         $icon = '';
         if (isset($block['callout']['icon'])) {
@@ -796,7 +797,7 @@ class Notion_Pages {
         return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
     }
 
-    private function _convert_block_bookmark(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_bookmark(array $block, Notion_API $notion_api): string {
         $url = esc_url($block['bookmark']['url']);
         $caption = $this->extract_rich_text($block['bookmark']['caption'] ?? []);
         $caption_html = $caption ? '<div class="notion-bookmark-caption">' . esc_html($caption) . '</div>' : '';
@@ -824,11 +825,15 @@ class Notion_Pages {
             $caption = $this->extract_rich_text( $pdf_data['caption'] );
         }
 
-        // 非 Notion 临时链接，直接嵌入
+        // 生成 HTML 辅助
+        $build_html = function( string $src, string $download_url ) {
+            $viewer = 'https://docs.google.com/viewer?embedded=true&url=' . rawurlencode( $src );
+            return '<div class="notion-pdf"><iframe src="' . esc_url( $viewer ) . '" width="100%" height="600" frameborder="0" loading="lazy"></iframe><p><a href="' . esc_url( $download_url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+        };
+
+        // 非 Notion 临时链接直接使用 Google Docs 预览
         if ( ! $this->is_notion_temp_url( $url ) ) {
-            $embed    = '<embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" />';
-            $download = '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
-            return '<div class="notion-pdf">' . $embed . $download . '</div>';
+            return $build_html( $url, $url );
         }
 
         // Notion 临时链接：尝试下载
@@ -836,17 +841,12 @@ class Notion_Pages {
         $attachment_id  = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 下载失败 => 使用外链（可能过期）
-            $embed    = '<embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" />';
-            $download = '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF（外链，可能过期）', 'notion-to-wordpress' ) . '</a></p>';
-            return '<div class="notion-pdf notion-temp-pdf">' . $embed . $download . '</div>';
+            // 下载排队中，继续使用外链
+            return $build_html( $url, $url );
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
-        $embed     = '<embed src="' . esc_url( $local_url ) . '" type="application/pdf" width="100%" height="600px" />';
-        $download  = '<p><a href="' . esc_url( $local_url ) . '" target="_blank" rel="noopener" download>' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
-
-        return '<div class="notion-pdf">' . $embed . $download . '</div>';
+        return $build_html( $local_url, $local_url );
     }
 
     private function _legacy_block_video(array $block, Notion_API $notion_api): string {
@@ -1321,7 +1321,8 @@ class Notion_Pages {
 
     // --- Column Blocks ---
 
-    private function _convert_block_column_list(array $block, Notion_API $notion_api): string {
+    // 以下函数已迁移到 Notion_Block_Converter，仅保留兼容实现。
+    private function _legacy_block_column_list(array $block, Notion_API $notion_api): string {
         // 列表容器
         $html = '<div class="notion-column-list">';
         $html .= $this->_convert_child_blocks($block, $notion_api);
@@ -1329,7 +1330,7 @@ class Notion_Pages {
         return $html;
     }
 
-    private function _convert_block_column(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_column(array $block, Notion_API $notion_api): string {
         // 计算列宽（Notion API 提供 ratio，可选）
         $ratio = $block['column']['ratio'] ?? ( $block['column']['width_ratio'] ?? 1 );
         // Notion API ratio 通常为 0-1 之间的小数，表示占整体比例
@@ -1413,14 +1414,14 @@ class Notion_Pages {
 
     // --- Synced Block ---
 
-    private function _convert_block_synced_block(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_synced_block(array $block, Notion_API $notion_api): string {
         // 直接渲染其子块
         return $this->_convert_child_blocks($block, $notion_api);
     }
 
     // --- Link to Page Block ---
 
-    private function _convert_block_link_to_page(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_link_to_page(array $block, Notion_API $notion_api): string {
         $data = $block['link_to_page'] ?? [];
 
         $url   = '';
