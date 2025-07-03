@@ -502,6 +502,45 @@ class Notion_To_WordPress_Helper {
     public static function plugin_url(string $path = ''): string {
         return plugin_dir_url(NOTION_TO_WORDPRESS_FILE) . ltrim($path, '/\\');
     }
+
+    /**
+     * 从对象缓存获取数据，若未命中则回退 transient。
+     *
+     * @since 1.1.1
+     */
+    public static function cache_get( string $key ) {
+        if ( function_exists( 'wp_cache_get' ) ) {
+            $val = wp_cache_get( $key, 'ntw' );
+            if ( false !== $val ) {
+                return $val;
+            }
+        }
+        return get_transient( $key );
+    }
+
+    /**
+     * 将数据写入对象缓存并同步 transient（便于无持久化缓存的环境）。
+     *
+     * @since 1.1.1
+     */
+    public static function cache_set( string $key, $value, int $ttl = 300 ): void {
+        if ( function_exists( 'wp_cache_set' ) ) {
+            wp_cache_set( $key, $value, 'ntw', $ttl );
+        }
+        set_transient( $key, $value, $ttl );
+    }
+
+    /**
+     * 删除对象缓存及对应 transient。
+     *
+     * @since 1.1.1
+     */
+    public static function cache_delete( string $key ): void {
+        if ( function_exists( 'wp_cache_delete' ) ) {
+            wp_cache_delete( $key, 'ntw' );
+        }
+        delete_transient( $key );
+    }
 }
 
 // 初始化静态帮助类

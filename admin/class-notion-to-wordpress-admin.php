@@ -394,6 +394,10 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error( [ 'message' => $result->get_error_message() ] );
             }
 
+            // -------- 清理统计缓存，确保后台即时显示最新计数 --------
+            Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
+            Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
+
             wp_send_json_success( [ 'message' => sprintf( '同步完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'] ) ] );
 
             return;
@@ -467,7 +471,7 @@ class Notion_To_WordPress_Admin {
         }
 
         // 5分钟缓存，减少频繁查询
-        $cached = get_transient( 'ntw_imported_posts_count' );
+        $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_imported_posts_count' );
         if ( false !== $cached ) {
             return (int) $cached;
         }
@@ -483,7 +487,7 @@ class Notion_To_WordPress_Admin {
         );
         
         $count_int = intval( $count ?: 0 );
-        set_transient( 'ntw_imported_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
+        Notion_To_WordPress_Helper::cache_set( 'ntw_imported_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
 
         return $count_int;
     }
@@ -501,7 +505,7 @@ class Notion_To_WordPress_Admin {
             return 0;
         }
 
-        $cached = get_transient( 'ntw_published_posts_count' );
+        $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_published_posts_count' );
         if ( false !== $cached ) {
             return (int) $cached;
         }
@@ -516,7 +520,7 @@ class Notion_To_WordPress_Admin {
         );
         
         $count_int = intval( $count ?: 0 );
-        set_transient( 'ntw_published_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
+        Notion_To_WordPress_Helper::cache_set( 'ntw_published_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
 
         return $count_int;
     }
@@ -624,6 +628,10 @@ class Notion_To_WordPress_Admin {
                 if (is_wp_error($result)) {
                     wp_send_json_error(['message' => $result->get_error_message()]);
                 } else {
+                    // 清理统计缓存
+                    Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
+                    Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
+
                     wp_send_json_success(['message' => sprintf('刷新完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'])]);
                 }
             } finally {
@@ -686,6 +694,10 @@ class Notion_To_WordPress_Admin {
                 if (is_wp_error($result)) {
                     wp_send_json_error(['message' => $result->get_error_message()]);
                 } else {
+                    // 清理统计缓存
+                    Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
+                    Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
+
                     wp_send_json_success(['message' => '页面已刷新完成！']);
                 }
             } finally {
