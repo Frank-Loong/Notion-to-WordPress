@@ -86,11 +86,7 @@ class Notion_To_WordPress {
 	 * @since    1.0.5
 	 */
 	public function __construct() {
-		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
-			$this->version = NOTION_TO_WORDPRESS_VERSION;
-		} else {
-			$this->version = '1.0.9';
-		}
+		$this->version = defined( 'NOTION_TO_WORDPRESS_VERSION' ) ? NOTION_TO_WORDPRESS_VERSION : 'dev';
 		$this->plugin_name = 'notion-to-wordpress';
 
 		$this->load_dependencies();
