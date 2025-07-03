@@ -115,6 +115,9 @@ class Notion_Pages {
         $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
         Notion_To_WordPress_Helper::debug_log( '开始导入页面内容: ' . $page_title . ' | ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
         
+        // 记录开始时间，用于计算执行时间
+        $start_time = microtime(true);
+        
         // 记录当前页面 ID 供后续锚点处理
         $this->current_page_id = $page_id;
         
@@ -133,6 +136,15 @@ class Notion_Pages {
                 return true;
             }
             
+            // 检查内存使用情况
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            Notion_To_WordPress_Helper::debug_log(
+                "获取块前内存: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                'Memory',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+            
             // 获取页面内容
             Notion_To_WordPress_Helper::debug_log( '获取页面块内容: ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
             $blocks = $this->notion_api->get_page_content($page['id']);
@@ -142,6 +154,15 @@ class Notion_Pages {
             }
             Notion_To_WordPress_Helper::debug_log( '获取到 ' . count($blocks) . ' 个顶级块', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
             
+            // 检查API调用后的内存使用情况
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            Notion_To_WordPress_Helper::debug_log(
+                "获取块后内存: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                'Memory',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+            
             // 重置处理状态
             $this->processed_blocks = [];
             
@@ -149,6 +170,15 @@ class Notion_Pages {
             Notion_To_WordPress_Helper::debug_log( '开始转换块为HTML', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
             $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
             Notion_To_WordPress_Helper::debug_log( '块转换完成，HTML长度: ' . strlen($raw_content), 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            
+            // 检查转换后的内存使用情况
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            Notion_To_WordPress_Helper::debug_log(
+                "HTML转换后内存: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                'Memory',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
             
             // 应用内容过滤
             $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
@@ -182,13 +212,29 @@ class Notion_Pages {
                 $this->apply_custom_fields($post_id, $metadata['custom_fields']);
             }
             
-            Notion_To_WordPress_Helper::debug_log( 'WordPress文章ID: ' . $post_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-            return true;
+            // 计算总执行时间
+            $execution_time = round(microtime(true) - $start_time, 2);
+            Notion_To_WordPress_Helper::debug_log( 
+                'WordPress文章ID: ' . $post_id . ' | 执行时间: ' . $execution_time . '秒',
+                'Notion Import', 
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            );
             
         } catch (Exception $e) {
+            // 计算异常发生时的执行时间
+            $execution_time = round(microtime(true) - $start_time, 2);
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            
             Notion_To_WordPress_Helper::error_log( '导入页面异常: ' . $page_title . ' | ' . $page_id . ' - ' . $e->getMessage(), 'Notion Import' );
+            Notion_To_WordPress_Helper::error_log( 
+                "异常详情: 执行时间 {$execution_time}秒, 内存 {$memory_usage}MB (峰值: {$memory_peak}MB)\n" . $e->getTraceAsString(),
+                'Notion Error'
+            );
             return false;
         }
+
+        return true;
     }
 
     /**
@@ -1355,6 +1401,24 @@ class Notion_Pages {
         }
         
         try {
+            // 记录PHP执行环境信息
+            $max_execution_time = ini_get('max_execution_time');
+            $memory_limit = ini_get('memory_limit');
+            Notion_To_WordPress_Helper::info_log(
+                "PHP执行环境: 最大执行时间 {$max_execution_time}秒, 内存限制 {$memory_limit}",
+                'System Info'
+            );
+            
+            // 尝试增加执行时间
+            @set_time_limit(600); // 尝试设置为10分钟
+            $new_time_limit = ini_get('max_execution_time');
+            if ($new_time_limit != $max_execution_time) {
+                Notion_To_WordPress_Helper::info_log(
+                    "已调整最大执行时间: {$max_execution_time}秒 → {$new_time_limit}秒",
+                    'System Info'
+                );
+            }
+            
             // 获取上次同步时间，若有则增量拉取（向前回溯5分钟以覆盖边缘情况）
             $opts          = get_option( 'notion_to_wordpress_options', [] );
             $last_sync_raw = $opts['last_sync_time'] ?? '';
@@ -1399,6 +1463,15 @@ class Notion_Pages {
             set_transient( 'ntw_sync_progress', $stats, 600 );
 
             foreach ($pages as $page) {
+                // 记录内存使用情况
+                $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+                $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+                Notion_To_WordPress_Helper::debug_log(
+                    "内存使用: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                    'System',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+                );
+                
                 // --- 详细日志：开始处理页面 ---
                 $dbg_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
                 Notion_To_WordPress_Helper::debug_log( "开始处理页面 {$dbg_title} | {$page['id']}", 'Notion Page', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
@@ -1406,7 +1479,15 @@ class Notion_Pages {
                 // 检查页面是否已存在
                 $existing_post_id = $this->get_post_by_notion_id($page['id']);
                 
-                $result = $this->import_notion_page($page);
+                try {
+                    $result = $this->import_notion_page($page);
+                } catch (Exception $page_e) {
+                    Notion_To_WordPress_Helper::error_log(
+                        "页面处理异常: {$dbg_title} | {$page['id']} - " . $page_e->getMessage() . "\n" . $page_e->getTraceAsString(),
+                        'Notion Error'
+                    );
+                    $result = false;
+                }
                 
                 // --- 处理返回 ---
                 if ( is_wp_error( $result ) ) {

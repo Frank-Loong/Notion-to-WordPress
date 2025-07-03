@@ -31,7 +31,7 @@ class Notion_To_WordPress_Helper {
      * @access private
      * @var int
      */
-    private static int $debug_level = self::DEBUG_LEVEL_ERROR;
+    public static int $debug_level = self::DEBUG_LEVEL_ERROR;
     
     /**
      * 根据WordPress设置初始化日志级别。
@@ -47,6 +47,60 @@ class Notion_To_WordPress_Helper {
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
+        
+        // 注册自定义错误处理器
+        set_error_handler([__CLASS__, 'custom_error_handler']);
+    }
+
+    /**
+     * 自定义错误处理器，将PHP错误转为日志
+     *
+     * @since 1.1.0
+     * @param int $errno 错误级别
+     * @param string $errstr 错误消息
+     * @param string $errfile 发生错误的文件
+     * @param int $errline 发生错误的行号
+     * @return bool 是否继续使用PHP标准错误处理
+     */
+    public static function custom_error_handler($errno, $errstr, $errfile, $errline) {
+        // 根据错误级别确定日志级别
+        $level = self::DEBUG_LEVEL_ERROR;
+        
+        // 错误类型映射
+        $error_type = 'Unknown Error';
+        switch ($errno) {
+            case E_ERROR:
+            case E_USER_ERROR:
+                $error_type = 'Fatal Error';
+                break;
+            case E_WARNING:
+            case E_USER_WARNING:
+                $error_type = 'Warning';
+                break;
+            case E_NOTICE:
+            case E_USER_NOTICE:
+                $error_type = 'Notice';
+                $level = self::DEBUG_LEVEL_INFO;
+                break;
+            case E_DEPRECATED:
+            case E_USER_DEPRECATED:
+                $error_type = 'Deprecated';
+                $level = self::DEBUG_LEVEL_INFO;
+                break;
+        }
+        
+        // 提取文件名（不含路径）
+        $file_name = basename($errfile);
+        
+        // 记录错误
+        self::debug_log(
+            "PHP {$error_type}: {$errstr} in {$file_name} on line {$errline}",
+            'PHP Error',
+            $level
+        );
+        
+        // 返回false表示错误应该由标准PHP错误处理程序继续处理
+        return false;
     }
 
     /**
