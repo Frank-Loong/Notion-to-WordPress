@@ -653,8 +653,8 @@ jQuery(document).ready(function($) {
                 if ( typeof window.showModal === 'function' ) {
                     showModal('复制失败: 请手动复制。', 'error');
                 } else {
-                    // 兜底：仍使用 alert，保证信息可见
-                    alert('复制失败，请手动复制。');
+                    // 如果没有全局 showModal（理论上不应发生），在控制台输出警告
+                    console.warn('复制失败，请手动复制。');
                 }
             }
         }
