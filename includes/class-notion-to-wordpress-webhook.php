@@ -74,6 +74,9 @@ class Notion_To_WordPress_Webhook {
      * @return   WP_REST_Response               REST 响应对象
      */
     public function handle_webhook($request) {
+        // 在处理Webhook请求前先修复可能的会话冲突
+        $this->fix_session_conflicts();
+        
         $token_param = $request['token'] ?? '';
         $options = get_option('notion_to_wordpress_options', []);
         $expected_token = $options['webhook_token'] ?? '';
@@ -165,5 +168,27 @@ class Notion_To_WordPress_Webhook {
             return $body['block']['id'];
         }
         return '';
+    }
+
+    /**
+     * 修复在Webhook处理期间可能发生的会话冲突
+     * 
+     * @since 1.1.0
+     */
+    private function fix_session_conflicts() {
+        // 抑制session_start警告
+        $current_error_level = error_reporting();
+        error_reporting($current_error_level & ~E_WARNING);
+        
+        // 如果会话未开始且没有发送头部，则安全启动会话
+        if (!session_id() && !headers_sent()) {
+            @session_start();
+        }
+        
+        // 禁用主题的session_start尝试，尤其是ZIB主题
+        add_filter('zib_session_start', '__return_false');
+        
+        // 恢复正常错误报告级别
+        error_reporting($current_error_level);
     }
 } 
