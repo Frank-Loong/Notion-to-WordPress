@@ -98,11 +98,27 @@ class Notion_API {
                 'Content-Type'   => 'application/json',
                 'Notion-Version' => '2022-06-28'
             ],
-            'timeout' => 30
+            'timeout' => 60, // 增加超时时间
+            'httpversion' => '1.1',
+            'sslverify' => true,
         ];
         
         if (!empty($data) && $method !== 'GET') {
             $args['body'] = json_encode($data);
+        }
+        
+        // 记录请求详情（仅调试模式）
+        if (Notion_To_WordPress_Helper::$debug_level >= Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG) {
+            Notion_To_WordPress_Helper::debug_log(
+                '请求详情: ' . wp_json_encode([
+                    'url' => $url,
+                    'method' => $method,
+                    'timeout' => $args['timeout'],
+                    'data_size' => !empty($data) ? strlen($args['body']) : 0,
+                ]),
+                'Notion API Request',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
         }
         
         $response = wp_remote_request($url, $args);
@@ -110,6 +126,16 @@ class Notion_API {
         if (is_wp_error($response)) {
             $msg = 'API请求失败: ' . $response->get_error_message();
             Notion_To_WordPress_Helper::error_log( $msg, 'Notion API' );
+            
+            // 记录详细错误信息
+            $error_data = $response->get_error_data();
+            if (!empty($error_data)) {
+                Notion_To_WordPress_Helper::error_log(
+                    '错误详情: ' . wp_json_encode($error_data),
+                    'Notion API'
+                );
+            }
+            
             throw new Exception( $msg );
         }
         
@@ -117,6 +143,13 @@ class Notion_API {
         if ($response_code < 200 || $response_code >= 300) {
             $error_body = json_decode(wp_remote_retrieve_body($response), true);
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);
+            
+            // 记录详细错误响应
+            Notion_To_WordPress_Helper::error_log(
+                '错误响应: ' . wp_remote_retrieve_body($response),
+                'Notion API'
+            );
+            
             throw new Exception('API错误 (' . $response_code . '): ' . $error_message);
         }
         
