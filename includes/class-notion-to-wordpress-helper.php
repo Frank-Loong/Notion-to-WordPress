@@ -65,11 +65,6 @@ class Notion_To_WordPress_Helper {
     public static function fix_theme_session_issues() {
         // 检查是否在导入过程中
         if (isset($_POST['action']) && $_POST['action'] === 'notion_to_wordpress_manual_sync') {
-            // 在导入过程中暂时屏蔽session警告
-            $current_error_level = error_reporting();
-            // 取消E_WARNING级别的报告，防止session_start()警告
-            error_reporting($current_error_level & ~E_WARNING);
-            
             // 如果会话已经启动，避免主题重复启动
             if (!headers_sent() && !session_id()) {
                 @session_start();
