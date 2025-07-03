@@ -1,17 +1,32 @@
 {
   "name": "notion-to-wordpress",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Build tooling for Notion-to-WordPress plugin assets",
   "devDependencies": {
-    "sass": "^1.75.0"
+    "sass": "^1.75.0",
+    "version-everything": "^0.11.4"
   },
   "scripts": {
     "build:css": "sass --no-source-map assets/scss/admin.scss assets/css/admin.css --style=compressed",
     "watch:css": "sass --watch assets/scss/admin.scss:assets/css/admin.css --no-source-map --style=expanded",
     "build:frontend": "sass --no-source-map assets/scss/frontend.scss assets/css/frontend.css --style=compressed",
     "watch:frontend": "sass --watch assets/scss/frontend.scss:assets/css/frontend.css --no-source-map --style=expanded",
-    "build:all": "npm run build:css && npm run build:frontend"
+    "build:all": "npm run build:css && npm run build:frontend",
+    "version": "version-everything && git add -u"
   },
-  "license": "GPL-3.0-or-later"
+  "license": "GPL-3.0-or-later",
+  "version-everything": {
+    "files": [
+      "notion-to-wordpress.php",
+      "readme.txt",
+      "includes/class-notion-to-wordpress.php",
+      "admin/partials/notion-to-wordpress-admin-display.php"
+    ],
+    "prefix": [
+      "define\\s*\\(\\s*'NOTION_TO_WORDPRESS_VERSION'",
+      "Stable tag:",
+      "Version:"
+    ]
+  }
 } 
