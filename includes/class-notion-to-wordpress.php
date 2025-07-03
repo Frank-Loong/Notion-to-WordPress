@@ -300,6 +300,10 @@ class Notion_To_WordPress {
 
 		$this->_core_import_process( $database_id, $options );
 
+		// 清理统计缓存，确保后台显示最新数据
+		Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
+		Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
+
 		// 更新上次同步时间
 		$options['last_sync_time'] = current_time( 'mysql' );
 		update_option( 'notion_to_wordpress_options', $options );
