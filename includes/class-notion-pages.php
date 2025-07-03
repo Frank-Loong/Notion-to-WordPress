@@ -1487,20 +1487,8 @@ class Notion_Pages {
      * @access private
      */
     private function fix_session_conflicts() {
-        // 抑制session_start警告
-        $current_error_level = error_reporting();
-        error_reporting($current_error_level & ~E_WARNING);
-        
-        // 如果会话未开始且没有发送头部，则安全启动会话
-        if (!session_id() && !headers_sent()) {
-            @session_start();
-        }
-        
-        // 禁用主题的session_start尝试，尤其是ZIB主题
-        add_filter('zib_session_start', '__return_false');
-        
-        // 恢复正常错误报告级别
-        error_reporting($current_error_level);
+        // 禁用主题可能触发的 session_start，避免缓存冲突
+        add_filter( 'zib_session_start', '__return_false' );
     }
 
     // --- Column Blocks ---
