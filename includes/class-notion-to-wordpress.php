@@ -310,6 +310,8 @@ class Notion_To_WordPress {
 		// 更新上次同步时间
 		$options['last_sync_time'] = current_time( 'mysql' );
 		update_option( 'notion_to_wordpress_options', $options );
+		// 兼容后台统计：单独记录最新同步时间
+		update_option( 'notion_to_wordpress_last_sync', $options['last_sync_time'] );
 	}
 
 	/**
