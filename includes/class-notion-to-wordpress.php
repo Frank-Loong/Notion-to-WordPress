@@ -520,6 +520,28 @@ class Notion_To_WordPress {
 			$this->version,
 			true
 		);
+
+		// -------- 减少渲染阻塞：为前端脚本添加 defer 属性 --------
+		$defer_handles = [ 'mermaid', 'katex', 'katex-mhchem', $this->plugin_name . '-math-mermaid' ];
+		add_filter( 'script_loader_tag', function( $tag, $handle ) use ( $defer_handles ) {
+			if ( in_array( $handle, $defer_handles, true ) ) {
+				if ( false === strpos( $tag, ' defer' ) ) {
+					$tag = str_replace( '<script ', '<script defer ', $tag );
+				}
+			}
+			return $tag;
+		}, 10, 2 );
+
+		// -------- 提前连接 CDN：DNS 预解析 + 预连接 --------
+		$cdn_origin = '//cdn.jsdelivr.net';
+		add_filter( 'wp_resource_hints', function ( $hints, $relation_type ) use ( $cdn_origin ) {
+			if ( in_array( $relation_type, [ 'dns-prefetch', 'preconnect' ], true ) ) {
+				if ( ! in_array( $cdn_origin, $hints, true ) ) {
+					$hints[] = $cdn_origin;
+				}
+			}
+			return $hints;
+		}, 10, 2 );
 	}
 
 	/**
