@@ -1,10 +1,10 @@
 # Notion·to-WordPress
 
-A modern, professional WordPress plugin for synchronizing Notion database content to your WordPress site. Supports automatic/manual sync, Webhook, MathJax, Mermaid diagrams, field mapping, and more.
+A modern, professional WordPress plugin for synchronizing Notion database content to your WordPress site. Supports automatic/manual sync, Webhook, Katex, Mermaid diagrams, field mapping, and more.
 
 ---
 
-**Version: 1.0.8**  
+**Version: 1.0.9**  
 **Author: Frank-Loong**  
 **GitHub: https://github.com/Frank-Loong/Notion-to-WordPress**
 
@@ -16,7 +16,7 @@ Notion·to-WordPress provides a one-stop solution for creators, teams, and devel
 ## Features
 - **Automatic/Manual Sync**: Schedule or one-click import of Notion database content to WordPress
 - **Webhook Support**: Automatically trigger sync when Notion content changes
-- **Advanced Format Compatibility**: MathJax, Mermaid diagrams, code blocks, tables, images, etc.
+- **Advanced Format Compatibility**: c, Mermaid diagrams, code blocks, tables, images, etc.
 - **Field Mapping**: Custom mapping between Notion properties and WordPress fields
 - **Categories/Tags/Featured Images**: Auto-detection and sync
 - **Concurrency Lock**: Prevent duplicate imports, ensure data consistency
@@ -86,4 +86,4 @@ This plugin is licensed under GPL v3 or later. See LICENSE for details.
 
 ---
 
-> © 2024 Frank-Loong. Notion·to-WordPress v1.0.8 
+> © 2024 Frank-Loong. Notion·to-WordPress v1.0.9

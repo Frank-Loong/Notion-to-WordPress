@@ -1,0 +1,21 @@
+@use 'variables' as *;
+@use 'mixins' as *;
+
+/* --- 组件分片 --- */
+@use 'layout';
+@use 'header';
+@use 'menu';
+@use 'components';
+@use 'forms';
+@use 'tables';
+@use 'author';
+@use 'help';
+@use 'actions';
+@use 'utilities';
+@use 'responsive';
+@use 'tooltip';
+// 示例：按钮组件
+.button {
+  @include flex-center(row, 4px);
+  @include transition();
+}

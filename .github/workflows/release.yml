@@ -1,0 +1,60 @@
+name: Build & Release Plugin ZIP
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # 1) 获取代码
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 2) 安装 Node 依赖并编译 SCSS -> CSS
+      - name: Use Node.js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Build assets (SCSS → CSS)
+        run: npm run build:all
+
+      # 3) 移除开发文件，保留最小化发布内容
+      - name: Clean dev files
+        run: |
+          rm -rf node_modules
+          rm -rf assets/scss
+          rm -rf tests || true
+          rm -rf .gitignore .editorconfig .eslint* .prettier*
+
+      # 4) 打包 ZIP（文件位于上级目录，避免包内多一层路径）
+      - name: Create ZIP Archive
+        run: |
+          cd ..
+          zip -r "Notion-to-WordPress-${{ github.ref_name }}.zip" Notion-to-WordPress \
+            -x "Notion-to-WordPress/.git/*" \
+            -x "Notion-to-WordPress/.github/*" \
+            -x "Notion-to-WordPress/node_modules/*" \
+            -x "Notion-to-WordPress/assets/scss/*"
+
+      # 5) 上传构建产物供调试
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Notion-to-WordPress-zip
+          path: ../Notion-to-WordPress-${{ github.ref_name }}.zip
+
+      # 6) 创建 Release 并附加 ZIP
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ../Notion-to-WordPress-${{ github.ref_name }}.zip 

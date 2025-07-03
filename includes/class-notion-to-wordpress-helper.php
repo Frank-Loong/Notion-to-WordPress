@@ -31,7 +31,7 @@ class Notion_To_WordPress_Helper {
      * @access private
      * @var int
      */
-    private static int $debug_level = self::DEBUG_LEVEL_ERROR;
+    public static int $debug_level = self::DEBUG_LEVEL_ERROR;
     
     /**
      * 根据WordPress设置初始化日志级别。
@@ -47,6 +47,89 @@ class Notion_To_WordPress_Helper {
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
+        
+        // 注册自定义错误处理器
+        set_error_handler([__CLASS__, 'custom_error_handler']);
+        
+        // 添加主题会话兼容性修复
+        self::fix_theme_session_issues();
+    }
+
+    /**
+     * 修复主题中可能的会话（session）问题，如"headers already sent"警告
+     * 
+     * 通过屏蔽特定错误报告和处理特定主题的会话启动问题
+     *
+     * @since 1.1.0
+     */
+    public static function fix_theme_session_issues() {
+        if ( isset( $_POST['action'] ) && $_POST['action'] === 'notion_to_wordpress_manual_sync' ) {
+            // 直接屏蔽主题启动 session，避免产生 PHPSESSID Cookie
+            add_filter( 'zib_session_start', '__return_false' );
+        }
+    }
+
+    /**
+     * 自定义错误处理器，将PHP错误转为日志
+     *
+     * @since 1.1.0
+     * @param int $errno 错误级别
+     * @param string $errstr 错误消息
+     * @param string $errfile 发生错误的文件
+     * @param int $errline 发生错误的行号
+     * @return bool 是否继续使用PHP标准错误处理
+     */
+    public static function custom_error_handler($errno, $errstr, $errfile, $errline) {
+        // 根据错误级别确定日志级别
+        $level = self::DEBUG_LEVEL_ERROR;
+        
+        // 错误类型映射
+        $error_type = 'Unknown Error';
+        switch ($errno) {
+            case E_ERROR:
+            case E_USER_ERROR:
+                $error_type = 'Fatal Error';
+                break;
+            case E_WARNING:
+            case E_USER_WARNING:
+                $error_type = 'Warning';
+                break;
+            case E_NOTICE:
+            case E_USER_NOTICE:
+                $error_type = 'Notice';
+                $level = self::DEBUG_LEVEL_INFO;
+                break;
+            case E_DEPRECATED:
+            case E_USER_DEPRECATED:
+                $error_type = 'Deprecated';
+                $level = self::DEBUG_LEVEL_INFO;
+                break;
+        }
+        
+        // 提取文件名（不含路径）
+        $file_name = basename($errfile);
+        
+        // 忽略主题中的session_start警告
+        if ($errno === E_WARNING && strpos($errstr, 'session_start()') !== false && 
+            strpos($errstr, 'headers already been sent') !== false) {
+            // 仅记录不传递，避免PHP标准错误处理继续显示
+            self::debug_log(
+                "PHP {$error_type}: {$errstr} in {$file_name} on line {$errline} (已屏蔽)",
+                'PHP Error',
+                $level
+            );
+            return true; // 抑制标准错误处理
+        }
+        
+        // 记录错误
+        self::debug_log(
+            "PHP {$error_type}: {$errstr} in {$file_name} on line {$errline}",
+            'PHP Error',
+            $level
+        );
+        
+        // 返回false表示错误应该由标准PHP错误处理程序继续处理
+        return false;
     }
 
     /**
@@ -114,8 +197,8 @@ class Notion_To_WordPress_Helper {
             file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
         }
         
-        // 日志文件路径
-        $log_file = $log_dir . '/error-' . date('Y-m-d') . '.log';
+        // 日志文件路径（统一使用 debug_log-YYYY-MM-DD.log）
+        $log_file = $log_dir . '/debug_log-' . date('Y-m-d') . '.log';
         
         // 写入日志
         file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
@@ -362,9 +445,12 @@ class Notion_To_WordPress_Helper {
         $log_file = $upload_dir['basedir'] . '/notion-to-wordpress-logs/' . $filename;
 
         if (file_exists($log_file)) {
-            // 只读取最后 1MB 的内容以防止过大的文件拖慢后台
+            // 读取文件尾部，大小允许通过过滤器调整（默认 1MB）
+            $tail_size = (int) apply_filters( 'ntw_log_tail_size', 1024 * 1024 );
+            $tail_size = max( 64 * 1024, $tail_size ); // 最小 64KB
+
             $size = filesize($log_file);
-            $offset = max(0, $size - 1024 * 1024);
+            $offset = max(0, $size - $tail_size);
             return file_get_contents($log_file, false, null, $offset);
         }
 
@@ -415,6 +501,75 @@ class Notion_To_WordPress_Helper {
      */
     public static function plugin_url(string $path = ''): string {
         return plugin_dir_url(NOTION_TO_WORDPRESS_FILE) . ltrim($path, '/\\');
+    }
+
+    /**
+     * 从对象缓存获取数据，若未命中则回退 transient。
+     *
+     * @since 1.1.1
+     */
+    public static function cache_get( string $key ) {
+        if ( function_exists( 'wp_cache_get' ) ) {
+            $val = wp_cache_get( $key, 'ntw' );
+            if ( false !== $val ) {
+                return $val;
+            }
+        }
+        return get_transient( $key );
+    }
+
+    /**
+     * 将数据写入对象缓存并同步 transient（便于无持久化缓存的环境）。
+     *
+     * @since 1.1.1
+     */
+    public static function cache_set( string $key, $value, int $ttl = 300 ): void {
+        if ( function_exists( 'wp_cache_set' ) ) {
+            wp_cache_set( $key, $value, 'ntw', $ttl );
+        }
+        set_transient( $key, $value, $ttl );
+    }
+
+    /**
+     * 删除对象缓存及对应 transient。
+     *
+     * @since 1.1.1
+     */
+    public static function cache_delete( string $key ): void {
+        if ( function_exists( 'wp_cache_delete' ) ) {
+            wp_cache_delete( $key, 'ntw' );
+        }
+        delete_transient( $key );
+    }
+
+    public static function get_attachment_id_by_url( string $search_url ): int {
+        // 按 _notion_original_url 或 _notion_base_url 查找
+        $posts = get_posts([
+            'post_type'      => 'attachment',
+            'post_status'    => 'inherit',
+            'posts_per_page' => 1,
+            'meta_query'     => [
+                'relation' => 'OR',
+                [
+                    'key'     => '_notion_original_url',
+                    'value'   => esc_url( $search_url ),
+                    'compare' => '=',
+                ],
+                [
+                    'key'     => '_notion_base_url',
+                    'value'   => esc_url( $search_url ),
+                    'compare' => '=',
+                ],
+            ],
+            'fields' => 'ids',
+        ]);
+        if ( ! empty( $posts ) ) {
+            return (int) $posts[0];
+        }
+        // 兜底通过 guid 精确匹配
+        global $wpdb;
+        $aid = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE guid=%s LIMIT 1", $search_url ) );
+        return $aid ? (int) $aid : 0;
     }
 }
 

@@ -85,3 +85,21 @@ mjx-chem {
         font-size: 90%;
     }
 }
+
+/* 优化公式标签元素显示 */
+.tag .strut {
+    display: none !important; /* 移除高度控制元素 */
+}
+
+.tag .mord.text,
+.tag .mord {
+    display: inline !important;
+    vertical-align: baseline !important; /* 保持基线对齐 */
+    font-style: normal !important;
+    font-weight: normal !important;
+}
+
+/* 移除标签内部额外样式，使用默认样式 */
+.tag span {
+    font-family: inherit !important;
+}

@@ -86,6 +86,9 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败或返回错误。
      */
     private function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
+        $start_time = microtime( true );
+        Notion_To_WordPress_Helper::debug_log( '调用 Notion API: ' . $endpoint, 'Notion API', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+
         $url = $this->api_base . $endpoint;
         
         $args = [
@@ -95,25 +98,63 @@ class Notion_API {
                 'Content-Type'   => 'application/json',
                 'Notion-Version' => '2022-06-28'
             ],
-            'timeout' => 30
+            'timeout' => 60, // 增加超时时间
+            'httpversion' => '1.1',
+            'sslverify' => true,
         ];
         
         if (!empty($data) && $method !== 'GET') {
             $args['body'] = json_encode($data);
         }
         
+        // 记录请求详情（仅调试模式）
+        if (Notion_To_WordPress_Helper::$debug_level >= Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG) {
+            Notion_To_WordPress_Helper::debug_log(
+                '请求详情: ' . wp_json_encode([
+                    'url' => $url,
+                    'method' => $method,
+                    'timeout' => $args['timeout'],
+                    'data_size' => !empty($data) ? strlen($args['body']) : 0,
+                ]),
+                'Notion API Request',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+        }
+        
         $response = wp_remote_request($url, $args);
         
         if (is_wp_error($response)) {
-            throw new Exception('API请求失败: ' . $response->get_error_message());
+            $msg = 'API请求失败: ' . $response->get_error_message();
+            Notion_To_WordPress_Helper::error_log( $msg, 'Notion API' );
+            
+            // 记录详细错误信息
+            $error_data = $response->get_error_data();
+            if (!empty($error_data)) {
+                Notion_To_WordPress_Helper::error_log(
+                    '错误详情: ' . wp_json_encode($error_data),
+                    'Notion API'
+                );
+            }
+            
+            throw new Exception( $msg );
         }
         
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code < 200 || $response_code >= 300) {
             $error_body = json_decode(wp_remote_retrieve_body($response), true);
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);
+            
+            // 记录详细错误响应
+            Notion_To_WordPress_Helper::error_log(
+                '错误响应: ' . wp_remote_retrieve_body($response),
+                'Notion API'
+            );
+            
             throw new Exception('API错误 (' . $response_code . '): ' . $error_message);
         }
+        
+        $duration = round( ( microtime( true ) - $start_time ) * 1000 );
+        Notion_To_WordPress_Helper::debug_log( 'Notion API 返回 ' . $response_code . ' | 耗时: ' . $duration . 'ms', 'Notion API', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
         
         $body = wp_remote_retrieve_body($response);
         return json_decode($body, true) ?: [];
@@ -131,9 +172,10 @@ class Notion_API {
     public function get_database_pages(string $database_id, array $filter = []): array {
         // 使用 transient 缓存结果，减少短时间内的重复 API 调用
         $cache_key = 'ntw_db_pages_' . md5($database_id . wp_json_encode($filter));
-        $cached     = get_transient($cache_key);
+        $cached     = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) && ! empty( $cached ) ) {
+            Notion_To_WordPress_Helper::debug_log( '命中数据库页面缓存: ' . $database_id, 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
             return $cached;
         }
 
@@ -166,7 +208,7 @@ class Notion_API {
         }
 
         // 将结果缓存 2 分钟，避免频繁请求（可在设置中调整）
-        set_transient( $cache_key, $all_results, 120 );
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $all_results, 120 );
 
         return $all_results;
     }
@@ -181,9 +223,10 @@ class Notion_API {
      */
     public function get_page_content(string $block_id): array {
         $cache_key = 'ntw_pg_content_' . md5($block_id);
-        $cached    = get_transient( $cache_key );
+        $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) ) {
+            Notion_To_WordPress_Helper::debug_log( '命中页面内容缓存: ' . $block_id, 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
             return $cached;
         }
 
@@ -220,7 +263,7 @@ class Notion_API {
         }
 
         // 缓存
-        set_transient( $cache_key, $blocks, 300 );
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $blocks, 300 );
 
         return $blocks;
     }
@@ -237,11 +280,12 @@ class Notion_API {
     private function get_block_children(string $block_id): array {
         // 先检查请求级缓存
         if ( isset( self::$local_block_cache[ $block_id ] ) ) {
+            Notion_To_WordPress_Helper::debug_log( '命中本地块缓存: ' . $block_id, 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
             return self::$local_block_cache[ $block_id ];
         }
 
         $cache_key = 'ntw_blk_children_' . md5($block_id);
-        $cached    = get_transient( $cache_key );
+        $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) ) {
             // 同时写入本地缓存，后续命中
@@ -270,7 +314,7 @@ class Notion_API {
         }
 
         // 写缓存
-        set_transient( $cache_key, $all_results, 300 );
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $all_results, 300 );
         self::$local_block_cache[ $block_id ] = $all_results;
 
         return $all_results;
@@ -300,7 +344,7 @@ class Notion_API {
      */
     public function get_page_metadata(string $page_id): array {
         $cache_key = 'ntw_page_meta_' . md5( $page_id );
-        $cached    = get_transient( $cache_key );
+        $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) ) {
             return $cached;
@@ -310,7 +354,7 @@ class Notion_API {
         $data     = $this->send_request( $endpoint );
 
         // 缓存 5 分钟
-        set_transient( $cache_key, $data, 300 );
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $data, 300 );
 
         return $data;
     }
@@ -364,7 +408,7 @@ class Notion_API {
      */
     public function get_page(string $page_id): array {
         $cache_key = 'ntw_page_obj_' . md5( $page_id );
-        $cached    = get_transient( $cache_key );
+        $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) ) {
             return $cached;
@@ -373,7 +417,7 @@ class Notion_API {
         $endpoint = 'pages/' . $page_id;
         $data     = $this->send_request( $endpoint );
 
-        set_transient( $cache_key, $data, 300 );
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $data, 300 );
 
         return $data;
     }
@@ -386,7 +430,7 @@ class Notion_API {
         // 先检查缓存，避免重复请求
         foreach ( $block_ids as $bid ) {
             $cache_key = 'ntw_blk_children_' . md5( $bid );
-            $cached    = get_transient( $cache_key );
+            $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
             if ( is_array( $cached ) ) {
                 $results[ $bid ] = $cached;
             } else {
@@ -442,7 +486,7 @@ class Notion_API {
                         $children      = $data['results'] ?? [];
                         $results[ $bid ] = $children;
                         // 缓存
-                        set_transient( 'ntw_blk_children_' . md5( $bid ), $children, 300 );
+                        Notion_To_WordPress_Helper::cache_set( 'ntw_blk_children_' . md5( $bid ), $children, 300 );
                     } else {
                         // 回退：使用顺序方式强制拉取，保证完整性
                         $results[ $bid ] = $this->get_block_children( $bid );

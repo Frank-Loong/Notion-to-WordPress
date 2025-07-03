@@ -6,11 +6,13 @@
  */
 
 jQuery(document).ready(function($) {
+    const debug = !!(notionToWp && notionToWp.debug);
+    const dlog = (...args) => { if (debug) console.log(...args); };
     const $overlay = $('#loading-overlay');
     
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
-      console.log('正在加载统计信息...');
+      dlog('正在加载统计信息...');
       fetchStats();
     }
 
@@ -60,14 +62,14 @@ jQuery(document).ready(function($) {
     });
     
     // 手动导入
-    $('#notion-manual-import').on('click', function(e) {
+    $('#notion-manual-import').on('click', async function(e) {
         e.preventDefault();
-        var button = $(this);
-        
-        // 确认操作
-        if (!confirm('确定要开始同步Notion内容吗？')) {
+        const ok = await window.showConfirm('确定要开始同步Notion内容吗？');
+        if (!ok) {
             return;
         }
+        
+        var button = $(this);
         
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.importing);
         
@@ -84,9 +86,9 @@ jQuery(document).ready(function($) {
                 
                 showModal(message, status);
                 
-                // 如果成功启动，开始轮询进度
+                // 如果成功，刷新统计信息
                 if (response.success) {
-                    startProgressPoll();
+                    fetchStats();
                 }
             },
             error: function() {
@@ -97,36 +99,6 @@ jQuery(document).ready(function($) {
             }
         });
     });
-    
-    // --- 同步进度条 ---
-    function startProgressPoll(){
-        const $container = $('#ntw-sync-progress');
-        const $bar       = $('#ntw-sync-bar');
-        const $tip       = $('#ntw-sync-tip');
-
-        $container.show();
-
-        const timer = setInterval(function(){
-            $.ajax({
-                url: notionToWp.ajax_url,
-                type:'POST',
-                data:{ action:'notion_to_wordpress_get_sync_progress', nonce:notionToWp.nonce },
-                success:function(res){
-                    if(!res.success){return;}
-                    const p = res.data;
-                    if(!p.total){ return; }
-                    $bar.attr('max', p.total).val(p.processed || 0);
-                    $tip.text(p.processed + '/' + p.total + ' 已处理，成功: ' + (p.imported + p.updated) + ' 失败:' + p.failed);
-                    if(p.done){
-                        clearInterval(timer);
-                        $tip.append(' ✓');
-                        // 同步完成后刷新统计
-                        fetchStats();
-                    }
-                }
-            });
-        },1000);
-    }
     
     // 测试连接
     $('#notion-test-connection').on('click', function(e) {
@@ -193,18 +165,18 @@ jQuery(document).ready(function($) {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text)
                     .then(() => {
-                        console.log('文本已成功复制到剪贴板');
+                        dlog('文本已成功复制到剪贴板');
                         if (callback) callback(true);
                     })
                     .catch(err => {
-                        console.error('使用 Clipboard API 复制失败:', err);
+                        if(debug) console.error('使用 Clipboard API 复制失败:', err);
                         fallbackCopyToClipboard(text, callback);
                     });
             } else {
                 fallbackCopyToClipboard(text, callback);
             }
         } catch (e) {
-            console.error('复制过程中发生错误:', e);
+            if(debug) console.error('复制过程中发生错误:', e);
             if (callback) callback(false, e.message);
         }
     };
@@ -224,14 +196,14 @@ jQuery(document).ready(function($) {
             document.body.removeChild(textarea);
             
             if (successful) {
-                console.log('使用备用方法成功复制文本');
+                dlog('使用备用方法成功复制文本');
                 if (callback) callback(true);
             } else {
                 console.warn('execCommand 复制命令失败');
                 if (callback) callback(false, 'execCommand 复制命令失败');
             }
         } catch (e) {
-            console.error('备用复制方法错误:', e);
+            if(debug) console.error('备用复制方法错误:', e);
             if (callback) callback(false, e.message);
         }
     }
@@ -268,10 +240,11 @@ jQuery(document).ready(function($) {
     });
     
     // 清除日志按钮点击事件
-    $('#clear-logs-button').on('click', function(e) {
+    $('#clear-logs-button').on('click', async function(e) {
         e.preventDefault();
         
-        if (!confirm('确定要清除所有日志文件吗？此操作不可恢复。')) {
+        const ok = await window.showConfirm('确定要清除所有日志文件吗？此操作不可恢复。');
+        if (!ok) {
             return;
         }
         
@@ -348,7 +321,7 @@ jQuery(document).ready(function($) {
     window.showModal = function(message, status) {
         const toast = $('<div class="notion-wp-toast ' + (status || 'info') + '"></div>');
         const icon = $('<div class="notion-wp-toast-icon"></div>');
-        const content = $('<div class="notion-wp-toast-content">' + message + '</div>');
+        const content = $('<div class="notion-wp-toast-content"></div>').text(message);
         const close = $('<button class="notion-wp-toast-close"><span class="dashicons dashicons-no-alt"></span></button>');
         
         // 根据状态设置 Emoji 图标
@@ -399,13 +372,14 @@ jQuery(document).ready(function($) {
     });
 
     // 刷新全部内容
-    $('.refresh-all-content').on('click', function(e) {
+    $('.refresh-all-content').on('click', async function(e) {
         e.preventDefault();
-        var button = $(this);
-        
-        if (!confirm('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。')) {
+        const ok = await window.showConfirm('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。');
+        if (!ok) {
             return;
         }
+        
+        var button = $(this);
         
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.refreshing);
         
@@ -466,7 +440,7 @@ jQuery(document).ready(function($) {
         success: function(resp) {
           $overlay.fadeOut(300);
           if (resp.success) {
-            showModal('页面已刷新完成！', 'success');
+            showModal(notionToWp.i18n.page_refreshed || '页面已刷新完成！', 'success');
             // 刷新统计信息
             fetchStats();
           } else {
@@ -566,6 +540,9 @@ jQuery(document).ready(function($) {
                 0% { transform: rotate(0deg); }
                 100% { transform: rotate(360deg); }
             }
+            /* 确认对话样式 */
+            .notion-wp-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index: 10000; }
+            .notion-wp-modal { background:#fff; border-radius: var(--notion-border-radius); padding:24px; box-shadow:0 8px 20px rgba(0,0,0,0.15); max-width:360px; width:90%; }
         `)
         .appendTo('head');
 
@@ -575,14 +552,14 @@ jQuery(document).ready(function($) {
     // 初始化复制按钮函数
     function initCopyButtons() {
         const copyButtons = $('.copy-to-clipboard');
-        console.log('找到复制按钮数量:', copyButtons.length);
+        dlog('找到复制按钮数量:', copyButtons.length);
         
         copyButtons.each(function(index) {
             const $btn = $(this);
             const target = $btn.data('clipboard-target');
             const $target = $(target);
             
-            console.log(`按钮 ${index + 1}:`, {
+            dlog(`按钮 ${index + 1}:`, {
                 '目标选择器': target,
                 '目标元素存在': $target.length > 0,
                 '目标元素值': $target.val() || '(空)',
@@ -595,6 +572,35 @@ jQuery(document).ready(function($) {
             }
         });
     }
+
+    /* ---------- 全局确认对话 ---------- */
+    window.showConfirm = function(message) {
+        return new Promise(function(resolve) {
+            const overlay = $('<div class="notion-wp-overlay"></div>').hide();
+            const modal   = $('<div class="notion-wp-modal"></div>');
+            const content = $('<div class="notion-wp-toast-content"></div>').text(message);
+            const actions = $('<div style="display:flex; gap:12px; margin-top:18px; justify-content:flex-end;"></div>');
+            const btnYes = $('<button class="button button-primary">确定</button>');
+            const btnNo  = $('<button class="button">取消</button>');
+
+            actions.append(btnNo, btnYes);
+            modal.append(content).append(actions);
+            overlay.append(modal);
+            $('body').append(overlay);
+
+            overlay.fadeIn(150);
+
+            function close(result) {
+                overlay.fadeOut(150, function() {
+                    overlay.remove();
+                    resolve(result);
+                });
+            }
+
+            btnYes.on('click', function() { close(true); });
+            btnNo.on('click',  function() { close(false); });
+        });
+    };
 });
 
 // 从 copy_button.js 合并的代码
@@ -635,7 +641,7 @@ jQuery(document).ready(function($) {
             
             // 根据复制结果更新按钮文本
             if (success) {
-                var originalText = $button.text();
+                const originalText = $button.text();
                 $button.text('已复制!');
                 
                 // 2秒后恢复原始文本
@@ -643,7 +649,13 @@ jQuery(document).ready(function($) {
                     $button.text(originalText);
                 }, 2000);
             } else {
-                alert('复制失败，请手动复制。');
+                // 使用统一 Toast，而非阻塞式 alert，提高用户体验并避免原生弹窗
+                if ( typeof window.showModal === 'function' ) {
+                    showModal('复制失败: 请手动复制。', 'error');
+                } else {
+                    // 如果没有全局 showModal（理论上不应发生），在控制台输出警告
+                    console.warn('复制失败，请手动复制。');
+                }
             }
         }
     });
