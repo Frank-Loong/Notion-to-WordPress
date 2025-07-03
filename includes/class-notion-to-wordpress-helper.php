@@ -451,9 +451,12 @@ class Notion_To_WordPress_Helper {
         $log_file = $upload_dir['basedir'] . '/notion-to-wordpress-logs/' . $filename;
 
         if (file_exists($log_file)) {
-            // 只读取最后 1MB 的内容以防止过大的文件拖慢后台
+            // 读取文件尾部，大小允许通过过滤器调整（默认 1MB）
+            $tail_size = (int) apply_filters( 'ntw_log_tail_size', 1024 * 1024 );
+            $tail_size = max( 64 * 1024, $tail_size ); // 最小 64KB
+
             $size = filesize($log_file);
-            $offset = max(0, $size - 1024 * 1024);
+            $offset = max(0, $size - $tail_size);
             return file_get_contents($log_file, false, null, $offset);
         }
 

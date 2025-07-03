@@ -44,40 +44,55 @@ foreach ($options as $option) {
 wp_clear_scheduled_hook('notion_cron_import');
 wp_clear_scheduled_hook('ntw_process_media_queue');
 
-// 查找所有使用计划任务的页面并清理
-$query = new WP_Query(array(
-    'post_type' => array('post', 'page'),
-    'meta_key' => 'notion_to_wordpress_cron_interval',
-    'meta_compare' => 'EXISTS',
-    'posts_per_page' => -1,
-    'fields' => 'ids'
-));
+// 查找所有使用计划任务的页面并清理（分批处理，降低内存占用）
+$paged = 1;
+$batch = 500;
+do {
+    $query = new WP_Query(array(
+        'post_type'      => array('post', 'page'),
+        'meta_key'       => 'notion_to_wordpress_cron_interval',
+        'meta_compare'   => 'EXISTS',
+        'posts_per_page' => $batch,
+        'fields'         => 'ids',
+        'paged'          => $paged,
+        'no_found_rows'  => true,
+    ));
 
-if ($query->have_posts()) {
-    foreach ($query->posts as $post_id) {
-        $page_id = get_post_meta($post_id, '_notion_page_id', true);
-        if ($page_id) {
-            wp_clear_scheduled_hook('notion_to_wordpress_cron_update', array($page_id));
+    if ($query->have_posts()) {
+        foreach ($query->posts as $post_id) {
+            $page_id = get_post_meta($post_id, '_notion_page_id', true);
+            if ($page_id) {
+                wp_clear_scheduled_hook('notion_to_wordpress_cron_update', array($page_id));
+            }
         }
     }
-}
+    wp_reset_postdata();
+    $paged++;
+} while ($query->have_posts());
 
 // 根据设置决定是否删除内容
 if ($delete_content) {
-    // 查找并删除所有导入的内容
-    $posts_query = new WP_Query(array(
-        'post_type' => array('post', 'page'),
-        'meta_key' => '_notion_page_id',
-        'meta_compare' => 'EXISTS',
-        'posts_per_page' => -1,
-        'fields' => 'ids'
-    ));
+    // 批量删除导入内容，500 条一批
+    $paged = 1;
+    do {
+        $posts_query = new WP_Query(array(
+            'post_type'      => array('post', 'page'),
+            'meta_key'       => '_notion_page_id',
+            'meta_compare'   => 'EXISTS',
+            'posts_per_page' => 500,
+            'fields'         => 'ids',
+            'paged'          => $paged,
+            'no_found_rows'  => true,
+        ));
 
-    if ($posts_query->have_posts()) {
-        foreach ($posts_query->posts as $post_id) {
-            wp_delete_post($post_id, true); // 第二个参数为true表示彻底删除，不放入回收站
+        if ($posts_query->have_posts()) {
+            foreach ($posts_query->posts as $post_id) {
+                wp_delete_post($post_id, true);
+            }
         }
-    }
+        wp_reset_postdata();
+        $paged++;
+    } while ($posts_query->have_posts());
 
     // 删除notion_images自定义文章类型中的所有内容
     $images_query = new WP_Query(array(
@@ -92,40 +107,54 @@ if ($delete_content) {
         }
     }
 
-    // 删除由插件下载到媒体库的附件（通过 _notion_original_url 标识）
-    $attachments = new WP_Query(array(
-        'post_type'      => 'attachment',
-        'post_status'    => 'inherit',
-        'posts_per_page' => -1,
-        'meta_query'     => array(
-            array(
-                'key'     => '_notion_original_url',
-                'compare' => 'EXISTS',
+    // 删除由插件下载到媒体库的附件（通过 _notion_original_url 标识），分批500
+    $paged = 1;
+    do {
+        $attachments = new WP_Query(array(
+            'post_type'      => 'attachment',
+            'post_status'    => 'inherit',
+            'posts_per_page' => 500,
+            'meta_query'     => array(
+                array(
+                    'key'     => '_notion_original_url',
+                    'compare' => 'EXISTS',
+                ),
             ),
-        ),
-        'fields' => 'ids'
-    ));
+            'fields' => 'ids',
+            'paged'  => $paged,
+            'no_found_rows' => true,
+        ));
 
-    if ( $attachments->have_posts() ) {
-        foreach ( $attachments->posts as $att_id ) {
-            wp_delete_attachment( $att_id, true );
+        if ( $attachments->have_posts() ) {
+            foreach ( $attachments->posts as $att_id ) {
+                wp_delete_attachment( $att_id, true );
+            }
         }
-    }
+        wp_reset_postdata();
+        $paged++;
+    } while ( $attachments->have_posts() );
 } else {
-    // 保留文章，但清理与插件相关的 post_meta，避免后续重新安装时仍被统计
-    $posts_query = new WP_Query( array(
-        'post_type'      => array( 'post', 'page' ),
-        'meta_key'       => '_notion_page_id',
-        'meta_compare'   => 'EXISTS',
-        'posts_per_page' => -1,
-        'fields'         => 'ids',
-    ) );
+    // 保留文章但清理 post_meta，分批500
+    $paged = 1;
+    do {
+        $posts_query = new WP_Query( array(
+            'post_type'      => array( 'post', 'page' ),
+            'meta_key'       => '_notion_page_id',
+            'meta_compare'   => 'EXISTS',
+            'posts_per_page' => 500,
+            'fields'         => 'ids',
+            'paged'          => $paged,
+            'no_found_rows'  => true,
+        ) );
 
-    if ( $posts_query->have_posts() ) {
-        foreach ( $posts_query->posts as $post_id ) {
-            delete_post_meta( $post_id, '_notion_page_id' );
+        if ( $posts_query->have_posts() ) {
+            foreach ( $posts_query->posts as $post_id ) {
+                delete_post_meta( $post_id, '_notion_page_id' );
+            }
         }
-    }
+        wp_reset_postdata();
+        $paged++;
+    } while ( $posts_query->have_posts() );
 }
 
 // 最后删除插件设置
