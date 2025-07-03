@@ -75,25 +75,39 @@ class Notion_To_WordPress_Admin {
             return;
         }
 
-        wp_enqueue_style(
-            $this->plugin_name . '-admin',
-            Notion_To_WordPress_Helper::plugin_url('assets/css/admin-modern.css'),
-            array(),
-            $this->version,
-            'all'
-        );
+        // 若存在编译后的单文件样式（assets/css/admin.css），优先加载
+        $compiled_rel_path = 'assets/css/admin.css';
+        if ( file_exists( Notion_To_WordPress_Helper::plugin_path( $compiled_rel_path ) ) ) {
+            wp_enqueue_style(
+                $this->plugin_name . '-admin',
+                Notion_To_WordPress_Helper::plugin_url( $compiled_rel_path ),
+                array(),
+                $this->version,
+                'all'
+            );
+        } else {
+            // 兼容旧版：加载拆分样式文件
+            wp_enqueue_style(
+                $this->plugin_name . '-admin',
+                Notion_To_WordPress_Helper::plugin_url('assets/css/admin-modern.css'),
+                array(),
+                $this->version,
+                'all'
+            );
 
+            wp_enqueue_style(
+                $this->plugin_name . '-custom',
+                Notion_To_WordPress_Helper::plugin_url('assets/css/custom-styles.css'),
+                array(),
+                $this->version,
+                'all'
+            );
+        }
+
+        // tooltip 样式始终加载
         wp_enqueue_style(
             $this->plugin_name . '-tooltip',
             Notion_To_WordPress_Helper::plugin_url('assets/css/tooltip.css'),
-            array(),
-            $this->version,
-            'all'
-        );
-
-        wp_enqueue_style(
-            $this->plugin_name . '-custom',
-            Notion_To_WordPress_Helper::plugin_url('assets/css/custom-styles.css'),
             array(),
             $this->version,
             'all'

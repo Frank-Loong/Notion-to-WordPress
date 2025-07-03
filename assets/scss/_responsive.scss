@@ -1,0 +1,60 @@
+@use 'variables' as *;
+
+/* ===== 响应式调整 ===== */
+@media (max-width: 1200px) {
+  .notion-wp-layout {
+    flex-direction: column;
+  }
+  .notion-wp-sidebar,
+  .notion-wp-content {
+    width: 100%;
+  }
+
+  .notion-wp-menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+  }
+
+  .notion-wp-menu-item {
+    width: auto;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    padding: 10px 15px;
+
+    &.active {
+      border-bottom-color: var(--notion-primary);
+    }
+  }
+
+  .author-info {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 782px) {
+  .notion-wp-admin h1.wp-heading-inline { font-size: 22px; }
+  .notion-wp-logo { font-size: 28px; height: 28px; width: 28px; }
+
+  .notion-wp-admin .form-table th,
+  .notion-wp-admin .form-table td {
+    width: 100%;
+    display: block;
+  }
+
+  .notion-wp-actions-bar {
+    flex-direction: column;
+    gap: 15px;
+
+    .left-actions { width: 100%; justify-content: space-between; }
+  }
+
+  .notion-wp-menu { flex-direction: column; }
+  .notion-wp-menu-item { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .notion-stats-grid { grid-template-columns: 1fr; }
+  .author-info { flex-direction: column; text-align: center; }
+} 
