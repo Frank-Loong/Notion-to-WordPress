@@ -460,6 +460,21 @@ class Notion_To_WordPress {
 	 * @since 1.1.0
 	 */
 	public function enqueue_frontend_scripts() {
+		// 仅在单篇文章/页面中加载，避免首页或存档页多余资源
+		if ( ! is_singular() ) {
+			return;
+		}
+
+		// ------- 内容检测：若正文未包含公式 / Mermaid 则跳过加载 -------
+		global $post;
+		if ( $post instanceof \WP_Post ) {
+			$cnt = $post->post_content ?? '';
+			// 检测 Notion 导入时插入的占位 class、KaTeX/LaTeX 语法或 mermaid 标记
+			if ( ! preg_match( '/notion\-(equation|chem)|\\\\\(|\\$\\$|<pre[^>]*class="[^"]*(mermaid)[^"]*"|class="mermaid"/i', $cnt ) ) {
+				return;
+			}
+		}
+
 		// 样式
 		wp_enqueue_style(
 			$this->plugin_name . '-latex',
