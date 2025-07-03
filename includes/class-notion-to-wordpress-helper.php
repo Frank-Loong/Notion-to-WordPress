@@ -543,6 +543,9 @@ class Notion_To_WordPress_Helper {
     }
 
     public static function get_attachment_id_by_url( string $search_url ): int {
+        // 准备搜索URL（移除查询参数）
+        $base_search_url = preg_replace( '/\?.*$/', '', $search_url );
+        
         // 按 _notion_original_url 或 _notion_base_url 查找
         $posts = get_posts([
             'post_type'      => 'attachment',
@@ -557,7 +560,7 @@ class Notion_To_WordPress_Helper {
                 ],
                 [
                     'key'     => '_notion_base_url',
-                    'value'   => esc_url( $search_url ),
+                    'value'   => esc_url( $base_search_url ),
                     'compare' => '=',
                 ],
             ],
@@ -568,7 +571,7 @@ class Notion_To_WordPress_Helper {
         }
         // 兜底通过 guid 精确匹配
         global $wpdb;
-        $aid = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE guid=%s LIMIT 1", $search_url ) );
+        $aid = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE guid=%s OR guid=%s LIMIT 1", $search_url, $base_search_url ) );
         return $aid ? (int) $aid : 0;
     }
 }
