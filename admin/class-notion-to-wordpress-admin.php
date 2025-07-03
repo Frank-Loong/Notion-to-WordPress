@@ -385,6 +385,13 @@ class Notion_To_WordPress_Admin {
             Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
             Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
 
+            // 新增：记录本次同步时间，供统计面板使用
+            $now = current_time( 'mysql' );
+            update_option( 'notion_to_wordpress_last_sync', $now );
+            // 同步写入插件主配置，保持与 cron 流程一致
+            $options['last_sync_time'] = $now;
+            update_option( 'notion_to_wordpress_options', $options );
+
             wp_send_json_success( [ 'message' => sprintf( '同步完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'] ) ] );
 
             return;
@@ -415,6 +422,12 @@ class Notion_To_WordPress_Admin {
             
             // 获取最后同步时间
             $last_update = get_option('notion_to_wordpress_last_sync', '');
+            if ( empty( $last_update ) ) {
+                // 兼容旧版本：从主配置中读取 last_sync_time 字段
+                $plugin_opts = get_option( 'notion_to_wordpress_options', [] );
+                $last_update = $plugin_opts['last_sync_time'] ?? '';
+            }
+
             if ($last_update) {
                 $last_update = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_update));
             } else {
@@ -618,6 +631,12 @@ class Notion_To_WordPress_Admin {
                     // 清理统计缓存
                     Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
                     Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
+
+                    // 记录同步时间
+                    $now = current_time( 'mysql' );
+                    update_option( 'notion_to_wordpress_last_sync', $now );
+                    $options['last_sync_time'] = $now;
+                    update_option( 'notion_to_wordpress_options', $options );
 
                     wp_send_json_success(['message' => sprintf('刷新完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'])]);
                 }

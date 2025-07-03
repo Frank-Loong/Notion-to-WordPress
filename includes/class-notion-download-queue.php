@@ -185,6 +185,10 @@ class Notion_Download_Queue {
 
         // 标记来源，便于卸载清理
         update_post_meta( $attachment_id, '_notion_original_url', esc_url( $url ) );
+        
+        // 添加基础URL（不含查询参数），便于后续查找匹配
+        $base_url = preg_replace( '/\?.*$/', '', $url );
+        update_post_meta( $attachment_id, '_notion_base_url', esc_url( $base_url ) );
 
         $post_id = (int) $t['post_id'];
         if ( $post_id > 0 ) {
