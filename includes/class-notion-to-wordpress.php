@@ -631,10 +631,19 @@ class Notion_To_WordPress {
 			if ( ! $url ) {
 				continue;
 			}
-			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+			
+			// 移除查询参数以提高匹配率
+			$base_url = preg_replace( '/\?.*$/', '', $url );
+			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $base_url );
+			
 			if ( $aid <= 0 ) {
-				continue;
+				// 再尝试完整URL
+				$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+				if ( $aid <= 0 ) {
+					continue;
+				}
 			}
+			
 			$local_url = wp_get_attachment_url( $aid );
 			if ( ! $local_url ) {
 				continue;
@@ -656,10 +665,19 @@ class Notion_To_WordPress {
 			if ( ! $url ) {
 				continue;
 			}
-			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+			
+			// 移除查询参数以提高匹配率
+			$base_url = preg_replace( '/\?.*$/', '', $url );
+			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $base_url );
+			
 			if ( $aid <= 0 ) {
-				continue;
+				// 再尝试完整URL
+				$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+				if ( $aid <= 0 ) {
+					continue;
+				}
 			}
+			
 			$local_url = wp_get_attachment_url( $aid );
 			if ( ! $local_url ) {
 				continue;
