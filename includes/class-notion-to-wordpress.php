@@ -310,6 +310,8 @@ class Notion_To_WordPress {
 		// 更新上次同步时间
 		$options['last_sync_time'] = current_time( 'mysql' );
 		update_option( 'notion_to_wordpress_options', $options );
+		// 兼容后台统计：单独记录最新同步时间
+		update_option( 'notion_to_wordpress_last_sync', $options['last_sync_time'] );
 	}
 
 	/**
@@ -629,10 +631,19 @@ class Notion_To_WordPress {
 			if ( ! $url ) {
 				continue;
 			}
-			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+			
+			// 移除查询参数以提高匹配率
+			$base_url = preg_replace( '/\?.*$/', '', $url );
+			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $base_url );
+			
 			if ( $aid <= 0 ) {
-				continue;
+				// 再尝试完整URL
+				$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+				if ( $aid <= 0 ) {
+					continue;
+				}
 			}
+			
 			$local_url = wp_get_attachment_url( $aid );
 			if ( ! $local_url ) {
 				continue;
@@ -654,10 +665,19 @@ class Notion_To_WordPress {
 			if ( ! $url ) {
 				continue;
 			}
-			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+			
+			// 移除查询参数以提高匹配率
+			$base_url = preg_replace( '/\?.*$/', '', $url );
+			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $base_url );
+			
 			if ( $aid <= 0 ) {
-				continue;
+				// 再尝试完整URL
+				$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+				if ( $aid <= 0 ) {
+					continue;
+				}
 			}
+			
 			$local_url = wp_get_attachment_url( $aid );
 			if ( ! $local_url ) {
 				continue;
