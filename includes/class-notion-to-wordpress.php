@@ -416,6 +416,16 @@ class Notion_To_WordPress {
 			wp_schedule_event( time() + 300, 'ntw_five_minutes', 'ntw_process_media_queue' );
 		}
 
+		// 为 postmeta 创建索引，加速 _notion_page_id 查询
+		global $wpdb;
+		$index_name = 'ntw_idx_notion_page_id';
+		$has_index  = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$wpdb->postmeta} WHERE Key_name = %s", $index_name ) );
+
+		if ( ! $has_index ) {
+			// meta_key + meta_value 前缀索引 (191) 以保持 mysql utf8mb4 兼容
+			$wpdb->query( "ALTER TABLE {$wpdb->postmeta} ADD INDEX {$index_name} (meta_key(50), meta_value(191))" );
+		}
+
 		// 刷新重写规则
 		flush_rewrite_rules();
 	}

@@ -100,6 +100,18 @@ class Notion_Download_Queue {
             return false;
         }
 
+        // -------- 安全校验：URL 合法性 & 私网 IP --------
+        $parsed = wp_parse_url( $url );
+        if ( ! $parsed || ! isset( $parsed['host'] ) || ! in_array( strtolower( $parsed['scheme'] ?? '' ), [ 'http', 'https' ], true ) ) {
+            Notion_To_WordPress_Helper::error_log( '下载跳过：非法 URL ' . $url, 'Download Queue' );
+            return false;
+        }
+
+        if ( self::is_private_host( $parsed['host'] ) ) {
+            Notion_To_WordPress_Helper::error_log( '下载跳过：目标位于私网/本地网段 ' . $url, 'Download Queue' );
+            return false;
+        }
+
         Notion_To_WordPress_Helper::debug_log( '处理下载: ' . $url . ' (retry ' . ( $t['retry'] ?? 0 ) . ')', 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
 
         // 下载到临时文件
@@ -113,6 +125,28 @@ class Notion_Download_Queue {
                 // 退避：延后 60 秒再加入队列
                 wp_schedule_single_event( time() + 60, 'ntw_async_media', [ $t ] );
             }
+            return false;
+        }
+
+        // -------- 文件 MIME / 大小校验 --------
+        $options          = get_option( 'notion_to_wordpress_options', [] );
+        $allowed_types_op = $options['allowed_image_types'] ?? '*';
+        $allowed_types    = array_map( 'trim', explode( ',', strtolower( $allowed_types_op ) ) );
+        $max_size_mb      = max( 1, intval( $options['max_image_size'] ?? 20 ) );
+
+        $file_info = wp_check_filetype_and_ext( $tmp, basename( $parsed['path'] ) );
+        $mime      = strtolower( $file_info['type'] ?? '' );
+
+        if ( $allowed_types_op !== '*' && $mime && ! in_array( $mime, $allowed_types, true ) ) {
+            @unlink( $tmp );
+            Notion_To_WordPress_Helper::error_log( "拒绝文件，MIME 不在白名单 ({$mime}) : {$url}", 'Download Queue' );
+            return false;
+        }
+
+        $size_mb = filesize( $tmp ) / 1048576; // 1024*1024
+        if ( $size_mb > $max_size_mb ) {
+            @unlink( $tmp );
+            Notion_To_WordPress_Helper::error_log( sprintf( '拒绝文件，大小 %.2fMB 超过限制 %dMB: %s', $size_mb, $max_size_mb, $url ), 'Download Queue' );
             return false;
         }
 
@@ -164,6 +198,19 @@ class Notion_Download_Queue {
         }
 
         return true;
+    }
+
+    /**
+     * 判断主机是否解析到私网 / 保留 IP
+     */
+    private static function is_private_host( string $host ): bool {
+        $ip = gethostbyname( $host );
+        // 若解析失败直接视为非法
+        if ( ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
+            return true;
+        }
+
+        return filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false;
     }
 
     /**

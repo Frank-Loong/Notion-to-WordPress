@@ -53,17 +53,17 @@ class Notion_To_WordPress_Webhook {
             return;
         }
 
-        register_rest_route('notion-to-wordpress/v1', '/webhook/(?P<token>[a-zA-Z0-9]+)', [
-            'methods' => 'POST',
-            'callback' => [$this, 'handle_webhook'],
-            'permission_callback' => '__return_true',
-            'args' => [
+        register_rest_route( 'notion-to-wordpress/v1', '/webhook/(?P<token>[a-zA-Z0-9]+)', [
+            'methods'             => 'POST',
+            'callback'            => [ $this, 'handle_webhook' ],
+            'permission_callback' => [ $this, 'verify_webhook_permission' ],
+            'args'                => [
                 'token' => [
-                    'required' => true,
+                    'required'          => true,
                     'sanitize_callback' => 'sanitize_text_field',
-                ]
-            ]
-        ]);
+                ],
+            ],
+        ] );
     }
 
     /**
@@ -190,5 +190,29 @@ class Notion_To_WordPress_Webhook {
         
         // 恢复正常错误报告级别
         error_reporting($current_error_level);
+    }
+
+    /**
+     * 权限校验：仅当 token 正确时通过
+     *
+     * @param \WP_REST_Request $request
+     * @return bool|\WP_Error
+     */
+    public function verify_webhook_permission( $request ) {
+        // 仅接受 POST
+        if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
+            return new WP_Error( 'ntw_webhook_method', 'Invalid request method', [ 'status' => 405 ] );
+        }
+
+        $token_param = is_array( $request ) ? ( $request['token'] ?? '' ) : $request->get_param( 'token' );
+
+        $options        = get_option( 'notion_to_wordpress_options', [] );
+        $expected_token = $options['webhook_token'] ?? '';
+
+        if ( empty( $expected_token ) || $token_param !== $expected_token ) {
+            return new WP_Error( 'ntw_webhook_permission', 'Token mismatch', [ 'status' => 403 ] );
+        }
+
+        return true;
     }
 } 
