@@ -475,17 +475,35 @@ class Notion_Block_Converter {
         if ( empty( $url ) ) {
             return '<!-- 无效的 PDF URL -->';
         }
-        $caption = isset( $pdf_data['caption'] ) ? self::extract_rich_text_static( $pdf_data['caption'] ) : '';
+
+        $caption = self::extract_rich_text_static( $pdf_data['caption'] ?? [] );
+
+        // 生成预览 HTML（使用 Google Docs Viewer）
+        $build_html = function ( string $src, string $download ) use ( $caption ) : string {
+            $viewer = 'https://docs.google.com/viewer?embedded=true&url=' . rawurlencode( $src );
+            $html   = '<div class="notion-pdf">';
+            $html  .= '<iframe src="' . esc_url( $viewer ) . '" width="100%" height="600" frameborder="0" loading="lazy"></iframe>';
+            $html  .= '<p><a href="' . esc_url( $download ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
+            $html  .= '</div>';
+            return $html;
+        };
+
+        // 非 Notion 临时链接直接使用
         if ( ! $this->is_notion_temp_url( $url ) ) {
-            return '<div class="notion-pdf"><embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+            return $build_html( $url, $url );
         }
+
+        // 尝试下载并使用本地文件
         $file_name     = basename( parse_url( $url, PHP_URL_PATH ) );
         $attachment_id = $this->download_and_insert_file( $url, $caption, $file_name );
+
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            return '<div class="notion-pdf notion-temp-pdf"><embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF（外链，可能过期）', 'notion-to-wordpress' ) . '</a></p></div>';
+            // 下载队列中，暂时使用外链
+            return $build_html( $url, $url );
         }
+
         $local_url = wp_get_attachment_url( $attachment_id );
-        return '<div class="notion-pdf"><embed src="' . esc_url( $local_url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $local_url ) . '" target="_blank" rel="noopener" download>' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+        return $build_html( $local_url, $local_url );
     }
 
     private function _convert_block_video( array $block ): string {
