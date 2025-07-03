@@ -4,7 +4,7 @@
 
 ---
 
-**版本：1.0.8**  
+**版本：1.0.9**  
 **作者：Frank-Loong**  
 **GitHub：[https://github.com/Frank-Loong/Notion-to-WordPress](https://github.com/Frank-Loong/Notion-to-WordPress)**
 
@@ -109,4 +109,4 @@ jQuery.post(ajaxurl, {
 
 ---
 
-> © 2024 Frank-Loong. Notion·to-WordPress v1.0.8
+> © 2024 Frank-Loong. Notion·to-WordPress v1.0.9
