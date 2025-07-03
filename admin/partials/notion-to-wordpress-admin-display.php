@@ -23,7 +23,8 @@ $api_key               = $options['notion_api_key'] ?? '';
 $database_id           = $options['notion_database_id'] ?? '';
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
 $delete_on_uninstall   = $options['delete_on_uninstall'] ?? 0;
-$lock_timeout          = $options['lock_timeout'] ?? 300;
+$lock_timeout          = $options['lock_timeout'] ?? 120;
+$download_concurrency  = $options['download_concurrency'] ?? 2;
 $field_mapping         = $options['field_mapping'] ?? [
     'title'          => 'Title,标题',
     'status'         => 'Status,状态',
@@ -58,27 +59,21 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         <div class="notion-wp-sidebar">
             <div class="notion-wp-menu">
                 <button class="notion-wp-menu-item active" data-tab="api-settings">
-                    <span class="dashicons dashicons-admin-settings"></span>
                     <?php esc_html_e('🛠️ 主要设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="field-mapping">
-                    <span class="dashicons dashicons-networking"></span>
                     <?php esc_html_e('🔗 字段映射', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="other-settings">
-                    <span class="dashicons dashicons-admin-generic"></span>
                     <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
-                    <span class="dashicons dashicons-hammer"></span>
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="help">
-                    <span class="dashicons dashicons-editor-help"></span>
                     <?php esc_html_e('📖 帮助与指南', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="about-author">
-                    <span class="dashicons dashicons-admin-users"></span>
                     <?php esc_html_e('👨‍💻 关于作者', 'notion-to-wordpress'); ?>
                 </button>
             </div>
@@ -506,6 +501,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     </td>
                                 </tr>
                                 <tr>
+                                    <th scope="row"><label for="download_concurrency"><?php esc_html_e('下载并发数量', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <input type="number" id="download_concurrency" name="download_concurrency" value="<?php echo esc_attr($download_concurrency); ?>" class="small-text" min="1" max="10" step="1">
+                                        <span><?php esc_html_e('任务/批', 'notion-to-wordpress'); ?></span>
+                                        <p class="description"><?php esc_html_e('控制附件下载队列每批并发量。过大可能导致主机连接数耗尽，建议 1-5。', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
                                     <th scope="row"><label for="iframe_whitelist"><?php esc_html_e('iframe 白名单域名', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <?php 
@@ -563,11 +566,34 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><?php esc_html_e('错误日志', 'notion-to-wordpress'); ?></th>
                                     <td>
                                         <div id="log-viewer-container">
+                                            <?php
+                                            // --- 日志文件分页 ---
+                                            $all_logs   = Notion_To_WordPress_Helper::get_log_files();
+                                            $per_page   = 20; // 每页显示数量
+                                            $total      = count( $all_logs );
+                                            $total_pages = max( 1, (int) ceil( $total / $per_page ) );
+                                            $current    = isset( $_GET['log_page'] ) ? max( 1, min( $total_pages, intval( $_GET['log_page'] ) ) ) : 1;
+                                            $offset     = ( $current - 1 ) * $per_page;
+                                            $logs_page  = array_slice( $all_logs, $offset, $per_page );
+                                            ?>
+
                                             <select id="log-file-selector">
-                                                <?php foreach (Notion_To_WordPress_Helper::get_log_files() as $file): ?>
-                                                    <option value="<?php echo esc_attr($file); ?>"><?php echo esc_html($file); ?></option>
+                                                <?php foreach ( $logs_page as $file ): ?>
+                                                    <option value="<?php echo esc_attr( $file ); ?>"><?php echo esc_html( $file ); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
+
+                                            <?php if ( $total_pages > 1 ) : ?>
+                                                <div class="log-pagination" style="margin-top:6px;">
+                                                    <?php if ( $current > 1 ) : ?>
+                                                        <a class="button" href="<?php echo esc_url( add_query_arg( 'log_page', $current - 1 ) ); ?>#debug">&laquo; <?php esc_html_e( '上一页', 'notion-to-wordpress' ); ?></a>
+                                                    <?php endif; ?>
+                                                    <span style="margin:0 8px;"><?php echo sprintf( __( '第 %d / %d 页', 'notion-to-wordpress' ), $current, $total_pages ); ?></span>
+                                                    <?php if ( $current < $total_pages ) : ?>
+                                                        <a class="button" href="<?php echo esc_url( add_query_arg( 'log_page', $current + 1 ) ); ?>#debug"><?php esc_html_e( '下一页', 'notion-to-wordpress' ); ?> &raquo;</a>
+                                                    <?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                             <button type="button" class="button button-secondary" id="view-log-button"><?php esc_html_e('查看日志', 'notion-to-wordpress'); ?></button>
                                             <button type="button" class="button button-danger" id="clear-logs-button"><?php esc_html_e('清除所有日志', 'notion-to-wordpress'); ?></button>
                                             <textarea id="log-viewer" class="large-text code" rows="18" readonly
@@ -686,12 +712,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </button>
                     </div>
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
-                </div>
-
-                <!-- 同步进度条 -->
-                <div id="ntw-sync-progress" style="display:none;margin-top:15px;">
-                    <progress id="ntw-sync-bar" value="0" max="100" style="width:100%;height:16px;"></progress>
-                    <p id="ntw-sync-tip" style="margin:4px 0 0;font-size:13px;color:#555;"></p>
                 </div>
             </form>
         </div>

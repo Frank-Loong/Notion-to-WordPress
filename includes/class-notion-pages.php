@@ -72,6 +72,13 @@ class Notion_Pages {
     private string $current_page_id = '';
     
     /**
+     * 静态缓存：Notion 页面 ID → WP Post ID，避免同一次导入过程中重复查询。
+     *
+     * @var array<string,int>
+     */
+    private static array $notion_post_cache = [];
+    
+    /**
      * 构造函数
      *
      * @since    1.0.8
@@ -107,43 +114,132 @@ class Notion_Pages {
      */
     public function import_notion_page(array $page): bool {
         if (empty($page) || !isset($page['id'])) {
+            Notion_To_WordPress_Helper::error_log( '导入失败：页面数据为空或缺少 ID', 'Notion Import' );
             return false;
         }
 
-        $page_id  = $page['id'];
+        $page_id = $page['id'] ?? '';
+        $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+        Notion_To_WordPress_Helper::debug_log( '开始导入页面内容: ' . $page_title . ' | ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        
+        // 记录开始时间，用于计算执行时间
+        $start_time = microtime(true);
+        
         // 记录当前页面 ID 供后续锚点处理
         $this->current_page_id = $page_id;
-        $metadata = $this->extract_page_metadata($page);
         
-        if (empty($metadata['title'])) {
+        try {
+            // 提取页面元数据
+            $metadata = $this->extract_page_metadata($page);
+            
+            if (empty($metadata['title'])) {
+                Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 缺少标题', 'Notion Import' );
+                return false;
+            }
+            
+            // 如果页面状态为"草稿"，则跳过
+            if ($metadata['status'] === 'draft') {
+                Notion_To_WordPress_Helper::debug_log( '页面状态为草稿，跳过: ' . $page_title, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+                return true;
+            }
+            
+            // 检查内存使用情况
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            Notion_To_WordPress_Helper::debug_log(
+                "获取块前内存: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                'Memory',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+            
+            // 获取页面内容
+            Notion_To_WordPress_Helper::debug_log( '获取页面块内容: ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            $blocks = $this->notion_api->get_page_content($page['id']);
+            if (empty($blocks)) {
+                Notion_To_WordPress_Helper::error_log( '导入失败：页面 ' . $page_id . ' 获取 blocks 为空', 'Notion Import' );
+                return false;
+            }
+            Notion_To_WordPress_Helper::debug_log( '获取到 ' . count($blocks) . ' 个顶级块', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            
+            // 检查API调用后的内存使用情况
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            Notion_To_WordPress_Helper::debug_log(
+                "获取块后内存: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                'Memory',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+            
+            // 重置处理状态
+            $this->processed_blocks = [];
+            
+            // 将Notion块转换为HTML
+            Notion_To_WordPress_Helper::debug_log( '开始转换块为HTML', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+            Notion_To_WordPress_Helper::debug_log( '块转换完成，HTML长度: ' . strlen($raw_content), 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
+            
+            // 检查转换后的内存使用情况
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            Notion_To_WordPress_Helper::debug_log(
+                "HTML转换后内存: {$memory_usage}MB (峰值: {$memory_peak}MB)",
+                'Memory',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+            
+            // 应用内容过滤
+            $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
+            
+            // 检查页面是否已存在
+            $existing_post_id = $this->get_post_by_notion_id($page['id']);
+            
+            // 获取作者ID
+            $author_id = $this->get_author_id();
+            
+            // 创建或更新文章
+            Notion_To_WordPress_Helper::debug_log( '准备' . ($existing_post_id ? '更新' : '创建') . 'WordPress文章', 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            $post_id = $this->create_or_update_post($metadata, $content, $author_id, $page['id'], $existing_post_id);
+            
+            if (is_wp_error($post_id)) {
+                Notion_To_WordPress_Helper::error_log( '导入失败：WP_Error -> ' . $post_id->get_error_message(), 'Notion Import' );
+                return false;
+            }
+            
+            if (!$post_id) {
+                Notion_To_WordPress_Helper::error_log( '创建/更新WordPress文章失败', 'Notion Import' );
+                return false;
+            }
+            
+            // 分类 / 标签 / 特色图
+            $this->apply_taxonomies($post_id, $metadata);
+            $this->apply_featured_image($post_id, $metadata);
+            
+            // 应用自定义字段
+            if (!empty($metadata['custom_fields'])) {
+                $this->apply_custom_fields($post_id, $metadata['custom_fields']);
+            }
+            
+            // 计算总执行时间
+            $execution_time = round(microtime(true) - $start_time, 2);
+            Notion_To_WordPress_Helper::debug_log( 
+                'WordPress文章ID: ' . $post_id . ' | 执行时间: ' . $execution_time . '秒',
+                'Notion Import', 
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            );
+            
+        } catch (Exception $e) {
+            // 计算异常发生时的执行时间
+            $execution_time = round(microtime(true) - $start_time, 2);
+            $memory_usage = round(memory_get_usage() / 1024 / 1024, 2);
+            $memory_peak = round(memory_get_peak_usage() / 1024 / 1024, 2);
+            
+            Notion_To_WordPress_Helper::error_log( '导入页面异常: ' . $page_title . ' | ' . $page_id . ' - ' . $e->getMessage(), 'Notion Import' );
+            Notion_To_WordPress_Helper::error_log( 
+                "异常详情: 执行时间 {$execution_time}秒, 内存 {$memory_usage}MB (峰值: {$memory_peak}MB)\n" . $e->getTraceAsString(),
+                'Notion Error'
+            );
             return false;
         }
-
-        // 获取页面内容
-        $blocks = $this->notion_api->get_page_content($page_id);
-        if (empty($blocks)) {
-            return false;
-        }
-
-        // 转换内容为 HTML 并做 KSES 过滤
-        $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
-        $content     = Notion_To_WordPress_Helper::custom_kses($raw_content);
-        
-        $existing_post_id = $this->get_post_by_notion_id($page_id);
-
-        // 获取文章作者
-        $author_id = $this->get_author_id();
-
-        // 创建或更新文章
-        $post_id = $this->create_or_update_post($metadata, $content, $author_id, $page_id, $existing_post_id);
-
-        if (is_wp_error($post_id)) {
-            return false;
-        }
-
-        // 分类 / 标签 / 特色图
-        $this->apply_taxonomies($post_id, $metadata);
-        $this->apply_featured_image($post_id, $metadata);
 
         return true;
     }
@@ -387,81 +483,9 @@ class Notion_Pages {
      * @param    Notion_API $notion_api   Notion API实例
      * @return   string                  HTML内容
      */
-    private function convert_blocks_to_html(array $blocks, Notion_API $notion_api): string {
-        $html = '';
-        $list_wrapper = null;
-
-        foreach ($blocks as $block) {
-            if (in_array($block['id'], $this->processed_blocks)) {
-                continue;
-            }
-            $this->processed_blocks[] = $block['id'];
-
-            $block_type = $block['type'];
-            $converter_method = '_convert_block_' . $block_type;
-
-            // -------- 列表块处理（含待办 to_do） --------
-            $is_standard_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item']);
-            $is_todo_item         = ($block_type === 'to_do');
-            $is_list_item         = $is_standard_list_item || $is_todo_item;
-
-            if ($is_standard_list_item) {
-                // 无序/有序列表
-                $current_list_tag = ($block_type === 'bulleted_list_item') ? 'ul' : 'ol';
-                if ($list_wrapper !== $current_list_tag) {
-                    if ($list_wrapper !== null) {
-                        // 关闭之前的列表（包括 todo 列表）
-                        $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                    }
-                    $html .= '<' . $current_list_tag . '>';
-                    $list_wrapper = $current_list_tag;
-                }
-            } elseif ($is_todo_item) {
-                // 待办事项列表，统一使用 ul，并带有 class 方便样式
-                if ($list_wrapper !== 'todo') {
-                    if ($list_wrapper !== null) {
-                        $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                    }
-                    $html .= '<ul class="notion-to-do-list">';
-                    $list_wrapper = 'todo';
-                }
-            } elseif ($list_wrapper !== null) {
-                // 当前块非列表项，关闭现有列表
-                $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                $list_wrapper = null;
-            }
-
-            if (method_exists($this, $converter_method)) {
-                try {
-                    // 尝试转换块
-                    $block_html = $this->{$converter_method}($block, $notion_api);
-
-                    // 为所有块添加锚点 span，供内部/跨文章跳转
-                    $anchor_id = str_replace( '-', '', $block['id'] );
-                    $html .= '<span id="' . esc_attr( $anchor_id ) . '"></span>' . $block_html;
-                    
-                    // 检查是否有子块
-                    if (isset($block['has_children']) && $block['has_children'] && !$is_list_item) {
-                        $html .= $this->_convert_child_blocks($block, $notion_api);
-                    }
-                } catch (Exception $e) {
-                    // 记录错误并添加注释
-                    Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage());
-                    $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
-                }
-            } else {
-                // 未知块类型，添加调试注释
-                $html .= '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
-                Notion_To_WordPress_Helper::debug_log('未支持的Notion块类型: ' . $block_type);
-            }
-        }
-
-        // 确保所有列表都正确关闭
-        if ($list_wrapper !== null) {
-            $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-        }
-
-        return $html;
+    private function convert_blocks_to_html( array $blocks, Notion_API $api ): string {
+        $converter = new Notion_Block_Converter( $this, $api );
+        return $converter->convert_blocks( $blocks );
     }
     
     /**
@@ -484,42 +508,48 @@ class Notion_Pages {
 
     // --- Block Converters ---
 
-    private function _convert_block_paragraph(array $block, Notion_API $notion_api): string {
+    // 以下函数已迁移到 Notion_Block_Converter，仅保留兼容实现。
+    private function _legacy_block_paragraph(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['paragraph']['rich_text']);
-        $html = empty($text) ? '<p>&nbsp;</p>' : '<p>' . $text . '</p>';
+        // 若段落无文本且无子块，跳过以避免产生空元素影响布局
+        if ( empty( trim( $text ) ) && ! ( $block['has_children'] ?? false ) ) {
+            return '';
+        }
+
+        $html = '<p>' . ( $text ?: '&nbsp;' ) . '</p>';
         $html .= $this->_convert_child_blocks($block, $notion_api);
         return $html;
     }
 
-    private function _convert_block_heading_1(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_heading_1(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_1']['rich_text']);
         $anchor = str_replace( '-', '', $block['id'] );
         return '<h1 id="' . esc_attr( $anchor ) . '">' . $text . '</h1>' . $this->_convert_child_blocks($block, $notion_api);
     }
     
-    private function _convert_block_heading_2(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_heading_2(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_2']['rich_text']);
         $anchor = str_replace( '-', '', $block['id'] );
         return '<h2 id="' . esc_attr( $anchor ) . '">' . $text . '</h2>' . $this->_convert_child_blocks($block, $notion_api);
     }
 
-    private function _convert_block_heading_3(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_heading_3(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['heading_3']['rich_text']);
         $anchor = str_replace( '-', '', $block['id'] );
         return '<h3 id="' . esc_attr( $anchor ) . '">' . $text . '</h3>' . $this->_convert_child_blocks($block, $notion_api);
     }
 
-    private function _convert_block_bulleted_list_item(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_bulleted_list_item(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['bulleted_list_item']['rich_text']);
         return '<li>' . $text . $this->_convert_child_blocks($block, $notion_api) . '</li>';
     }
 
-    private function _convert_block_numbered_list_item(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_numbered_list_item(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['numbered_list_item']['rich_text']);
         return '<li>' . $text . $this->_convert_child_blocks($block, $notion_api) . '</li>';
     }
 
-    private function _convert_block_to_do(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_to_do(array $block, Notion_API $notion_api): string {
         $text    = $this->extract_rich_text($block['to_do']['rich_text']);
         $checked = isset($block['to_do']['checked']) && $block['to_do']['checked'] ? ' checked' : '';
 
@@ -535,17 +565,18 @@ class Notion_Pages {
         return $html;
     }
     
-    private function _convert_block_toggle(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_toggle(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['toggle']['rich_text']);
         return '<details class="notion-toggle"><summary>' . $text . '</summary>' . $this->_convert_child_blocks($block, $notion_api) . '</details>';
     }
 
-    private function _convert_block_child_page(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_child_page(array $block, Notion_API $notion_api): string {
         $title = $block['child_page']['title'];
         return '<div class="notion-child-page"><span>' . esc_html($title) . '</span></div>';
     }
 
-    private function _convert_block_image(array $block, Notion_API $notion_api): string {
+    // 以下函数已迁移至 Notion_Block_Converter，保留为兼容但不再被自动调用。
+    private function _legacy_block_image(array $block, Notion_API $notion_api): string {
         $image_data = $block['image'];
         $type       = $image_data['type'] ?? 'external';
         $url        = '';
@@ -571,10 +602,17 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_image( $url, $caption );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 下载失败：直接使用原始 Notion URL，并提示可能过期
-            $notice      = esc_html__( '此为 Notion 临时图片链接，可能会过期。请考虑替换为图床或本地媒体库图片。', 'notion-to-wordpress' );
-            $figcaption  = $caption ? esc_html( $caption ) . ' - ' . $notice : $notice;
-            return '<figure class="wp-block-image size-large notion-temp-image"><img src="' . esc_url( $url ) . '" alt="' . esc_attr( $caption ) . '"><figcaption>' . $figcaption . '</figcaption></figure>';
+            // 图片入队异步下载，但目前还没有本地副本
+            // 使用数据占位符，便于后续替换
+            $placeholder_id = 'ntw-img-' . substr(md5($url), 0, 10);
+            $notice = esc_html__( '图片正在后台下载中...', 'notion-to-wordpress' );
+            $figcaption = $caption ? esc_html( $caption ) . ' - ' . $notice : $notice;
+            
+            // 将原始URL保存为data属性，便于下载完成后替换
+            return '<figure class="wp-block-image size-large notion-temp-image" data-ntw-url="' . esc_attr($url) . '" id="' . esc_attr($placeholder_id) . '">
+                <img src="' . esc_url( $url ) . '" alt="' . esc_attr( $caption ) . '">
+                <figcaption>' . $figcaption . '</figcaption>
+            </figure>';
         }
 
         // 下载成功，使用本地附件 URL
@@ -604,32 +642,67 @@ class Notion_Pages {
         return false;
     }
 
-    private function _convert_block_code(array $block, Notion_API $notion_api): string {
-        $language = strtolower($block['code']['language'] ?? 'text');
-        
-        // 特殊处理Mermaid图表
-        if ($language === 'mermaid') {
-            $raw_code = Notion_To_WordPress_Helper::get_text_from_rich_text($block['code']['rich_text']);
-            // Mermaid代码不应该被HTML转义
-            return '<pre class="mermaid">' . $raw_code . '</pre>';
-        }
-        
-        // 对于其他代码，正常提取并转义
-        $escaped_code = $this->extract_rich_text($block['code']['rich_text']);
-        
-        return "<pre><code class=\"language-{$language}\">{$escaped_code}</code></pre>";
+    private function _legacy_block_equation(array $block, Notion_API $notion_api): string {
+        $expression = str_replace('\\', '\\\\', $block['equation']['expression']);
+        return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
-    private function _convert_block_quote(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_embed(array $block, Notion_API $notion_api): string {
+        $url = isset($block['embed']['url']) ? $block['embed']['url'] : '';
+        if (empty($url)) {
+            return '<!-- 无效的嵌入URL -->';
+        }
+        
+        // 根据URL类型处理不同的嵌入
+        if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
+            // YouTube视频
+            $video_id = '';
+            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return '<div class="notion-embed notion-embed-youtube"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+            }
+        } elseif (strpos($url, 'vimeo.com') !== false) {
+            // Vimeo视频
+            $video_id = '';
+            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
+                $video_id = $matches[2];
+            }
+            if ($video_id) {
+                return '<div class="notion-embed notion-embed-vimeo"><iframe src="https://player.vimeo.com/video/' . esc_attr($video_id) . '" width="560" height="315" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
+            }
+        } elseif (strpos($url, 'bilibili.com') !== false) {
+            // Bilibili视频
+            $video_id = '';
+            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return '<div class="notion-embed notion-embed-bilibili"><iframe src="//player.bilibili.com/player.html?bvid=' . esc_attr($video_id) . '&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" width="560" height="315"></iframe></div>';
+            }
+        }
+        
+        // PDF 文件预览
+        if ( preg_match( '/\.pdf(\?|$)/i', $url ) ) {
+            // 尝试浏览器原生 <embed>，如不支持也可点链接下载
+            return '<div class="notion-embed notion-embed-pdf"><embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+        }
+
+        // 通用网页嵌入
+        return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="no-referrer"></iframe></div>';
+    }
+
+    private function _legacy_block_quote(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['quote']['rich_text']);
         return '<blockquote>' . $text . '</blockquote>';
     }
 
-    private function _convert_block_divider(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_divider(array $block, Notion_API $notion_api): string {
         return '<hr>';
     }
 
-    private function _convert_block_table(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_table(array $block, Notion_API $notion_api): string {
         // 获取所有行（优先复用 children）
         if ( isset( $block['children'] ) && is_array( $block['children'] ) ) {
             $rows = $block['children'];
@@ -686,7 +759,7 @@ class Notion_Pages {
         return '<table>' . $thead . $tbody . '</table>';
     }
 
-    private function _convert_block_table_row(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_table_row(array $block, Notion_API $notion_api): string {
         // 优先使用 children 避免额外请求
         if ( isset( $block['children'] ) && is_array( $block['children'] ) ) {
             $cells = $block['children'];
@@ -711,7 +784,7 @@ class Notion_Pages {
         return $html;
     }
 
-    private function _convert_block_callout(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_callout(array $block, Notion_API $notion_api): string {
         $text = $this->extract_rich_text($block['callout']['rich_text']);
         $icon = '';
         if (isset($block['callout']['icon'])) {
@@ -724,73 +797,14 @@ class Notion_Pages {
         return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
     }
 
-    private function _convert_block_bookmark(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_bookmark(array $block, Notion_API $notion_api): string {
         $url = esc_url($block['bookmark']['url']);
         $caption = $this->extract_rich_text($block['bookmark']['caption'] ?? []);
         $caption_html = $caption ? '<div class="notion-bookmark-caption">' . esc_html($caption) . '</div>' : '';
         return '<div class="notion-bookmark"><a href="' . $url . '" target="_blank" rel="noopener noreferrer">' . $url . '</a>' . $caption_html . '</div>';
     }
 
-    private function _convert_block_equation(array $block, Notion_API $notion_api): string {
-        $expression = str_replace('\\', '\\\\', $block['equation']['expression']);
-        return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
-    }
-
-    private function _convert_block_embed(array $block, Notion_API $notion_api): string {
-        $url = isset($block['embed']['url']) ? $block['embed']['url'] : '';
-        if (empty($url)) {
-            return '<!-- 无效的嵌入URL -->';
-        }
-        
-        // 根据URL类型处理不同的嵌入
-        if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
-            // YouTube视频
-            $video_id = '';
-            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
-                $video_id = $matches[1];
-            }
-            if ($video_id) {
-                return '<div class="notion-embed notion-embed-youtube"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
-            }
-        } elseif (strpos($url, 'vimeo.com') !== false) {
-            // Vimeo视频
-            $video_id = '';
-            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
-                $video_id = $matches[2];
-            }
-            if ($video_id) {
-                return '<div class="notion-embed notion-embed-vimeo"><iframe src="https://player.vimeo.com/video/' . esc_attr($video_id) . '" width="560" height="315" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
-            }
-        } elseif (strpos($url, 'bilibili.com') !== false) {
-            // Bilibili视频
-            $video_id = '';
-            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
-                $video_id = $matches[1];
-            }
-            if ($video_id) {
-                return '<div class="notion-embed notion-embed-bilibili"><iframe src="//player.bilibili.com/player.html?bvid=' . esc_attr($video_id) . '&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" width="560" height="315"></iframe></div>';
-            }
-        }
-        
-        // PDF 文件预览
-        if ( preg_match( '/\.pdf(\?|$)/i', $url ) ) {
-            // 尝试浏览器原生 <embed>，如不支持也可点链接下载
-            return '<div class="notion-embed notion-embed-pdf"><embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" /><p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
-        }
-
-        // 通用网页嵌入
-        return '<div class="notion-embed"><iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="no-referrer"></iframe></div>';
-    }
-
-    /**
-     * 转换 Notion PDF 块
-     *
-     * @param array       $block      块数据
-     * @param Notion_API  $notion_api API 实例
-     * @return string                  HTML 代码
-     * @since 1.1.1
-     */
-    private function _convert_block_pdf(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_pdf(array $block, Notion_API $notion_api): string {
         $pdf_data = $block['pdf'] ?? [];
         $type     = $pdf_data['type'] ?? 'external';
         $url      = '';
@@ -811,11 +825,15 @@ class Notion_Pages {
             $caption = $this->extract_rich_text( $pdf_data['caption'] );
         }
 
-        // 非 Notion 临时链接，直接嵌入
+        // 生成 HTML 辅助
+        $build_html = function( string $src, string $download_url ) {
+            $viewer = 'https://docs.google.com/viewer?embedded=true&url=' . rawurlencode( $src );
+            return '<div class="notion-pdf"><iframe src="' . esc_url( $viewer ) . '" width="100%" height="600" frameborder="0" loading="lazy"></iframe><p><a href="' . esc_url( $download_url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p></div>';
+        };
+
+        // 非 Notion 临时链接直接使用 Google Docs 预览
         if ( ! $this->is_notion_temp_url( $url ) ) {
-            $embed    = '<embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" />';
-            $download = '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
-            return '<div class="notion-pdf">' . $embed . $download . '</div>';
+            return $build_html( $url, $url );
         }
 
         // Notion 临时链接：尝试下载
@@ -823,20 +841,15 @@ class Notion_Pages {
         $attachment_id  = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 下载失败 => 使用外链（可能过期）
-            $embed    = '<embed src="' . esc_url( $url ) . '" type="application/pdf" width="100%" height="600px" />';
-            $download = '<p><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载 PDF（外链，可能过期）', 'notion-to-wordpress' ) . '</a></p>';
-            return '<div class="notion-pdf notion-temp-pdf">' . $embed . $download . '</div>';
+            // 下载排队中，继续使用外链
+            return $build_html( $url, $url );
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
-        $embed     = '<embed src="' . esc_url( $local_url ) . '" type="application/pdf" width="100%" height="600px" />';
-        $download  = '<p><a href="' . esc_url( $local_url ) . '" target="_blank" rel="noopener" download>' . __( '下载 PDF', 'notion-to-wordpress' ) . '</a></p>';
-
-        return '<div class="notion-pdf">' . $embed . $download . '</div>';
+        return $build_html( $local_url, $local_url );
     }
 
-    private function _convert_block_video(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_video(array $block, Notion_API $notion_api): string {
         $type = isset($block['video']['type']) ? $block['video']['type'] : '';
         $url = '';
         
@@ -897,116 +910,8 @@ class Notion_Pages {
      * @param    array     $rich_text    富文本数组
      * @return   string                  格式化的HTML文本
      */
-    private function extract_rich_text($rich_text) {
-        if (empty($rich_text)) {
-            return '';
-        }
-        
-        $result = '';
-        
-        foreach ($rich_text as $text) {
-            // 处理 inline equation
-            if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
-                $expr_raw = $text['equation']['expression'] ?? '';
-                $expr = str_replace('\\', '\\\\', $expr_raw);
-                $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
-            } else {
-                // 对纯文本内容进行转义
-                $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
-            }
-            
-            if (empty($content)) {
-                continue;
-            }
-            
-            $annotations = isset($text['annotations']) ? $text['annotations'] : array();
-            $href = isset($text['href']) ? $text['href'] : '';
-            
-            // 应用格式化
-            if (!empty($annotations)) {
-                if ( isset( $annotations['bold'] ) && $annotations['bold'] ) {
-                    $content = '<strong>' . $content . '</strong>';
-                }
-                
-                if ( isset( $annotations['italic'] ) && $annotations['italic'] ) {
-                    $content = '<em>' . $content . '</em>';
-                }
-                
-                if ( isset( $annotations['strikethrough'] ) && $annotations['strikethrough'] ) {
-                    $content = '<del>' . $content . '</del>';
-                }
-                
-                if ( isset( $annotations['underline'] ) && $annotations['underline'] ) {
-                    $content = '<u>' . $content . '</u>';
-                }
-                
-                if ( isset( $annotations['code'] ) && $annotations['code'] ) {
-                    $content = '<code>' . $content . '</code>';
-                }
-                
-                // 处理颜色
-                if ( isset( $annotations['color'] ) && $annotations['color'] !== 'default' ) {
-                    $content = '<span class="notion-color-' . esc_attr( $annotations['color'] ) . '">' . $content . '</span>';
-                }
-            }
-            
-            // 处理链接
-            if (!empty($href)) {
-                // 内/跨文章锚点转换
-                $href_converted = $href;
-
-                // ---- Notion 链接转换 ----
-                if ( ( str_contains( $href, 'notion.so' ) || str_contains( $href, 'notion.site' ) ) ) {
-                    $anchor_part = '';
-                    $url_part    = $href;
-
-                    // 拆分锚点
-                    if ( str_contains( $href, '#' ) ) {
-                        [$url_part, $anchor_part] = explode( '#', $href, 2 );
-                    }
-
-                    // 取路径末段尝试获取32位ID
-                    $path      = wp_parse_url( $url_part, PHP_URL_PATH );
-                    $segments  = explode( '/', rtrim( $path, '/' ) );
-                    $last_part = end( $segments );
-
-                    if ( preg_match( '/([0-9a-fA-F]{32})$/', $last_part, $m ) ) {
-                        $trimmed   = $m[1];
-                        $dashed_id = preg_replace( '/(.{8})(.{4})(.{4})(.{4})(.{12})/', '$1-$2-$3-$4-$5', $trimmed );
-
-                        // 同页锚点
-                        if ( $this->current_page_id && $dashed_id === $this->current_page_id ) {
-                            $href_converted = $anchor_part ? '#' . $anchor_part : '#';
-                        } else {
-                            // 查询WordPress文章
-                            $post_ids = get_posts([
-                                'post_type'   => 'any',
-                                'post_status' => 'publish',
-                                'meta_query'  => [[
-                                    'key'   => '_notion_page_id',
-                                    'value' => $dashed_id,
-                                ]],
-                                'fields'      => 'ids',
-                                'numberposts' => 1,
-                            ]);
-
-                            if ( ! empty( $post_ids ) ) {
-                                $permalink = get_permalink( $post_ids[0] );
-                                if ( $permalink ) {
-                                    $href_converted = $permalink . ( $anchor_part ? '#' . $anchor_part : '' );
-                                }
-                            }
-                        }
-                    }
-                }
-
-                $content = '<a href="' . esc_url( $href_converted ) . '">' . $content . '</a>';
-            }
-            
-            $result .= $content;
-        }
-        
-        return $result;
+    private function extract_rich_text( array $rich_text ) {
+        return Notion_Block_Converter::extract_rich_text_static( $rich_text );
     }
 
     /**
@@ -1016,24 +921,46 @@ class Notion_Pages {
      * @param    string    $notion_id    Notion页面ID
      * @return   int                     WordPress文章ID
      */
-    private function get_post_by_notion_id($notion_id) {
-        $args = array(
+    private function get_post_by_notion_id( string $notion_id ): int {
+        // 1. 进程级静态缓存
+        if ( isset( self::$notion_post_cache[ $notion_id ] ) ) {
+            return self::$notion_post_cache[ $notion_id ];
+        }
+
+        // 2. 对象缓存（含持久化支持）
+        $cache_key = 'ntw_postid_' . $notion_id;
+        $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
+        if ( false !== $cached ) {
+            $pid = (int) $cached;
+            self::$notion_post_cache[ $notion_id ] = $pid;
+            return $pid;
+        }
+
+        // 3. 数据库查询（最后兜底）
+        $args = [
             'post_type'      => 'any',
             'post_status'    => 'any',
             'posts_per_page' => 1,
-            'meta_query'     => array(
-                array(
+            'meta_query'     => [
+                [
                     'key'     => '_notion_page_id',
                     'value'   => $notion_id,
-                    'compare' => '='
-                )
-            ),
-            'fields' => 'ids' // 仅获取ID以提高性能
-        );
+                    'compare' => '=',
+                ],
+            ],
+            'fields'         => 'ids', // 仅获取ID以提高性能
+            'no_found_rows'  => true,
+            'cache_results'  => false,
+        ];
         
-        $posts = get_posts($args);
-        
-        return !empty($posts) ? $posts[0] : 0;
+        $posts   = get_posts( $args );
+        $post_id = ! empty( $posts ) ? (int) $posts[0] : 0;
+
+        // 写入缓存（24 小时），若无结果也缓存，避免穿透
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $post_id, DAY_IN_SECONDS );
+        self::$notion_post_cache[ $notion_id ] = $post_id;
+
+        return $post_id;
     }
 
     /**
@@ -1099,9 +1026,8 @@ class Notion_Pages {
          
         // 如果创建/更新成功，处理自定义字段
         if (!is_wp_error($post_id) && $post_id > 0) {
-            if (!empty($metadata['custom_fields'])) {
-                $this->apply_custom_fields($post_id, $metadata['custom_fields']);
-            }
+            // 注意：自定义字段在import_notion_page中统一处理，避免重复应用
+            Notion_To_WordPress_Helper::debug_log( '文章' . ($existing_post_id ? '更新' : '创建') . '成功: ID ' . $post_id, 'Post', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
 
             // ---- 状态校正：有时因权限或 WP 内部过滤导致状态被降级为 draft ----
             $intended_status = $post_data['post_status'];
@@ -1203,6 +1129,13 @@ class Notion_Pages {
      * @return   int                  WordPress附件ID
      */
     private function download_and_insert_image( string $url, string $caption = '' ) {
+        // 先检查是否已经有相同URL的附件
+        $existing_id = $this->get_attachment_by_url( $url );
+        if ( $existing_id > 0 ) {
+            Notion_To_WordPress_Helper::debug_log( '找到已存在的图片附件: ' . $existing_id . ' 对应URL: ' . $url, 'Image', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            return $existing_id;
+        }
+        
         // 直接入队，后台异步处理
         Notion_Download_Queue::push([
             'type'        => 'image',
@@ -1211,6 +1144,11 @@ class Notion_Pages {
             'is_featured' => false,
             'caption'     => $caption,
         ]);
+        
+        // 记录日志
+        Notion_To_WordPress_Helper::debug_log( '图片入队下载: ' . $url, 'Image', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        
+        // 返回0表示需要后续处理
         return 0;
     }
 
@@ -1271,104 +1209,120 @@ class Notion_Pages {
     }
 
     /**
-     * 导入所有Notion页面
+     * 从Notion导入页面到WordPress。
      *
-     * @since    1.0.8
-     * @return   array|WP_Error    导入结果统计或错误
+     * @since    1.0.9
+     * @param    bool    $force_update    是否强制更新所有页面，即使它们没有变化。
+     * @param    string  $filter_page_id  如果设置，只导入该特定ID的页面。
+     * @return   array<mixed>             导入统计信息
+     * @throws   Exception               如果API请求失败或导入过程出错。
      */
-    public function import_pages() {
-        // 创建锁，防止并发操作
-        $lock = new Notion_To_WordPress_Lock($this->database_id, $this->lock_timeout);
-        
-        if (!$lock->acquire()) {
-            return new WP_Error('lock_failed', '已有同步任务在进行中，请稍后再试。');
+    public function import_pages(bool $force_update = false, string $filter_page_id = ''): array {
+        // v1.1.0 重构：借助 ImportCoordinator 简化批量导入逻辑
+        if ( class_exists( 'Notion_Import_Coordinator' ) ) {
+            $coordinator = new Notion_Import_Coordinator( $this, $this->notion_api, $this->database_id, $this->lock_timeout );
+            return $coordinator->run( $force_update, $filter_page_id );
         }
+
+        // 修复可能的会话冲突
+        $this->fix_session_conflicts();
         
+        // 尝试获取锁，如果失败则返回
+        $lock = Notion_To_WordPress_Lock::instance($this->lock_timeout);
+        $import_lock_key = 'ntw_import_lock_' . md5($this->database_id);
+
+        if (!$lock->acquire($import_lock_key)) {
+            throw new Exception('无法获取锁定，有另一个导入进程正在运行');
+        }
+
+        // 记录PHP执行环境信息
+        $max_execution_time = ini_get('max_execution_time');
+        $memory_limit = ini_get('memory_limit');
+        Notion_To_WordPress_Helper::info_log("PHP执行环境: 最大执行时间 {$max_execution_time}秒, 内存限制 {$memory_limit}", 'System Info');
+
+        // 尝试延长脚本执行时间
+        $original_time_limit = (int)$max_execution_time;
+        $new_time_limit = max(300, $original_time_limit * 2);
+        if ($original_time_limit > 0 && $original_time_limit < $new_time_limit) {
+            @set_time_limit($new_time_limit);
+            Notion_To_WordPress_Helper::info_log("已调整最大执行时间: {$original_time_limit}秒 → {$new_time_limit}秒", 'System Info');
+        }
+
         try {
-            // 获取上次同步时间，若有则增量拉取（向前回溯5分钟以覆盖边缘情况）
-            $opts          = get_option( 'notion_to_wordpress_options', [] );
-            $last_sync_raw = $opts['last_sync_time'] ?? '';
-            $filter        = [];
-
-            if ( $last_sync_raw ) {
-                $last_sync_gmt = gmdate( 'c', strtotime( $last_sync_raw ) - 300 ); // 5分钟缓冲
-                $filter        = [
-                    'timestamp'       => 'last_edited_time',
-                    'last_edited_time' => [ 'on_or_after' => $last_sync_gmt ],
-                ];
-            }
-
-            // 获取数据库中的页面（可能带筛选）
-            $pages = $this->notion_api->get_database_pages( $this->database_id, $filter );
-            
-            if (empty($pages)) {
-                $lock->release();
-                return new WP_Error('no_pages', '未检索到任何页面。');
+            // 如果指定了页面ID，则直接获取该页面信息并导入
+            if (!empty($filter_page_id)) {
+                $page_info = $this->get_page_from_database($filter_page_id);
+                if (!$page_info) {
+                    throw new Exception('指定的页面ID不存在于数据库中: ' . $filter_page_id);
+                }
+                
+                return $this->process_single_page($page_info, $force_update);
             }
             
+            // 否则，获取数据库中的所有页面并导入
+            $pages = $this->get_database_pages();
+            
+            Notion_To_WordPress_Helper::info_log('获取到 ' . count($pages) . ' 个页面准备同步', 'Notion Pages');
+            
+            // 记录内存使用情况
+            $memory_usage = memory_get_usage(true) / 1024 / 1024;
+            $memory_peak = memory_get_peak_usage(true) / 1024 / 1024;
+            Notion_To_WordPress_Helper::debug_log(sprintf('内存使用: %.2fMB (峰值: %.2fMB)', $memory_usage, $memory_peak), 'System');
+            
+            // 统计
             $stats = [
                 'total' => count($pages),
-                'imported' => 0,
-                'updated' => 0,
+                'success' => 0,
+                'skipped' => 0,
                 'failed' => 0,
-                'processed' => 0,
-                'done' => false,
-                'start_time' => time(),
+                'errors' => [],
             ];
             
-            // 初始化进度缓存
-            set_transient( 'ntw_sync_progress', $stats, 600 );
-
+            // 循环处理每个页面
             foreach ($pages as $page) {
-                // 检查页面是否已存在
-                $existing_post_id = $this->get_post_by_notion_id($page['id']);
+                $page_stats = $this->process_single_page($page, $force_update);
                 
-                $result = $this->import_notion_page($page);
+                // 更新统计信息
+                $stats['success'] += $page_stats['success'];
+                $stats['skipped'] += $page_stats['skipped'];
+                $stats['failed'] += $page_stats['failed'];
                 
-                if ($result) {
-                    if ($existing_post_id) {
-                        $stats['updated']++;
-                    } else {
-                        $stats['imported']++;
-                    }
-                } else {
-                    $stats['failed']++;
+                if (!empty($page_stats['errors'])) {
+                    $stats['errors'] = array_merge($stats['errors'], $page_stats['errors']);
                 }
-
-                $stats['processed']++;
-
-                // 每处理5条或最后一条时更新 transient
-                if ( $stats['processed'] % 5 === 0 || $stats['processed'] === $stats['total'] ) {
-                    set_transient( 'ntw_sync_progress', $stats, 600 );
+                
+                // 刷新输出缓冲区，以便实时更新进度
+                if (function_exists('ob_flush') && function_exists('flush')) {
+                    @ob_flush();
+                    @flush();
                 }
             }
-
-            // 标记完成
-            $stats['done']      = true;
-            $stats['end_time']  = time();
-            set_transient( 'ntw_sync_progress', $stats, 600 );
-
-            // 更新同步时间（全局与嵌入设置）
-            $now = current_time( 'mysql' );
-            update_option( 'notion_to_wordpress_last_sync', $now, false );
-
-            // 同时写入主设置数组，供增量同步使用
-            $opts = get_option( 'notion_to_wordpress_options', [] );
-            $opts['last_sync_time'] = $now;
-            update_option( 'notion_to_wordpress_options', $opts, false );
-
-            $lock->release();
-            return $stats;
             
-        } catch (Exception $e) {
-            $lock->release();
-            return new WP_Error('import_failed', '导入失败: ' . $e->getMessage());
+            // 处理下载队列中的项目
+            Notion_Download_Queue::process_queue();
+            
+            return $stats;
+        } finally {
+            // 无论成功与否，都释放锁
+            $lock->release($import_lock_key);
         }
+    }
+    
+    /**
+     * 修复在页面导入过程中可能发生的会话冲突
+     * 
+     * @since 1.1.0
+     * @access private
+     */
+    private function fix_session_conflicts() {
+        // 禁用主题可能触发的 session_start，避免缓存冲突
+        add_filter( 'zib_session_start', '__return_false' );
     }
 
     // --- Column Blocks ---
 
-    private function _convert_block_column_list(array $block, Notion_API $notion_api): string {
+    // 以下函数已迁移到 Notion_Block_Converter，仅保留兼容实现。
+    private function _legacy_block_column_list(array $block, Notion_API $notion_api): string {
         // 列表容器
         $html = '<div class="notion-column-list">';
         $html .= $this->_convert_child_blocks($block, $notion_api);
@@ -1376,7 +1330,7 @@ class Notion_Pages {
         return $html;
     }
 
-    private function _convert_block_column(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_column(array $block, Notion_API $notion_api): string {
         // 计算列宽（Notion API 提供 ratio，可选）
         $ratio = $block['column']['ratio'] ?? ( $block['column']['width_ratio'] ?? 1 );
         // Notion API ratio 通常为 0-1 之间的小数，表示占整体比例
@@ -1389,7 +1343,7 @@ class Notion_Pages {
 
     // --- File Block ---
 
-    private function _convert_block_file(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_file(array $block, Notion_API $notion_api): string {
         $file_data = $block['file'];
         $type      = $file_data['type'] ?? 'external';
         $url       = $type === 'file' ? ( $file_data['file']['url'] ?? '' ) : ( $file_data['external']['url'] ?? '' );
@@ -1411,8 +1365,15 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 回退：使用原始 Notion URL（可能过期）
-            return '<div class="file-download-box notion-temp-file"><span class="file-download-name">' . esc_html( $display ) . '</span> <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（外链，可能过期）', 'notion-to-wordpress' ) . '</a></div>';
+            // 文件入队异步下载，但目前还没有本地副本
+            // 使用数据占位符，便于后续替换
+            $placeholder_id = 'ntw-file-' . substr(md5($url), 0, 10);
+            
+            // 将原始URL保存为data属性，便于下载完成后替换
+            return '<div class="file-download-box notion-temp-file" data-ntw-url="' . esc_attr($url) . '" id="' . esc_attr($placeholder_id) . '">
+                <span class="file-download-name">' . esc_html( $display ) . '</span> 
+                <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（后台处理中...）', 'notion-to-wordpress' ) . '</a>
+            </div>';
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
@@ -1429,26 +1390,38 @@ class Notion_Pages {
      * @return int|WP_Error        附件 ID 或错误
      */
     private function download_and_insert_file( string $url, string $caption = '', string $override_name = '' ) {
+        // 先检查是否已经有相同URL的附件
+        $existing_id = $this->get_attachment_by_url( $url );
+        if ( $existing_id > 0 ) {
+            Notion_To_WordPress_Helper::debug_log( '找到已存在的文件附件: ' . $existing_id . ' 对应URL: ' . $url, 'File', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+            return $existing_id;
+        }
+        
         // 直接入队，后台异步处理
         Notion_Download_Queue::push([
             'type'    => 'file',
             'url'     => $url,
             'post_id' => 0,
             'caption' => $caption,
+            'name'    => $override_name,
         ]);
+        
+        // 记录日志
+        Notion_To_WordPress_Helper::debug_log( '文件入队下载: ' . $url . ($override_name ? ' 指定文件名: ' . $override_name : ''), 'File', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        
         return 0;
     }
 
     // --- Synced Block ---
 
-    private function _convert_block_synced_block(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_synced_block(array $block, Notion_API $notion_api): string {
         // 直接渲染其子块
         return $this->_convert_child_blocks($block, $notion_api);
     }
 
     // --- Link to Page Block ---
 
-    private function _convert_block_link_to_page(array $block, Notion_API $notion_api): string {
+    private function _legacy_block_link_to_page(array $block, Notion_API $notion_api): string {
         $data = $block['link_to_page'] ?? [];
 
         $url   = '';
@@ -1493,5 +1466,21 @@ class Notion_Pages {
         }
 
         return '<p class="notion-link-to-page"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a></p>';
+    }
+
+    /**
+     * 将单个块转换为 HTML，由 BlockConverter 调用。
+     */
+    public function convert_single_block( array $block, Notion_API $api ): string {
+        $block_type = $block['type'] ?? '';
+        $converter_method = '_convert_block_' . $block_type;
+
+        if ( method_exists( $this, $converter_method ) ) {
+            return $this->{$converter_method}( $block, $api );
+        }
+
+        // 未支持块类型，记录并返回注释
+        Notion_To_WordPress_Helper::debug_log( '未支持的Notion块类型: ' . $block_type );
+        return '<!-- 未支持的块类型: ' . esc_html( $block_type ) . ' -->';
     }
 } 

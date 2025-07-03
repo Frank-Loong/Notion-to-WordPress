@@ -15,7 +15,7 @@ Notion·to-WordPress 是一款专业的WordPress插件，实现Notion数据库�
 = 主要功能 =
 * 自动/手动同步Notion数据库内容到WordPress
 * 支持Webhook，Notion内容变更时自动触发同步
-* 兼容MathJax数学公式、Mermaid流程/序列图、代码块、表格、图片等
+* 兼容Katex数学公式、Mermaid流程/序列图、代码块、表格、图片等
 * 字段映射：自定义Notion属性与WordPress字段的对应关系
 * 分类/标签/特色图片自动识别与同步
 * 并发锁机制，防止重复导入

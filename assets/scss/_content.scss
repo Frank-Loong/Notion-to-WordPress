@@ -685,3 +685,19 @@ blockquote {
         flex: 1 1 100%;
     }
 }
+
+/* 公式标签元素样式优化 */
+.tag .strut {
+    display: none !important;
+}
+
+.tag .mord.text {
+    display: inline !important;
+    vertical-align: baseline !important;
+}
+
+.tag .mord {
+    font-style: normal !important;
+    font-weight: normal !important;
+    display: inline !important;
+}

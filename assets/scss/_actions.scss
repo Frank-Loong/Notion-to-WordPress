@@ -1,0 +1,32 @@
+@use 'variables' as *;
+
+/* ===== 按钮操作条 ===== */
+.notion-wp-actions-bar {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+
+  .left-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  p.submit {
+    margin: 0;
+  }
+}
+
+/* 表单按钮行 */
+.notion-wp-button-row {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+/* 警告/提示 */
+.notion-wp-warning {
+  color: var(--notion-danger);
+  font-weight: 500;
+} 
