@@ -39,7 +39,7 @@ if ( ! function_exists( 'str_contains' ) ) {
 /**
  * 主插件文件路径
  *
- * @since 1.0.10
+ * @since 1.1.0
  */
 define( 'NOTION_TO_WORDPRESS_FILE', __FILE__ );
 

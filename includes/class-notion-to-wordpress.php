@@ -113,6 +113,8 @@ class Notion_To_WordPress {
 	 * - Notion_To_WordPress_Lock. 在同步期间处理文件锁定。
 	 * - Notion_To_WordPress_Webhook. 处理 Webhook 请求。
 	 * - Notion_To_WordPress_Download_Queue. 处理下载队列。
+	 * - Notion_To_WordPress_Import_Coordinator. 处理导入协调。
+	 * - Notion_To_WordPress_Block_Converter. 处理块转换。
 	 *
 	 * @since    1.0.5
 	 * @access   private
@@ -126,6 +128,8 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-lock.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-download-queue.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-import-coordinator.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-block-converter.php' );
 
 		$this->loader = new Notion_To_WordPress_Loader();
 	}
@@ -227,6 +231,9 @@ class Notion_To_WordPress {
 	 */
 	private function define_public_hooks() {
 		$this->loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue_frontend_scripts' );
+
+		// 前端占位符替换过滤器
+		$this->loader->add_filter( 'the_content', $this, 'replace_temp_media_placeholders', 20 );
 	}
 
 	/**
@@ -599,5 +606,97 @@ class Notion_To_WordPress {
 		}
 
 		return $schedules;
+	}
+
+	/**
+	 * 替换 notion-temp-image / notion-temp-file 占位符为本地附件 URL
+	 */
+	public function replace_temp_media_placeholders( string $content ): string {
+		if ( false === strpos( $content, 'notion-temp-' ) ) {
+			return $content;
+		}
+
+		libxml_use_internal_errors( true );
+		$dom = new \DOMDocument();
+		$loaded = $dom->loadHTML( '<?xml encoding="utf-8" ?>' . $content, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+		if ( ! $loaded ) {
+			return $content; // 解析失败则跳过
+		}
+
+		$changed = false;
+
+		$xpath = new \DOMXPath( $dom );
+		// 处理图片占位符
+		foreach ( $xpath->query( '//*[contains(concat(" ", normalize-space(@class), " "), " notion-temp-image ")]' ) as $figure ) {
+			/** @var \DOMElement $figure */
+			$url = $figure->getAttribute( 'data-ntw-url' );
+			if ( ! $url ) {
+				continue;
+			}
+			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+			if ( $aid <= 0 ) {
+				continue;
+			}
+			$local_url = wp_get_attachment_url( $aid );
+			if ( ! $local_url ) {
+				continue;
+			}
+			// 更新 <img> src
+			foreach ( $figure->getElementsByTagName( 'img' ) as $img ) {
+				$img->setAttribute( 'src', $local_url );
+			}
+			// 移除占位符 class & 属性
+			$figure->setAttribute( 'class', trim( str_replace( 'notion-temp-image', '', $figure->getAttribute( 'class' ) ) ) );
+			$figure->removeAttribute( 'data-ntw-url' );
+			$changed = true;
+		}
+
+		// 处理文件占位符
+		foreach ( $xpath->query( '//*[contains(concat(" ", normalize-space(@class), " "), " notion-temp-file ")]' ) as $box ) {
+			/** @var \DOMElement $box */
+			$url = $box->getAttribute( 'data-ntw-url' );
+			if ( ! $url ) {
+				continue;
+			}
+			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
+			if ( $aid <= 0 ) {
+				continue;
+			}
+			$local_url = wp_get_attachment_url( $aid );
+			if ( ! $local_url ) {
+				continue;
+			}
+			// 更新下载按钮 href
+			foreach ( $box->getElementsByTagName( 'a' ) as $a ) {
+				if ( $a->hasAttribute( 'href' ) ) {
+					$a->setAttribute( 'href', $local_url );
+					$a->textContent = __( '下载附件', 'notion-to-wordpress' );
+				}
+			}
+			$box->setAttribute( 'class', trim( str_replace( 'notion-temp-file', '', $box->getAttribute( 'class' ) ) ) );
+			$box->removeAttribute( 'data-ntw-url' );
+			$changed = true;
+		}
+
+		if ( ! $changed ) {
+			return $content;
+		}
+
+		$new_content = $dom->saveHTML();
+
+		// 若在单篇文章上下文，更新数据库以永久保存
+		if ( is_singular() && in_the_loop() ) {
+			global $post;
+			if ( $post instanceof \WP_Post && ! empty( $post->ID ) ) {
+				remove_filter( 'the_content', [ $this, 'replace_temp_media_placeholders' ], 20 ); // 避免递归
+				wp_update_post([
+					'ID'           => $post->ID,
+					'post_content' => $new_content,
+				]);
+				add_filter( 'the_content', [ $this, 'replace_temp_media_placeholders' ], 20 );
+			}
+		}
+
+		return $new_content;
 	}
 } 
