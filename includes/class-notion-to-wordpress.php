@@ -78,6 +78,24 @@ class Notion_To_WordPress {
 	protected Notion_To_WordPress_Webhook $webhook;
 
 	/**
+	 * 对象工厂实例。
+	 *
+	 * @since    1.1.0
+	 * @access   protected
+	 * @var      Notion_To_WordPress_Object_Factory    $object_factory    对象工厂实例。
+	 */
+	protected Notion_To_WordPress_Object_Factory $object_factory;
+
+	/**
+	 * 钩子管理器实例。
+	 *
+	 * @since    1.1.0
+	 * @access   protected
+	 * @var      Notion_To_WordPress_Hook_Manager    $hook_manager    钩子管理器实例。
+	 */
+	protected Notion_To_WordPress_Hook_Manager $hook_manager;
+
+	/**
 	 * 定义插件的核心功能。
 	 *
 	 * 设置插件名称和版本，加载依赖项，定义区域设置，
@@ -99,81 +117,68 @@ class Notion_To_WordPress {
 	/**
 	 * 加载此插件所需的依赖项。
 	 *
-	 * 包括构成插件的以下文件：
-	 *
-	 * - Notion_To_WordPress_Loader. 协调插件的钩子。
-	 * - Notion_To_WordPress_i18n. 定义国际化功能。
-	 * - Notion_To_WordPress_Admin. 定义后台区域的所有钩子。
-	 * - Notion_API. 定义面向公众的站点的所有钩子。
-	 * - Notion_Pages. 处理页面处理。
-	 * - Notion_To_WordPress_Lock. 在同步期间处理文件锁定。
-	 * - Notion_To_WordPress_Webhook. 处理 Webhook 请求。
-	 * - Notion_To_WordPress_Download_Queue. 处理下载队列。
-	 * - Notion_To_WordPress_Import_Coordinator. 处理导入协调。
-	 * - Notion_To_WordPress_Block_Converter. 处理块转换。
-	 *
-	 * @since    1.0.5
+	 * @since    1.1.0 使用依赖管理器
 	 * @access   private
 	 */
 	private function load_dependencies() {
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-loader.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-i18n.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-error-handler.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-rich-text-processor.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-media-handler.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-lock.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-download-queue.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-import-coordinator.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-block-converter.php' );
+		// 首先加载依赖管理器
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-dependency-manager.php' );
 
-		$this->loader = new Notion_To_WordPress_Loader();
+		// 使用依赖管理器加载所有依赖
+		if (!Notion_To_WordPress_Dependency_Manager::load_all_dependencies()) {
+			wp_die('Failed to load plugin dependencies.');
+		}
+
+		// 验证必需的类是否已加载
+		if (!Notion_To_WordPress_Dependency_Manager::validate_required_classes()) {
+			wp_die('Required classes are missing.');
+		}
 	}
 
 	/**
 	 * 实例化核心对象。
 	 *
-	 * 创建API处理器、页面处理器和后台处理器的实例。
-	 * 将所需的依赖项传递给它们中的每一个。
-	 *
-	 * @since 1.0.6
+	 * @since 1.1.0 使用对象工厂
 	 * @access private
 	 */
 	private function instantiate_objects() {
-		// 获取选项
-		$options       = get_option( 'notion_to_wordpress_options', array() );
-		$api_key       = $options['notion_api_key'] ?? '';
-		$database_id   = $options['notion_database_id'] ?? '';
-		$field_mapping = $options['field_mapping'] ?? array();
-		$lock_timeout  = $options['lock_timeout'] ?? 120;
+		// 加载对象工厂和钩子管理器
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-object-factory.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-hook-manager.php' );
 
-		// 获取（或初始化）单例 API 处理器
-		$this->notion_api = Notion_API::instance( $api_key );
-
-		// 实例化页面处理器
-		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping, $lock_timeout );
-
-		// 实例化后台处理器
-		$this->admin = new Notion_To_WordPress_Admin(
+		// 创建对象工厂
+		$this->object_factory = new Notion_To_WordPress_Object_Factory(
 			$this->get_plugin_name(),
-			$this->get_version(),
-			$this->notion_api,
-			$this->notion_pages
+			$this->get_version()
 		);
 
-		// 实例化Webhook处理器
-		$this->webhook = new Notion_To_WordPress_Webhook(
-			$this->notion_pages
-		);
+		// 创建所有核心对象
+		$objects = $this->object_factory->create_all_objects();
+
+		// 设置实例变量（保持向后兼容）
+		$this->loader = $this->object_factory->get_loader();
+		$this->notion_api = $this->object_factory->get_notion_api();
+		$this->notion_pages = $this->object_factory->get_notion_pages();
+		$this->admin = $this->object_factory->get_admin();
+		$this->webhook = $this->object_factory->get_webhook();
+
+		// 创建钩子管理器
+		$this->hook_manager = new Notion_To_WordPress_Hook_Manager($this->loader);
+		$this->hook_manager->set_admin($this->admin);
+		$this->hook_manager->set_webhook($this->webhook);
+		$this->hook_manager->set_i18n($this->object_factory->get_i18n());
 
 		// 根据后台设置调整下载并发过滤器
+		$options = get_option( 'notion_to_wordpress_options', array() );
 		add_filter( 'ntw_download_queue_concurrency', function( $default ) use ( $options ) {
 			$val = isset( $options['download_concurrency'] ) ? intval( $options['download_concurrency'] ) : $default;
 			return max( 1, min( 10, $val ) );
 		} );
+
+		// 验证所有必需对象是否已创建
+		if (!$this->object_factory->validate_required_objects()) {
+			wp_die('Failed to create required objects.');
+		}
 	}
 
 	/**
@@ -192,25 +197,16 @@ class Notion_To_WordPress {
 	/**
 	 * 注册与插件后台区域功能相关的所有钩子。
 	 *
-	 * @since    1.0.5
+	 * @since    1.1.0 使用钩子管理器
 	 * @access   private
 	 */
 	private function define_admin_hooks() {
-		$this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_styles' );
-		$this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_scripts' );
-		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu' );
-		$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
+		if ($this->hook_manager) {
+			$this->hook_manager->define_admin_hooks();
+		}
 
-		// AJAX钩子
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_manual_sync', $this->admin, 'handle_manual_import' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_connection', $this->admin, 'handle_test_connection' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_all', $this->admin, 'handle_refresh_all' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_single', $this->admin, 'handle_refresh_single' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
-		// 同步进度查询
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
+		// 保留一些特定的钩子（暂时保持兼容性）
+		$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -225,27 +221,36 @@ class Notion_To_WordPress {
 	/**
 	 * 注册与插件面向公众功能相关的所有钩子。
 	 *
-	 * @since    1.0.5
+	 * @since    1.1.0 使用钩子管理器
 	 * @access   private
 	 */
 	private function define_public_hooks() {
-		$this->loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue_frontend_scripts' );
+		if ($this->hook_manager) {
+			$this->hook_manager->define_public_hooks();
+		}
 
-		// 前端占位符替换过滤器
+		// 保留一些特定的钩子（暂时保持兼容性）
+		$this->loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue_frontend_scripts' );
 		$this->loader->add_filter( 'the_content', $this, 'replace_temp_media_placeholders', 20 );
 	}
 
 	/**
 	 * 运行加载器以执行所有组件的钩子。
 	 *
-	 * @since    1.0.5
+	 * @since    1.1.0 使用钩子管理器
 	 */
 	public function run() {
+		// 定义所有钩子
+		if ($this->hook_manager) {
+			$this->hook_manager->define_all_hooks();
+		}
+
+		// 运行加载器
 		$this->loader->run();
+
+		// 保留一些特定的钩子（暂时保持兼容性）
 		$this->define_webhook_hooks();
-		// 注册下载队列处理钩子
 		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
-		// 定义所有钩子后，注册队列cron处理程序
 		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
 	}
 
