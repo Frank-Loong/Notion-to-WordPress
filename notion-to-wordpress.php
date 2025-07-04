@@ -29,10 +29,16 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-// Polyfill: PHP < 8.0 中没有 str_contains 函数，为确保兼容性进行定义
+// Polyfill: PHP < 8.0 中没有 str_contains 和 str_starts_with 函数，为确保兼容性进行定义
 if ( ! function_exists( 'str_contains' ) ) {
 	function str_contains( string $haystack, string $needle ): bool {
 		return $needle === '' || strpos( $haystack, $needle ) !== false;
+	}
+}
+
+if ( ! function_exists( 'str_starts_with' ) ) {
+	function str_starts_with( string $haystack, string $needle ): bool {
+		return $needle === '' || strpos( $haystack, $needle ) === 0;
 	}
 }
 
