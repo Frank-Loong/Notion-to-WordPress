@@ -89,7 +89,23 @@ register_deactivation_hook( NOTION_TO_WORDPRESS_FILE, 'deactivate_notion_to_word
  */
 function run_notion_to_wordpress() {
 	$plugin = new Notion_To_WordPress();
-	$plugin->run();
+
+	// 只有在插件成功初始化时才运行
+	if ($plugin->is_initialized()) {
+		$plugin->run();
+	} else {
+		// 记录初始化失败
+		if (function_exists('error_log')) {
+			error_log('[Notion-to-WordPress] 插件初始化失败，已停止运行');
+		}
+
+		// 在管理界面显示错误通知
+		if (is_admin()) {
+			add_action('admin_notices', function() {
+				echo '<div class="notice notice-error is-dismissible"><p><strong>Notion to WordPress:</strong> 插件初始化失败，请检查错误日志或重新安装插件。</p></div>';
+			});
+		}
+	}
 }
 
-run_notion_to_wordpress(); 
+run_notion_to_wordpress();

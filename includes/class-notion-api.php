@@ -630,7 +630,17 @@ class Notion_API {
     }
 
     public static function instance( ?string $api_key = null ): self {
-        if ( null === self::$instance || ( $api_key && $api_key !== self::$instance->api_key ) ) {
+        // 检查是否需要创建新实例或更新现有实例
+        $need_new_instance = false;
+
+        if ( null === self::$instance ) {
+            $need_new_instance = true;
+        } elseif ( $api_key && $api_key !== self::$instance->api_key ) {
+            // 只有在实例存在且API密钥不同时才重新创建
+            $need_new_instance = true;
+        }
+
+        if ( $need_new_instance ) {
             // 若未显式提供，则从选项读取
             if ( ! $api_key ) {
                 $opts    = get_option( 'notion_to_wordpress_options', [] );
@@ -638,6 +648,7 @@ class Notion_API {
             }
             self::$instance = new self( $api_key );
         }
+
         return self::$instance;
     }
 }
