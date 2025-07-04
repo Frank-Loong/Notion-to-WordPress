@@ -87,70 +87,11 @@ class Notion_Block_Converter {
 
     /**
      * 提供静态提取富文本方法，供 Notion_Pages 及本类内部共用。
+     *
+     * @since 1.1.0 使用统一的富文本处理器
      */
     public static function extract_rich_text_static( array $rich_text ): string {
-        if ( empty( $rich_text ) ) {
-            return '';
-        }
-
-        // 为保持不修改核心逻辑，暂复用 Notion_Pages 的实现
-        // 注意：此处使用匿名临时对象以访问原实现
-        static $extractor = null;
-        if ( null === $extractor ) {
-            $extractor = new class {
-                // 复制原 Notion_Pages::extract_rich_text 内容（简化无依赖版）
-                public function run( array $rich_text ): string {
-                    $result = '';
-                    foreach ( $rich_text as $text ) {
-                        if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
-                            $expr_raw = '';
-                            if ( isset( $text['equation'] ) && is_array( $text['equation'] ) ) {
-                                $expr_raw = $text['equation']['expression'] ?? '';
-                            }
-                            $expr = str_replace( '\\', '\\\\', $expr_raw );
-                            $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
-                        } else {
-                            $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
-                        }
-
-                        if ( empty( $content ) ) {
-                            continue;
-                        }
-
-                        $annotations = $text['annotations'] ?? [];
-                        $href        = $text['href'] ?? '';
-
-                        // 粗略移植格式化，仅处理常见样式
-                        if ( ! empty( $annotations ) ) {
-                            if ( ! empty( $annotations['bold'] ) ) {
-                                $content = '<strong>' . $content . '</strong>';
-                            }
-                            if ( ! empty( $annotations['italic'] ) ) {
-                                $content = '<em>' . $content . '</em>';
-                            }
-                            if ( ! empty( $annotations['strikethrough'] ) ) {
-                                $content = '<del>' . $content . '</del>';
-                            }
-                            if ( ! empty( $annotations['underline'] ) ) {
-                                $content = '<u>' . $content . '</u>';
-                            }
-                            if ( ! empty( $annotations['code'] ) ) {
-                                $content = '<code>' . $content . '</code>';
-                            }
-                        }
-
-                        if ( $href ) {
-                            $content = '<a href="' . esc_url( $href ) . '">' . $content . '</a>';
-                        }
-
-                        $result .= $content;
-                    }
-                    return $result;
-                }
-            };
-        }
-
-        return $extractor->run( $rich_text );
+        return Notion_Rich_Text_Processor::convert_to_html( $rich_text );
     }
 
     /**
