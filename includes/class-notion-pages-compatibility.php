@@ -124,7 +124,24 @@ class Notion_Pages {
      * @since 1.1.0
      */
     public static function clear_static_cache(): void {
-        Notion_Pages_Refactored::clear_static_cache();
+        // 清理重构版本的静态缓存
+        if (class_exists('Notion_Pages_Refactored') && method_exists('Notion_Pages_Refactored', 'clear_static_cache')) {
+            Notion_Pages_Refactored::clear_static_cache();
+        }
+
+        // 清理API缓存
+        if (class_exists('Notion_API') && method_exists('Notion_API', 'clear_cache')) {
+            Notion_API::clear_cache();
+        }
+
+        // 记录缓存清理
+        if (class_exists('Notion_To_WordPress_Helper')) {
+            Notion_To_WordPress_Helper::debug_log(
+                '已清理Notion_Pages静态缓存',
+                'Cache Manager',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            );
+        }
     }
 
     /**

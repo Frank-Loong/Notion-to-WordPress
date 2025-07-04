@@ -86,18 +86,40 @@ class Notion_To_WordPress_Dependency_Manager {
             self::load_admin_dependencies();
             self::load_feature_dependencies();
 
-            Notion_To_WordPress_Error_Handler::log_info(
-                '所有依赖文件加载完成',
-                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
-                ['loaded_count' => count(self::$loaded_dependencies)]
-            );
+            // 确保错误处理器已加载后再使用
+            if (class_exists('Notion_To_WordPress_Error_Handler')) {
+                Notion_To_WordPress_Error_Handler::log_info(
+                    '所有依赖文件加载完成',
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                    ['loaded_count' => count(self::$loaded_dependencies)]
+                );
+            } else {
+                // 使用Helper类作为备选日志记录
+                if (class_exists('Notion_To_WordPress_Helper')) {
+                    Notion_To_WordPress_Helper::info_log(
+                        '所有依赖文件加载完成，共加载 ' . count(self::$loaded_dependencies) . ' 个文件',
+                        'Dependency Manager'
+                    );
+                }
+            }
 
             return true;
         } catch (Exception $e) {
-            Notion_To_WordPress_Error_Handler::exception_to_wp_error(
-                $e,
-                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
-            );
+            // 优先使用错误处理器，如果不可用则使用Helper类
+            if (class_exists('Notion_To_WordPress_Error_Handler')) {
+                Notion_To_WordPress_Error_Handler::exception_to_wp_error(
+                    $e,
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+                );
+            } elseif (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::error_log(
+                    '依赖加载失败: ' . $e->getMessage(),
+                    'Dependency Manager'
+                );
+            } else {
+                // 最后的备选方案
+                error_log('[Notion-to-WordPress] 依赖加载失败: ' . $e->getMessage());
+            }
             return false;
         }
     }

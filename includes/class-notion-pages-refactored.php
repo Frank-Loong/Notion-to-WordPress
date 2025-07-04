@@ -255,7 +255,19 @@ class Notion_Pages_Refactored {
      * @since 1.1.0
      */
     public static function clear_static_cache(): void {
-        Notion_WordPress_Integrator::clear_static_cache();
+        // 清理WordPress集成器的静态缓存
+        if (class_exists('Notion_WordPress_Integrator') && method_exists('Notion_WordPress_Integrator', 'clear_static_cache')) {
+            Notion_WordPress_Integrator::clear_static_cache();
+        }
+
+        // 记录缓存清理
+        if (class_exists('Notion_To_WordPress_Helper')) {
+            Notion_To_WordPress_Helper::debug_log(
+                '已清理Notion_Pages_Refactored静态缓存',
+                'Cache Manager',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+        }
     }
 
     /**
@@ -311,4 +323,5 @@ class Notion_Pages_Refactored {
     public function get_custom_field_mappings(): array {
         return $this->custom_field_mappings;
     }
+
 }

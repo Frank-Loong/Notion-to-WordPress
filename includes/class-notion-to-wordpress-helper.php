@@ -20,10 +20,11 @@ class Notion_To_WordPress_Helper {
     /**
      * 调试级别常量
      */
-    const DEBUG_LEVEL_NONE = 0;    // 不记录任何日志
-    const DEBUG_LEVEL_ERROR = 1;   // 只记录错误
-    const DEBUG_LEVEL_INFO = 2;    // 记录错误和信息
-    const DEBUG_LEVEL_DEBUG = 3;   // 记录所有内容，包括详细调试信息
+    const DEBUG_LEVEL_NONE = 0;      // 不记录任何日志
+    const DEBUG_LEVEL_ERROR = 1;     // 只记录错误
+    const DEBUG_LEVEL_WARNING = 1.5; // 记录警告（介于错误和信息之间）
+    const DEBUG_LEVEL_INFO = 2;      // 记录错误和信息
+    const DEBUG_LEVEL_DEBUG = 3;     // 记录所有内容，包括详细调试信息
     
     /**
      * 当前日志记录级别。
