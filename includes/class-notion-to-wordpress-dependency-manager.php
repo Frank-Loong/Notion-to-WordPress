@@ -35,7 +35,10 @@ class Notion_To_WordPress_Dependency_Manager {
      */
     private static array $api_dependencies = [
         'includes/class-notion-api.php',
-        'includes/class-notion-pages.php',
+        'includes/class-notion-pages-refactored.php',
+        'includes/class-notion-page-importer.php',
+        'includes/class-notion-wordpress-integrator.php',
+        'includes/class-notion-pages-compatibility.php',
         'includes/class-notion-block-converter.php',
     ];
 
@@ -177,6 +180,9 @@ class Notion_To_WordPress_Dependency_Manager {
             'Notion_Media_Handler',
             'Notion_API',
             'Notion_Pages',
+            'Notion_Pages_Refactored',
+            'Notion_Page_Importer',
+            'Notion_WordPress_Integrator',
             'Notion_Block_Converter',
             'Notion_To_WordPress_Lock',
             'Notion_To_WordPress_Webhook',

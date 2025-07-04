@@ -107,7 +107,7 @@ class Notion_To_WordPress_Object_Factory {
             $this->instances['notion_api'] = Notion_API::instance($api_key);
         }
 
-        // 创建页面处理器
+        // 创建页面处理器（使用重构后的版本）
         if (!isset($this->instances['notion_pages'])) {
             $this->instances['notion_pages'] = new Notion_Pages(
                 $this->instances['notion_api'],
