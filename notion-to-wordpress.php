@@ -1,5 +1,9 @@
 <?php
 declare(strict_types=1);
+// 防止直接访问
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
 
 /**
  * 插件引导文件
@@ -23,11 +27,6 @@ declare(strict_types=1);
  * Text Domain:       notion-to-wordpress
  * Domain Path:       /languages
  */
-
-// 如果此文件被直接调用，则中止。
-if ( ! defined( 'WPINC' ) ) {
-	die;
-}
 
 // Polyfill: PHP < 8.0 中没有 str_contains 和 str_starts_with 函数，为确保兼容性进行定义
 if ( ! function_exists( 'str_contains' ) ) {

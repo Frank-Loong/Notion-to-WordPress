@@ -1,5 +1,9 @@
 <?php
 declare(strict_types=1);
+// 如果不是WordPress调用，则退出
+if (!defined('WP_UNINSTALL_PLUGIN')) {
+    exit;
+}
 
 /**
  * 插件卸载时运行的代码
@@ -7,11 +11,6 @@ declare(strict_types=1);
  * @since      1.0.5
  * @package    Notion_To_WordPress
  */
-
-// 如果不是WordPress调用，则退出
-if (!defined('WP_UNINSTALL_PLUGIN')) {
-    exit;
-}
 
 // 插件卸载时的清理工作
 

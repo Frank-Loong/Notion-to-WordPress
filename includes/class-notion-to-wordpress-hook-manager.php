@@ -15,10 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @license    GPL-3.0-or-later
  */
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 class Notion_To_WordPress_Hook_Manager {
 
     /**
@@ -163,11 +159,12 @@ class Notion_To_WordPress_Hook_Manager {
         foreach ($ajax_actions as $action) {
             $hook_name = "wp_ajax_notion_to_wordpress_{$action}";
             $method_name = "handle_{$action}";
-            
+
             if (method_exists($this->admin, $method_name)) {
                 $this->loader->add_action($hook_name, $this->admin, $method_name);
+                // 为AJAX-only操作添加nopriv版本，返回403错误
                 $nopriv_hook = "wp_ajax_nopriv_notion_to_wordpress_{$action}";
-                $this->loader->add_action($nopriv_hook, $this->admin, $method_name);
+                $this->loader->add_action($nopriv_hook, $this, 'handle_nopriv_ajax_request');
             }
         }
     }

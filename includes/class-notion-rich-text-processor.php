@@ -15,10 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @license    GPL-3.0-or-later
  */
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 class Notion_Rich_Text_Processor {
 
     /**
