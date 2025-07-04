@@ -118,6 +118,7 @@ class Notion_To_WordPress {
 	private function load_dependencies() {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-loader.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-i18n.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-error-handler.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
@@ -324,7 +325,17 @@ class Notion_To_WordPress {
 	private function _core_import_process( string $database_id, array $options ): void {
 		$lock_timeout = $options['lock_timeout'] ?? 120;
 
-		// 锁机制已废弃，直接执行导入
+		// 准备锁机制
+		$lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
+		if (!$lock->acquire()) {
+			Notion_To_WordPress_Helper::debug_log(
+				'同步任务已在运行中，跳过本次cron执行',
+				'Core Import',
+				Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+			);
+			return;
+		}
+
 		try {
 			// 同步前：暂停对象缓存写入和分类/评论计数，提高性能
 			wp_suspend_cache_addition( true );
@@ -355,13 +366,22 @@ class Notion_To_WordPress {
 				$this->notion_pages->import_notion_page( $page );
 			}
 		} catch ( Exception $e ) {
-			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );
+			Notion_To_WordPress_Error_Handler::exception_to_wp_error(
+				$e,
+				Notion_To_WordPress_Error_Handler::CODE_IMPORT_ERROR,
+				['database_id' => $database_id]
+			);
 		} finally {
 			// 同步结束：恢复 WP 默认行为
 			wp_suspend_cache_addition( false );
 			wp_defer_term_counting( false );
 			if ( function_exists( 'wp_defer_comment_counting' ) ) {
 				wp_defer_comment_counting( false );
+			}
+
+			// 释放锁
+			if ($lock && $lock->is_valid()) {
+				$lock->release();
 			}
 		}
 	}
