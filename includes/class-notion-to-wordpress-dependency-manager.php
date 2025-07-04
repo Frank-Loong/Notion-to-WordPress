@@ -1,0 +1,285 @@
+<?php
+/**
+ * 依赖管理器
+ *
+ * 负责加载和管理插件的所有依赖文件
+ *
+ * @since      1.1.0
+ * @package    Notion_To_WordPress
+ * @license    GPL-3.0-or-later
+ */
+declare(strict_types=1);
+
+class Notion_To_WordPress_Dependency_Manager {
+
+    /**
+     * 核心依赖文件列表
+     *
+     * @since 1.1.0
+     * @var array<string>
+     */
+    private static array $core_dependencies = [
+        'includes/class-notion-to-wordpress-loader.php',
+        'includes/class-notion-to-wordpress-i18n.php',
+        'includes/class-notion-to-wordpress-error-handler.php',
+        'includes/class-notion-rich-text-processor.php',
+        'includes/class-notion-media-handler.php',
+    ];
+
+    /**
+     * API相关依赖文件列表
+     *
+     * @since 1.1.0
+     * @var array<string>
+     */
+    private static array $api_dependencies = [
+        'includes/class-notion-api.php',
+        'includes/class-notion-pages.php',
+        'includes/class-notion-block-converter.php',
+    ];
+
+    /**
+     * 管理界面依赖文件列表
+     *
+     * @since 1.1.0
+     * @var array<string>
+     */
+    private static array $admin_dependencies = [
+        'admin/class-notion-to-wordpress-admin.php',
+    ];
+
+    /**
+     * 功能扩展依赖文件列表
+     *
+     * @since 1.1.0
+     * @var array<string>
+     */
+    private static array $feature_dependencies = [
+        'includes/class-notion-to-wordpress-lock.php',
+        'includes/class-notion-to-wordpress-webhook.php',
+        'includes/class-notion-download-queue.php',
+        'includes/class-notion-import-coordinator.php',
+    ];
+
+    /**
+     * 已加载的依赖文件
+     *
+     * @since 1.1.0
+     * @var array<string>
+     */
+    private static array $loaded_dependencies = [];
+
+    /**
+     * 加载所有依赖文件
+     *
+     * @since 1.1.0
+     * @return bool 是否成功加载所有依赖
+     */
+    public static function load_all_dependencies(): bool {
+        try {
+            self::load_core_dependencies();
+            self::load_api_dependencies();
+            self::load_admin_dependencies();
+            self::load_feature_dependencies();
+
+            Notion_To_WordPress_Error_Handler::log_info(
+                '所有依赖文件加载完成',
+                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                ['loaded_count' => count(self::$loaded_dependencies)]
+            );
+
+            return true;
+        } catch (Exception $e) {
+            Notion_To_WordPress_Error_Handler::exception_to_wp_error(
+                $e,
+                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+            );
+            return false;
+        }
+    }
+
+    /**
+     * 加载核心依赖
+     *
+     * @since 1.1.0
+     * @throws Exception 当文件加载失败时
+     */
+    public static function load_core_dependencies(): void {
+        self::load_dependency_group(self::$core_dependencies, 'core');
+    }
+
+    /**
+     * 加载API依赖
+     *
+     * @since 1.1.0
+     * @throws Exception 当文件加载失败时
+     */
+    public static function load_api_dependencies(): void {
+        self::load_dependency_group(self::$api_dependencies, 'api');
+    }
+
+    /**
+     * 加载管理界面依赖
+     *
+     * @since 1.1.0
+     * @throws Exception 当文件加载失败时
+     */
+    public static function load_admin_dependencies(): void {
+        if (is_admin()) {
+            self::load_dependency_group(self::$admin_dependencies, 'admin');
+        }
+    }
+
+    /**
+     * 加载功能扩展依赖
+     *
+     * @since 1.1.0
+     * @throws Exception 当文件加载失败时
+     */
+    public static function load_feature_dependencies(): void {
+        self::load_dependency_group(self::$feature_dependencies, 'feature');
+    }
+
+    /**
+     * 检查依赖是否已加载
+     *
+     * @since 1.1.0
+     * @param string $dependency_path 依赖文件路径
+     * @return bool 是否已加载
+     */
+    public static function is_dependency_loaded(string $dependency_path): bool {
+        return in_array($dependency_path, self::$loaded_dependencies);
+    }
+
+    /**
+     * 获取已加载的依赖列表
+     *
+     * @since 1.1.0
+     * @return array<string> 已加载的依赖文件列表
+     */
+    public static function get_loaded_dependencies(): array {
+        return self::$loaded_dependencies;
+    }
+
+    /**
+     * 验证所有必需的类是否已加载
+     *
+     * @since 1.1.0
+     * @return bool 是否所有必需类都已加载
+     */
+    public static function validate_required_classes(): bool {
+        $required_classes = [
+            'Notion_To_WordPress_Loader',
+            'Notion_To_WordPress_i18n',
+            'Notion_To_WordPress_Error_Handler',
+            'Notion_Rich_Text_Processor',
+            'Notion_Media_Handler',
+            'Notion_API',
+            'Notion_Pages',
+            'Notion_Block_Converter',
+            'Notion_To_WordPress_Lock',
+            'Notion_To_WordPress_Webhook',
+            'Notion_Download_Queue',
+            'Notion_Import_Coordinator',
+        ];
+
+        $missing_classes = [];
+        foreach ($required_classes as $class_name) {
+            if (!class_exists($class_name)) {
+                $missing_classes[] = $class_name;
+            }
+        }
+
+        if (!empty($missing_classes)) {
+            Notion_To_WordPress_Error_Handler::log_error(
+                '缺少必需的类: ' . implode(', ', $missing_classes),
+                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                ['missing_classes' => $missing_classes]
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 加载依赖组
+     *
+     * @since 1.1.0
+     * @param array<string> $dependencies 依赖文件列表
+     * @param string        $group_name   组名
+     * @throws Exception 当文件加载失败时
+     */
+    private static function load_dependency_group(array $dependencies, string $group_name): void {
+        foreach ($dependencies as $dependency) {
+            if (self::is_dependency_loaded($dependency)) {
+                continue;
+            }
+
+            $file_path = Notion_To_WordPress_Helper::plugin_path($dependency);
+            
+            if (!file_exists($file_path)) {
+                throw new Exception("依赖文件不存在: {$dependency}");
+            }
+
+            if (!is_readable($file_path)) {
+                throw new Exception("依赖文件不可读: {$dependency}");
+            }
+
+            require_once $file_path;
+            self::$loaded_dependencies[] = $dependency;
+
+            Notion_To_WordPress_Error_Handler::log_debug(
+                "加载依赖文件: {$dependency}",
+                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                ['group' => $group_name]
+            );
+        }
+    }
+
+    /**
+     * 动态加载单个依赖
+     *
+     * @since 1.1.0
+     * @param string $dependency_path 依赖文件路径
+     * @return bool 是否成功加载
+     */
+    public static function load_single_dependency(string $dependency_path): bool {
+        try {
+            if (self::is_dependency_loaded($dependency_path)) {
+                return true;
+            }
+
+            $file_path = Notion_To_WordPress_Helper::plugin_path($dependency_path);
+            
+            if (!file_exists($file_path)) {
+                throw new Exception("依赖文件不存在: {$dependency_path}");
+            }
+
+            require_once $file_path;
+            self::$loaded_dependencies[] = $dependency_path;
+
+            Notion_To_WordPress_Error_Handler::log_debug(
+                "动态加载依赖文件: {$dependency_path}",
+                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+            );
+
+            return true;
+        } catch (Exception $e) {
+            Notion_To_WordPress_Error_Handler::exception_to_wp_error(
+                $e,
+                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+            );
+            return false;
+        }
+    }
+
+    /**
+     * 重置依赖加载状态（主要用于测试）
+     *
+     * @since 1.1.0
+     */
+    public static function reset_loaded_dependencies(): void {
+        self::$loaded_dependencies = [];
+    }
+}
