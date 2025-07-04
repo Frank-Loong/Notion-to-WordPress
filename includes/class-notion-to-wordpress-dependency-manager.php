@@ -24,6 +24,7 @@ class Notion_To_WordPress_Dependency_Manager {
         'includes/class-notion-to-wordpress-error-handler.php',
         'includes/class-notion-rich-text-processor.php',
         'includes/class-notion-media-handler.php',
+        'includes/class-notion-to-wordpress-memory-manager.php',
     ];
 
     /**

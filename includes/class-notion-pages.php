@@ -1497,24 +1497,51 @@ class Notion_Pages {
                 'errors' => [],
             ];
 
-            // 循环处理每个页面
-            foreach ($pages as $page) {
-                $page_stats = $this->process_single_page($page, $force_update);
+            // 使用内存管理器批量处理页面
+            if (class_exists('Notion_To_WordPress_Memory_Manager')) {
+                $batch_callback = function($page) use ($force_update, &$stats) {
+                    $page_stats = $this->process_single_page($page, $force_update);
 
-                // 更新统计信息
-                $stats['imported'] += $page_stats['imported'] ?? $page_stats['success'] ?? 0;
-                $stats['updated'] += $page_stats['updated'] ?? 0;
-                $stats['skipped'] += $page_stats['skipped'] ?? 0;
-                $stats['failed'] += $page_stats['failed'] ?? 0;
+                    // 更新统计信息
+                    $stats['imported'] += $page_stats['imported'] ?? $page_stats['success'] ?? 0;
+                    $stats['updated'] += $page_stats['updated'] ?? 0;
+                    $stats['skipped'] += $page_stats['skipped'] ?? 0;
+                    $stats['failed'] += $page_stats['failed'] ?? 0;
 
-                if (!empty($page_stats['errors'])) {
-                    $stats['errors'] = array_merge($stats['errors'], $page_stats['errors']);
-                }
+                    if (!empty($page_stats['errors'])) {
+                        $stats['errors'] = array_merge($stats['errors'], $page_stats['errors']);
+                    }
 
-                // 刷新输出缓冲区，以便实时更新进度
-                if (function_exists('ob_flush') && function_exists('flush')) {
-                    @ob_flush();
-                    @flush();
+                    // 刷新输出缓冲区，以便实时更新进度
+                    if (function_exists('ob_flush') && function_exists('flush')) {
+                        @ob_flush();
+                        @flush();
+                    }
+
+                    return $page_stats;
+                };
+
+                Notion_To_WordPress_Memory_Manager::process_in_batches($pages, $batch_callback, 25);
+            } else {
+                // 回退到原始处理方式
+                foreach ($pages as $page) {
+                    $page_stats = $this->process_single_page($page, $force_update);
+
+                    // 更新统计信息
+                    $stats['imported'] += $page_stats['imported'] ?? $page_stats['success'] ?? 0;
+                    $stats['updated'] += $page_stats['updated'] ?? 0;
+                    $stats['skipped'] += $page_stats['skipped'] ?? 0;
+                    $stats['failed'] += $page_stats['failed'] ?? 0;
+
+                    if (!empty($page_stats['errors'])) {
+                        $stats['errors'] = array_merge($stats['errors'], $page_stats['errors']);
+                    }
+
+                    // 刷新输出缓冲区，以便实时更新进度
+                    if (function_exists('ob_flush') && function_exists('flush')) {
+                        @ob_flush();
+                        @flush();
+                    }
                 }
             }
             
