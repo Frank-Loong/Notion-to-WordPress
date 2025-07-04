@@ -10,6 +10,11 @@
  */
 declare(strict_types=1);
 
+// 直接访问文件时退出
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 class Notion_To_WordPress_Object_Factory {
 
     /**

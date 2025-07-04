@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 插件的管理区域功能
  *
@@ -662,8 +666,9 @@ class Notion_To_WordPress_Admin {
                     wp_send_json_success(['message' => sprintf('刷新完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'])]);
                 }
             } finally {
-                // no lock release
-                // $lock->release();
+                if ( $lock && $lock->is_valid() ) {
+                    $lock->release();
+                }
             }
 
             return;
@@ -729,8 +734,9 @@ class Notion_To_WordPress_Admin {
                     wp_send_json_success(['message' => '页面已刷新完成！']);
                 }
             } finally {
-                // no lock release
-                // $lock->release();
+                if ( $lock && $lock->is_valid() ) {
+                    $lock->release();
+                }
             }
 
             return;

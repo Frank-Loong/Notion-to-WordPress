@@ -10,6 +10,10 @@
  */
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 class Notion_To_WordPress_Error_Handler {
 
     /**
