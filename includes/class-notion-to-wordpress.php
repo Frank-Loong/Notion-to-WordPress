@@ -324,15 +324,7 @@ class Notion_To_WordPress {
 	private function _core_import_process( string $database_id, array $options ): void {
 		$lock_timeout = $options['lock_timeout'] ?? 120;
 
-		// 实例化锁
-		$lock = new Notion_To_WordPress_Lock( $database_id, $lock_timeout );
-
-		// 尝试获取锁
-		if ( ! $lock->acquire() ) {
-			Notion_To_WordPress_Helper::error_log( 'Import aborted: Another import process is already running.' );
-			return;
-		}
-
+		// 锁机制已废弃，直接执行导入
 		try {
 			// 同步前：暂停对象缓存写入和分类/评论计数，提高性能
 			wp_suspend_cache_addition( true );
@@ -356,7 +348,6 @@ class Notion_To_WordPress {
 			$pages = $this->notion_api->get_database_pages( $database_id, $filter );
 
 			if ( empty( $pages ) ) {
-				$lock->release();
 				return;
 			}
 
@@ -372,8 +363,6 @@ class Notion_To_WordPress {
 			if ( function_exists( 'wp_defer_comment_counting' ) ) {
 				wp_defer_comment_counting( false );
 			}
-
-			$lock->release();
 		}
 	}
 

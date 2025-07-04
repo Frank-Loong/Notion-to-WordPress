@@ -27,17 +27,52 @@ interface Notion_Page_Importer_Strategy {
 class Notion_Default_Page_Importer_Strategy implements Notion_Page_Importer_Strategy {
 
     public function import_page( Notion_Pages $service, array $page, bool $force_update = false ): array {
-        // 目前 Notion_Pages::import_notion_page 仅返回布尔值；
-        // 后续可扩展以区分新建 / 更新 / 跳过。
-        $success = $service->import_notion_page( $page );
+        $page_id = $page['id'] ?? '';
 
-        return [
-            'imported' => $success ? 1 : 0,
-            'updated'  => 0,
-            'skipped'  => $success ? 0 : 1,
-            'failed'   => $success ? 0 : 1,
-            'errors'   => $success ? [] : [ 'Failed to import page ' . ( $page['id'] ?? '' ) ],
-        ];
+        try {
+            // 检查页面是否已存在
+            $existing_post_id = $service->get_post_by_notion_id($page_id);
+
+            // 如果不强制更新且页面已存在，跳过
+            if (!$force_update && $existing_post_id) {
+                return [
+                    'imported' => 0,
+                    'updated'  => 0,
+                    'skipped'  => 1,
+                    'failed'   => 0,
+                    'errors'   => [],
+                ];
+            }
+
+            // 导入页面
+            $success = $service->import_notion_page( $page );
+
+            if ($success) {
+                return [
+                    'imported' => $existing_post_id ? 0 : 1,
+                    'updated'  => $existing_post_id ? 1 : 0,
+                    'skipped'  => 0,
+                    'failed'   => 0,
+                    'errors'   => [],
+                ];
+            } else {
+                return [
+                    'imported' => 0,
+                    'updated'  => 0,
+                    'skipped'  => 0,
+                    'failed'   => 1,
+                    'errors'   => [ 'Failed to import page ' . $page_id ],
+                ];
+            }
+        } catch (Exception $e) {
+            return [
+                'imported' => 0,
+                'updated'  => 0,
+                'skipped'  => 0,
+                'failed'   => 1,
+                'errors'   => [ 'Exception importing page ' . $page_id . ': ' . $e->getMessage() ],
+            ];
+        }
     }
 }
 
@@ -76,10 +111,7 @@ class Notion_Import_Coordinator {
      * @throws \Exception             获取锁或 API 失败时抛出
      */
     public function run( bool $force_update = false, string $filter_page_id = '' ): array {
-        $lock = new Notion_To_WordPress_Lock( $this->database_id, $this->lock_timeout );
-        if ( ! $lock->acquire() ) {
-            throw new \Exception( '已有同步任务正在运行，请稍后再试' );
-        }
+        $lock = null;
 
         try {
             // 获取需处理页面
@@ -91,19 +123,43 @@ class Notion_Import_Coordinator {
                 }
                 $pages[] = $single;
             } else {
-                $pages = $this->api->get_database_pages( $this->database_id );
+                // 构造增量同步过滤器（仅拉取自上次同步后有改动的页面）
+                $filter = array();
+                if ( ! $force_update ) {
+                    $options = get_option( 'notion_to_wordpress_options', array() );
+                    if ( ! empty( $options['last_sync_time'] ) ) {
+                        $iso_time = date( 'c', strtotime( $options['last_sync_time'] ) );
+                        $filter   = array(
+                            'timestamp'       => 'last_edited_time',
+                            'last_edited_time' => array(
+                                'after' => $iso_time,
+                            ),
+                        );
+                    }
+                }
+
+                $pages = $this->api->get_database_pages( $this->database_id, $filter );
             }
 
             $stats = [
                 'total'    => count( $pages ),
                 'imported' => 0,
                 'updated'  => 0,
+                'skipped'  => 0,
+                'failed'   => 0,
+                'errors'   => [],
             ];
 
             foreach ( $pages as $page ) {
                 $result = $this->strategy->import_page( $this->page_service, $page, $force_update );
                 $stats['imported'] += $result['imported'];
                 $stats['updated']  += $result['updated'];
+                $stats['skipped']  += $result['skipped'];
+                $stats['failed']   += $result['failed'];
+
+                if (!empty($result['errors'])) {
+                    $stats['errors'] = array_merge($stats['errors'], $result['errors']);
+                }
             }
 
             // 触发下载队列处理
@@ -113,7 +169,7 @@ class Notion_Import_Coordinator {
 
             return $stats;
         } finally {
-            $lock->release();
+            // 无锁释放
         }
     }
 } 

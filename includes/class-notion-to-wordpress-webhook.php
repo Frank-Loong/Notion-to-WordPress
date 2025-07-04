@@ -177,7 +177,7 @@ class Notion_To_WordPress_Webhook {
      */
     private function fix_session_conflicts() {
         // 直接禁用主题（如 ZIB）可能触发的 session_start，避免写入 PHPSESSID 破坏缓存
-        add_filter( 'zib_session_start', '__return_false' );
+        // add_filter( 'zib_session_start', '__return_false' );
     }
 
     /**

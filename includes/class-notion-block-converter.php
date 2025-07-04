@@ -265,9 +265,12 @@ class Notion_Block_Converter {
     }
 
     private function _convert_block_column( array $block ): string {
-        $ratio          = $block['column']['ratio'] ?? ( $block['column']['width_ratio'] ?? 1 );
-        $width_percent  = max( 5, round( (float) $ratio * 100, 2 ) );
-        $html  = '<div class="notion-column" style="flex:0 0 ' . esc_attr( $width_percent ) . '%;">';
+        // 计算列宽，兼容 ratio & width_ratio
+        $ratio = $block['column']['ratio'] ?? ( $block['column']['width_ratio'] ?? 1 );
+        // 防止 ratio 为 0
+        $ratio = $ratio > 0 ? $ratio : 1;
+        $width_percent = max(5, round( $ratio * 100, 2 ));
+        $html = '<div class="notion-column" style="flex:0 0 ' . esc_attr( $width_percent ) . '%;">';
         $html .= $this->_convert_child_blocks_local( $block );
         $html .= '</div>';
         return $html;
@@ -404,7 +407,9 @@ class Notion_Block_Converter {
                 $icon_html = '<img src="' . esc_url( $icon['external']['url'] ) . '" class="notion-callout-icon" alt="icon">';
             }
         }
-        return '<div class="notion-callout">' . $icon_html . '<div class="notion-callout-content">' . $text . '</div></div>';
+        // 渲染子块（如图片或列表）
+        $children_html = $this->_convert_child_blocks_local( $block );
+        return '<div class="notion-callout">' . $icon_html . '<div class="notion-callout-content">' . $text . $children_html . '</div></div>';
     }
 
     private function _convert_block_bookmark( array $block ): string {

@@ -38,35 +38,17 @@ class Notion_To_WordPress_Lock {
     }
 
     /**
-     * 尝试获取锁
-     *
-     * @return bool 如果成功获取锁则返回true，否则返回false
+     * 尝试获取锁（已禁用锁机制，直接返回 true）
      */
     public function acquire(): bool {
-        Notion_To_WordPress_Helper::debug_log( '尝试获取锁: ' . $this->lock_key, 'Lock', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-        $existing = get_transient( $this->lock_key );
-
-        if ( $existing ) {
-            // 计算锁存在时长，若超过阈值则视为僵尸锁并回收
-            if ( time() - (int) $existing > 2 * $this->lock_expiration ) {
-                delete_transient( $this->lock_key ); // 清理脏锁
-            } else {
-                // 正常锁仍有效
-                return false;
-            }
-        }
-
-        // 设置新锁（写入当前时间戳便于后续判断）
-        set_transient( $this->lock_key, time(), $this->lock_expiration );
-        Notion_To_WordPress_Helper::debug_log( '成功获取锁: ' . $this->lock_key, 'Lock', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        // 锁机制已停用，直接允许继续
         return true;
     }
 
     /**
-     * 释放锁
+     * 释放锁（已无操作）
      */
     public function release(): void {
-        delete_transient($this->lock_key);
-        Notion_To_WordPress_Helper::debug_log( '释放锁: ' . $this->lock_key, 'Lock', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        // 无需任何操作
     }
 } 
