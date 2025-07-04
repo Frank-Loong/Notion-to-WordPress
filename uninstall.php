@@ -94,18 +94,30 @@ if ($delete_content) {
         $paged++;
     } while ($posts_query->have_posts());
 
-    // 删除notion_images自定义文章类型中的所有内容
-    $images_query = new WP_Query(array(
-        'post_type' => 'notion_images',
-        'posts_per_page' => -1,
-        'fields' => 'ids'
-    ));
+    // 删除notion_images自定义文章类型中的所有内容（分批处理）
+    $batch_size = 100;
+    $offset = 0;
 
-    if ($images_query->have_posts()) {
-        foreach ($images_query->posts as $image_id) {
-            wp_delete_post($image_id, true);
+    do {
+        $images_query = new WP_Query(array(
+            'post_type' => 'notion_images',
+            'posts_per_page' => $batch_size,
+            'offset' => $offset,
+            'fields' => 'ids',
+            'no_found_rows' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ));
+
+        if ($images_query->have_posts()) {
+            foreach ($images_query->posts as $image_id) {
+                wp_delete_post($image_id, true);
+            }
         }
-    }
+
+        wp_reset_postdata();
+        $offset += $batch_size;
+    } while ($images_query->have_posts());
 
     // 删除由插件下载到媒体库的附件（通过 _notion_original_url 标识），分批500
     $paged = 1;
@@ -186,7 +198,13 @@ if ( is_dir( $log_dir ) ) {
 
 // 2. 清理与插件相关的 transient 缓存（ntw_ 前缀）
 global $wpdb;
-$transients = $wpdb->get_col( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE '_transient_ntw_%' OR option_name LIKE '_transient_timeout_ntw_%'" );
+$transients = $wpdb->get_col(
+    $wpdb->prepare(
+        "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+        '_transient_ntw_%',
+        '_transient_timeout_ntw_%'
+    )
+);
 
 foreach ( $transients as $transient_option ) {
     // WordPress 内部会同时有 timeout 和 data 两条记录，这里直接 delete_option 即可

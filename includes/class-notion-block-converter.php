@@ -103,7 +103,10 @@ class Notion_Block_Converter {
                     $result = '';
                     foreach ( $rich_text as $text ) {
                         if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
-                            $expr_raw = $text['equation']['expression'] ?? '';
+                            $expr_raw = '';
+                            if ( isset( $text['equation'] ) && is_array( $text['equation'] ) ) {
+                                $expr_raw = $text['equation']['expression'] ?? '';
+                            }
                             $expr = str_replace( '\\', '\\\\', $expr_raw );
                             $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
                         } else {

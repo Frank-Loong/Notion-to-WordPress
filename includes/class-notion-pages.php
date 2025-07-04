@@ -77,6 +77,11 @@ class Notion_Pages {
      * @var array<string,int>
      */
     private static array $notion_post_cache = [];
+
+    /**
+     * 缓存大小限制，防止内存无限增长
+     */
+    private const CACHE_SIZE_LIMIT = 1000;
     
     /**
      * 构造函数
@@ -119,7 +124,7 @@ class Notion_Pages {
         }
 
         $page_id = $page['id'] ?? '';
-        $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+        $page_title = $this->extract_page_title($page);
         Notion_To_WordPress_Helper::debug_log( '开始导入页面内容: ' . $page_title . ' | ' . $page_id, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
         
         // 记录开始时间，用于计算执行时间
@@ -189,7 +194,23 @@ class Notion_Pages {
             
             // 应用内容过滤
             $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
-            
+
+            // 清理大变量以释放内存
+            unset($blocks, $raw_content);
+
+            // 强制垃圾回收（仅在内存使用较高时）
+            $memory_usage = memory_get_usage(true) / 1024 / 1024;
+            if ($memory_usage > 64) { // 如果内存使用超过64MB
+                if (function_exists('gc_collect_cycles')) {
+                    gc_collect_cycles();
+                }
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf('内存清理后: %.2fMB', memory_get_usage(true) / 1024 / 1024),
+                    'Memory Cleanup',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+                );
+            }
+
             // 检查页面是否已存在
             $existing_post_id = $this->get_post_by_notion_id($page['id']);
             
@@ -953,31 +974,81 @@ class Notion_Pages {
             return $pid;
         }
 
-        // 3. 数据库查询（最后兜底）
-        $args = [
-            'post_type'      => 'any',
-            'post_status'    => 'any',
-            'posts_per_page' => 1,
-            'meta_query'     => [
-                [
-                    'key'     => '_notion_page_id',
-                    'value'   => $notion_id,
-                    'compare' => '=',
-                ],
-            ],
-            'fields'         => 'ids', // 仅获取ID以提高性能
-            'no_found_rows'  => true,
-            'cache_results'  => false,
-        ];
-        
-        $posts   = get_posts( $args );
-        $post_id = ! empty( $posts ) ? (int) $posts[0] : 0;
+        // 3. 数据库查询（最后兜底）- 使用直接SQL查询提高性能
+        global $wpdb;
+        $post_id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
+                 INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                 WHERE pm.meta_key = %s AND pm.meta_value = %s
+                 AND p.post_status NOT IN ('auto-draft', 'inherit', 'trash')
+                 LIMIT 1",
+                '_notion_page_id',
+                $notion_id
+            )
+        );
+
+        $post_id = $post_id ? (int) $post_id : 0;
+
 
         // 写入缓存（24 小时），若无结果也缓存，避免穿透
         Notion_To_WordPress_Helper::cache_set( $cache_key, $post_id, DAY_IN_SECONDS );
+
+        // 检查静态缓存大小，防止内存无限增长
+        if (count(self::$notion_post_cache) >= self::CACHE_SIZE_LIMIT) {
+            // 清理一半的缓存项（FIFO策略）
+            $keys_to_remove = array_slice(array_keys(self::$notion_post_cache), 0, self::CACHE_SIZE_LIMIT / 2);
+            foreach ($keys_to_remove as $key) {
+                unset(self::$notion_post_cache[$key]);
+            }
+            Notion_To_WordPress_Helper::debug_log(
+                '静态缓存达到限制，已清理' . count($keys_to_remove) . '个项目',
+                'Cache Management',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+            );
+        }
+
         self::$notion_post_cache[ $notion_id ] = $post_id;
 
         return $post_id;
+    }
+
+    /**
+     * 安全地提取页面标题
+     *
+     * @since 1.1.0
+     * @param array $page Notion页面数据
+     * @return string 页面标题
+     */
+    private function extract_page_title(array $page): string {
+        // 安全地访问嵌套数组结构
+        if (!isset($page['properties']) || !is_array($page['properties'])) {
+            return '(无标题)';
+        }
+
+        if (!isset($page['properties']['title']) || !is_array($page['properties']['title'])) {
+            return '(无标题)';
+        }
+
+        if (!isset($page['properties']['title']['title']) || !is_array($page['properties']['title']['title'])) {
+            return '(无标题)';
+        }
+
+        if (empty($page['properties']['title']['title'][0]) || !is_array($page['properties']['title']['title'][0])) {
+            return '(无标题)';
+        }
+
+        return $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+    }
+
+    /**
+     * 清理静态缓存
+     *
+     * @since 1.1.0
+     */
+    public static function clear_static_cache(): void {
+        self::$notion_post_cache = [];
+        Notion_To_WordPress_Helper::debug_log('已清理静态缓存', 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG);
     }
 
     /**
@@ -1316,7 +1387,7 @@ class Notion_Pages {
      */
     private function process_single_page(array $page, bool $force_update = false): array {
         $page_id = $page['id'] ?? '';
-        $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+        $page_title = $this->extract_page_title($page);
 
         try {
             // 检查页面是否已存在
@@ -1326,7 +1397,8 @@ class Notion_Pages {
             if (!$force_update && $existing_post_id) {
                 Notion_To_WordPress_Helper::debug_log('页面已存在，跳过: ' . $page_title, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO);
                 return [
-                    'success' => 0,
+                    'imported' => 0,
+                    'updated' => 0,
                     'skipped' => 1,
                     'failed' => 0,
                     'errors' => []
@@ -1338,14 +1410,16 @@ class Notion_Pages {
 
             if ($result) {
                 return [
-                    'success' => 1,
+                    'imported' => $existing_post_id ? 0 : 1,
+                    'updated' => $existing_post_id ? 1 : 0,
                     'skipped' => 0,
                     'failed' => 0,
                     'errors' => []
                 ];
             } else {
                 return [
-                    'success' => 0,
+                    'imported' => 0,
+                    'updated' => 0,
                     'skipped' => 0,
                     'failed' => 1,
                     'errors' => ['Failed to import page: ' . $page_title]
@@ -1354,7 +1428,8 @@ class Notion_Pages {
         } catch (Exception $e) {
             Notion_To_WordPress_Helper::error_log('导入页面时发生异常: ' . $e->getMessage(), 'Notion Import');
             return [
-                'success' => 0,
+                'imported' => 0,
+                'updated' => 0,
                 'skipped' => 0,
                 'failed' => 1,
                 'errors' => ['Exception importing page ' . $page_title . ': ' . $e->getMessage()]
@@ -1415,25 +1490,27 @@ class Notion_Pages {
             // 统计
             $stats = [
                 'total' => count($pages),
-                'success' => 0,
+                'imported' => 0,
+                'updated' => 0,
                 'skipped' => 0,
                 'failed' => 0,
                 'errors' => [],
             ];
-            
+
             // 循环处理每个页面
             foreach ($pages as $page) {
                 $page_stats = $this->process_single_page($page, $force_update);
-                
+
                 // 更新统计信息
-                $stats['success'] += $page_stats['success'];
-                $stats['skipped'] += $page_stats['skipped'];
-                $stats['failed'] += $page_stats['failed'];
-                
+                $stats['imported'] += $page_stats['imported'] ?? $page_stats['success'] ?? 0;
+                $stats['updated'] += $page_stats['updated'] ?? 0;
+                $stats['skipped'] += $page_stats['skipped'] ?? 0;
+                $stats['failed'] += $page_stats['failed'] ?? 0;
+
                 if (!empty($page_stats['errors'])) {
                     $stats['errors'] = array_merge($stats['errors'], $page_stats['errors']);
                 }
-                
+
                 // 刷新输出缓冲区，以便实时更新进度
                 if (function_exists('ob_flush') && function_exists('flush')) {
                     @ob_flush();
@@ -1451,7 +1528,7 @@ class Notion_Pages {
             
             return $stats;
         } catch (Exception $e) {
-            return ['total' => 0, 'success' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => [$e->getMessage()]];
+            return ['total' => 0, 'imported' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => [$e->getMessage()]];
         }
     }
 
@@ -1595,16 +1672,16 @@ class Notion_Pages {
                     $page    = $notion_api->get_page( $page_id );
                     $url     = $page['url'] ?? 'https://www.notion.so/' . str_replace( '-', '', $page_id );
                     // 尝试读取系统 title 属性
-                    if ( isset( $page['properties']['title']['title'][0]['plain_text'] ) ) {
-                        $label = $page['properties']['title']['title'][0]['plain_text'];
-                    }
+                    $label = $this->extract_page_title($page);
                     break;
 
                 case 'database_id':
                     $db_id = $data['database_id'];
                     $db    = $notion_api->get_database( $db_id );
                     $url   = $db['url'] ?? 'https://www.notion.so/' . str_replace( '-', '', $db_id );
-                    if ( isset( $db['title'][0]['plain_text'] ) ) {
+                    if ( isset( $db['title'] ) && is_array( $db['title'] ) &&
+                         isset( $db['title'][0] ) && is_array( $db['title'][0] ) &&
+                         isset( $db['title'][0]['plain_text'] ) ) {
                         $label = $db['title'][0]['plain_text'];
                     }
                     break;

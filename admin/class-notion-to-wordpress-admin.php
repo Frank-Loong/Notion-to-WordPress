@@ -476,14 +476,18 @@ class Notion_To_WordPress_Admin {
             return (int) $cached;
         }
 
+        // 优化后的查询：使用预处理语句和更高效的JOIN
         $count = $wpdb->get_var(
-            "SELECT COUNT(DISTINCT pm.meta_value)
-             FROM {$wpdb->posts} p
-             JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-             WHERE pm.meta_key = '_notion_page_id'
-             AND pm.meta_value <> ''
-             AND p.post_status NOT IN ('auto-draft', 'inherit', 'trash')
-             AND p.post_type IN ('post', 'page')"
+            $wpdb->prepare(
+                "SELECT COUNT(DISTINCT pm.meta_value)
+                 FROM {$wpdb->postmeta} pm
+                 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                 WHERE pm.meta_key = %s
+                 AND pm.meta_value != ''
+                 AND p.post_status IN ('publish', 'private', 'draft', 'pending', 'future')
+                 AND p.post_type IN ('post', 'page')",
+                '_notion_page_id'
+            )
         );
         
         $count_int = intval( $count ?: 0 );

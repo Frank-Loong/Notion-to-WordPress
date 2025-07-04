@@ -157,7 +157,20 @@ class Notion_API {
         Notion_To_WordPress_Helper::debug_log( 'Notion API 返回 ' . $response_code . ' | 耗时: ' . $duration . 'ms', 'Notion API', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
         
         $body = wp_remote_retrieve_body($response);
-        return json_decode($body, true) ?: [];
+        $data = json_decode($body, true);
+
+        // 检查JSON解码错误
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $error_msg = 'JSON解码失败: ' . json_last_error_msg();
+            if (strlen($body) > 500) {
+                $error_msg .= ', 响应内容(前500字符): ' . substr($body, 0, 500);
+            } else {
+                $error_msg .= ', 响应内容: ' . $body;
+            }
+            throw new Exception($error_msg);
+        }
+
+        return is_array($data) ? $data : [];
     }
 
     /**
@@ -171,7 +184,8 @@ class Notion_API {
      */
     public function get_database_pages(string $database_id, array $filter = []): array {
         // 使用 transient 缓存结果，减少短时间内的重复 API 调用
-        $cache_key = 'ntw_db_pages_' . md5($database_id . wp_json_encode($filter));
+        // 使用更安全的缓存键生成，避免哈希冲突
+        $cache_key = 'ntw_db_pages_' . hash('sha256', $database_id . wp_json_encode($filter));
         $cached     = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) && ! empty( $cached ) ) {
@@ -182,8 +196,10 @@ class Notion_API {
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
+        $page_count = 0;
+        $max_pages = 50; // 限制最大页数，防止无限循环
 
-        while ($has_more) {
+        while ($has_more && $page_count < $max_pages) {
             $endpoint = 'databases/' . $database_id . '/query';
             $data = [
                 'page_size' => 100 // 使用API允许的最大值
@@ -196,19 +212,44 @@ class Notion_API {
             if ($start_cursor) {
                 $data['start_cursor'] = $start_cursor;
             }
-            
+
             $response = $this->send_request($endpoint, 'POST', $data);
-            
-            if (isset($response['results'])) {
-                $all_results = array_merge($all_results, $response['results']);
+
+            if (isset($response['results']) && is_array($response['results'])) {
+                // 使用array_push避免array_merge的内存复制开销
+                foreach ($response['results'] as $result) {
+                    $all_results[] = $result;
+                }
+
+                // 定期检查内存使用
+                if ($page_count % 10 === 0) {
+                    $memory_usage = memory_get_usage(true) / 1024 / 1024;
+                    if ($memory_usage > 128) { // 如果内存使用超过128MB，记录警告
+                        Notion_To_WordPress_Helper::debug_log(
+                            sprintf('内存使用较高: %.2fMB，已获取%d页数据', $memory_usage, $page_count + 1),
+                            'Notion API Memory',
+                            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+                        );
+                    }
+                }
             }
 
             $has_more = $response['has_more'] ?? false;
             $start_cursor = $response['next_cursor'] ?? null;
+            $page_count++;
         }
 
-        // 将结果缓存 2 分钟，避免频繁请求（可在设置中调整）
-        Notion_To_WordPress_Helper::cache_set( $cache_key, $all_results, 120 );
+        if ($page_count >= $max_pages) {
+            Notion_To_WordPress_Helper::debug_log(
+                "达到最大页数限制({$max_pages})，可能存在更多数据未获取",
+                'Notion API',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            );
+        }
+
+        // 将结果缓存，时间可配置
+        $cache_duration = $this->get_cache_duration('database_pages', 300); // 默认5分钟
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $all_results, $cache_duration );
 
         return $all_results;
     }
@@ -218,11 +259,23 @@ class Notion_API {
      *
      * @since    1.0.8
      * @param    string    $block_id    块或页面的 ID。
+     * @param    int       $depth       当前递归深度，防止无限递归
+     * @param    int       $max_depth   最大递归深度
      * @return   array<string, mixed>                 子块对象数组。
      * @throws   Exception             如果 API 请求失败。
      */
-    public function get_page_content(string $block_id): array {
-        $cache_key = 'ntw_pg_content_' . md5($block_id);
+    public function get_page_content(string $block_id, int $depth = 0, int $max_depth = 10): array {
+        // 检查递归深度
+        if ($depth >= $max_depth) {
+            Notion_To_WordPress_Helper::debug_log(
+                "达到最大递归深度({$max_depth})，停止获取子块: {$block_id}",
+                'Notion API Recursion',
+                Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            );
+            return [];
+        }
+
+        $cache_key = 'ntw_pg_content_' . hash('sha256', $block_id . '_d' . $depth);
         $cached    = Notion_To_WordPress_Helper::cache_get( $cache_key );
 
         if ( is_array( $cached ) ) {
@@ -254,7 +307,7 @@ class Notion_API {
                 // 深度处理其子级（递归，内部仍将尝试并发）
                 foreach ( $first_level_children as $j => $child_block ) {
                     if ( ( $child_block['has_children'] ?? false ) ) {
-                        $first_level_children[ $j ]['children'] = $this->get_page_content( $child_block['id'] );
+                        $first_level_children[ $j ]['children'] = $this->get_page_content( $child_block['id'], $depth + 1, $max_depth );
                     }
                 }
 
@@ -263,7 +316,8 @@ class Notion_API {
         }
 
         // 缓存
-        Notion_To_WordPress_Helper::cache_set( $cache_key, $blocks, 300 );
+        $cache_duration = $this->get_cache_duration('page_content', 600); // 默认10分钟
+        Notion_To_WordPress_Helper::cache_set( $cache_key, $blocks, $cache_duration );
 
         return $blocks;
     }
@@ -482,8 +536,20 @@ class Notion_API {
                 foreach ( $chunk as $bid => $_ ) {
                     $res = $responses[ $bid ] ?? null;
                     if ( $res && isset( $res->status_code ) && $res->status_code >= 200 && $res->status_code < 300 ) {
-                        $data          = json_decode( $res->body, true );
-                        $children      = $data['results'] ?? [];
+                        $data = json_decode( $res->body, true );
+
+                        // 检查JSON解码错误
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            Notion_To_WordPress_Helper::debug_log(
+                                'JSON解码失败: ' . json_last_error_msg(),
+                                'Notion API Batch',
+                                Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR
+                            );
+                            $results[ $bid ] = $this->get_block_children( $bid );
+                            continue;
+                        }
+
+                        $children = is_array($data) ? ($data['results'] ?? []) : [];
                         $results[ $bid ] = $children;
                         // 缓存
                         Notion_To_WordPress_Helper::cache_set( 'ntw_blk_children_' . md5( $bid ), $children, 300 );
@@ -529,6 +595,40 @@ class Notion_API {
         return self::$requests_session;
     }
 
+    /**
+     * 获取缓存持续时间
+     *
+     * @since 1.1.0
+     * @param string $cache_type 缓存类型
+     * @param int $default_duration 默认持续时间（秒）
+     * @return int 缓存持续时间
+     */
+    private function get_cache_duration(string $cache_type, int $default_duration): int {
+        $options = get_option('notion_to_wordpress_options', []);
+        $cache_settings = $options['cache_durations'] ?? [];
+
+        return (int) ($cache_settings[$cache_type] ?? $default_duration);
+    }
+
+    /**
+     * 清理所有Notion相关缓存
+     *
+     * @since 1.1.0
+     */
+    public static function clear_all_cache(): void {
+        global $wpdb;
+
+        // 清理WordPress transients
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_ntw_%' OR option_name LIKE '_transient_timeout_ntw_%'");
+
+        // 清理Helper类的缓存
+        if (method_exists('Notion_To_WordPress_Helper', 'clear_all_cache')) {
+            Notion_To_WordPress_Helper::clear_all_cache();
+        }
+
+        Notion_To_WordPress_Helper::debug_log('已清理所有Notion缓存', 'Cache', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO);
+    }
+
     public static function instance( ?string $api_key = null ): self {
         if ( null === self::$instance || ( $api_key && $api_key !== self::$instance->api_key ) ) {
             // 若未显式提供，则从选项读取
@@ -540,4 +640,4 @@ class Notion_API {
         }
         return self::$instance;
     }
-} 
+}

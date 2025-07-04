@@ -414,15 +414,8 @@ class Notion_To_WordPress {
 			wp_schedule_event( time() + 300, 'ntw_five_minutes', 'ntw_process_media_queue' );
 		}
 
-		// 为 postmeta 创建索引，加速 _notion_page_id 查询
-		global $wpdb;
-		$index_name = 'ntw_idx_notion_page_id';
-		$has_index  = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$wpdb->postmeta} WHERE Key_name = %s", $index_name ) );
-
-		if ( ! $has_index ) {
-			// meta_key + meta_value 前缀索引 (191) 以保持 mysql utf8mb4 兼容
-			$wpdb->query( "ALTER TABLE {$wpdb->postmeta} ADD INDEX {$index_name} (meta_key(50), meta_value(191))" );
-		}
+		// 创建推荐的数据库索引以提高性能
+		self::create_recommended_indexes();
 
 		// 刷新重写规则
 		flush_rewrite_rules();
@@ -704,4 +697,47 @@ class Notion_To_WordPress {
 
 		return $new_content;
 	}
-} 
+
+	/**
+	 * 创建推荐的数据库索引以提高查询性能
+	 *
+	 * @since 1.1.0
+	 * @access private
+	 * @static
+	 */
+	private static function create_recommended_indexes(): void {
+		global $wpdb;
+
+		// 索引配置
+		$indexes = [
+			[
+				'table' => $wpdb->postmeta,
+				'name' => 'ntw_idx_notion_meta',
+				'columns' => 'meta_key(50), meta_value(191)',
+				'description' => '加速 Notion 元数据查询'
+			]
+		];
+
+		foreach ($indexes as $index) {
+			$has_index = $wpdb->get_var(
+				$wpdb->prepare(
+					"SHOW INDEX FROM {$index['table']} WHERE Key_name = %s",
+					$index['name']
+				)
+			);
+
+			if (!$has_index) {
+				$sql = "ALTER TABLE {$index['table']} ADD INDEX {$index['name']} ({$index['columns']})";
+				$result = $wpdb->query($sql);
+
+				if ($result !== false) {
+					Notion_To_WordPress_Helper::debug_log(
+						"成功创建索引: {$index['name']} - {$index['description']}",
+						'Database Index',
+						Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+					);
+				}
+			}
+		}
+	}
+}

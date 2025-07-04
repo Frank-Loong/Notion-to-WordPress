@@ -374,8 +374,18 @@ class Notion_To_WordPress_Helper {
      * @param string $type    通知类型 ('success', 'warning', 'error', 'info')。
      */
     public static function admin_notice($message, $type = 'error') {
+        // 验证消息类型
+        $allowed_types = ['success', 'warning', 'error', 'info'];
+        if (!in_array($type, $allowed_types, true)) {
+            $type = 'error';
+        }
+
         add_action('admin_notices', function() use ($message, $type) {
-            echo '<div class="notice notice-' . esc_attr($type) . ' is-dismissible"><p>' . esc_html($message) . '</p></div>';
+            printf(
+                '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
+                esc_attr($type),
+                esc_html($message)
+            );
         });
     }
 
@@ -544,6 +554,37 @@ class Notion_To_WordPress_Helper {
         global $wpdb;
         $aid = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE guid=%s OR guid=%s LIMIT 1", $search_url, $base_search_url ) );
         return $aid ? (int) $aid : 0;
+    }
+
+    /**
+     * 验证Notion API密钥格式
+     *
+     * @since 1.1.0
+     * @param string $api_key API密钥
+     * @return bool 是否有效
+     */
+    public static function validate_api_key(string $api_key): bool {
+        // Notion API密钥格式：secret_开头，长度约50字符
+        return !empty($api_key) &&
+               str_starts_with($api_key, 'secret_') &&
+               strlen($api_key) >= 40 &&
+               strlen($api_key) <= 60 &&
+               ctype_alnum(str_replace(['secret_', '_'], '', $api_key));
+    }
+
+    /**
+     * 验证Notion数据库ID格式
+     *
+     * @since 1.1.0
+     * @param string $database_id 数据库ID
+     * @return bool 是否有效
+     */
+    public static function validate_database_id(string $database_id): bool {
+        // Notion数据库ID格式：32位十六进制字符，可能包含连字符
+        $clean_id = str_replace('-', '', $database_id);
+        return !empty($clean_id) &&
+               strlen($clean_id) === 32 &&
+               ctype_xdigit($clean_id);
     }
 }
 
