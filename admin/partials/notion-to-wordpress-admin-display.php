@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 为插件管理后台页面提供视图。
  *
@@ -9,11 +13,6 @@ declare(strict_types=1);
  * @since      1.1.0
  * @package    Notion_To_WordPress
  */
-
-// 如果直接访问此文件，则退出
-if (!defined('WPINC')) {
-    die;
-}
 
 // 一次性获取所有选项
 $options = get_option('notion_to_wordpress_options', []);

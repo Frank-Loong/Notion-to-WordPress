@@ -15,11 +15,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @license    GPL-3.0-or-later
  */
 
-// 直接访问文件时退出
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 class Notion_To_WordPress_Object_Factory {
 
     /**
