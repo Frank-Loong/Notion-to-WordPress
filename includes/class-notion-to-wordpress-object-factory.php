@@ -1,4 +1,10 @@
 <?php
+declare(strict_types=1);
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 对象工厂
  *
@@ -8,7 +14,6 @@
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
-declare(strict_types=1);
 
 // 直接访问文件时退出
 if ( ! defined( 'ABSPATH' ) ) {
