@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Notion 页面批量导入协调器 + 策略抽象
  *

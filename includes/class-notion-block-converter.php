@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 将 Notion 块数组转换为 HTML 的专用类
  *
@@ -267,7 +271,9 @@ class Notion_Block_Converter {
     /* -------------------- 代码 / 表格 / 卡片 -------------------- */
 
     private function _convert_block_code( array $block ): string {
-        $language = strtolower( $block['code']['language'] ?? 'text' );
+        $language_raw = strtolower( $block['code']['language'] ?? 'text' );
+        // 仅保留字母、数字、加号、减号、下划线，防止注入恶意类名
+        $language = preg_replace( '/[^a-z0-9_\-\+]+/i', '', $language_raw );
 
         // 特殊处理 Mermaid
         if ( 'mermaid' === $language ) {

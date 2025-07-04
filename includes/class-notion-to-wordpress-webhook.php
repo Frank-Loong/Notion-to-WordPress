@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Webhook 处理类
  *
@@ -10,11 +14,6 @@ declare(strict_types=1);
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
-
-// 如果直接访问此文件，则退出
-if (!defined('WPINC')) {
-    die;
-}
 
 class Notion_To_WordPress_Webhook {
 

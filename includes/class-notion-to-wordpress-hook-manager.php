@@ -10,6 +10,10 @@
  */
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 class Notion_To_WordPress_Hook_Manager {
 
     /**
@@ -157,6 +161,8 @@ class Notion_To_WordPress_Hook_Manager {
             
             if (method_exists($this->admin, $method_name)) {
                 $this->loader->add_action($hook_name, $this->admin, $method_name);
+                $nopriv_hook = "wp_ajax_nopriv_notion_to_wordpress_{$action}";
+                $this->loader->add_action($nopriv_hook, $this->admin, $method_name);
             }
         }
     }

@@ -10,6 +10,10 @@
  */
 declare(strict_types=1);
 
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 class Notion_Pages_Refactored {
 
     /**

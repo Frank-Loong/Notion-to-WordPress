@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+// 防止直接访问
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 核心插件类
  *
