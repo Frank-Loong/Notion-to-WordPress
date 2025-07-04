@@ -949,7 +949,7 @@ class Notion_Pages {
      * @return   string                  格式化的HTML文本
      */
     private function extract_rich_text( array $rich_text ) {
-        return Notion_Block_Converter::extract_rich_text_static( $rich_text );
+        return Notion_Rich_Text_Processor::convert_to_html( $rich_text );
     }
 
     /**

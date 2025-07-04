@@ -93,123 +93,61 @@ class Notion_Download_Queue {
 
     /**
      * 处理单个任务
+     *
+     * @since 1.1.0 使用统一的媒体处理器
      */
     private static function handle_single( array $t ): bool {
-        $url   = $t['url'] ?? '';
+        $url = $t['url'] ?? '';
         if ( empty( $url ) ) {
             return false;
         }
 
-        // -------- 安全校验：URL 合法性 & 私网 IP --------
+        // 额外的私网检查（媒体处理器已包含基本URL验证）
         $parsed = wp_parse_url( $url );
-        if ( ! $parsed || ! isset( $parsed['host'] ) || ! in_array( strtolower( $parsed['scheme'] ?? '' ), [ 'http', 'https' ], true ) ) {
-            Notion_To_WordPress_Helper::error_log( '下载跳过：非法 URL ' . $url, 'Download Queue' );
-            return false;
-        }
-
-        if ( self::is_private_host( $parsed['host'] ) ) {
+        if ( $parsed && isset( $parsed['host'] ) && self::is_private_host( $parsed['host'] ) ) {
             Notion_To_WordPress_Helper::error_log( '下载跳过：目标位于私网/本地网段 ' . $url, 'Download Queue' );
             return false;
         }
 
         Notion_To_WordPress_Helper::debug_log( '处理下载: ' . $url . ' (retry ' . ( $t['retry'] ?? 0 ) . ')', 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
 
-        // 下载到临时文件
-        $tmp = download_url( $url );
-        if ( is_wp_error( $tmp ) ) {
-            Notion_To_WordPress_Helper::error_log( '队列下载失败: ' . $tmp->get_error_message(), 'Notion Queue' );
-            // 若未超过重试次数，则重新入队，稍后再试
-            $retry = (int) ( $t['retry'] ?? 0 );
-            if ( $retry < self::MAX_RETRY ) {
-                $t['retry'] = $retry + 1;
-                // 将任务重新入队
-                $queue = get_option( self::OPTION_QUEUE, [] );
-                $queue[] = $t;
-                update_option( self::OPTION_QUEUE, $queue, false );
+        // 使用统一的媒体处理器
+        $result = Notion_Media_Handler::download_and_process(
+            $url,
+            (int) ($t['post_id'] ?? 0),
+            (bool) ($t['is_featured'] ?? false),
+            $t['caption'] ?? '',
+            $t['alt_text'] ?? ''
+        );
 
-                // 退避：延后 60 秒再次调度处理，无需携带参数
-                if ( ! wp_next_scheduled( 'ntw_async_media' ) ) {
-                    wp_schedule_single_event( time() + 60, 'ntw_async_media' );
-                }
+        if ( $result['success'] ) {
+            // 存储原始URL用于去重
+            if ( isset( $result['attachment_id'] ) ) {
+                update_post_meta( $result['attachment_id'], '_notion_media_url', $url );
             }
-            return false;
+            return true;
         }
 
-        // -------- 文件 MIME / 大小校验 --------
-        $options          = get_option( 'notion_to_wordpress_options', [] );
-        $allowed_types_op = $options['allowed_image_types'] ?? '*';
-        $allowed_types    = array_map( 'trim', explode( ',', strtolower( $allowed_types_op ) ) );
-        $max_size_mb      = max( 1, intval( $options['max_image_size'] ?? 20 ) );
+        // 处理失败，考虑重试
+        $retry = (int) ( $t['retry'] ?? 0 );
+        if ( $retry < self::MAX_RETRY ) {
+            $t['retry'] = $retry + 1;
+            // 将任务重新入队
+            $queue = get_option( self::OPTION_QUEUE, [] );
+            $queue[] = $t;
+            update_option( self::OPTION_QUEUE, $queue, false );
 
-        $file_info = wp_check_filetype_and_ext( $tmp, basename( $parsed['path'] ) );
-        $mime      = strtolower( $file_info['type'] ?? '' );
-
-        if ( $allowed_types_op !== '*' && $mime && ! in_array( $mime, $allowed_types, true ) ) {
-            @unlink( $tmp );
-            Notion_To_WordPress_Helper::error_log( "拒绝文件，MIME 不在白名单 ({$mime}) : {$url}", 'Download Queue' );
-            return false;
-        }
-
-        $size_mb = filesize( $tmp ) / 1048576; // 1024*1024
-        if ( $size_mb > $max_size_mb ) {
-            @unlink( $tmp );
-            Notion_To_WordPress_Helper::error_log( sprintf( '拒绝文件，大小 %.2fMB 超过限制 %dMB: %s', $size_mb, $max_size_mb, $url ), 'Download Queue' );
-            return false;
-        }
-
-        // 使用指定文件名或从URL解析
-        $file_name = '';
-        if (!empty($t['name'])) {
-            $file_name = sanitize_file_name($t['name']);
-            Notion_To_WordPress_Helper::debug_log( '使用指定文件名: ' . $file_name, 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG );
-        } else {
-            $file_name = basename( parse_url( $url, PHP_URL_PATH ) );
-            if ( empty( $file_name ) ) {
-                $file_name = 'notion-file-' . time();
+            // 退避：延后 60 秒再次调度处理
+            if ( ! wp_next_scheduled( 'ntw_async_media' ) ) {
+                wp_schedule_single_event( time() + 60, 'ntw_async_media' );
             }
         }
 
-        $file = [
-            'name'     => $file_name,
-            'tmp_name' => $tmp,
-        ];
-
-        $attachment_id = media_handle_sideload( $file, (int) $t['post_id'], $t['caption'] ?? '' );
-        if ( is_wp_error( $attachment_id ) ) {
-            @unlink( $tmp );
-            Notion_To_WordPress_Helper::error_log( 'media_handle_sideload 错误: ' . $attachment_id->get_error_message(), 'Notion Queue' );
-            return false;
-        }
-
-        Notion_To_WordPress_Helper::debug_log( '下载成功并插入附件 ID: ' . $attachment_id, 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-
-        // 标记来源，便于卸载清理
-        update_post_meta( $attachment_id, '_notion_original_url', esc_url( $url ) );
-        
-        // 添加基础URL（不含查询参数），便于后续查找匹配
-        $base_url = preg_replace( '/\?.*$/', '', $url );
-        update_post_meta( $attachment_id, '_notion_base_url', esc_url( $base_url ) );
-
-        $post_id = (int) $t['post_id'];
-        if ( $post_id > 0 ) {
-            if ( ! empty( $t['is_featured'] ) ) {
-                set_post_thumbnail( $post_id, $attachment_id );
-            }
-            // 替换正文 URL
-            $attachment_url = wp_get_attachment_url( $attachment_id );
-            $post           = get_post( $post_id );
-            if ( $post && strpos( $post->post_content, $url ) !== false ) {
-                // 使用正则匹配包含可能 querystring 的原始 URL
-                $pattern  = '#'. preg_quote( $url, '#' ) . '(?:\?[^"\']*)?#';
-                $updated  = preg_replace( $pattern, $attachment_url, $post->post_content );
-                if ( null !== $updated ) {
-                    wp_update_post( [ 'ID' => $post_id, 'post_content' => $updated ] );
-                }
-            }
-        }
-
-        return true;
+        Notion_To_WordPress_Helper::error_log( '队列下载失败: ' . ($result['error'] ?? '未知错误'), 'Download Queue' );
+        return false;
     }
+
+
 
     /**
      * 判断主机是否解析到私网 / 保留 IP
