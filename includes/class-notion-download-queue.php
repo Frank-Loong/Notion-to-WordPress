@@ -1,4 +1,10 @@
 <?php
+declare(strict_types=1);
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 延迟下载队列处理类
  *
@@ -7,12 +13,6 @@
  * @since 1.1.0
  * @package Notion_To_WordPress
  */
-
-declare(strict_types=1);
-
-if ( ! defined( 'WPINC' ) ) {
-    die;
-}
 
 class Notion_Download_Queue {
     const OPTION_QUEUE   = 'ntw_download_queue';

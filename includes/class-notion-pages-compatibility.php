@@ -1,4 +1,10 @@
 <?php
+declare(strict_types=1);
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Notion Pages 向后兼容性类
  *
@@ -8,7 +14,6 @@
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
-declare(strict_types=1);
 
 /**
  * 向后兼容的 Notion_Pages 类

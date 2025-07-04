@@ -1,4 +1,10 @@
 <?php
+declare(strict_types=1);
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * Notion媒体处理器
  *
@@ -8,7 +14,6 @@
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
-declare(strict_types=1);
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;

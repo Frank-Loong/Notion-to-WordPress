@@ -1,4 +1,10 @@
 <?php
+declare(strict_types=1);
+
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
 /**
  * 负责处理导入过程中的并发控制（锁）
  *
@@ -8,11 +14,6 @@
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
-declare(strict_types=1);
-
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
 
 class Notion_To_WordPress_Lock {
 
