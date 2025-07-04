@@ -343,4 +343,50 @@ class Notion_To_WordPress_Memory_Manager {
             'cache_clears' => 0
         ];
     }
+
+    /**
+     * 获取性能建议
+     *
+     * @since 1.1.0
+     * @return array 性能建议数组
+     */
+    public static function get_performance_recommendations(): array {
+        $memory_info = self::check_memory_usage();
+        $recommendations = [];
+
+        // 内存使用建议
+        if ($memory_info['usage_percentage'] > 80) {
+            $recommendations[] = [
+                'type' => 'memory',
+                'level' => 'critical',
+                'message' => '内存使用率超过80%，建议增加PHP内存限制或优化批处理大小'
+            ];
+        } elseif ($memory_info['usage_percentage'] > 60) {
+            $recommendations[] = [
+                'type' => 'memory',
+                'level' => 'warning',
+                'message' => '内存使用率较高，建议监控内存使用情况'
+            ];
+        }
+
+        // 垃圾回收建议
+        if (self::$memory_stats['gc_runs'] > 10) {
+            $recommendations[] = [
+                'type' => 'gc',
+                'level' => 'info',
+                'message' => '垃圾回收频繁，可能存在内存泄漏或批处理大小过大'
+            ];
+        }
+
+        // 缓存清理建议
+        if (self::$memory_stats['cache_clears'] > 5) {
+            $recommendations[] = [
+                'type' => 'cache',
+                'level' => 'info',
+                'message' => '缓存清理频繁，建议检查缓存策略或增加内存限制'
+            ];
+        }
+
+        return $recommendations;
+    }
 }

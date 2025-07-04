@@ -220,11 +220,20 @@ class Notion_To_WordPress_Dependency_Manager {
         }
 
         if (!empty($missing_classes)) {
-            Notion_To_WordPress_Error_Handler::log_error(
-                '缺少必需的类: ' . implode(', ', $missing_classes),
-                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
-                ['missing_classes' => $missing_classes]
-            );
+            $error_message = '缺少必需的类: ' . implode(', ', $missing_classes);
+
+            // 优先使用错误处理器，如果不可用则使用Helper类
+            if (class_exists('Notion_To_WordPress_Error_Handler')) {
+                Notion_To_WordPress_Error_Handler::log_error(
+                    $error_message,
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                    ['missing_classes' => $missing_classes]
+                );
+            } elseif (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::error_log($error_message, 'Dependency Manager');
+            } else {
+                error_log('[Notion-to-WordPress] ' . $error_message);
+            }
             return false;
         }
 
@@ -258,11 +267,20 @@ class Notion_To_WordPress_Dependency_Manager {
             require_once $file_path;
             self::$loaded_dependencies[] = $dependency;
 
-            Notion_To_WordPress_Error_Handler::log_debug(
-                "加载依赖文件: {$dependency}",
-                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
-                ['group' => $group_name]
-            );
+            // 安全地记录调试信息
+            if (class_exists('Notion_To_WordPress_Error_Handler')) {
+                Notion_To_WordPress_Error_Handler::log_debug(
+                    "加载依赖文件: {$dependency}",
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                    ['group' => $group_name]
+                );
+            } elseif (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::debug_log(
+                    "加载依赖文件: {$dependency} (组: {$group_name})",
+                    'Dependency Manager',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+                );
+            }
         }
     }
 
@@ -288,17 +306,36 @@ class Notion_To_WordPress_Dependency_Manager {
             require_once $file_path;
             self::$loaded_dependencies[] = $dependency_path;
 
-            Notion_To_WordPress_Error_Handler::log_debug(
-                "动态加载依赖文件: {$dependency_path}",
-                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
-            );
+            // 安全地记录调试信息
+            if (class_exists('Notion_To_WordPress_Error_Handler')) {
+                Notion_To_WordPress_Error_Handler::log_debug(
+                    "动态加载依赖文件: {$dependency_path}",
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+                );
+            } elseif (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::debug_log(
+                    "动态加载依赖文件: {$dependency_path}",
+                    'Dependency Manager',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
+                );
+            }
 
             return true;
         } catch (Exception $e) {
-            Notion_To_WordPress_Error_Handler::exception_to_wp_error(
-                $e,
-                Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
-            );
+            // 安全地处理异常
+            if (class_exists('Notion_To_WordPress_Error_Handler')) {
+                Notion_To_WordPress_Error_Handler::exception_to_wp_error(
+                    $e,
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+                );
+            } elseif (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::error_log(
+                    '动态加载依赖失败: ' . $e->getMessage(),
+                    'Dependency Manager'
+                );
+            } else {
+                error_log('[Notion-to-WordPress] 动态加载依赖失败: ' . $e->getMessage());
+            }
             return false;
         }
     }

@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * 封装了与 Notion API 通信的所有方法，包括获取数据库、页面和块等。
  *
- * @since      1.0.9
+ * @since      1.1.0
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
