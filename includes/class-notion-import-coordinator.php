@@ -150,15 +150,35 @@ class Notion_Import_Coordinator {
                 'errors'   => [],
             ];
 
-            foreach ( $pages as $page ) {
-                $result = $this->strategy->import_page( $this->page_service, $page, $force_update );
-                $stats['imported'] += $result['imported'];
-                $stats['updated']  += $result['updated'];
-                $stats['skipped']  += $result['skipped'];
-                $stats['failed']   += $result['failed'];
+            // 使用内存管理器进行批量处理
+            if (class_exists('Notion_To_WordPress_Memory_Manager')) {
+                $batch_callback = function($page) use ($force_update, &$stats) {
+                    $result = $this->strategy->import_page( $this->page_service, $page, $force_update );
+                    $stats['imported'] += $result['imported'];
+                    $stats['updated']  += $result['updated'];
+                    $stats['skipped']  += $result['skipped'];
+                    $stats['failed']   += $result['failed'];
 
-                if (!empty($result['errors'])) {
-                    $stats['errors'] = array_merge($stats['errors'], $result['errors']);
+                    if (!empty($result['errors'])) {
+                        $stats['errors'] = array_merge($stats['errors'], $result['errors']);
+                    }
+
+                    return $result;
+                };
+
+                Notion_To_WordPress_Memory_Manager::process_in_batches($pages, $batch_callback, 20);
+            } else {
+                // 回退到原始处理方式
+                foreach ( $pages as $page ) {
+                    $result = $this->strategy->import_page( $this->page_service, $page, $force_update );
+                    $stats['imported'] += $result['imported'];
+                    $stats['updated']  += $result['updated'];
+                    $stats['skipped']  += $result['skipped'];
+                    $stats['failed']   += $result['failed'];
+
+                    if (!empty($result['errors'])) {
+                        $stats['errors'] = array_merge($stats['errors'], $result['errors']);
+                    }
                 }
             }
 

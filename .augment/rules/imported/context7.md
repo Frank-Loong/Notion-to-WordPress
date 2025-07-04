@@ -1,0 +1,9 @@
+---
+type: "always_apply"
+---
+
+[[calls]]
+match = "when the user requests code examples, setup or configuration steps, or library/API documentation"
+
+
+tool = "context7"
