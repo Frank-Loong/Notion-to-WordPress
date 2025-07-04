@@ -347,6 +347,7 @@ class Notion_To_WordPress_Admin {
             return;
         }
 
+        $lock = null;
         try {
             // 获取选项
             $options = get_option( 'notion_to_wordpress_options', [] );
@@ -354,6 +355,19 @@ class Notion_To_WordPress_Admin {
             // 检查必要的设置
             if ( empty( $options['notion_api_key'] ) || empty( $options['notion_database_id'] ) ) {
                 wp_send_json_error( [ 'message' => '请先配置API密钥和数据库ID' ] );
+                return;
+            }
+
+            $api_key              = $options['notion_api_key'];
+            $database_id          = $options['notion_database_id'];
+            $field_mapping        = $options['field_mapping'] ?? [];
+            $custom_field_mappings = $options['custom_field_mappings'] ?? [];
+            $lock_timeout         = $options['lock_timeout'] ?? 120;
+
+            // 准备锁机制
+            $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
+            if (!$lock->acquire()) {
+                wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
                 return;
             }
 
@@ -365,12 +379,6 @@ class Notion_To_WordPress_Admin {
                 @set_time_limit( 0 );
             }
 
-            $api_key              = $options['notion_api_key'];
-            $database_id          = $options['notion_database_id'];
-            $field_mapping        = $options['field_mapping'] ?? [];
-            $custom_field_mappings = $options['custom_field_mappings'] ?? [];
-            $lock_timeout         = $options['lock_timeout'] ?? 120;
-
             $notion_api   = Notion_API::instance( $api_key );
             $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping, $lock_timeout );
             $notion_pages->set_custom_field_mappings( $custom_field_mappings );
@@ -379,6 +387,7 @@ class Notion_To_WordPress_Admin {
 
             if ( is_wp_error( $result ) ) {
                 wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+                return;
             }
 
             // -------- 清理统计缓存，确保后台即时显示最新计数 --------
@@ -394,9 +403,17 @@ class Notion_To_WordPress_Admin {
 
             wp_send_json_success( [ 'message' => sprintf( '同步完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'] ) ] );
 
-            return;
         } catch ( Exception $e ) {
-            wp_send_json_error( [ 'message' => '同步启动失败: ' . $e->getMessage() ] );
+            $error = Notion_To_WordPress_Error_Handler::exception_to_wp_error(
+                $e,
+                Notion_To_WordPress_Error_Handler::CODE_IMPORT_ERROR
+            );
+            wp_send_json_error( [ 'message' => '同步启动失败: ' . $error->get_error_message() ] );
+        } finally {
+            // 确保在所有情况下都释放锁
+            if ($lock && $lock->is_valid()) {
+                $lock->release();
+            }
         }
     }
 
@@ -609,12 +626,12 @@ class Notion_To_WordPress_Admin {
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
             $lock_timeout  = $options['lock_timeout'] ?? 120;
 
-            // $lock disabled
-            // prepare lock
-            // $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
-            // if (!$lock->acquire()) {
-            //     wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
-            // }
+            // 准备锁机制
+            $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
+            if (!$lock->acquire()) {
+                wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
+                return;
+            }
 
             if ( function_exists( 'set_time_limit' ) ) {
                 @set_time_limit( 0 );
@@ -683,12 +700,12 @@ class Notion_To_WordPress_Admin {
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
             $lock_timeout  = $options['lock_timeout'] ?? 120;
 
-            // $lock disabled
-            // prepare lock
-            // $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
-            // if (!$lock->acquire()) {
-            //     wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
-            // }
+            // 准备锁机制
+            $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
+            if (!$lock->acquire()) {
+                wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
+                return;
+            }
 
             if ( function_exists( 'set_time_limit' ) ) {
                 @set_time_limit( 0 );
