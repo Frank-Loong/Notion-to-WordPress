@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * 插件的管理区域功能
  *
- * @since      1.0.9
+ * @since      1.1.0
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */

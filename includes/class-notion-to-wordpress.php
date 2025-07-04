@@ -8,7 +8,7 @@ declare(strict_types=1);
  *
  * 同样，它也用于通过加载所有依赖项、设置区域设置和注册钩子来初始化插件。
  *
- * @since      1.0.9
+ * @since      1.1.0
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  */

@@ -102,9 +102,16 @@ class Notion_To_WordPress_Object_Factory {
         $field_mapping = $options['field_mapping'] ?? [];
         $lock_timeout = $options['lock_timeout'] ?? 120;
 
-        // 创建API实例
+        // 创建API实例 - 使用单例模式确保全局一致性
         if (!isset($this->instances['notion_api'])) {
-            $this->instances['notion_api'] = Notion_API::instance($api_key);
+            // 如果API密钥发生变化，需要重新创建实例
+            $existing_instance = Notion_API::instance();
+            if ($existing_instance && $existing_instance->is_api_key_set() && $api_key) {
+                // 检查是否需要更新API密钥
+                $this->instances['notion_api'] = Notion_API::instance($api_key);
+            } else {
+                $this->instances['notion_api'] = Notion_API::instance($api_key);
+            }
         }
 
         // 创建页面处理器（使用重构后的版本）
@@ -329,6 +336,14 @@ class Notion_To_WordPress_Object_Factory {
         $database_id_changed = ($options['notion_database_id'] ?? '') !== ($current_options['notion_database_id'] ?? '');
 
         if ($api_key_changed || $database_id_changed) {
+            // 记录配置变更
+            if (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::info_log(
+                    '检测到API配置变更，重新创建相关对象',
+                    'Object Factory'
+                );
+            }
+
             // 清理相关实例，强制重新创建
             unset($this->instances['notion_api']);
             unset($this->instances['notion_pages']);
@@ -338,6 +353,14 @@ class Notion_To_WordPress_Object_Factory {
             // 重新创建API对象
             $this->create_api_objects();
             $this->create_feature_objects();
+
+            // 记录重新创建完成
+            if (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::info_log(
+                    '已重新创建API相关对象',
+                    'Object Factory'
+                );
+            }
         }
 
         // 更新自定义字段映射

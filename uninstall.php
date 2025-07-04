@@ -184,13 +184,21 @@ if ( is_dir( $log_dir ) ) {
         $path = $fileinfo->getRealPath();
         if ( $fileinfo->isDir() ) {
             // 尝试删除子目录
-            if ( ! @rmdir( $path ) && file_exists( $path ) ) {
-                error_log( '[Notion-to-WP Uninstall] 无法删除目录: ' . $path );
+            if ( is_writable( $path ) ) {
+                if ( ! rmdir( $path ) ) {
+                    error_log( '[Notion-to-WP Uninstall] 无法删除目录: ' . $path . ' (权限或非空目录)' );
+                }
+            } else {
+                error_log( '[Notion-to-WP Uninstall] 目录无写权限: ' . $path );
             }
         } else {
             // 尝试删除文件
-            if ( ! @unlink( $path ) && file_exists( $path ) ) {
-                error_log( '[Notion-to-WP Uninstall] 无法删除文件: ' . $path );
+            if ( is_writable( $path ) ) {
+                if ( ! unlink( $path ) ) {
+                    error_log( '[Notion-to-WP Uninstall] 无法删除文件: ' . $path . ' (可能被占用)' );
+                }
+            } else {
+                error_log( '[Notion-to-WP Uninstall] 文件无写权限: ' . $path );
             }
         }
     }

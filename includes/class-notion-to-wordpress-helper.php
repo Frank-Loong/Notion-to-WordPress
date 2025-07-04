@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * 提供一系列静态方法，用于日志记录、安全过滤、数据处理等。
  *
- * @since      1.0.9
+ * @since      1.1.0
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
