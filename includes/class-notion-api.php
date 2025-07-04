@@ -125,25 +125,46 @@ class Notion_API {
             );
         }
         
-        $response = wp_remote_request($url, $args);
-        
-        if (is_wp_error($response)) {
+        // -------- 新增：自动重试机制，处理速率限制与临时错误 --------
+        $max_attempts = 3;
+        $attempt      = 0;
+        do {
+            $response = wp_remote_request( $url, $args );
+
+            // 若返回 WP_Error，直接退出重试循环
+            if ( is_wp_error( $response ) ) {
+                break;
+            }
+
+            $response_code = wp_remote_retrieve_response_code( $response );
+
+            // 对 429 Too Many Requests 或 503 Service Unavailable 进行指数退避重试
+            if ( in_array( $response_code, [ 429, 503 ], true ) && $attempt < ( $max_attempts - 1 ) ) {
+                $retry_after = (int) wp_remote_retrieve_header( $response, 'retry-after' );
+                if ( $retry_after <= 0 ) {
+                    $retry_after = (int) pow( 2, $attempt ); // 1,2,4 秒
+                }
+                sleep( min( $retry_after, 10 ) );
+                $attempt++;
+                continue;
+            }
+            break;
+        } while ( true );
+
+        if ( is_wp_error( $response ) ) {
             $msg = 'API请求失败: ' . $response->get_error_message();
             Notion_To_WordPress_Helper::error_log( $msg, 'Notion API' );
-            
             // 记录详细错误信息
             $error_data = $response->get_error_data();
-            if (!empty($error_data)) {
-                Notion_To_WordPress_Helper::error_log(
-                    '错误详情: ' . wp_json_encode($error_data),
-                    'Notion API'
-                );
+            if ( ! empty( $error_data ) ) {
+                Notion_To_WordPress_Helper::error_log( '错误详情: ' . wp_json_encode( $error_data ), 'Notion API' );
             }
-            
             throw new Exception( $msg );
         }
-        
-        $response_code = wp_remote_retrieve_response_code($response);
+
+        // 重获响应码（在非错误情况下）
+        $response_code = wp_remote_retrieve_response_code( $response );
+
         if ($response_code < 200 || $response_code >= 300) {
             $error_body = json_decode(wp_remote_retrieve_body($response), true);
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);

@@ -104,6 +104,28 @@ class Notion_Media_Handler {
                 ];
             }
 
+            // 新增：HEAD 预检，提前验证 MIME 类型及大小，减少不必要的下载
+            $head_response = wp_remote_head($url, ['timeout' => 15, 'redirection' => 3]);
+            if ( ! is_wp_error($head_response) ) {
+                $pre_mime = wp_remote_retrieve_header($head_response, 'content-type');
+                if ( $pre_mime ) {
+                    $pre_mime = trim( explode(';', $pre_mime)[0] );
+                    if ( ! self::is_allowed_mime_type( $pre_mime ) ) {
+                        return [
+                            'success' => false,
+                            'error'   => '不允许的 MIME 类型: ' . esc_html( $pre_mime ),
+                        ];
+                    }
+                }
+                $content_length = (int) wp_remote_retrieve_header( $head_response, 'content-length' );
+                if ( $content_length > 0 && $content_length > self::$max_file_size ) {
+                    return [
+                        'success' => false,
+                        'error'   => '文件过大，最大允许 ' . size_format( self::$max_file_size ),
+                    ];
+                }
+            }
+
             // 检查是否已存在
             $existing_id = self::find_existing_attachment($url);
             if ($existing_id) {
@@ -241,11 +263,21 @@ class Notion_Media_Handler {
      * @return bool 是否被允许
      */
     public static function is_allowed_mime_type(string $mime_type): bool {
-        return in_array($mime_type, array_merge(
+        // 合并用户在设置中自定义的 MIME 白名单
+        $options = get_option( 'notion_to_wordpress_options', [] );
+        $custom  = isset( $options['allowed_image_types'] ) ? array_filter( array_map( 'trim', explode( ',', $options['allowed_image_types'] ) ) ) : [];
+
+        // 若包含 * 则直接放行
+        if ( in_array( '*', $custom, true ) ) {
+            return true;
+        }
+
+        return in_array( $mime_type, array_merge(
             self::$allowed_image_types,
             self::$allowed_video_types,
-            self::$allowed_audio_types
-        ));
+            self::$allowed_audio_types,
+            $custom
+        ) );
     }
 
     /**
