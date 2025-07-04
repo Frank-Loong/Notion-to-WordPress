@@ -1109,15 +1109,40 @@ class Notion_Pages {
             update_post_meta( $post_id, '_ntw_external_thumbnail', esc_url_raw( $image_url ) );
         }
 
-        // 直接入队，异步设置特色图
-        Notion_Download_Queue::push([
-            'type'        => 'image',
-            'url'         => $image_url,
-            'post_id'     => (int) $post_id,
-            'is_featured' => true,
-            'caption'     => get_the_title( $post_id ),
-        ]);
-        return;
+        // 直接下载并设置特色图
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+
+        $tmp = download_url( $image_url );
+        if ( is_wp_error( $tmp ) ) {
+            Notion_To_WordPress_Helper::error_log('特色图片下载失败: ' . $tmp->get_error_message(), 'Featured Image');
+            return;
+        }
+
+        $file_name = basename( parse_url( $image_url, PHP_URL_PATH ) );
+        if ( ! $file_name ) {
+            $file_name = 'notion-featured-' . time();
+        }
+
+        $file = [
+            'name'     => $file_name,
+            'tmp_name' => $tmp,
+        ];
+
+        $attachment_id = media_handle_sideload( $file, $post_id, get_the_title( $post_id ) );
+
+        if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
+            @unlink( $tmp );
+            Notion_To_WordPress_Helper::error_log('特色图片导入失败: ' . (is_wp_error($attachment_id) ? $attachment_id->get_error_message() : '未知错误'), 'Featured Image');
+            return;
+        }
+
+        set_post_thumbnail( $post_id, $attachment_id );
+
+        // 存储源 URL，避免重复
+        update_post_meta( $attachment_id, '_notion_original_url', esc_url_raw( $image_url ) );
+        update_post_meta( $attachment_id, '_notion_base_url', esc_url_raw( strtok( $image_url, '?' ) ) );
     }
 
     /**
@@ -1129,27 +1154,83 @@ class Notion_Pages {
      * @return   int                  WordPress附件ID
      */
     private function download_and_insert_image( string $url, string $caption = '' ) {
-        // 先检查是否已经有相同URL的附件
-        $existing_id = $this->get_attachment_by_url( $url );
-        if ( $existing_id > 0 ) {
-            Notion_To_WordPress_Helper::debug_log( '找到已存在的图片附件: ' . $existing_id . ' 对应URL: ' . $url, 'Image', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-            return $existing_id;
+        // 去掉查询参数用于去重
+        $base_url = strtok( $url, '?' );
+
+        // 若已存在同源附件，直接返回ID
+        $existing = $this->get_attachment_by_url( $base_url );
+        if ( $existing ) {
+            Notion_To_WordPress_Helper::debug_log( "Image already exists in media library (Attachment ID: {$existing}).", 'Notion Info' );
+            return $existing;
         }
-        
-        // 直接入队，后台异步处理
-        Notion_Download_Queue::push([
-            'type'        => 'image',
-            'url'         => $url,
-            'post_id'     => 0,
-            'is_featured' => false,
-            'caption'     => $caption,
-        ]);
-        
-        // 记录日志
-        Notion_To_WordPress_Helper::debug_log( '图片入队下载: ' . $url, 'Image', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
-        
-        // 返回0表示需要后续处理
-        return 0;
+
+        // 读取插件设置
+        $options            = get_option( 'notion_to_wordpress_options', [] );
+        $allowed_mime_string = $options['allowed_image_types'] ?? 'image/jpeg,image/png,image/gif,image/webp';
+        $max_size_mb         = isset( $options['max_image_size'] ) ? (int) $options['max_image_size'] : 5;
+        $max_size_bytes      = $max_size_mb * 1024 * 1024;
+
+        // HEAD 请求仅用于获取大小和 MIME，可容错
+        $head = wp_remote_head( $url, [ 'timeout' => 10 ] );
+        if ( ! is_wp_error( $head ) ) {
+            $mime_type = wp_remote_retrieve_header( $head, 'content-type' );
+            $file_size = intval( wp_remote_retrieve_header( $head, 'content-length' ) );
+
+            // 检查类型（若未设置为 *）
+            if ( trim( $allowed_mime_string ) !== '*' ) {
+                $allowed_mime = array_filter( array_map( 'trim', explode( ',', $allowed_mime_string ) ) );
+                if ( ! in_array( $mime_type, $allowed_mime, true ) ) {
+                    Notion_To_WordPress_Helper::error_log( '不允许的图片类型：' . $mime_type, 'Notion Image' );
+                    // 继续，但记录日志
+                }
+            }
+
+            // 检查大小
+            if ( $file_size > 0 && $file_size > $max_size_bytes ) {
+                Notion_To_WordPress_Helper::error_log( sprintf( '图片文件过大（%sMB），超过限制（%sMB）', round( $file_size / ( 1024 * 1024 ), 2 ), $max_size_mb ), 'Notion Image' );
+                // 继续，但记录日志
+            }
+        } else {
+            Notion_To_WordPress_Helper::debug_log( 'HEAD 获取失败：' . $head->get_error_message() . '，尝试直接下载。', 'Notion Image' );
+        }
+
+        Notion_To_WordPress_Helper::debug_log( 'Downloading image: ' . $url, 'Notion Image' );
+
+        // 引入核心文件
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+
+        // 下载到临时文件
+        $tmp = download_url( $url );
+        if ( is_wp_error( $tmp ) ) {
+            Notion_To_WordPress_Helper::error_log('图片下载失败: ' . $tmp->get_error_message(), 'Notion Image');
+            return 0;
+        }
+
+        $file_name = basename( parse_url( $url, PHP_URL_PATH ) );
+        if ( ! $file_name ) {
+            $file_name = 'notion-image-' . time();
+        }
+
+        $file = [
+            'name'     => $file_name,
+            'tmp_name' => $tmp,
+        ];
+
+        // 保存到媒体库
+        $attachment_id = media_handle_sideload( $file, 0, $caption );
+        if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
+            @unlink( $tmp );
+            Notion_To_WordPress_Helper::error_log('图片导入失败: ' . (is_wp_error($attachment_id) ? $attachment_id->get_error_message() : '未知错误'), 'Notion Image');
+            return 0;
+        }
+
+        // 存储源 URL 方便后续去重
+        update_post_meta( $attachment_id, '_notion_original_url', esc_url_raw( $url ) );
+        update_post_meta( $attachment_id, '_notion_base_url', esc_url_raw( $base_url ) );
+
+        return (int) $attachment_id;
     }
 
     /**
@@ -1224,17 +1305,6 @@ class Notion_Pages {
             return $coordinator->run( $force_update, $filter_page_id );
         }
 
-        // 修复可能的会话冲突
-        $this->fix_session_conflicts();
-        
-        // 尝试获取锁，如果失败则返回
-        $lock = Notion_To_WordPress_Lock::instance($this->lock_timeout);
-        $import_lock_key = 'ntw_import_lock_' . md5($this->database_id);
-
-        if (!$lock->acquire($import_lock_key)) {
-            throw new Exception('无法获取锁定，有另一个导入进程正在运行');
-        }
-
         // 记录PHP执行环境信息
         $max_execution_time = ini_get('max_execution_time');
         $memory_limit = ini_get('memory_limit');
@@ -1298,25 +1368,18 @@ class Notion_Pages {
                 }
             }
             
-            // 处理下载队列中的项目
-            Notion_Download_Queue::process_queue();
+            // 更新同步时间
+            $now = current_time('mysql');
+            update_option('notion_to_wordpress_last_sync', $now, false);
+            
+            $opts = get_option('notion_to_wordpress_options', []);
+            $opts['last_sync_time'] = $now;
+            update_option('notion_to_wordpress_options', $opts, false);
             
             return $stats;
-        } finally {
-            // 无论成功与否，都释放锁
-            $lock->release($import_lock_key);
+        } catch (Exception $e) {
+            return ['total' => 0, 'success' => 0, 'skipped' => 0, 'failed' => 0, 'errors' => [$e->getMessage()]];
         }
-    }
-    
-    /**
-     * 修复在页面导入过程中可能发生的会话冲突
-     * 
-     * @since 1.1.0
-     * @access private
-     */
-    private function fix_session_conflicts() {
-        // 禁用主题可能触发的 session_start，避免缓存冲突
-        add_filter( 'zib_session_start', '__return_false' );
     }
 
     // --- Column Blocks ---
@@ -1365,14 +1428,10 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_file( $url, $caption, $file_name );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            // 文件入队异步下载，但目前还没有本地副本
-            // 使用数据占位符，便于后续替换
-            $placeholder_id = 'ntw-file-' . substr(md5($url), 0, 10);
-            
-            // 将原始URL保存为data属性，便于下载完成后替换
-            return '<div class="file-download-box notion-temp-file" data-ntw-url="' . esc_attr($url) . '" id="' . esc_attr($placeholder_id) . '">
+            // 文件下载失败
+            return '<div class="file-download-box notion-temp-file">
                 <span class="file-download-name">' . esc_html( $display ) . '</span> 
-                <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（后台处理中...）', 'notion-to-wordpress' ) . '</a>
+                <a class="file-download-btn" href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . __( '下载附件（临时链接）', 'notion-to-wordpress' ) . '</a>
             </div>';
         }
 
@@ -1397,19 +1456,48 @@ class Notion_Pages {
             return $existing_id;
         }
         
-        // 直接入队，后台异步处理
-        Notion_Download_Queue::push([
-            'type'    => 'file',
-            'url'     => $url,
-            'post_id' => 0,
-            'caption' => $caption,
-            'name'    => $override_name,
-        ]);
+        // 同步下载文件而不是加入队列
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
         
-        // 记录日志
-        Notion_To_WordPress_Helper::debug_log( '文件入队下载: ' . $url . ($override_name ? ' 指定文件名: ' . $override_name : ''), 'File', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
+        // 下载到临时文件
+        $tmp = download_url( $url );
+        if ( is_wp_error( $tmp ) ) {
+            Notion_To_WordPress_Helper::error_log( '文件下载失败: ' . $tmp->get_error_message(), 'Notion File' );
+            return 0;
+        }
         
-        return 0;
+        // 使用指定文件名或从URL解析
+        $file_name = '';
+        if (!empty($override_name)) {
+            $file_name = sanitize_file_name($override_name);
+        } else {
+            $file_name = basename( parse_url( $url, PHP_URL_PATH ) );
+            if ( empty( $file_name ) ) {
+                $file_name = 'notion-file-' . time();
+            }
+        }
+        
+        $file = [
+            'name'     => $file_name,
+            'tmp_name' => $tmp,
+        ];
+        
+        // 上传到媒体库
+        $attachment_id = media_handle_sideload( $file, 0, $caption );
+        
+        if ( is_wp_error( $attachment_id ) ) {
+            @unlink( $tmp );
+            Notion_To_WordPress_Helper::error_log( '文件导入失败: ' . $attachment_id->get_error_message(), 'Notion File' );
+            return 0;
+        }
+        
+        // 存储原始 URL 及 base_url，避免重复下载
+        update_post_meta( $attachment_id, '_notion_original_url', esc_url( $url ) );
+        update_post_meta( $attachment_id, '_notion_base_url', esc_url( strtok( $url, '?' ) ) );
+        
+        return (int) $attachment_id;
     }
 
     // --- Synced Block ---
