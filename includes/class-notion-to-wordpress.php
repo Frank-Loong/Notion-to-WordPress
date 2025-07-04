@@ -96,6 +96,14 @@ class Notion_To_WordPress {
 	protected Notion_To_WordPress_Hook_Manager $hook_manager;
 
 	/**
+	 * 插件是否成功初始化
+	 *
+	 * @since 1.1.0
+	 * @var bool
+	 */
+	private bool $is_initialized = false;
+
+	/**
 	 * 定义插件的核心功能。
 	 *
 	 * 设置插件名称和版本，加载依赖项，定义区域设置，
@@ -107,11 +115,31 @@ class Notion_To_WordPress {
 		$this->version = defined( 'NOTION_TO_WORDPRESS_VERSION' ) ? NOTION_TO_WORDPRESS_VERSION : 'dev';
 		$this->plugin_name = 'notion-to-wordpress';
 
-		$this->load_dependencies();
-		$this->instantiate_objects();
+		// 安全的初始化过程
+		if (!$this->load_dependencies()) {
+			return; // 依赖加载失败，停止初始化
+		}
+
+		if (!$this->instantiate_objects()) {
+			return; // 对象创建失败，停止初始化
+		}
+
+		// 只有在前面步骤都成功时才继续
 		$this->set_locale();
 		$this->define_admin_hooks();
 		$this->define_public_hooks();
+
+		$this->is_initialized = true;
+	}
+
+	/**
+	 * 检查插件是否成功初始化
+	 *
+	 * @since 1.1.0
+	 * @return bool 是否成功初始化
+	 */
+	public function is_initialized(): bool {
+		return $this->is_initialized;
 	}
 
 	/**
@@ -119,19 +147,47 @@ class Notion_To_WordPress {
 	 *
 	 * @since    1.1.0 使用依赖管理器
 	 * @access   private
+	 * @return   bool 是否成功加载所有依赖
 	 */
-	private function load_dependencies() {
-		// 首先加载依赖管理器
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-dependency-manager.php' );
+	private function load_dependencies(): bool {
+		try {
+			// 首先加载依赖管理器
+			require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-dependency-manager.php' );
 
-		// 使用依赖管理器加载所有依赖
-		if (!Notion_To_WordPress_Dependency_Manager::load_all_dependencies()) {
-			wp_die('Failed to load plugin dependencies.');
-		}
+			// 使用依赖管理器加载所有依赖
+			if (!Notion_To_WordPress_Dependency_Manager::load_all_dependencies()) {
+				Notion_To_WordPress_Helper::error_log(
+					'插件依赖加载失败，插件将被禁用',
+					'Plugin Initialization'
+				);
+				add_action('admin_notices', function() {
+					echo '<div class="notice notice-error"><p><strong>Notion to WordPress:</strong> 插件依赖加载失败，请检查文件完整性或联系开发者。</p></div>';
+				});
+				return false;
+			}
 
-		// 验证必需的类是否已加载
-		if (!Notion_To_WordPress_Dependency_Manager::validate_required_classes()) {
-			wp_die('Required classes are missing.');
+			// 验证必需的类是否已加载
+			if (!Notion_To_WordPress_Dependency_Manager::validate_required_classes()) {
+				Notion_To_WordPress_Helper::error_log(
+					'必需的类缺失，插件将被禁用',
+					'Plugin Initialization'
+				);
+				add_action('admin_notices', function() {
+					echo '<div class="notice notice-error"><p><strong>Notion to WordPress:</strong> 必需的类缺失，请重新安装插件。</p></div>';
+				});
+				return false;
+			}
+
+			return true;
+		} catch (Exception $e) {
+			Notion_To_WordPress_Helper::error_log(
+				'依赖加载过程中发生异常: ' . $e->getMessage(),
+				'Plugin Initialization'
+			);
+			add_action('admin_notices', function() use ($e) {
+				echo '<div class="notice notice-error"><p><strong>Notion to WordPress:</strong> 插件初始化失败: ' . esc_html($e->getMessage()) . '</p></div>';
+			});
+			return false;
 		}
 	}
 
@@ -140,73 +196,99 @@ class Notion_To_WordPress {
 	 *
 	 * @since 1.1.0 使用对象工厂
 	 * @access private
+	 * @return bool 是否成功创建所有对象
 	 */
-	private function instantiate_objects() {
-		// 加载对象工厂和钩子管理器
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-object-factory.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-hook-manager.php' );
+	private function instantiate_objects(): bool {
+		try {
+			// 加载对象工厂和钩子管理器
+			require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-object-factory.php' );
+			require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-hook-manager.php' );
 
-		// 创建对象工厂
-		$this->object_factory = new Notion_To_WordPress_Object_Factory(
-			$this->get_plugin_name(),
-			$this->get_version()
-		);
+			// 创建对象工厂
+			$this->object_factory = new Notion_To_WordPress_Object_Factory(
+				$this->get_plugin_name(),
+				$this->get_version()
+			);
 
-		// 创建所有核心对象
-		$objects = $this->object_factory->create_all_objects();
+			// 创建所有核心对象
+			$objects = $this->object_factory->create_all_objects();
 
-		// 设置实例变量（保持向后兼容）
-		$this->loader = $this->object_factory->get_loader();
-		$this->notion_api = $this->object_factory->get_notion_api();
-		$this->notion_pages = $this->object_factory->get_notion_pages();
-		$this->admin = $this->object_factory->get_admin();
-		$this->webhook = $this->object_factory->get_webhook();
+			// 设置实例变量（保持向后兼容）
+			$this->loader = $this->object_factory->get_loader();
+			$this->notion_api = $this->object_factory->get_notion_api();
+			$this->notion_pages = $this->object_factory->get_notion_pages();
+			$this->admin = $this->object_factory->get_admin();
+			$this->webhook = $this->object_factory->get_webhook();
 
-		// 创建钩子管理器
-		$this->hook_manager = new Notion_To_WordPress_Hook_Manager($this->loader);
-		$this->hook_manager->set_admin($this->admin);
-		$this->hook_manager->set_webhook($this->webhook);
-		$this->hook_manager->set_i18n($this->object_factory->get_i18n());
+			// 创建钩子管理器
+			$this->hook_manager = new Notion_To_WordPress_Hook_Manager($this->loader);
+			if ($this->admin) {
+				$this->hook_manager->set_admin($this->admin);
+			}
+			if ($this->webhook) {
+				$this->hook_manager->set_webhook($this->webhook);
+			}
+			$this->hook_manager->set_i18n($this->object_factory->get_i18n());
 
-		// 根据后台设置调整下载并发过滤器
-		$options = get_option( 'notion_to_wordpress_options', array() );
-		add_filter( 'ntw_download_queue_concurrency', function( $default ) use ( $options ) {
-			$val = isset( $options['download_concurrency'] ) ? intval( $options['download_concurrency'] ) : $default;
-			return max( 1, min( 10, $val ) );
-		} );
+			// 根据后台设置调整下载并发过滤器
+			$options = get_option( 'notion_to_wordpress_options', array() );
+			add_filter( 'ntw_download_queue_concurrency', function( $default ) use ( $options ) {
+				$val = isset( $options['download_concurrency'] ) ? intval( $options['download_concurrency'] ) : $default;
+				return max( 1, min( 10, $val ) );
+			} );
 
-		// 验证所有必需对象是否已创建
-		if (!$this->object_factory->validate_required_objects()) {
-			wp_die('Failed to create required objects.');
+			// 验证所有必需对象是否已创建
+			if (!$this->object_factory->validate_required_objects()) {
+				Notion_To_WordPress_Helper::error_log(
+					'必需对象创建失败，插件功能可能受限',
+					'Plugin Initialization'
+				);
+				add_action('admin_notices', function() {
+					echo '<div class="notice notice-warning"><p><strong>Notion to WordPress:</strong> 部分功能初始化失败，请检查配置。</p></div>';
+				});
+				return false;
+			}
+
+			return true;
+		} catch (Exception $e) {
+			Notion_To_WordPress_Helper::error_log(
+				'对象实例化过程中发生异常: ' . $e->getMessage(),
+				'Plugin Initialization'
+			);
+			add_action('admin_notices', function() use ($e) {
+				echo '<div class="notice notice-error"><p><strong>Notion to WordPress:</strong> 对象创建失败: ' . esc_html($e->getMessage()) . '</p></div>';
+			});
+			return false;
 		}
 	}
 
 	/**
 	 * 为此插件定义区域设置以进行国际化。
 	 *
-	 * 使用Notion_To_WordPress_i18n类来设置域并向WordPress注册钩子。
+	 * 使用钩子管理器来统一管理国际化钩子，避免重复注册。
 	 *
 	 * @since    1.0.5
 	 * @access   private
 	 */
 	private function set_locale() {
-		$plugin_i18n = new Notion_To_WordPress_i18n();
-		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
+		// 国际化钩子现在由钩子管理器统一处理
+		// 这里不再直接注册钩子，避免重复注册
 	}
 
 	/**
 	 * 注册与插件后台区域功能相关的所有钩子。
 	 *
-	 * @since    1.1.0 使用钩子管理器
+	 * @since    1.1.0 使用钩子管理器统一管理
 	 * @access   private
 	 */
 	private function define_admin_hooks() {
-		if ($this->hook_manager) {
-			$this->hook_manager->define_admin_hooks();
-		}
+		// 管理界面钩子现在由钩子管理器统一处理
+		// 这里只保留一些特殊的钩子
 
-		// 保留一些特定的钩子（暂时保持兼容性）
-		$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
+		// 设置表单处理钩子
+		if ($this->admin) {
+			$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
+		}
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -221,26 +303,36 @@ class Notion_To_WordPress {
 	/**
 	 * 注册与插件面向公众功能相关的所有钩子。
 	 *
-	 * @since    1.1.0 使用钩子管理器
+	 * @since    1.1.0 使用钩子管理器统一管理
 	 * @access   private
 	 */
 	private function define_public_hooks() {
-		if ($this->hook_manager) {
-			$this->hook_manager->define_public_hooks();
-		}
+		// 公共钩子现在由钩子管理器统一处理
+		// 这里只保留一些特殊的钩子
 
-		// 保留一些特定的钩子（暂时保持兼容性）
+		// 前端脚本和样式
 		$this->loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue_frontend_scripts' );
+
+		// 内容过滤器
 		$this->loader->add_filter( 'the_content', $this, 'replace_temp_media_placeholders', 20 );
 	}
 
 	/**
 	 * 运行加载器以执行所有组件的钩子。
 	 *
-	 * @since    1.1.0 使用钩子管理器
+	 * @since    1.1.0 使用钩子管理器统一管理
 	 */
 	public function run() {
-		// 定义所有钩子
+		// 检查插件是否成功初始化
+		if (!$this->is_initialized) {
+			Notion_To_WordPress_Helper::error_log(
+				'插件未成功初始化，跳过运行',
+				'Plugin Runtime'
+			);
+			return;
+		}
+
+		// 使用钩子管理器定义所有钩子（统一管理，避免重复）
 		if ($this->hook_manager) {
 			$this->hook_manager->define_all_hooks();
 		}
@@ -248,7 +340,7 @@ class Notion_To_WordPress {
 		// 运行加载器
 		$this->loader->run();
 
-		// 保留一些特定的钩子（暂时保持兼容性）
+		// 注册一些特殊的钩子（不通过钩子管理器）
 		$this->define_webhook_hooks();
 		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
 		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
@@ -735,10 +827,16 @@ class Notion_To_WordPress {
 	private static function create_recommended_indexes(): void {
 		global $wpdb;
 
-		// 索引配置
+		// 索引配置 - 使用预定义的安全表名
+		$allowed_tables = [
+			'postmeta' => $wpdb->postmeta,
+			'posts' => $wpdb->posts,
+			'options' => $wpdb->options
+		];
+
 		$indexes = [
 			[
-				'table' => $wpdb->postmeta,
+				'table_key' => 'postmeta',
 				'name' => 'ntw_idx_notion_meta',
 				'columns' => 'meta_key(50), meta_value(191)',
 				'description' => '加速 Notion 元数据查询'
@@ -746,22 +844,62 @@ class Notion_To_WordPress {
 		];
 
 		foreach ($indexes as $index) {
+			// 验证表名是否在允许列表中
+			if (!isset($allowed_tables[$index['table_key']])) {
+				Notion_To_WordPress_Helper::error_log(
+					"尝试在未授权的表上创建索引: {$index['table_key']}",
+					'Database Security'
+				);
+				continue;
+			}
+
+			$table_name = $allowed_tables[$index['table_key']];
+
+			// 安全地检查索引是否存在
 			$has_index = $wpdb->get_var(
 				$wpdb->prepare(
-					"SHOW INDEX FROM {$index['table']} WHERE Key_name = %s",
+					"SHOW INDEX FROM `{$table_name}` WHERE Key_name = %s",
 					$index['name']
 				)
 			);
 
 			if (!$has_index) {
-				$sql = "ALTER TABLE {$index['table']} ADD INDEX {$index['name']} ({$index['columns']})";
-				$result = $wpdb->query($sql);
+				// 使用安全的SQL构建方式
+				$sql = $wpdb->prepare(
+					"ALTER TABLE `{$table_name}` ADD INDEX `%s` (%s)",
+					$index['name'],
+					$index['columns']
+				);
+
+				// 由于列定义不能使用prepare，我们需要额外验证
+				if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*(\(\d+\))?(,\s*[a-zA-Z_][a-zA-Z0-9_]*(\(\d+\))?)*$/', $index['columns'])) {
+					Notion_To_WordPress_Helper::error_log(
+						"无效的列定义: {$index['columns']}",
+						'Database Security'
+					);
+					continue;
+				}
+
+				// 手动构建安全的SQL（因为列定义无法使用prepare）
+				$safe_sql = sprintf(
+					"ALTER TABLE `%s` ADD INDEX `%s` (%s)",
+					esc_sql($table_name),
+					esc_sql($index['name']),
+					esc_sql($index['columns'])
+				);
+
+				$result = $wpdb->query($safe_sql);
 
 				if ($result !== false) {
 					Notion_To_WordPress_Helper::debug_log(
 						"成功创建索引: {$index['name']} - {$index['description']}",
 						'Database Index',
 						Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+					);
+				} else {
+					Notion_To_WordPress_Helper::error_log(
+						"创建索引失败: {$index['name']} - " . $wpdb->last_error,
+						'Database Index'
 					);
 				}
 			}
