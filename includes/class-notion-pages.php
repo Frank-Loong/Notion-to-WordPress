@@ -472,6 +472,23 @@ class Notion_Pages {
                 }
             }
         }
+
+        /* 新增回退：若请求类型为 title 且未按名称找到，则返回首个 title 属性值 */
+        if ( 'title' === $type ) {
+            foreach ( $props as $prop ) {
+                if ( isset( $prop['title'] ) && ! empty( $prop['title'] ) ) {
+                    if ( $key ) {
+                        // 提取键值或数组第一个元素
+                        if ( is_array( $prop['title'] ) && isset( $prop['title'][0][$key] ) ) {
+                            return $prop['title'][0][$key];
+                        }
+                    } else {
+                        return $prop['title'];
+                    }
+                }
+            }
+        }
+
         return $default;
     }
 
@@ -921,7 +938,7 @@ class Notion_Pages {
      * @param    string    $notion_id    Notion页面ID
      * @return   int                     WordPress文章ID
      */
-    private function get_post_by_notion_id( string $notion_id ): int {
+    public function get_post_by_notion_id( string $notion_id ): int {
         // 1. 进程级静态缓存
         if ( isset( self::$notion_post_cache[ $notion_id ] ) ) {
             return self::$notion_post_cache[ $notion_id ];
@@ -1287,6 +1304,62 @@ class Notion_Pages {
         }
 
         return 0;
+    }
+
+    /**
+     * 处理单个页面的导入
+     *
+     * @since    1.1.0
+     * @param    array    $page           Notion页面数据
+     * @param    bool     $force_update   是否强制更新
+     * @return   array                   导入统计信息
+     */
+    private function process_single_page(array $page, bool $force_update = false): array {
+        $page_id = $page['id'] ?? '';
+        $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? '(无标题)';
+
+        try {
+            // 检查页面是否已存在
+            $existing_post_id = $this->get_post_by_notion_id($page_id);
+
+            // 如果不强制更新且页面已存在，跳过
+            if (!$force_update && $existing_post_id) {
+                Notion_To_WordPress_Helper::debug_log('页面已存在，跳过: ' . $page_title, 'Notion Import', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO);
+                return [
+                    'success' => 0,
+                    'skipped' => 1,
+                    'failed' => 0,
+                    'errors' => []
+                ];
+            }
+
+            // 导入页面
+            $result = $this->import_notion_page($page);
+
+            if ($result) {
+                return [
+                    'success' => 1,
+                    'skipped' => 0,
+                    'failed' => 0,
+                    'errors' => []
+                ];
+            } else {
+                return [
+                    'success' => 0,
+                    'skipped' => 0,
+                    'failed' => 1,
+                    'errors' => ['Failed to import page: ' . $page_title]
+                ];
+            }
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log('导入页面时发生异常: ' . $e->getMessage(), 'Notion Import');
+            return [
+                'success' => 0,
+                'skipped' => 0,
+                'failed' => 1,
+                'errors' => ['Exception importing page ' . $page_title . ': ' . $e->getMessage()]
+            ];
+        }
     }
 
     /**

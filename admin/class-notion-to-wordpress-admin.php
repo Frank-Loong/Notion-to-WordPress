@@ -605,12 +605,12 @@ class Notion_To_WordPress_Admin {
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
             $lock_timeout  = $options['lock_timeout'] ?? 120;
 
-            // 文件锁，防止并发刷新
-            $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
-            if (!$lock->acquire()) {
-                wp_send_json_error(['message' => '已有同步任务正在运行，请稍后再试']);
-                return;
-            }
+            // $lock disabled
+            // prepare lock
+            // $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
+            // if (!$lock->acquire()) {
+            //     wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
+            // }
 
             if ( function_exists( 'set_time_limit' ) ) {
                 @set_time_limit( 0 );
@@ -641,7 +641,8 @@ class Notion_To_WordPress_Admin {
                     wp_send_json_success(['message' => sprintf('刷新完成！处理了 %d 个页面，导入 %d，更新 %d。', $result['total'], $result['imported'], $result['updated'])]);
                 }
             } finally {
-                $lock->release();
+                // no lock release
+                // $lock->release();
             }
 
             return;
@@ -678,12 +679,12 @@ class Notion_To_WordPress_Admin {
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
             $lock_timeout  = $options['lock_timeout'] ?? 120;
 
-            // 加锁
-            $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
-            if (!$lock->acquire()) {
-                wp_send_json_error(['message' => '已有同步任务正在运行，请稍后再试']);
-                return;
-            }
+            // $lock disabled
+            // prepare lock
+            // $lock = new Notion_To_WordPress_Lock($database_id, $lock_timeout);
+            // if (!$lock->acquire()) {
+            //     wp_send_json_error(['message' => '已有同步任务运行中，请稍后再试']);
+            // }
 
             if ( function_exists( 'set_time_limit' ) ) {
                 @set_time_limit( 0 );
@@ -707,7 +708,8 @@ class Notion_To_WordPress_Admin {
                     wp_send_json_success(['message' => '页面已刷新完成！']);
                 }
             } finally {
-                $lock->release();
+                // no lock release
+                // $lock->release();
             }
 
             return;
