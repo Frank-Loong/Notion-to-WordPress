@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * 这个文件负责渲染插件设置页面的所有HTML内容。
  *
- * @since      1.0.9
+ * @since      1.1.0
  * @package    Notion_To_WordPress
  */
 
