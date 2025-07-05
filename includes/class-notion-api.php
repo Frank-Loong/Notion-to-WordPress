@@ -10,6 +10,10 @@ declare(strict_types=1);
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 class Notion_API {
 
