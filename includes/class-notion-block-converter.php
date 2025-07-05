@@ -273,7 +273,7 @@ class Notion_Block_Converter {
     private function _convert_block_code( array $block ): string {
         $language_raw = strtolower( $block['code']['language'] ?? 'text' );
         // 严格的语言名称白名单验证，防止XSS注入
-        $safe_lang = preg_match('/^[a-z0-9_\+\-\.]{1,20}$/i', $language_raw) ? $language_raw : 'text';
+        $safe_lang = preg_match('/^[a-z0-9_\+\-\.]{1,20}$/', $language_raw) ? $language_raw : 'text';
         $language = $safe_lang;
 
         // 特殊处理 Mermaid

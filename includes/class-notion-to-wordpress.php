@@ -69,18 +69,18 @@ class Notion_To_WordPress {
 	 *
 	 * @since    1.0.6
 	 * @access   protected
-	 * @var      Notion_To_WordPress_Admin    $admin    后台区域处理器实例。
+	 * @var      Notion_To_WordPress_Admin|null    $admin    后台区域处理器实例。
 	 */
-	protected Notion_To_WordPress_Admin $admin;
+	protected ?Notion_To_WordPress_Admin $admin;
 
 	/**
 	 * Webhook 处理器实例。
 	 *
 	 * @since    1.0.10
 	 * @access   protected
-	 * @var      Notion_To_WordPress_Webhook    $webhook    Webhook 处理器实例。
+	 * @var      Notion_To_WordPress_Webhook|null    $webhook    Webhook 处理器实例。
 	 */
-	protected Notion_To_WordPress_Webhook $webhook;
+	protected ?Notion_To_WordPress_Webhook $webhook;
 
 	/**
 	 * 对象工厂实例。
@@ -156,8 +156,33 @@ class Notion_To_WordPress {
 	 */
 	private function load_dependencies(): bool {
 		try {
+			// 首先确保Helper类已加载
+			if (!class_exists('Notion_To_WordPress_Helper')) {
+				// 如果Helper类不存在，尝试直接加载
+				$helper_path = plugin_dir_path(NOTION_TO_WORDPRESS_FILE) . 'includes/class-notion-to-wordpress-helper.php';
+				if (!file_exists($helper_path)) {
+					// 如果文件不存在，添加错误通知并返回失败
+					add_action('admin_notices', function() {
+						echo '<div class="notice notice-error"><p><strong>Notion to WordPress:</strong> 核心文件缺失，请重新安装插件。</p></div>';
+					});
+					return false;
+				}
+				require_once $helper_path;
+			}
+
 			// 首先加载依赖管理器
-			require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-dependency-manager.php' );
+			$dependency_manager_path = Notion_To_WordPress_Helper::plugin_path('includes/class-notion-to-wordpress-dependency-manager.php');
+			if (!file_exists($dependency_manager_path)) {
+				Notion_To_WordPress_Helper::error_log(
+					'依赖管理器文件缺失，插件无法初始化',
+					'Plugin Initialization'
+				);
+				add_action('admin_notices', function() {
+					echo '<div class="notice notice-error"><p><strong>Notion to WordPress:</strong> 依赖管理器文件缺失，请重新安装插件。</p></div>';
+				});
+				return false;
+			}
+			require_once $dependency_manager_path;
 
 			// 使用依赖管理器加载所有依赖
 			if (!Notion_To_WordPress_Dependency_Manager::load_all_dependencies()) {
