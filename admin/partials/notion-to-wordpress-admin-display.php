@@ -23,7 +23,6 @@ $api_key               = $options['notion_api_key'] ?? '';
 $database_id           = $options['notion_database_id'] ?? '';
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
 $delete_on_uninstall   = $options['delete_on_uninstall'] ?? 0;
-$lock_timeout          = $options['lock_timeout'] ?? 300;
 $field_mapping         = $options['field_mapping'] ?? [
     'title'          => 'Title,标题',
     'status'         => 'Status,状态',
@@ -497,14 +496,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         </fieldset>
                                     </td>
                                 </tr>
-                                <tr>
-                                    <th scope="row"><label for="lock_timeout"><?php esc_html_e('导入锁超时时间', 'notion-to-wordpress'); ?></label></th>
-                                    <td>
-                                        <input type="number" id="lock_timeout" name="lock_timeout" value="<?php echo esc_attr($lock_timeout); ?>" class="small-text" min="60" step="30">
-                                        <span><?php esc_html_e('秒', 'notion-to-wordpress'); ?></span>
-                                        <p class="description"><?php esc_html_e('在导入过程中为防止并发执行而设置的锁的持续时间。如果您的导入经常因超时而失败，可以适当增加此值。', 'notion-to-wordpress'); ?></p>
-                                    </td>
-                                </tr>
+
                                 <tr>
                                     <th scope="row"><label for="iframe_whitelist"><?php esc_html_e('iframe 白名单域名', 'notion-to-wordpress'); ?></label></th>
                                     <td>

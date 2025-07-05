@@ -61,28 +61,17 @@ class Notion_Pages {
     private array $custom_field_mappings = [];
 
     /**
-     * 导入锁超时时间
-     *
-     * @since    1.0.10
-     * @access   private
-     * @var      int    $lock_timeout    导入锁超时时间（秒）
-     */
-    private int $lock_timeout;
-    
-    /**
      * 构造函数
      *
      * @since    1.0.8
      * @param    Notion_API    $notion_api     Notion API实例
      * @param    string        $database_id    数据库ID
      * @param    array         $field_mapping  字段映射
-     * @param    int           $lock_timeout   导入锁超时时间
      */
-    public function __construct(Notion_API $notion_api, string $database_id, array $field_mapping = [], int $lock_timeout = 300) {
+    public function __construct(Notion_API $notion_api, string $database_id, array $field_mapping = []) {
         $this->notion_api = $notion_api;
         $this->database_id = $database_id;
         $this->field_mapping = $field_mapping;
-        $this->lock_timeout = $lock_timeout;
     }
 
     /**
@@ -1211,35 +1200,27 @@ class Notion_Pages {
      * @return   array|WP_Error    导入结果统计或错误
      */
     public function import_pages() {
-        // 创建锁，防止并发操作
-        $lock = new Notion_To_WordPress_Lock($this->database_id, $this->lock_timeout);
-        
-        if (!$lock->acquire()) {
-            return new WP_Error('lock_failed', '已有同步任务在进行中，请稍后再试。');
-        }
-        
         try {
             // 获取数据库中的所有页面
             $pages = $this->notion_api->get_database_pages($this->database_id);
-            
+
             if (empty($pages)) {
-                $lock->release();
                 return new WP_Error('no_pages', '未检索到任何页面。');
             }
-            
+
             $stats = [
                 'total' => count($pages),
                 'imported' => 0,
                 'updated' => 0,
                 'failed' => 0
             ];
-            
+
             foreach ($pages as $page) {
                 // 检查页面是否已存在
                 $existing_post_id = $this->get_post_by_notion_id($page['id']);
-                
+
                 $result = $this->import_notion_page($page);
-                
+
                 if ($result) {
                     if ($existing_post_id) {
                         $stats['updated']++;
@@ -1250,12 +1231,10 @@ class Notion_Pages {
                     $stats['failed']++;
                 }
             }
-            
-            $lock->release();
+
             return $stats;
-            
+
         } catch (Exception $e) {
-            $lock->release();
             return new WP_Error('import_failed', '导入失败: ' . $e->getMessage());
         }
     }
