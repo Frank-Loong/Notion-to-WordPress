@@ -58,27 +58,21 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         <div class="notion-wp-sidebar">
             <div class="notion-wp-menu">
                 <button class="notion-wp-menu-item active" data-tab="api-settings">
-                    <span class="dashicons dashicons-admin-settings"></span>
                     <?php esc_html_e('🛠️ 主要设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="field-mapping">
-                    <span class="dashicons dashicons-networking"></span>
                     <?php esc_html_e('🔗 字段映射', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="other-settings">
-                    <span class="dashicons dashicons-admin-generic"></span>
                     <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
-                    <span class="dashicons dashicons-hammer"></span>
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="help">
-                    <span class="dashicons dashicons-editor-help"></span>
                     <?php esc_html_e('📖 帮助与指南', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="about-author">
-                    <span class="dashicons dashicons-admin-users"></span>
                     <?php esc_html_e('👨‍💻 关于作者', 'notion-to-wordpress'); ?>
                 </button>
             </div>
@@ -216,7 +210,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </table>
                         <div class="notion-wp-button-row">
                             <button type="button" id="notion-test-connection" class="button button-secondary">
-                                <span class="dashicons dashicons-yes-alt"></span> <?php esc_html_e('测试连接', 'notion-to-wordpress'); ?>
+                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('测试连接', 'notion-to-wordpress'); ?>
                             </button>
                         </div>
                     </div>
@@ -367,7 +361,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             
                             <div class="notion-wp-button-row">
                                 <button type="button" id="add-custom-field" class="button button-secondary">
-                                    <span class="dashicons dashicons-plus"></span> <?php esc_html_e('添加自定义字段', 'notion-to-wordpress'); ?>
+                                    <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('添加自定义字段', 'notion-to-wordpress'); ?>
                                 </button>
                             </div>
                             
@@ -685,10 +679,10 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                 <div class="notion-wp-actions-bar">
                     <div class="left-actions">
                         <button type="button" id="notion-manual-import" class="button button-secondary">
-                            <span class="dashicons dashicons-download"></span> <?php esc_html_e('手动同步', 'notion-to-wordpress'); ?>
+                            <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('手动同步', 'notion-to-wordpress'); ?>
                         </button>
                         <button type="button" class="button button-secondary refresh-all-content">
-                            <span class="dashicons dashicons-update"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
+                            <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
                         </button>
                     </div>
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
