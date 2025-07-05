@@ -378,9 +378,7 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            // 清理统计缓存，确保后台即时显示最新计数
-            Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
-            Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
+
 
             wp_send_json_success( [
                 'message' => sprintf(
