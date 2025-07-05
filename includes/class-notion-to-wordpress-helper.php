@@ -1,29 +1,29 @@
 <?php
 declare(strict_types=1);
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 /**
  * 插件的辅助工具类
  *
  * 提供一系列静态方法，用于日志记录、安全过滤、数据处理等。
  *
- * @since      1.1.0
+ * @since      1.0.9
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
+
+// 如果直接访问此文件，则退出
+if (!defined('WPINC')) {
+    die;
+}
 
 class Notion_To_WordPress_Helper {
     /**
      * 调试级别常量
      */
-    const DEBUG_LEVEL_NONE = 0;      // 不记录任何日志
-    const DEBUG_LEVEL_ERROR = 1;     // 只记录错误
-    const DEBUG_LEVEL_WARNING = 1.5; // 记录警告（介于错误和信息之间）
-    const DEBUG_LEVEL_INFO = 2;      // 记录错误和信息
-    const DEBUG_LEVEL_DEBUG = 3;     // 记录所有内容，包括详细调试信息
+    const DEBUG_LEVEL_NONE = 0;    // 不记录任何日志
+    const DEBUG_LEVEL_ERROR = 1;   // 只记录错误
+    const DEBUG_LEVEL_INFO = 2;    // 记录错误和信息
+    const DEBUG_LEVEL_DEBUG = 3;   // 记录所有内容，包括详细调试信息
     
     /**
      * 当前日志记录级别。
@@ -31,7 +31,7 @@ class Notion_To_WordPress_Helper {
      * @access private
      * @var int
      */
-    public static int $debug_level = self::DEBUG_LEVEL_ERROR;
+    private static int $debug_level = self::DEBUG_LEVEL_ERROR;
     
     /**
      * 根据WordPress设置初始化日志级别。
@@ -39,77 +39,14 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
-        // 在WordPress环境中从选项获取调试级别
-        if (function_exists('get_option')) {
-            $options = get_option('notion_to_wordpress_options', []);
-            self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
-        } else {
-            // 在非WordPress环境中使用默认值
-            self::$debug_level = self::DEBUG_LEVEL_ERROR;
-        }
-
+        // 从选项中获取调试级别
+        $options = get_option('notion_to_wordpress_options', []);
+        self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+        
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
-
-        // 延迟注册自定义错误处理器，避免在WordPress加载早期阶段干扰
-        if (function_exists('add_action')) {
-            add_action('init', function() {
-                set_error_handler([__CLASS__, 'custom_error_handler']);
-            }, 1);
-        }
-    }
-
-    /**
-     * 自定义错误处理器，将PHP错误转为日志
-     *
-     * @since 1.1.0
-     * @param int $errno 错误级别
-     * @param string $errstr 错误消息
-     * @param string $errfile 发生错误的文件
-     * @param int $errline 发生错误的行号
-     * @return bool 是否继续使用PHP标准错误处理
-     */
-    public static function custom_error_handler($errno, $errstr, $errfile, $errline) {
-        // 根据错误级别确定日志级别
-        $level = self::DEBUG_LEVEL_ERROR;
-        
-        // 错误类型映射
-        $error_type = 'Unknown Error';
-        switch ($errno) {
-            case E_ERROR:
-            case E_USER_ERROR:
-                $error_type = 'Fatal Error';
-                break;
-            case E_WARNING:
-            case E_USER_WARNING:
-                $error_type = 'Warning';
-                break;
-            case E_NOTICE:
-            case E_USER_NOTICE:
-                $error_type = 'Notice';
-                $level = self::DEBUG_LEVEL_INFO;
-                break;
-            case E_DEPRECATED:
-            case E_USER_DEPRECATED:
-                $error_type = 'Deprecated';
-                $level = self::DEBUG_LEVEL_INFO;
-                break;
-        }
-        
-        // 提取文件名（不含路径）
-        $file_name = basename($errfile);
-        
-        // 记录错误
-        self::debug_log(
-            "PHP {$error_type}: {$errstr} in {$file_name} on line {$errline}",
-            'PHP Error',
-            $level
-        );
-        
-        // 返回false表示错误应该由标准PHP错误处理程序继续处理
-        return false;
     }
 
     /**
@@ -162,36 +99,26 @@ class Notion_To_WordPress_Helper {
             return;
         }
 
-        // 安全地获取日志目录
-        if (function_exists('wp_upload_dir')) {
-            $upload_dir = wp_upload_dir();
-            $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
-        } else {
-            // 在WordPress函数不可用时使用备用路径
-            $log_dir = dirname(dirname(__FILE__)) . '/logs';
-        }
-
+        $upload_dir = wp_upload_dir();
+        $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+        
         // 确保日志目录存在并受保护
         if (!file_exists($log_dir)) {
-            if (function_exists('wp_mkdir_p')) {
-                wp_mkdir_p($log_dir);
-            } else {
-                @mkdir($log_dir, 0755, true);
-            }
-
+            wp_mkdir_p($log_dir);
+            
             // 创建.htaccess文件以保护日志
             $htaccess_content = "Options -Indexes\nRequire all denied";
-            @file_put_contents($log_dir . '/.htaccess', $htaccess_content);
-
+            file_put_contents($log_dir . '/.htaccess', $htaccess_content);
+            
             // 创建index.php文件以防止目录列表
-            @file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
+            file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
         }
-
-        // 日志文件路径（统一使用 debug_log-YYYY-MM-DD.log）
-        $log_file = $log_dir . '/debug_log-' . date('Y-m-d') . '.log';
-
-        // 安全地写入日志，避免在headers发送后出现问题
-        @file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
+        
+        // 日志文件路径
+        $log_file = $log_dir . '/error-' . date('Y-m-d') . '.log';
+        
+        // 写入日志
+        file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
     }
     
     /**
@@ -376,18 +303,8 @@ class Notion_To_WordPress_Helper {
 
         return preg_replace_callback('/<iframe\b[^>]*src=["\\\']([^"\\\']+)["\\\'][^>]*>(.*?)<\/iframe>/i', function ($matches) use ($allowed_hosts) {
             $src = $matches[1];
-
-            // 处理协议相对URL（以//开头）
-            if (strpos($src, '//') === 0) {
-                $src = 'https:' . $src;
-            }
-
             $host = wp_parse_url($src, PHP_URL_HOST);
             if ($host && in_array($host, $allowed_hosts, true)) {
-                // 如果原始URL是协议相对的，更新iframe中的src
-                if (strpos($matches[1], '//') === 0) {
-                    return str_replace($matches[1], $src, $matches[0]);
-                }
                 return $matches[0];
             }
             // 非白名单域，移除 iframe
@@ -403,18 +320,8 @@ class Notion_To_WordPress_Helper {
      * @param string $type    通知类型 ('success', 'warning', 'error', 'info')。
      */
     public static function admin_notice($message, $type = 'error') {
-        // 验证消息类型
-        $allowed_types = ['success', 'warning', 'error', 'info'];
-        if (!in_array($type, $allowed_types, true)) {
-            $type = 'error';
-        }
-
         add_action('admin_notices', function() use ($message, $type) {
-            printf(
-                '<div class="notice notice-%s is-dismissible"><p>%s</p></div>',
-                esc_attr($type),
-                esc_html($message)
-            );
+            echo '<div class="notice notice-' . esc_attr($type) . ' is-dismissible"><p>' . esc_html($message) . '</p></div>';
         });
     }
 
@@ -455,12 +362,9 @@ class Notion_To_WordPress_Helper {
         $log_file = $upload_dir['basedir'] . '/notion-to-wordpress-logs/' . $filename;
 
         if (file_exists($log_file)) {
-            // 读取文件尾部，大小允许通过过滤器调整（默认 1MB）
-            $tail_size = (int) apply_filters( 'ntw_log_tail_size', 1024 * 1024 );
-            $tail_size = max( 64 * 1024, $tail_size ); // 最小 64KB
-
+            // 只读取最后 1MB 的内容以防止过大的文件拖慢后台
             $size = filesize($log_file);
-            $offset = max(0, $size - $tail_size);
+            $offset = max(0, $size - 1024 * 1024);
             return file_get_contents($log_file, false, null, $offset);
         }
 
@@ -499,14 +403,7 @@ class Notion_To_WordPress_Helper {
      * @return string 绝对服务器路径。
      */
     public static function plugin_path(string $path = ''): string {
-        // 在WordPress环境中使用标准函数
-        if (function_exists('plugin_dir_path') && defined('NOTION_TO_WORDPRESS_FILE')) {
-            return plugin_dir_path(NOTION_TO_WORDPRESS_FILE) . ltrim($path, '/\\');
-        }
-
-        // 在非WordPress环境中使用备用方法
-        $plugin_dir = dirname(dirname(__FILE__)) . '/';
-        return $plugin_dir . ltrim($path, '/\\');
+        return plugin_dir_path(NOTION_TO_WORDPRESS_FILE) . ltrim($path, '/\\');
     }
 
     /**
@@ -521,108 +418,122 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 从对象缓存获取数据，若未命中则回退 transient。
+     * 获取WordPress文章状态映射
      *
-     * @since 1.1.1
+     * @since 1.0.9
+     * @return array 状态映射数组
      */
-    public static function cache_get( string $key ) {
-        if ( function_exists( 'wp_cache_get' ) ) {
-            $val = wp_cache_get( $key, 'ntw' );
-            if ( false !== $val ) {
-                return $val;
-            }
-        }
-        return get_transient( $key );
+    public static function get_post_status_mapping(): array {
+        return [
+            // 已发布状态
+            'published' => 'publish',
+            '已发布' => 'publish',
+            'publish' => 'publish',
+            'public' => 'publish',
+            '公开' => 'publish',
+            'live' => 'publish',
+            '上线' => 'publish',
+
+            // 私密状态
+            'private' => 'private',
+            '私密' => 'private',
+            'private_post' => 'private',
+
+            // 草稿状态
+            'draft' => 'draft',
+            '草稿' => 'draft',
+            'unpublished' => 'draft',
+            '未发布' => 'draft',
+        ];
     }
 
     /**
-     * 将数据写入对象缓存并同步 transient（便于无持久化缓存的环境）。
+     * 标准化Notion状态到WordPress状态
      *
-     * @since 1.1.1
+     * @since 1.0.9
+     * @param string $notion_status Notion中的状态值
+     * @return string WordPress标准状态
      */
-    public static function cache_set( string $key, $value, int $ttl = 300 ): void {
-        if ( function_exists( 'wp_cache_set' ) ) {
-            wp_cache_set( $key, $value, 'ntw', $ttl );
-        }
-        set_transient( $key, $value, $ttl );
+    public static function normalize_post_status(string $notion_status): string {
+        $mapping = self::get_post_status_mapping();
+        $status_lower = strtolower(trim($notion_status));
+
+        return $mapping[$status_lower] ?? 'draft';
     }
 
     /**
-     * 删除对象缓存及对应 transient。
+     * 安全地获取远程内容
      *
-     * @since 1.1.1
+     * @since 1.0.9
+     * @param string $url 要获取的URL
+     * @param array $args 请求参数
+     * @return array|WP_Error 响应数组或错误对象
      */
-    public static function cache_delete( string $key ): void {
-        if ( function_exists( 'wp_cache_delete' ) ) {
-            wp_cache_delete( $key, 'ntw' );
-        }
-        delete_transient( $key );
-    }
-
-    public static function get_attachment_id_by_url( string $search_url ): int {
-        // 准备搜索URL（移除查询参数）
-        $base_search_url = preg_replace( '/\?.*$/', '', $search_url );
-        
-        // 按 _notion_original_url 或 _notion_base_url 查找
-        $posts = get_posts([
-            'post_type'      => 'attachment',
-            'post_status'    => 'inherit',
-            'posts_per_page' => 1,
-            'meta_query'     => [
-                'relation' => 'OR',
-                [
-                    'key'     => '_notion_original_url',
-                    'value'   => esc_url( $search_url ),
-                    'compare' => '=',
-                ],
-                [
-                    'key'     => '_notion_base_url',
-                    'value'   => esc_url( $base_search_url ),
-                    'compare' => '=',
-                ],
+    public static function safe_remote_get(string $url, array $args = []) {
+        // 默认参数
+        $default_args = [
+            'timeout' => 30,
+            'user-agent' => 'Notion-to-WordPress/' . NOTION_TO_WORDPRESS_VERSION,
+            'headers' => [
+                'Accept' => 'application/json',
             ],
-            'fields' => 'ids',
-        ]);
-        if ( ! empty( $posts ) ) {
-            return (int) $posts[0];
+            'sslverify' => true,
+        ];
+
+        $args = wp_parse_args($args, $default_args);
+
+        // 验证URL
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return new WP_Error('invalid_url', '无效的URL');
         }
-        // 兜底通过 guid 精确匹配
-        global $wpdb;
-        $aid = $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE guid=%s OR guid=%s LIMIT 1", $search_url, $base_search_url ) );
-        return $aid ? (int) $aid : 0;
+
+        // 执行请求
+        $response = wp_remote_get($url, $args);
+
+        // 检查错误
+        if (is_wp_error($response)) {
+            self::error_log('远程请求失败: ' . $response->get_error_message(), 'HTTP');
+            return $response;
+        }
+
+        // 检查HTTP状态码
+        $status_code = wp_remote_retrieve_response_code($response);
+        if ($status_code >= 400) {
+            $error_msg = sprintf('HTTP错误 %d: %s', $status_code, wp_remote_retrieve_response_message($response));
+            self::error_log($error_msg, 'HTTP');
+            return new WP_Error('http_error', $error_msg);
+        }
+
+        return $response;
     }
 
     /**
-     * 验证Notion API密钥格式
+     * 验证文件类型是否安全
      *
-     * @since 1.1.0
-     * @param string $api_key API密钥
-     * @return bool 是否有效
+     * @since 1.0.9
+     * @param string $filename 文件名
+     * @return bool 是否为安全的文件类型
      */
-    public static function validate_api_key(string $api_key): bool {
-        // Notion API密钥格式：secret_开头，长度约50字符
-        return !empty($api_key) &&
-               strpos($api_key, 'secret_') === 0 &&
-               strlen($api_key) >= 40 &&
-               strlen($api_key) <= 60 &&
-               ctype_alnum(str_replace(['secret_', '_'], '', $api_key));
-    }
+    public static function is_safe_file_type(string $filename): bool {
+        $allowed_extensions = [
+            // 图片
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico',
+            // 文档
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf',
+            // 音频
+            'mp3', 'wav', 'ogg', 'flac', 'm4a',
+            // 视频
+            'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
+            // 压缩文件
+            'zip', 'rar', '7z', 'tar', 'gz',
+            // 其他
+            'csv', 'json', 'xml'
+        ];
 
-    /**
-     * 验证Notion数据库ID格式
-     *
-     * @since 1.1.0
-     * @param string $database_id 数据库ID
-     * @return bool 是否有效
-     */
-    public static function validate_database_id(string $database_id): bool {
-        // Notion数据库ID格式：32位十六进制字符，可能包含连字符
-        $clean_id = str_replace('-', '', $database_id);
-        return !empty($clean_id) &&
-               strlen($clean_id) === 32 &&
-               ctype_xdigit($clean_id);
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        return in_array($extension, $allowed_extensions);
     }
 }
 
-// 注意：Helper类的初始化现在由主插件类在适当时机调用
-// 不再在文件加载时自动初始化，避免在WordPress完全加载前注册错误处理器
+// 初始化静态帮助类
+Notion_To_WordPress_Helper::init();

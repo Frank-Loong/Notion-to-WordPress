@@ -1,18 +1,19 @@
 <?php
 declare(strict_types=1);
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 /**
  * 为插件管理后台页面提供视图。
  *
  * 这个文件负责渲染插件设置页面的所有HTML内容。
  *
- * @since      1.1.0
+ * @since      1.0.9
  * @package    Notion_To_WordPress
  */
+
+// 如果直接访问此文件，则退出
+if (!defined('WPINC')) {
+    die;
+}
 
 // 一次性获取所有选项
 $options = get_option('notion_to_wordpress_options', []);
@@ -22,8 +23,7 @@ $api_key               = $options['notion_api_key'] ?? '';
 $database_id           = $options['notion_database_id'] ?? '';
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
 $delete_on_uninstall   = $options['delete_on_uninstall'] ?? 0;
-$lock_timeout          = $options['lock_timeout'] ?? 120;
-$download_concurrency  = $options['download_concurrency'] ?? 2;
+$lock_timeout          = $options['lock_timeout'] ?? 300;
 $field_mapping         = $options['field_mapping'] ?? [
     'title'          => 'Title,标题',
     'status'         => 'Status,状态',
@@ -58,21 +58,27 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         <div class="notion-wp-sidebar">
             <div class="notion-wp-menu">
                 <button class="notion-wp-menu-item active" data-tab="api-settings">
+                    <span class="dashicons dashicons-admin-settings"></span>
                     <?php esc_html_e('🛠️ 主要设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="field-mapping">
+                    <span class="dashicons dashicons-networking"></span>
                     <?php esc_html_e('🔗 字段映射', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="other-settings">
+                    <span class="dashicons dashicons-admin-generic"></span>
                     <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
+                    <span class="dashicons dashicons-hammer"></span>
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="help">
+                    <span class="dashicons dashicons-editor-help"></span>
                     <?php esc_html_e('📖 帮助与指南', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="about-author">
+                    <span class="dashicons dashicons-admin-users"></span>
                     <?php esc_html_e('👨‍💻 关于作者', 'notion-to-wordpress'); ?>
                 </button>
             </div>
@@ -179,7 +185,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                     </button>
                                                 </div>
                                                 <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。', 'notion-to-wordpress'); ?></p>
-                                                <p class="description" style="color:#2271b1;"><strong><?php esc_html_e('提示：请在 Notion 端发送一次 Webhook 验证请求后，刷新本页面即可查看 verification_token。', 'notion-to-wordpress'); ?></strong></p>
                                             </div>
                                             <div class="notion-wp-field">
                                                 <label for="webhook_url"><?php esc_html_e('Webhook URL', 'notion-to-wordpress'); ?></label>
@@ -234,14 +239,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="mapping_status"><?php esc_html_e('状态', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[status]" type="text" id="mapping_status" value="<?php echo esc_attr($field_mapping['status']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('用于确定发布的文章/页面的Notion属性名称', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('值为 "Published" 或 "已发布" 的页面会被设为 "已发布" 状态，其他则为 "草稿"。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
                                     <th scope="row"><label for="mapping_post_type"><?php esc_html_e('文章类型', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <input name="field_mapping[post_type]" type="text" id="mapping_post_type" value="<?php echo esc_attr($field_mapping['post_type']); ?>" class="regular-text">
-                                        <p class="description"><?php esc_html_e('用于确定发布为文章/页面类型的Notion属性名称', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('用于确定WordPress文章类型的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -277,6 +282,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <td>
                                         <input name="field_mapping[tags]" type="text" id="mapping_tags" value="<?php echo esc_attr($field_mapping['tags']); ?>" class="regular-text">
                                         <p class="description"><?php esc_html_e('用于设置WordPress文章标签的Notion属性名称', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="mapping_visibility"><?php esc_html_e('可见性', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <input name="field_mapping[visibility]" type="text" id="mapping_visibility" value="<?php echo esc_attr($field_mapping['visibility']); ?>" class="regular-text">
+                                        <p class="description"><?php esc_html_e('用于设置WordPress文章可见性的Notion属性名称（公开、私密、密码保护）', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -500,14 +512,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th scope="row"><label for="download_concurrency"><?php esc_html_e('下载并发数量', 'notion-to-wordpress'); ?></label></th>
-                                    <td>
-                                        <input type="number" id="download_concurrency" name="download_concurrency" value="<?php echo esc_attr($download_concurrency); ?>" class="small-text" min="1" max="10" step="1">
-                                        <span><?php esc_html_e('任务/批', 'notion-to-wordpress'); ?></span>
-                                        <p class="description"><?php esc_html_e('控制附件下载队列每批并发量。过大可能导致主机连接数耗尽，建议 1-5。', 'notion-to-wordpress'); ?></p>
-                                    </td>
-                                </tr>
-                                <tr>
                                     <th scope="row"><label for="iframe_whitelist"><?php esc_html_e('iframe 白名单域名', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <?php 
@@ -565,34 +569,11 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><?php esc_html_e('错误日志', 'notion-to-wordpress'); ?></th>
                                     <td>
                                         <div id="log-viewer-container">
-                                            <?php
-                                            // --- 日志文件分页 ---
-                                            $all_logs   = Notion_To_WordPress_Helper::get_log_files();
-                                            $per_page   = 20; // 每页显示数量
-                                            $total      = count( $all_logs );
-                                            $total_pages = max( 1, (int) ceil( $total / $per_page ) );
-                                            $current    = isset( $_GET['log_page'] ) ? max( 1, min( $total_pages, intval( $_GET['log_page'] ) ) ) : 1;
-                                            $offset     = ( $current - 1 ) * $per_page;
-                                            $logs_page  = array_slice( $all_logs, $offset, $per_page );
-                                            ?>
-
                                             <select id="log-file-selector">
-                                                <?php foreach ( $logs_page as $file ): ?>
-                                                    <option value="<?php echo esc_attr( $file ); ?>"><?php echo esc_html( $file ); ?></option>
+                                                <?php foreach (Notion_To_WordPress_Helper::get_log_files() as $file): ?>
+                                                    <option value="<?php echo esc_attr($file); ?>"><?php echo esc_html($file); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
-
-                                            <?php if ( $total_pages > 1 ) : ?>
-                                                <div class="log-pagination" style="margin-top:6px;">
-                                                    <?php if ( $current > 1 ) : ?>
-                                                        <a class="button" href="<?php echo esc_url( add_query_arg( 'log_page', $current - 1 ) ); ?>#debug">&laquo; <?php esc_html_e( '上一页', 'notion-to-wordpress' ); ?></a>
-                                                    <?php endif; ?>
-                                                    <span style="margin:0 8px;"><?php echo sprintf( __( '第 %d / %d 页', 'notion-to-wordpress' ), $current, $total_pages ); ?></span>
-                                                    <?php if ( $current < $total_pages ) : ?>
-                                                        <a class="button" href="<?php echo esc_url( add_query_arg( 'log_page', $current + 1 ) ); ?>#debug"><?php esc_html_e( '下一页', 'notion-to-wordpress' ); ?> &raquo;</a>
-                                                    <?php endif; ?>
-                                                </div>
-                                            <?php endif; ?>
                                             <button type="button" class="button button-secondary" id="view-log-button"><?php esc_html_e('查看日志', 'notion-to-wordpress'); ?></button>
                                             <button type="button" class="button button-danger" id="clear-logs-button"><?php esc_html_e('清除所有日志', 'notion-to-wordpress'); ?></button>
                                             <textarea id="log-viewer" class="large-text code" rows="18" readonly
@@ -715,6 +696,17 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
             </form>
         </div>
     </div>
+</div>
+
+<!-- Toast提示组件 -->
+<div id="notion-wp-toast" class="notion-wp-toast">
+    <div class="notion-wp-toast-icon">
+        <span class="dashicons"></span>
+    </div>
+    <div class="notion-wp-toast-content"></div>
+    <button class="notion-wp-toast-close">
+        <span class="dashicons dashicons-no-alt"></span>
+    </button>
 </div>
 
 <div id="loading-overlay" style="display: none;">
