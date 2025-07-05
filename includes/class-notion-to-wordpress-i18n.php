@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 /**
  * 定义国际化功能
  *

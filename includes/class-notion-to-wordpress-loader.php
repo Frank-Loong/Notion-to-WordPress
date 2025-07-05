@@ -1,10 +1,6 @@
 <?php
 declare(strict_types=1);
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
-
 /**
  * 注册所有动作和过滤器的类
  *

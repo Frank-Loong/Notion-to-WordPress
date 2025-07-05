@@ -4,8 +4,8 @@ Donate link: https://github.com/Frank-Loong/Notion-to-WordPress
 Tags: notion, import, content, sync, database, api, mathjax, mermaid
 Requires at least: 5.0
 Tested up to: 6.5
-Requires PHP: 7.4
-Stable tag: 1.1.0
+Requires PHP: 7.0
+Stable tag: 1.0.9
 License: GPLv3 or later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -15,7 +15,7 @@ Notion·to-WordPress 是一款专业的WordPress插件，实现Notion数据库�
 = 主要功能 =
 * 自动/手动同步Notion数据库内容到WordPress
 * 支持Webhook，Notion内容变更时自动触发同步
-* 兼容Katex数学公式、Mermaid流程/序列图、代码块、表格、图片等
+* 兼容MathJax数学公式、Mermaid流程/序列图、代码块、表格、图片等
 * 字段映射：自定义Notion属性与WordPress字段的对应关系
 * 分类/标签/特色图片自动识别与同步
 * 并发锁机制，防止重复导入
@@ -57,15 +57,6 @@ Notion·to-WordPress 是一款专业的WordPress插件，实现Notion数据库�
 4. Webhook设置 - 自动更新配置
 
 == Changelog ==
-= 1.1.0 =
-* 重大架构重构：引入ImportCoordinator和策略模式，提升代码可维护性
-* 修复同步逻辑问题：解决"四篇文章同步了一篇"的关键bug
-* 增强错误处理：完善JSON解码、内存管理和异常处理机制
-* 优化性能：改进缓存策略、减少内存泄漏、添加递归深度限制
-* 提升安全性：加强数据验证、改进iframe白名单机制
-* 统一版本管理：解决版本号不一致问题，提升PHP兼容性要求至7.4
-* 代码质量提升：遵循WordPress编码标准，优化数据库查询性能
-
 = 1.0.9 =
 * 核心功能修复，包括AJAX、定时任务和脚本加载。
 * 增强内容渲染，支持更多文章状态、修复公式和图表渲染。
@@ -91,9 +82,6 @@ Frank-Loong
 GitHub: https://github.com/Frank-Loong/Notion-to-WordPress
 
 == Upgrade Notice ==
-= 1.1.0 =
-重大更新：架构重构、同步逻辑修复、性能优化、安全增强。强烈建议所有用户升级，注意PHP版本要求提升至7.4+。
-
 = 1.0.9 =
 重要更新：此版本包含核心功能修复、渲染增强和健壮性提升，强烈建议所有用户升级。
 
