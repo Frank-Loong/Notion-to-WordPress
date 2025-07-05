@@ -429,9 +429,19 @@ class Notion_To_WordPress_Admin {
      * @since    1.0.8
      */
     public function handle_get_stats() {
-        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+        // 添加错误日志记录
+        error_log('Notion to WordPress: handle_get_stats 被调用');
+
+        try {
+            check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+        } catch (Exception $e) {
+            error_log('Notion to WordPress: Nonce 验证失败: ' . $e->getMessage());
+            wp_send_json_error(['message' => 'Nonce验证失败']);
+            return;
+        }
 
         if (!current_user_can('manage_options')) {
+            error_log('Notion to WordPress: 用户权限不足');
             wp_send_json_error(['message' => '权限不足']);
             return;
         }
@@ -439,10 +449,12 @@ class Notion_To_WordPress_Admin {
         try {
             // 获取导入的文章数量
             $imported_count = $this->get_imported_posts_count();
-            
+            error_log('Notion to WordPress: 导入文章数量: ' . $imported_count);
+
             // 获取已发布的文章数量
             $published_count = $this->get_published_posts_count();
-            
+            error_log('Notion to WordPress: 已发布文章数量: ' . $published_count);
+
             // 获取最后同步时间
             $last_update = get_option('notion_to_wordpress_last_sync', '');
             if ($last_update) {
@@ -450,7 +462,7 @@ class Notion_To_WordPress_Admin {
             } else {
                 $last_update = __('从未', 'notion-to-wordpress');
             }
-            
+
             // 获取下次计划运行时间
             $next_run = wp_next_scheduled('notion_cron_import');
             if ($next_run) {
@@ -458,16 +470,23 @@ class Notion_To_WordPress_Admin {
             } else {
                 $next_run = __('未计划', 'notion-to-wordpress');
             }
-            
-            wp_send_json_success([
+
+            $result = [
                 'imported_count' => $imported_count,
                 'published_count' => $published_count,
                 'last_update' => $last_update,
                 'next_run' => $next_run
-            ]);
-            
+            ];
+
+            error_log('Notion to WordPress: 统计信息获取成功: ' . json_encode($result));
+            wp_send_json_success($result);
+
         } catch (Exception $e) {
+            error_log('Notion to WordPress: 获取统计信息异常: ' . $e->getMessage());
             wp_send_json_error(['message' => '获取统计信息失败: ' . $e->getMessage()]);
+        } catch (Error $e) {
+            error_log('Notion to WordPress: 获取统计信息错误: ' . $e->getMessage());
+            wp_send_json_error(['message' => '获取统计信息错误: ' . $e->getMessage()]);
         }
     }
     
@@ -480,35 +499,47 @@ class Notion_To_WordPress_Admin {
     private function get_imported_posts_count() {
         global $wpdb;
 
-        // 若从未同步，则直接返回0，避免误计
-        if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
+        try {
+            // 若从未同步，则直接返回0，避免误计
+            if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
+                return 0;
+            }
+
+            // 5分钟缓存，减少频繁查询
+            $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_imported_posts_count' );
+            if ( false !== $cached ) {
+                return (int) $cached;
+            }
+
+            // 优化后的查询：使用预处理语句和更高效的JOIN
+            $count = $wpdb->get_var(
+                $wpdb->prepare(
+                    "SELECT COUNT(DISTINCT pm.meta_value)
+                     FROM {$wpdb->postmeta} pm
+                     INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+                     WHERE pm.meta_key = %s
+                     AND pm.meta_value != ''
+                     AND p.post_status IN ('publish', 'private', 'draft', 'pending', 'future')
+                     AND p.post_type IN ('post', 'page')",
+                    '_notion_page_id'
+                )
+            );
+
+            // 检查数据库错误
+            if ( $wpdb->last_error ) {
+                error_log('Notion to WordPress: 数据库查询错误: ' . $wpdb->last_error);
+                return 0;
+            }
+
+            $count_int = intval( $count ?: 0 );
+            Notion_To_WordPress_Helper::cache_set( 'ntw_imported_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
+
+            return $count_int;
+
+        } catch (Exception $e) {
+            error_log('Notion to WordPress: get_imported_posts_count 异常: ' . $e->getMessage());
             return 0;
         }
-
-        // 5分钟缓存，减少频繁查询
-        $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_imported_posts_count' );
-        if ( false !== $cached ) {
-            return (int) $cached;
-        }
-
-        // 优化后的查询：使用预处理语句和更高效的JOIN
-        $count = $wpdb->get_var(
-            $wpdb->prepare(
-                "SELECT COUNT(DISTINCT pm.meta_value)
-                 FROM {$wpdb->postmeta} pm
-                 INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
-                 WHERE pm.meta_key = %s
-                 AND pm.meta_value != ''
-                 AND p.post_status IN ('publish', 'private', 'draft', 'pending', 'future')
-                 AND p.post_type IN ('post', 'page')",
-                '_notion_page_id'
-            )
-        );
-
-        $count_int = intval( $count ?: 0 );
-        Notion_To_WordPress_Helper::cache_set( 'ntw_imported_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
-
-        return $count_int;
     }
     
     /**
@@ -520,28 +551,40 @@ class Notion_To_WordPress_Admin {
     private function get_published_posts_count() {
         global $wpdb;
 
-        if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
+        try {
+            if ( ! get_option( 'notion_to_wordpress_last_sync', '' ) ) {
+                return 0;
+            }
+
+            $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_published_posts_count' );
+            if ( false !== $cached ) {
+                return (int) $cached;
+            }
+
+            $count = $wpdb->get_var(
+                "SELECT COUNT(DISTINCT pm.meta_value)
+                 FROM {$wpdb->posts} p
+                 JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                 WHERE pm.meta_key = '_notion_page_id'
+                 AND pm.meta_value <> ''
+                 AND p.post_status = 'publish'"
+            );
+
+            // 检查数据库错误
+            if ( $wpdb->last_error ) {
+                error_log('Notion to WordPress: 数据库查询错误: ' . $wpdb->last_error);
+                return 0;
+            }
+
+            $count_int = intval( $count ?: 0 );
+            Notion_To_WordPress_Helper::cache_set( 'ntw_published_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
+
+            return $count_int;
+
+        } catch (Exception $e) {
+            error_log('Notion to WordPress: get_published_posts_count 异常: ' . $e->getMessage());
             return 0;
         }
-
-        $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_published_posts_count' );
-        if ( false !== $cached ) {
-            return (int) $cached;
-        }
-
-        $count = $wpdb->get_var(
-            "SELECT COUNT(DISTINCT pm.meta_value)
-             FROM {$wpdb->posts} p
-             JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-             WHERE pm.meta_key = '_notion_page_id'
-             AND pm.meta_value <> ''
-             AND p.post_status = 'publish'"
-        );
-
-        $count_int = intval( $count ?: 0 );
-        Notion_To_WordPress_Helper::cache_set( 'ntw_published_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
-
-        return $count_int;
     }
 
     /**
@@ -598,25 +641,5 @@ class Notion_To_WordPress_Admin {
      * @since    1.0.5
      * @access   private
      */
-    private function define_admin_hooks() {
-        // 钩子现在直接使用类属性 $this->admin
-        $this->loader->add_action('admin_enqueue_scripts', $this->admin, 'enqueue_styles');
-        $this->loader->add_action('admin_enqueue_scripts', $this->admin, 'enqueue_scripts');
-        $this->loader->add_action('admin_menu', $this->admin, 'add_plugin_admin_menu');
-        $this->loader->add_action('admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form');
-        
-        // 统一AJAX处理函数的钩子名称
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_manual_sync', $this->admin, 'handle_manual_import');
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_test_connection', $this->admin, 'handle_test_connection');
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_refresh_all', $this->admin, 'handle_refresh_all');
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats');
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs');
-        $this->loader->add_action('wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log');
-        
-        // 注册定时任务钩子
-        $options = get_option( 'notion_to_wordpress_options', [] );
-        if ( ! empty( $options['sync_schedule'] ) && 'manual' !== $options['sync_schedule'] ) {
-            $this->loader->add_action('notion_cron_import', $this, 'cron_import_pages');
-        }
-    }
+    // 注意：钩子注册在主插件类的define_admin_hooks方法中处理
 } 

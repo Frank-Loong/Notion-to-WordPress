@@ -532,6 +532,41 @@ class Notion_To_WordPress_Helper {
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
         return in_array($extension, $allowed_extensions);
     }
+
+    /**
+     * 获取缓存值
+     *
+     * @since 1.0.9
+     * @param string $key 缓存键
+     * @return mixed 缓存值，如果不存在返回false
+     */
+    public static function cache_get(string $key) {
+        return get_transient('ntw_' . $key);
+    }
+
+    /**
+     * 设置缓存值
+     *
+     * @since 1.0.9
+     * @param string $key 缓存键
+     * @param mixed $value 缓存值
+     * @param int $expiration 过期时间（秒）
+     * @return bool 是否设置成功
+     */
+    public static function cache_set(string $key, $value, int $expiration = 3600): bool {
+        return set_transient('ntw_' . $key, $value, $expiration);
+    }
+
+    /**
+     * 删除缓存值
+     *
+     * @since 1.0.9
+     * @param string $key 缓存键
+     * @return bool 是否删除成功
+     */
+    public static function cache_delete(string $key): bool {
+        return delete_transient('ntw_' . $key);
+    }
 }
 
 // 初始化静态帮助类
