@@ -266,7 +266,10 @@ class Notion_Media_Handler {
     public static function is_allowed_mime_type(string $mime_type): bool {
         // 合并用户在设置中自定义的 MIME 白名单
         $options = get_option( 'notion_to_wordpress_options', [] );
-        $custom  = isset( $options['allowed_image_types'] ) ? array_filter( array_map( 'trim', explode( ',', $options['allowed_image_types'] ) ) ) : [];
+        $custom  = [];
+        if ( isset( $options['allowed_image_types'] ) && !empty( $options['allowed_image_types'] ) ) {
+            $custom = array_filter( array_map( 'trim', explode( ',', $options['allowed_image_types'] ) ), 'strlen' );
+        }
 
         // 若包含 * 则直接放行
         if ( in_array( '*', $custom, true ) ) {

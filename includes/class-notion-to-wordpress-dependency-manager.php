@@ -298,48 +298,42 @@ class Notion_To_WordPress_Dependency_Manager {
      */
     public static function load_single_dependency(string $dependency_path): bool {
         try {
-            if (self::is_dependency_loaded($dependency_path)) {
-                return true;
-            }
-
-            $file_path = Notion_To_WordPress_Helper::plugin_path($dependency_path);
+            // 获取完整路径
+            $full_path = Notion_To_WordPress_Helper::plugin_path($dependency_path);
             
-            if (!file_exists($file_path)) {
+            // 检查文件是否存在
+            if (!file_exists($full_path)) {
                 throw new Exception("依赖文件不存在: {$dependency_path}");
             }
-
-            require_once $file_path;
-            self::$loaded_dependencies[] = $dependency_path;
-
-            // 安全地记录调试信息
-            if (class_exists('Notion_To_WordPress_Error_Handler')) {
-                Notion_To_WordPress_Error_Handler::log_debug(
-                    "动态加载依赖文件: {$dependency_path}",
-                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
-                );
-            } elseif (class_exists('Notion_To_WordPress_Helper')) {
-                Notion_To_WordPress_Helper::debug_log(
-                    "动态加载依赖文件: {$dependency_path}",
-                    'Dependency Manager',
-                    Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG
-                );
+            
+            // 避免重复加载
+            if (in_array($dependency_path, self::$loaded_dependencies)) {
+                return true;
             }
-
+            
+            // 加载文件
+            require_once $full_path;
+            
+            // 记录已加载
+            self::$loaded_dependencies[] = $dependency_path;
+            
             return true;
         } catch (Exception $e) {
-            // 安全地处理异常
+            // 优先使用错误处理器，如果不可用则使用Helper类
             if (class_exists('Notion_To_WordPress_Error_Handler')) {
-                Notion_To_WordPress_Error_Handler::exception_to_wp_error(
-                    $e,
-                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR
+                Notion_To_WordPress_Error_Handler::log_error(
+                    "加载依赖失败: {$e->getMessage()}",
+                    Notion_To_WordPress_Error_Handler::CODE_CONFIG_ERROR,
+                    ['dependency' => $dependency_path]
                 );
             } elseif (class_exists('Notion_To_WordPress_Helper')) {
                 Notion_To_WordPress_Helper::error_log(
-                    '动态加载依赖失败: ' . $e->getMessage(),
+                    "加载依赖失败: {$e->getMessage()}",
                     'Dependency Manager'
                 );
             } else {
-                error_log('[Notion-to-WordPress] 动态加载依赖失败: ' . $e->getMessage());
+                // 最后的备选方案
+                error_log("[Notion-to-WordPress] 加载依赖失败: {$dependency_path} - {$e->getMessage()}");
             }
             return false;
         }
