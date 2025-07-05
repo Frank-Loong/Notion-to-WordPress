@@ -205,9 +205,8 @@ class Notion_To_WordPress_Admin {
         $options['notion_api_key']     = isset( $_POST['notion_to_wordpress_api_key'] ) ? sanitize_text_field( $_POST['notion_to_wordpress_api_key'] ) : '';
         $options['notion_database_id'] = isset( $_POST['notion_to_wordpress_database_id'] ) ? sanitize_text_field( $_POST['notion_to_wordpress_database_id'] ) : '';
 
-        // Sync Schedule & Lock Timeout
+        // Sync Schedule
         $options['sync_schedule'] = isset( $_POST['sync_schedule'] ) ? sanitize_text_field( $_POST['sync_schedule'] ) : '';
-        $options['lock_timeout']  = isset( $_POST['lock_timeout'] ) ? max( 60, intval( $_POST['lock_timeout'] ) ) : 300; // 最小 60 秒
 
         // Delete on Uninstall
         $options['delete_on_uninstall'] = isset( $_POST['delete_on_uninstall'] ) ? 1 : 0;
@@ -361,11 +360,10 @@ class Notion_To_WordPress_Admin {
             $database_id = $options['notion_database_id'];
             $field_mapping = $options['field_mapping'] ?? [];
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
-            $lock_timeout = $options['lock_timeout'] ?? 300;
-            
+
             // 实例化API和Pages对象
             $notion_api = new Notion_API( $api_key );
-            $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping, $lock_timeout );
+            $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
             
             // 执行导入
@@ -412,12 +410,9 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            // 清除缓存并重新导入
-            delete_option('notion_to_wordpress_page_cache');
-            
             // 调用手动导入处理函数
             $this->handle_manual_import();
-            
+
         } catch (Exception $e) {
             wp_send_json_error(['message' => '刷新失败: ' . $e->getMessage()]);
         }
@@ -505,12 +500,6 @@ class Notion_To_WordPress_Admin {
                 return 0;
             }
 
-            // 5分钟缓存，减少频繁查询
-            $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_imported_posts_count' );
-            if ( false !== $cached ) {
-                return (int) $cached;
-            }
-
             // 优化后的查询：使用预处理语句和更高效的JOIN
             $count = $wpdb->get_var(
                 $wpdb->prepare(
@@ -531,10 +520,7 @@ class Notion_To_WordPress_Admin {
                 return 0;
             }
 
-            $count_int = intval( $count ?: 0 );
-            Notion_To_WordPress_Helper::cache_set( 'ntw_imported_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
-
-            return $count_int;
+            return intval( $count ?: 0 );
 
         } catch (Exception $e) {
             error_log('Notion to WordPress: get_imported_posts_count 异常: ' . $e->getMessage());
@@ -556,11 +542,6 @@ class Notion_To_WordPress_Admin {
                 return 0;
             }
 
-            $cached = Notion_To_WordPress_Helper::cache_get( 'ntw_published_posts_count' );
-            if ( false !== $cached ) {
-                return (int) $cached;
-            }
-
             $count = $wpdb->get_var(
                 "SELECT COUNT(DISTINCT pm.meta_value)
                  FROM {$wpdb->posts} p
@@ -576,10 +557,7 @@ class Notion_To_WordPress_Admin {
                 return 0;
             }
 
-            $count_int = intval( $count ?: 0 );
-            Notion_To_WordPress_Helper::cache_set( 'ntw_published_posts_count', $count_int, 5 * MINUTE_IN_SECONDS );
-
-            return $count_int;
+            return intval( $count ?: 0 );
 
         } catch (Exception $e) {
             error_log('Notion to WordPress: get_published_posts_count 异常: ' . $e->getMessage());

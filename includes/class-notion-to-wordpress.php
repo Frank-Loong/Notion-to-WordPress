@@ -115,7 +115,6 @@ class Notion_To_WordPress {
 	 * - Notion_To_WordPress_Admin. 定义后台区域的所有钩子。
 	 * - Notion_API. 定义面向公众的站点的所有钩子。
 	 * - Notion_Pages. 处理页面处理。
-	 * - Notion_To_WordPress_Lock. 在同步期间处理文件锁定。
 	 * - Notion_To_WordPress_Webhook. 处理 Webhook 请求。
 	 *
 	 * @since    1.0.5
@@ -127,7 +126,6 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-lock.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
 
 		$this->loader = new Notion_To_WordPress_Loader();
@@ -148,13 +146,12 @@ class Notion_To_WordPress {
 		$api_key       = $options['notion_api_key'] ?? '';
 		$database_id   = $options['notion_database_id'] ?? '';
 		$field_mapping = $options['field_mapping'] ?? array();
-		$lock_timeout  = $options['lock_timeout'] ?? 300;
 
 		// 实例化API处理器
 		$this->notion_api = new Notion_API( $api_key );
 
 		// 实例化页面处理器
-		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping, $lock_timeout );
+		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping );
 
 		// 实例化后台处理器
 		$this->admin = new Notion_To_WordPress_Admin(
@@ -303,22 +300,10 @@ class Notion_To_WordPress {
 	 * @param array  $options 插件设置选项
 	 */
 	private function _core_import_process( string $database_id, array $options ): void {
-		$lock_timeout = $options['lock_timeout'] ?? 300;
-
-		// 实例化锁
-		$lock = new Notion_To_WordPress_Lock( $database_id, $lock_timeout );
-
-		// 尝试获取锁
-		if ( ! $lock->acquire() ) {
-			Notion_To_WordPress_Helper::error_log( 'Import aborted: Another import process is already running.' );
-			return;
-		}
-
 		try {
 			$pages = $this->notion_api->get_database_pages( $database_id );
 
 			if ( empty( $pages ) ) {
-				$lock->release();
 				return;
 			}
 
@@ -327,8 +312,6 @@ class Notion_To_WordPress {
 			}
 		} catch ( Exception $e ) {
 			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );
-		} finally {
-			$lock->release();
 		}
 	}
 
