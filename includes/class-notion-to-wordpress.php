@@ -12,6 +12,11 @@ declare(strict_types=1);
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  */
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 class Notion_To_WordPress {
 
 	/**
