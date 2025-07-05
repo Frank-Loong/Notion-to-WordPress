@@ -52,9 +52,13 @@ class Notion_To_WordPress_Helper {
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
-        
-        // 注册自定义错误处理器
-        set_error_handler([__CLASS__, 'custom_error_handler']);
+
+        // 延迟注册自定义错误处理器，避免在WordPress加载早期阶段干扰
+        if (function_exists('add_action')) {
+            add_action('init', function() {
+                set_error_handler([__CLASS__, 'custom_error_handler']);
+            }, 1);
+        }
     }
 
     /**
@@ -158,26 +162,36 @@ class Notion_To_WordPress_Helper {
             return;
         }
 
-        $upload_dir = wp_upload_dir();
-        $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
-        
+        // 安全地获取日志目录
+        if (function_exists('wp_upload_dir')) {
+            $upload_dir = wp_upload_dir();
+            $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+        } else {
+            // 在WordPress函数不可用时使用备用路径
+            $log_dir = dirname(dirname(__FILE__)) . '/logs';
+        }
+
         // 确保日志目录存在并受保护
         if (!file_exists($log_dir)) {
-            wp_mkdir_p($log_dir);
-            
+            if (function_exists('wp_mkdir_p')) {
+                wp_mkdir_p($log_dir);
+            } else {
+                @mkdir($log_dir, 0755, true);
+            }
+
             // 创建.htaccess文件以保护日志
             $htaccess_content = "Options -Indexes\nRequire all denied";
-            file_put_contents($log_dir . '/.htaccess', $htaccess_content);
-            
+            @file_put_contents($log_dir . '/.htaccess', $htaccess_content);
+
             // 创建index.php文件以防止目录列表
-            file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
+            @file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
         }
-        
+
         // 日志文件路径（统一使用 debug_log-YYYY-MM-DD.log）
         $log_file = $log_dir . '/debug_log-' . date('Y-m-d') . '.log';
-        
-        // 写入日志
-        file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
+
+        // 安全地写入日志，避免在headers发送后出现问题
+        @file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
     }
     
     /**
@@ -610,5 +624,5 @@ class Notion_To_WordPress_Helper {
     }
 }
 
-// 初始化静态帮助类
-Notion_To_WordPress_Helper::init(); 
+// 注意：Helper类的初始化现在由主插件类在适当时机调用
+// 不再在文件加载时自动初始化，避免在WordPress完全加载前注册错误处理器

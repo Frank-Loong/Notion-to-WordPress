@@ -353,6 +353,9 @@ class Notion_To_WordPress {
 	 * @since    1.1.0 使用钩子管理器统一管理
 	 */
 	public function run() {
+		// 初始化Helper类（在WordPress完全加载后）
+		Notion_To_WordPress_Helper::init();
+
 		// 检查插件是否成功初始化
 		if (!$this->is_initialized) {
 			Notion_To_WordPress_Helper::error_log(
