@@ -170,7 +170,7 @@ class Notion_To_WordPress_Admin {
             'manage_options',
             $this->plugin_name,
             array($this, 'display_plugin_setup_page'),
-            'dashicons-cloud-upload', // 更改了图标
+            'dashicons-database-import', // 统一使用database-import图标
             99
         );
     }
