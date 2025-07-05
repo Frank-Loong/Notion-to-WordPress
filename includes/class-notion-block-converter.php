@@ -272,8 +272,9 @@ class Notion_Block_Converter {
 
     private function _convert_block_code( array $block ): string {
         $language_raw = strtolower( $block['code']['language'] ?? 'text' );
-        // 仅保留字母、数字、加号、减号、下划线，防止注入恶意类名
-        $language = preg_replace( '/[^a-z0-9_\-\+]+/i', '', $language_raw );
+        // 严格的语言名称白名单验证，防止XSS注入
+        $safe_lang = preg_match('/^[a-z0-9_\+\-\.]{1,20}$/i', $language_raw) ? $language_raw : 'text';
+        $language = $safe_lang;
 
         // 特殊处理 Mermaid
         if ( 'mermaid' === $language ) {
@@ -386,7 +387,16 @@ class Notion_Block_Converter {
             return '<figure class="wp-block-image size-large"><img src="' . esc_url( $url ) . '" alt="' . esc_attr( $caption ) . '"/><figcaption>' . esc_html( $caption ) . '</figcaption></figure>';
         }
 
-        // Notion 临时链接——尝试下载到媒体库
+        // Notion 临时链接——先检查MIME类型，再尝试下载到媒体库
+        // 预检查MIME类型，避免下载危险文件
+        $head_response = wp_remote_head($url, ['timeout' => 10]);
+        if (!is_wp_error($head_response)) {
+            $content_type = wp_remote_retrieve_header($head_response, 'content-type');
+            if ($content_type && !Notion_Media_Handler::is_allowed_mime_type(trim(explode(';', $content_type)[0]))) {
+                return '<!-- 不支持的图片格式: ' . esc_html($content_type) . ' -->';
+            }
+        }
+
         $attachment_id = $this->download_and_insert_image( $url, $caption );
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
             $placeholder_id = 'ntw-img-' . substr( md5( $url ), 0, 10 );

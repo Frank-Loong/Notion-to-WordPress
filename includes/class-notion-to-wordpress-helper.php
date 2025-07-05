@@ -357,8 +357,18 @@ class Notion_To_WordPress_Helper {
 
         return preg_replace_callback('/<iframe\b[^>]*src=["\\\']([^"\\\']+)["\\\'][^>]*>(.*?)<\/iframe>/i', function ($matches) use ($allowed_hosts) {
             $src = $matches[1];
+
+            // 处理协议相对URL（以//开头）
+            if (str_starts_with($src, '//')) {
+                $src = 'https:' . $src;
+            }
+
             $host = wp_parse_url($src, PHP_URL_HOST);
             if ($host && in_array($host, $allowed_hosts, true)) {
+                // 如果原始URL是协议相对的，更新iframe中的src
+                if (str_starts_with($matches[1], '//')) {
+                    return str_replace($matches[1], $src, $matches[0]);
+                }
                 return $matches[0];
             }
             // 非白名单域，移除 iframe

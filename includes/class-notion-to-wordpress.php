@@ -156,6 +156,9 @@ class Notion_To_WordPress {
 	 */
 	private function load_dependencies(): bool {
 		try {
+			// 确保Helper类已加载（在主文件中已加载）
+			require_once plugin_dir_path( NOTION_TO_WORDPRESS_FILE ) . 'includes/class-notion-to-wordpress-helper.php';
+
 			// 首先加载依赖管理器
 			require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-dependency-manager.php' );
 
@@ -235,9 +238,9 @@ class Notion_To_WordPress {
 			}
 			$this->hook_manager->set_i18n($this->object_factory->get_i18n());
 
-			// 根据后台设置调整下载并发过滤器
-			$options = get_option( 'notion_to_wordpress_options', array() );
-			add_filter( 'ntw_download_queue_concurrency', function( $default ) use ( $options ) {
+			// 根据后台设置调整下载并发过滤器（动态获取选项，避免缓存问题）
+			add_filter( 'ntw_download_queue_concurrency', function( $default ) {
+				$options = get_option( 'notion_to_wordpress_options', array() );
 				$val = isset( $options['download_concurrency'] ) ? intval( $options['download_concurrency'] ) : $default;
 				return max( 1, min( 10, $val ) );
 			} );
@@ -600,10 +603,13 @@ class Notion_To_WordPress {
 		);
 
 		// ---------------- 公式相关（KaTeX） ----------------
+		// 允许通过过滤器自定义CDN前缀
+		$cdn_prefix = apply_filters( 'ntw_cdn_prefix', 'https://cdn.jsdelivr.net' );
+
 		// KaTeX 样式
 		wp_enqueue_style(
 			'katex',
-			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.css',
 			array(),
 			'0.16.22'
 		);
@@ -611,7 +617,7 @@ class Notion_To_WordPress {
 		// KaTeX 主库
 		wp_register_script(
 			'katex',
-			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.js',
 			array(),
 			'0.16.22',
 			true
@@ -620,7 +626,7 @@ class Notion_To_WordPress {
 		// mhchem 扩展（化学公式）依赖 KaTeX
 		wp_register_script(
 			'katex-mhchem',
-			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
 			array( 'katex' ),
 			'0.16.22',
 			true
@@ -629,7 +635,7 @@ class Notion_To_WordPress {
 		// ---------------- Mermaid ----------------
 		wp_enqueue_script(
 			'mermaid',
-			'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+			$cdn_prefix . '/npm/mermaid@11/dist/mermaid.min.js',
 			array(),
 			'11.7.0',
 			true
@@ -658,7 +664,7 @@ class Notion_To_WordPress {
 		}, 10, 2 );
 
 		// -------- 提前连接 CDN：DNS 预解析 + 预连接 --------
-		$cdn_origin = '//cdn.jsdelivr.net';
+		$cdn_origin = '//' . parse_url( $cdn_prefix, PHP_URL_HOST );
 		add_filter( 'wp_resource_hints', function ( $hints, $relation_type ) use ( $cdn_origin ) {
 			if ( in_array( $relation_type, [ 'dns-prefetch', 'preconnect' ], true ) ) {
 				if ( ! in_array( $cdn_origin, $hints, true ) ) {
@@ -885,12 +891,12 @@ class Notion_To_WordPress {
 					continue;
 				}
 
-				// 手动构建安全的SQL（因为列定义无法使用prepare）
+				// 手动构建安全的SQL（列定义已通过正则验证，无需转义）
 				$safe_sql = sprintf(
 					"ALTER TABLE `%s` ADD INDEX `%s` (%s)",
 					esc_sql($table_name),
 					esc_sql($index['name']),
-					esc_sql($index['columns'])
+					$index['columns'] // 列定义不转义，避免MySQL 8报错
 				);
 
 				$result = $wpdb->query($safe_sql);

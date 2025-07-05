@@ -222,7 +222,8 @@ class Notion_API {
         $has_more = true;
         $start_cursor = null;
         $page_count = 0;
-        $max_pages = 50; // 限制最大页数，防止无限循环
+        // 允许通过过滤器或常量自定义最大页数限制
+        $max_pages = apply_filters( 'ntw_max_database_pages', defined('NTW_MAX_DATABASE_PAGES') ? NTW_MAX_DATABASE_PAGES : 50 );
 
         while ($has_more && $page_count < $max_pages) {
             $endpoint = 'databases/' . $database_id . '/query';

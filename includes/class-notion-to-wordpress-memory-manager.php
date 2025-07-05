@@ -189,7 +189,8 @@ class Notion_To_WordPress_Memory_Manager {
 
             // 短暂休息，让系统有时间处理其他任务
             if ($i + $batch_size < $total_items) {
-                usleep(10000); // 10ms
+                $sleep_ms = apply_filters('ntw_batch_sleep_ms', 10);
+                usleep($sleep_ms * 1000); // 转换为微秒
             }
         }
 

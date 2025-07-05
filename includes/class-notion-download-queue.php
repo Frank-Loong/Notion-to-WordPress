@@ -27,9 +27,12 @@ class Notion_Download_Queue {
      * @param array $task [type,url,post_id,is_featured,caption]
      */
     public static function push( array $task ): void {
+        // 使用缓存暂停提高并发安全性
+        wp_suspend_cache_invalidation( true );
         $queue   = get_option( self::OPTION_QUEUE, [] );
         $queue[] = $task;
         update_option( self::OPTION_QUEUE, $queue, false );
+        wp_suspend_cache_invalidation( false );
 
         Notion_To_WordPress_Helper::debug_log( '入队任务: ' . ( $task['url'] ?? 'unknown' ) . ' | 队列长度: ' . count( $queue ), 'Download Queue', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO );
 
@@ -43,12 +46,16 @@ class Notion_Download_Queue {
      * 获取并弹出前 N 条任务
      */
     private static function pop_batch( int $size ): array {
+        // 使用缓存暂停提高并发安全性
+        wp_suspend_cache_invalidation( true );
         $queue = get_option( self::OPTION_QUEUE, [] );
         if ( empty( $queue ) ) {
+            wp_suspend_cache_invalidation( false );
             return [];
         }
         $batch  = array_splice( $queue, 0, $size );
         update_option( self::OPTION_QUEUE, $queue, false );
+        wp_suspend_cache_invalidation( false );
         return $batch;
     }
 

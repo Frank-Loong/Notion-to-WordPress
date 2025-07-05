@@ -153,7 +153,12 @@ class Notion_To_WordPress_Hook_Manager {
             'clear_cache',
             'test_connection',
             'force_unlock',
-            'get_logs'
+            'get_logs',
+            'clear_logs',
+            'view_log',
+            'refresh_all',
+            'refresh_single',
+            'get_sync_progress'
         ];
 
         foreach ($ajax_actions as $action) {
@@ -167,6 +172,15 @@ class Notion_To_WordPress_Hook_Manager {
                 $this->loader->add_action($nopriv_hook, $this, 'handle_nopriv_ajax_request');
             }
         }
+    }
+
+    /**
+     * 处理未授权的AJAX请求
+     *
+     * @since 1.1.0
+     */
+    public function handle_nopriv_ajax_request(): void {
+        wp_send_json_error('Forbidden', 403);
     }
 
     /**
