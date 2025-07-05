@@ -375,8 +375,7 @@ class Notion_To_WordPress {
 
 		// 注册一些特殊的钩子（不通过钩子管理器）
 		$this->define_webhook_hooks();
-		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
-		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
+		// 注意：ntw_async_media钩子已在钩子管理器中注册，避免重复注册
 	}
 
 	/**
@@ -561,9 +560,20 @@ class Notion_To_WordPress {
 			}
 		}
 
-		// 队列下载任务：每5分钟
-		if ( ! wp_next_scheduled( 'ntw_process_media_queue' ) ) {
-			wp_schedule_event( time() + 300, 'ntw_five_minutes', 'ntw_process_media_queue' );
+		// 临时注册自定义cron计划（在激活时需要）
+		add_filter('cron_schedules', function($schedules) {
+			if (!isset($schedules['ntw_five_minutes'])) {
+				$schedules['ntw_five_minutes'] = array(
+					'interval' => 5 * MINUTE_IN_SECONDS,
+					'display'  => __('每5分钟', 'notion-to-wordpress'),
+				);
+			}
+			return $schedules;
+		});
+
+		// 队列下载任务：每5分钟（统一使用ntw_async_media钩子）
+		if ( ! wp_next_scheduled( 'ntw_async_media' ) ) {
+			wp_schedule_event( time() + 300, 'ntw_five_minutes', 'ntw_async_media' );
 		}
 
 		// 创建推荐的数据库索引以提高性能
@@ -591,7 +601,7 @@ class Notion_To_WordPress {
 
 		// 同时清除此钩子的任何其他计划
 		wp_clear_scheduled_hook( 'notion_cron_import' );
-		wp_clear_scheduled_hook( 'ntw_process_media_queue' );
+		wp_clear_scheduled_hook( 'ntw_async_media' );
 
 		// 刷新重写规则
 		flush_rewrite_rules();

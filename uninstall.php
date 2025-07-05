@@ -41,7 +41,7 @@ foreach ($options as $option) {
 
 // 清理计划任务
 wp_clear_scheduled_hook('notion_cron_import');
-wp_clear_scheduled_hook('ntw_process_media_queue');
+wp_clear_scheduled_hook('ntw_async_media');
 
 // 查找所有使用计划任务的页面并清理（分批处理，降低内存占用）
 $paged = 1;
