@@ -156,9 +156,6 @@ class Notion_To_WordPress {
 	 */
 	private function load_dependencies(): bool {
 		try {
-			// 确保Helper类已加载（在主文件中已加载）
-			require_once plugin_dir_path( NOTION_TO_WORDPRESS_FILE ) . 'includes/class-notion-to-wordpress-helper.php';
-
 			// 首先加载依赖管理器
 			require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-dependency-manager.php' );
 

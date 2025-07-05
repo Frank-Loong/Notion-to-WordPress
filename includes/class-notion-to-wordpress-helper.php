@@ -39,10 +39,15 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
-        // 从选项中获取调试级别
-        $options = get_option('notion_to_wordpress_options', []);
-        self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
-        
+        // 在WordPress环境中从选项获取调试级别
+        if (function_exists('get_option')) {
+            $options = get_option('notion_to_wordpress_options', []);
+            self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+        } else {
+            // 在非WordPress环境中使用默认值
+            self::$debug_level = self::DEBUG_LEVEL_ERROR;
+        }
+
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
@@ -359,14 +364,14 @@ class Notion_To_WordPress_Helper {
             $src = $matches[1];
 
             // 处理协议相对URL（以//开头）
-            if (str_starts_with($src, '//')) {
+            if (strpos($src, '//') === 0) {
                 $src = 'https:' . $src;
             }
 
             $host = wp_parse_url($src, PHP_URL_HOST);
             if ($host && in_array($host, $allowed_hosts, true)) {
                 // 如果原始URL是协议相对的，更新iframe中的src
-                if (str_starts_with($matches[1], '//')) {
+                if (strpos($matches[1], '//') === 0) {
                     return str_replace($matches[1], $src, $matches[0]);
                 }
                 return $matches[0];
@@ -480,7 +485,14 @@ class Notion_To_WordPress_Helper {
      * @return string 绝对服务器路径。
      */
     public static function plugin_path(string $path = ''): string {
-        return plugin_dir_path(NOTION_TO_WORDPRESS_FILE) . ltrim($path, '/\\');
+        // 在WordPress环境中使用标准函数
+        if (function_exists('plugin_dir_path') && defined('NOTION_TO_WORDPRESS_FILE')) {
+            return plugin_dir_path(NOTION_TO_WORDPRESS_FILE) . ltrim($path, '/\\');
+        }
+
+        // 在非WordPress环境中使用备用方法
+        $plugin_dir = dirname(dirname(__FILE__)) . '/';
+        return $plugin_dir . ltrim($path, '/\\');
     }
 
     /**
@@ -576,7 +588,7 @@ class Notion_To_WordPress_Helper {
     public static function validate_api_key(string $api_key): bool {
         // Notion API密钥格式：secret_开头，长度约50字符
         return !empty($api_key) &&
-               str_starts_with($api_key, 'secret_') &&
+               strpos($api_key, 'secret_') === 0 &&
                strlen($api_key) >= 40 &&
                strlen($api_key) <= 60 &&
                ctype_alnum(str_replace(['secret_', '_'], '', $api_key));
