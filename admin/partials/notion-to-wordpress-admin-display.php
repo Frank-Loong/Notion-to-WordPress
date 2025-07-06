@@ -35,6 +35,8 @@ $field_mapping         = $options['field_mapping'] ?? [
     'visibility'     => 'Visibility,可见性',
 ];
 $debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR;
+$max_image_size        = $options['max_image_size'] ?? 5;
+$force_english_ui      = $options['force_english_ui'] ?? 0;
 
 // 生成nonce用于内联脚本
 $script_nonce = wp_create_nonce('notion_wp_script_nonce');
@@ -515,6 +517,18 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         ?>
                                         <textarea id="allowed_image_types" name="allowed_image_types" class="large-text" rows="2"><?php echo esc_textarea($allowed_image_types); ?></textarea>
                                         <p class="description"><?php esc_html_e('允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许所有格式。', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="force_english_ui"><?php esc_html_e('强制英文界面', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <fieldset>
+                                            <label for="force_english_ui" class="checkbox-with-label">
+                                                <input type="checkbox" id="force_english_ui" name="force_english_ui" value="1" <?php checked(1, $force_english_ui); ?>>
+                                                <span><?php esc_html_e('无论站点语言为何，都显示英文插件文本', 'notion-to-wordpress'); ?></span>
+                                            </label>
+                                            <p class="description"><?php esc_html_e('适用于双语站点或调试翻译时快速切换语言。', 'notion-to-wordpress'); ?></p>
+                                        </fieldset>
                                     </td>
                                 </tr>
                                 <tr>

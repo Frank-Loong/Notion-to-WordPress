@@ -232,6 +232,9 @@ class Notion_To_WordPress_Admin {
         // 最大图片大小
         $options['max_image_size'] = isset( $_POST['max_image_size'] ) ? min( 20, max( 1, intval( $_POST['max_image_size'] ) ) ) : 5; // 1-20MB 范围
 
+        // Force English UI option
+        $options['force_english_ui'] = isset( $_POST['force_english_ui'] ) ? 1 : 0;
+
         // Field Mapping
         if ( isset( $_POST['field_mapping'] ) && is_array( $_POST['field_mapping'] ) ) {
             $options['field_mapping'] = array_map( 'sanitize_text_field', $_POST['field_mapping'] );
