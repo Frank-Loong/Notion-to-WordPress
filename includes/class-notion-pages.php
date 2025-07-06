@@ -93,19 +93,29 @@ class Notion_Pages {
      * @return   boolean                 导入是否成功
      */
     public function import_notion_page(array $page): bool {
+        error_log('Notion to WordPress: import_notion_page() 开始执行');
+
         if (empty($page) || !isset($page['id'])) {
+            error_log('Notion to WordPress: 页面数据为空或缺少ID');
             return false;
         }
 
         $page_id  = $page['id'];
+        error_log('Notion to WordPress: 处理页面ID: ' . $page_id);
+
+        error_log('Notion to WordPress: 提取页面元数据...');
         $metadata = $this->extract_page_metadata($page);
-        
+        error_log('Notion to WordPress: 元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'));
+
         if (empty($metadata['title'])) {
+            error_log('Notion to WordPress: 页面标题为空，跳过导入');
             return false;
         }
 
         // 获取页面内容
+        error_log('Notion to WordPress: 获取页面内容...');
         $blocks = $this->notion_api->get_page_content($page_id);
+        error_log('Notion to WordPress: 获取到内容块数量: ' . count($blocks));
         if (empty($blocks)) {
             return false;
         }
@@ -1220,23 +1230,41 @@ class Notion_Pages {
                 'failed' => 0
             ];
 
-            foreach ($pages as $page) {
-                // 检查页面是否已存在
-                $existing_post_id = $this->get_post_by_notion_id($page['id']);
+            error_log('Notion to WordPress: 开始处理页面，总数: ' . count($pages));
 
-                $result = $this->import_notion_page($page);
+            foreach ($pages as $index => $page) {
+                error_log('Notion to WordPress: 处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'));
 
-                if ($result) {
-                    if ($existing_post_id) {
-                        $stats['updated']++;
+                try {
+                    // 检查页面是否已存在
+                    $existing_post_id = $this->get_post_by_notion_id($page['id']);
+                    error_log('Notion to WordPress: 页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'));
+
+                    error_log('Notion to WordPress: 开始导入单个页面...');
+                    $result = $this->import_notion_page($page);
+                    error_log('Notion to WordPress: 单个页面导入结果: ' . ($result ? 'success' : 'failed'));
+
+                    if ($result) {
+                        if ($existing_post_id) {
+                            $stats['updated']++;
+                        } else {
+                            $stats['imported']++;
+                        }
                     } else {
-                        $stats['imported']++;
+                        $stats['failed']++;
                     }
-                } else {
+                } catch (Exception $e) {
+                    error_log('Notion to WordPress: 处理页面异常: ' . $e->getMessage());
+                    $stats['failed']++;
+                } catch (Error $e) {
+                    error_log('Notion to WordPress: 处理页面错误: ' . $e->getMessage());
                     $stats['failed']++;
                 }
+
+                error_log('Notion to WordPress: 页面 ' . ($index + 1) . ' 处理完成');
             }
 
+            error_log('Notion to WordPress: 所有页面处理完成，统计: ' . print_r($stats, true));
             return $stats;
 
         } catch (Exception $e) {
