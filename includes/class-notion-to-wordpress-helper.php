@@ -119,7 +119,7 @@ class Notion_To_WordPress_Helper {
         }
         
         // 日志文件路径
-        $log_file = $log_dir . '/error-' . date('Y-m-d') . '.log';
+        $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
         
         // 写入日志
         file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
