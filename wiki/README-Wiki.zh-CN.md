@@ -1,3 +1,8 @@
+<!-- Switch Links -->
+<p align="right">
+  <a href="./README-Wiki.md">English</a> | 简体中文
+</p>
+
 # Notion to WordPress - 完整使用指南
 
 欢迎来到 **Notion to WordPress** 官方文档中心！这里收录了从入门到进阶的全部教程、最佳实践与常见问题。
@@ -63,14 +68,19 @@
 
 #### 核心字段映射
 - **文章标题**：`Title,标题` - 对应 WordPress 的 post_title
-- **状态**：`Status,状态` - 值为 "Published" 或 "已发布" 时发布文章
+- **状态**：`Status,状态` - 控制文章发布状态：
+  - `Published/已发布/publish/public/公开/live/上线` → 发布文章
+  - `Private/私密/private_post` → 私密文章
+  - `Draft/草稿/unpublished/未发布` → 草稿状态
+  - 配合密码字段可实现密码保护文章
 - **文章类型**：`Type,类型` - 指定 WordPress 文章类型（post, page 等）
 - **日期**：`Date,日期` - 设置文章发布日期
 - **摘要**：`Excerpt,摘要` - 文章摘要内容
 - **特色图片**：`Featured Image,特色图片` - 文章特色图片 URL
 - **分类**：`Categories,分类` - 文章分类
 - **标签**：`Tags,标签` - 文章标签
-- **可见性**：`Visibility,可见性` - 文章可见性设置
+- **密码**：`Password,密码` - 当此字段非空时，文章自动设为密码保护，字段值即为访问密码
+
 
 #### 自定义字段映射
 支持将任意 Notion 属性映射到 WordPress 自定义字段，支持多种数据类型：
