@@ -594,12 +594,7 @@ blockquote {
     margin-top: 0.5em;
 }
 
-/* 公式渲染优化 */
-.notion-equation {
-    margin: 1.5em 0;
-    text-align: center;
-    overflow-x: auto;
-}
+/* 公式渲染优化 - 已合并到上方的.notion-equation样式中 */
 
 .notion-equation-fallback {
     max-width: 100%;
@@ -664,6 +659,106 @@ blockquote {
     overflow-x: auto;
     overflow-y: hidden;
     padding-right: 1em;
+}
+
+
+
+/* 公式错误显示样式 */
+.katex-error {
+    color: #d32f2f;
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    border-radius: 4px;
+    padding: 0.2em 0.4em;
+    font-family: monospace;
+    font-size: 0.9em;
+    display: inline-block;
+    margin: 0.1em;
+}
+
+/* KaTeX标签重叠修复和样式优化 - 适用于旧版本类名 */
+.notion-equation-block .katex-display {
+    position: relative;
+    padding-right: 4em; /* 为标签预留更多空间 */
+}
+
+.notion-equation-block .katex-display .tag {
+    position: absolute;
+    right: 0.5em;
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    z-index: 1;
+
+    /* 标签样式优化 */
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border-radius: 6px !important;
+    padding: 0.3em 0.6em !important;
+    font-size: 0.9em !important;
+    color: #666 !important;
+    font-family: inherit !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+
+.notion-equation-block .katex-display .tag:hover {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+    border-color: rgba(0, 0, 0, 0.2) !important;
+    color: #333 !important;
+}
+
+/* 标签内部元素样式重置 */
+.notion-equation-block .katex-display .tag .strut {
+    display: none !important; /* 隐藏KaTeX的strut元素 */
+}
+
+.notion-equation-block .katex-display .tag .mord {
+    color: inherit !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+}
+
+.notion-equation-block .katex-display .tag .mord.text {
+    font-family: inherit !important;
+}
+
+/* 确保公式主体不会与标签重叠 */
+.notion-equation-block .katex-display .katex-html {
+    max-width: calc(100% - 5em);
+    display: inline-block;
+}
+
+/* 响应式设计 - 小屏幕上的标签处理 */
+@media (max-width: 768px) {
+    .notion-equation-block .katex-display {
+        padding-right: 2em;
+    }
+
+    .notion-equation-block .katex-display .tag {
+        font-size: 0.8em !important;
+        padding: 0.2em 0.4em !important;
+        right: 0.2em;
+    }
+
+    .notion-equation-block .katex-display .katex-html {
+        max-width: calc(100% - 3em);
+    }
+}
+
+/* 向后兼容性样式 - 确保旧类名也能正常工作 */
+.notion-equation-inline {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 0.2em;
+}
+
+.notion-equation-block {
+    display: block;
+    margin: 1.5em 0;
+    text-align: center;
+    overflow-x: auto;
+    max-width: 100%;
 }
 
 /* PDF预览样式 */
