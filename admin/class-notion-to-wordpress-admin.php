@@ -386,7 +386,20 @@ class Notion_To_WordPress_Admin {
         // 增加内存限制
         ini_set('memory_limit', '256M');
 
-        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+        // 详细的nonce检查
+        if (!isset($_POST['nonce'])) {
+            error_log('Notion to WordPress: 手动导入缺少nonce参数');
+            wp_send_json_error(['message' => '缺少nonce参数']);
+            return;
+        }
+
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            error_log('Notion to WordPress: 手动导入nonce验证失败');
+            wp_send_json_error(['message' => 'nonce验证失败']);
+            return;
+        }
+
+        error_log('Notion to WordPress: 手动导入nonce验证成功');
 
         if ( ! current_user_can( 'manage_options' ) ) {
             error_log('Notion to WordPress: 权限检查失败');
@@ -466,7 +479,20 @@ class Notion_To_WordPress_Admin {
         // 增加内存限制
         ini_set('memory_limit', '256M');
 
-        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+        // 详细的nonce检查
+        if (!isset($_POST['nonce'])) {
+            error_log('Notion to WordPress: 刷新缺少nonce参数');
+            wp_send_json_error(['message' => '缺少nonce参数']);
+            return;
+        }
+
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            error_log('Notion to WordPress: 刷新nonce验证失败');
+            wp_send_json_error(['message' => 'nonce验证失败']);
+            return;
+        }
+
+        error_log('Notion to WordPress: 刷新nonce验证成功');
 
         if (!current_user_can('manage_options')) {
             error_log('Notion to WordPress: 刷新权限检查失败');
@@ -724,14 +750,36 @@ class Notion_To_WordPress_Admin {
     public function handle_test_debug() {
         error_log('Notion to WordPress: handle_test_debug 被调用');
 
-        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
-
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => '权限不足']);
-            return;
-        }
-
         try {
+            // 先检查基本的POST数据
+            error_log('Notion to WordPress: POST数据: ' . print_r($_POST, true));
+
+            // 检查nonce
+            if (!isset($_POST['nonce'])) {
+                error_log('Notion to WordPress: 缺少nonce参数');
+                wp_send_json_error(['message' => '缺少nonce参数']);
+                return;
+            }
+
+            error_log('Notion to WordPress: 收到的nonce: ' . $_POST['nonce']);
+
+            // 验证nonce
+            if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+                error_log('Notion to WordPress: nonce验证失败');
+                wp_send_json_error(['message' => 'nonce验证失败']);
+                return;
+            }
+
+            error_log('Notion to WordPress: nonce验证成功');
+
+            if (!current_user_can('manage_options')) {
+                error_log('Notion to WordPress: 权限检查失败');
+                wp_send_json_error(['message' => '权限不足']);
+                return;
+            }
+
+            error_log('Notion to WordPress: 权限检查成功');
+
             $test_data = [
                 'php_version' => PHP_VERSION,
                 'wp_version' => get_bloginfo('version'),
@@ -739,7 +787,8 @@ class Notion_To_WordPress_Admin {
                 'max_execution_time' => ini_get('max_execution_time'),
                 'plugin_version' => NOTION_TO_WORDPRESS_VERSION,
                 'current_time' => current_time('mysql'),
-                'options_exist' => get_option('notion_to_wordpress_options') ? 'yes' : 'no'
+                'options_exist' => get_option('notion_to_wordpress_options') ? 'yes' : 'no',
+                'ajax_url' => admin_url('admin-ajax.php')
             ];
 
             error_log('Notion to WordPress: 测试数据: ' . print_r($test_data, true));
@@ -747,7 +796,12 @@ class Notion_To_WordPress_Admin {
 
         } catch (Exception $e) {
             error_log('Notion to WordPress: 测试异常: ' . $e->getMessage());
+            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
             wp_send_json_error(['message' => '测试失败: ' . $e->getMessage()]);
+        } catch (Error $e) {
+            error_log('Notion to WordPress: 测试错误: ' . $e->getMessage());
+            error_log('Notion to WordPress: 错误堆栈: ' . $e->getTraceAsString());
+            wp_send_json_error(['message' => '测试错误: ' . $e->getMessage()]);
         }
     }
 

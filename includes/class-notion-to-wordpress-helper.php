@@ -38,14 +38,19 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
+        // 临时强制启用最高级别调试用于问题诊断
+        self::$debug_level = self::DEBUG_LEVEL_DEBUG;
+
         // 从选项中获取调试级别
-        $options = get_option('notion_to_wordpress_options', []);
-        self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
-        
+        // $options = get_option('notion_to_wordpress_options', []);
+        // self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
-        if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
-            self::$debug_level = self::DEBUG_LEVEL_ERROR;
-        }
+        // if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
+        //     self::$debug_level = self::DEBUG_LEVEL_ERROR;
+        // }
+
+        error_log('Notion to WordPress: 调试级别设置为: ' . self::$debug_level);
     }
 
     /**
@@ -93,10 +98,10 @@ class Notion_To_WordPress_Helper {
      * @param    string    $message    要写入文件的日志消息。
      */
     private static function log_to_file($message) {
-        // 如果当前调试级别为 NONE，则不记录
-        if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
-            return;
-        }
+        // 临时强制启用日志记录用于调试
+        // if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
+        //     return;
+        // }
 
         $upload_dir = wp_upload_dir();
         $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';

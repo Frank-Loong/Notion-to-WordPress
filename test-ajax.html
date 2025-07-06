@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notion to WordPress AJAX 测试</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Notion to WordPress AJAX 测试</h1>
+    
+    <div id="test-results"></div>
+    
+    <button id="test-debug">测试调试接口</button>
+    <button id="test-sync">测试同步功能</button>
+    <button id="test-refresh">测试刷新功能</button>
+    
+    <script>
+    // 这个文件用于在WordPress后台测试AJAX功能
+    // 请在WordPress后台的浏览器控制台中运行以下代码：
+    
+    console.log('=== Notion to WordPress AJAX 测试脚本 ===');
+    console.log('请确保你在WordPress后台页面中运行此脚本');
+    
+    // 测试调试接口
+    function testDebug() {
+        console.log('开始测试调试接口...');
+        
+        if (typeof notionToWp === 'undefined') {
+            console.error('notionToWp 对象未定义，请确保在插件页面运行此脚本');
+            return;
+        }
+        
+        jQuery.post(notionToWp.ajax_url, {
+            action: 'notion_to_wordpress_test_debug',
+            nonce: notionToWp.nonce
+        })
+        .done(function(response) {
+            console.log('调试测试成功:', response);
+        })
+        .fail(function(xhr, status, error) {
+            console.error('调试测试失败:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText,
+                statusCode: xhr.status
+            });
+        });
+    }
+    
+    // 测试同步功能
+    function testSync() {
+        console.log('开始测试同步功能...');
+        
+        if (typeof notionToWp === 'undefined') {
+            console.error('notionToWp 对象未定义，请确保在插件页面运行此脚本');
+            return;
+        }
+        
+        jQuery.post(notionToWp.ajax_url, {
+            action: 'notion_to_wordpress_manual_sync',
+            nonce: notionToWp.nonce
+        })
+        .done(function(response) {
+            console.log('同步测试成功:', response);
+        })
+        .fail(function(xhr, status, error) {
+            console.error('同步测试失败:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText,
+                statusCode: xhr.status
+            });
+        });
+    }
+    
+    // 测试刷新功能
+    function testRefresh() {
+        console.log('开始测试刷新功能...');
+        
+        if (typeof notionToWp === 'undefined') {
+            console.error('notionToWp 对象未定义，请确保在插件页面运行此脚本');
+            return;
+        }
+        
+        jQuery.post(notionToWp.ajax_url, {
+            action: 'notion_to_wordpress_refresh_all',
+            nonce: notionToWp.nonce
+        })
+        .done(function(response) {
+            console.log('刷新测试成功:', response);
+        })
+        .fail(function(xhr, status, error) {
+            console.error('刷新测试失败:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText,
+                statusCode: xhr.status
+            });
+        });
+    }
+    
+    // 暴露测试函数到全局作用域
+    window.testNotionDebug = testDebug;
+    window.testNotionSync = testSync;
+    window.testNotionRefresh = testRefresh;
+    
+    console.log('测试函数已准备就绪:');
+    console.log('- testNotionDebug() - 测试调试接口');
+    console.log('- testNotionSync() - 测试同步功能');
+    console.log('- testNotionRefresh() - 测试刷新功能');
+    </script>
+</body>
+</html>
