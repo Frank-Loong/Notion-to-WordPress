@@ -260,8 +260,16 @@ class Notion_To_WordPress_Admin {
         // 最大图片大小
         $options['max_image_size'] = isset( $_POST['max_image_size'] ) ? min( 20, max( 1, intval( $_POST['max_image_size'] ) ) ) : 5; // 1-20MB 范围
 
-        // Force English UI option
-        $options['force_english_ui'] = isset( $_POST['force_english_ui'] ) ? 1 : 0;
+        // Plugin Language option (替换旧的 force_english_ui)
+        $plugin_language = isset( $_POST['plugin_language'] ) ? sanitize_text_field( $_POST['plugin_language'] ) : 'auto';
+        if ( in_array( $plugin_language, ['auto', 'zh_CN', 'en_US'] ) ) {
+            $options['plugin_language'] = $plugin_language;
+        } else {
+            $options['plugin_language'] = 'auto';
+        }
+
+        // 向后兼容：根据新的 plugin_language 设置旧的 force_english_ui
+        $options['force_english_ui'] = ( $plugin_language === 'en_US' ) ? 1 : 0;
 
         // Field Mapping
         if ( isset( $_POST['field_mapping'] ) && is_array( $_POST['field_mapping'] ) ) {

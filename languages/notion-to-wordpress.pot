@@ -857,6 +857,15 @@ msgstr ""
 msgid "启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多语言站点或需要英文界面的用户。"
 msgstr ""
 
+msgid "自动检测（跟随站点语言）"
+msgstr ""
+
+msgid "简体中文"
+msgstr ""
+
+msgid "选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。"
+msgstr ""
+
 # Plugin description and author info
 msgid "从 Notion 数据库同步内容到 WordPress 文章，支持自动同步、手动同步和 Webhook 触发。"
 msgstr ""

@@ -36,7 +36,7 @@ $field_mapping         = $options['field_mapping'] ?? [
 ];
 $debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR;
 $max_image_size        = $options['max_image_size'] ?? 5;
-$force_english_ui      = $options['force_english_ui'] ?? 0;
+$plugin_language       = $options['plugin_language'] ?? 'auto';
 
 // Generate nonce for inline scripts
 $script_nonce = wp_create_nonce('notion_wp_script_nonce');
@@ -514,15 +514,21 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th scope="row"><label for="force_english_ui"><?php esc_html_e('插件界面语言', 'notion-to-wordpress'); ?></label></th>
+                                    <th scope="row"><label for="plugin_language"><?php esc_html_e('插件界面语言', 'notion-to-wordpress'); ?></label></th>
                                     <td>
-                                        <fieldset>
-                                            <label for="force_english_ui" class="checkbox-with-label">
-                                                <input type="checkbox" id="force_english_ui" name="force_english_ui" value="1" <?php checked(1, $force_english_ui); ?>>
-                                                <span><?php esc_html_e('强制使用英文界面（忽略站点语言设置）', 'notion-to-wordpress'); ?></span>
-                                            </label>
-                                            <p class="description"><?php esc_html_e('启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多语言站点或需要英文界面的用户。', 'notion-to-wordpress'); ?></p>
-                                        </fieldset>
+                                        <?php
+                                        // 处理向后兼容：将旧的 force_english_ui 转换为新的 plugin_language
+                                        $plugin_language = $options['plugin_language'] ?? 'auto';
+                                        if (empty($options['plugin_language']) && !empty($force_english_ui)) {
+                                            $plugin_language = 'en_US';
+                                        }
+                                        ?>
+                                        <select id="plugin_language" name="plugin_language">
+                                            <option value="auto" <?php selected('auto', $plugin_language); ?>><?php esc_html_e('自动检测（跟随站点语言）', 'notion-to-wordpress'); ?></option>
+                                            <option value="zh_CN" <?php selected('zh_CN', $plugin_language); ?>><?php esc_html_e('简体中文', 'notion-to-wordpress'); ?></option>
+                                            <option value="en_US" <?php selected('en_US', $plugin_language); ?>><?php esc_html_e('English', 'notion-to-wordpress'); ?></option>
+                                        </select>
+                                        <p class="description"><?php esc_html_e('选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
