@@ -8,6 +8,19 @@
 (function($) {
 'use strict';
 
+/* ---------------- 资源加载检测 ---------------- */
+// 检测KaTeX是否成功加载
+function checkKatexLoaded() {
+    return typeof window.katex !== 'undefined' &&
+           typeof window.katex.render === 'function';
+}
+
+// 检测Mermaid是否成功加载
+function checkMermaidLoaded() {
+    return typeof window.mermaid !== 'undefined' &&
+           typeof window.mermaid.initialize === 'function';
+}
+
 /* ---------------- KaTeX 渲染 ---------------- */
 const katexOptions = { throwOnError: false };
 
@@ -32,6 +45,13 @@ console.error('KaTeX 渲染错误:', e, '公式:', tex);
 
 // 遍历并渲染页面中所有公式
 function renderAllKatex() {
+	// 检测KaTeX是否成功加载
+	if (!checkKatexLoaded()) {
+		console.warn('KaTeX库未加载，尝试使用备用资源');
+		// 这里将在下一个任务中添加备用加载机制
+		return;
+	}
+
 // 预处理化学公式 ce{..} => \ce{..}
 $('.notion-equation-inline, .notion-equation-block').each(function () {
 let html = $(this).html();
@@ -50,10 +70,12 @@ document.querySelectorAll('.notion-equation-inline, .notion-equation-block').for
 }
 /* ---------------- Mermaid 渲染 ---------------- */
 function initMermaid() {
-if (typeof mermaid === 'undefined') {
-console.warn('Mermaid库未加载');
-return;
-}
+	// 检测Mermaid是否成功加载
+	if (!checkMermaidLoaded()) {
+		console.warn('Mermaid库未加载，尝试使用备用资源');
+		// 这里将在下一个任务中添加备用加载机制
+		return;
+	}
 
 console.log('初始化Mermaid图表渲染');
 
