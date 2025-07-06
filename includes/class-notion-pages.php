@@ -783,7 +783,8 @@ class Notion_Pages {
     }
 
     private function _convert_block_equation(array $block, Notion_API $notion_api): string {
-        $expression = str_replace('\\', '\\\\', $block['equation']['expression']);
+        // 不对表达式中的反斜杠进行额外转义
+        $expression = $block['equation']['expression'];
         return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
@@ -899,7 +900,12 @@ class Notion_Pages {
             // 处理 inline equation
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr_raw = $text['equation']['expression'] ?? '';
-                $expr = str_replace('\\', '\\\\', $expr_raw);
+                
+                // 避免对表达式中的美元符号做二次转义
+                // 只转义原始LaTeX中未转义的反斜杠
+                $expr = $expr_raw;
+                
+                // 创建带有特殊class的元素，稍后由JS处理
                 $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
             } else {
                 // 对纯文本内容进行转义
@@ -1554,20 +1560,24 @@ class Notion_Pages {
      * @return string 处理后的内容
      */
     private function process_notion_equations(string $content): string {
-        // 处理行内公式 - 保持原始$格式，让KaTeX直接处理
+        // 处理行内公式 - 保留原始LaTeX内容，不添加额外转义
         $content = preg_replace_callback(
             '/<span class="notion-equation notion-equation-inline">\$(.+?)\$<\/span>/',
             function($matches) {
-                return '<span class="notion-equation-inline">$' . $matches[1] . '$</span>';
+                // 将HTML实体解码回原始LaTeX
+                $latex = html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8');
+                return '<span class="notion-equation-inline">$' . $latex . '$</span>';
             },
             $content
         );
 
-        // 处理块级公式 - 保持原始$$格式，让KaTeX直接处理
+        // 处理块级公式 - 保留原始LaTeX内容，不添加额外转义
         $content = preg_replace_callback(
             '/<div class="notion-equation notion-equation-block">\$\$(.+?)\$\$<\/div>/s',
             function($matches) {
-                return '<div class="notion-equation-block">$$' . $matches[1] . '$$</div>';
+                // 将HTML实体解码回原始LaTeX
+                $latex = html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8');
+                return '<div class="notion-equation-block">$$' . $latex . '$$</div>';
             },
             $content
         );

@@ -152,18 +152,22 @@
 
             if (content && typeof katex !== 'undefined') {
                 try {
-                    // 提取LaTeX内容
+                    // 提取LaTeX内容，去除包裹符号
                     var latex = content.replace(/^\\\[/, '').replace(/\\\]$/, '');
-
-                    // 使用KaTeX渲染
+                    
+                    // 不需要额外转义，让KaTeX原样处理
+                    // 之前的错误：content中的"\"已被HTML转义，再次转义会导致问题
                     katex.render(latex, $equation[0], {
                         displayMode: true,
                         throwOnError: false,
-                        trust: true
+                        trust: true,
+                        strict: false // 使用非严格模式，更宽容地处理语法
                     });
                     console.log('KaTeX渲染了块级公式');
                 } catch (e) {
                     console.error('KaTeX块级公式渲染错误:', e);
+                    // 保留原始内容，在渲染失败时显示原始LaTeX
+                    $equation.html('<div class="katex-error">' + content + '<br>渲染错误: ' + e.message + '</div>');
                 }
             }
         });
@@ -175,18 +179,20 @@
 
             if (content && typeof katex !== 'undefined') {
                 try {
-                    // 提取LaTeX内容
+                    // 提取LaTeX内容，去除包裹符号
                     var latex = content.replace(/^\\\(/, '').replace(/\\\)$/, '');
-
-                    // 使用KaTeX渲染
+                    
+                    // 不再进行额外的转义
                     katex.render(latex, $equation[0], {
                         displayMode: false,
                         throwOnError: false,
-                        trust: true
+                        trust: true,
+                        strict: false // 使用非严格模式
                     });
                     console.log('KaTeX渲染了行内公式');
                 } catch (e) {
                     console.error('KaTeX行内公式渲染错误:', e);
+                    $equation.html('<span class="katex-error">' + content + '</span>');
                 }
             }
         });
