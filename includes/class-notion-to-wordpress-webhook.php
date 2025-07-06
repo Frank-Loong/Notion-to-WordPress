@@ -10,10 +10,9 @@ declare(strict_types=1);
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
-
 // 如果直接访问此文件，则退出
-if (!defined('WPINC')) {
-    die;
+if (!defined('ABSPATH')) {
+    exit;
 }
 
 class Notion_To_WordPress_Webhook {
@@ -53,17 +52,17 @@ class Notion_To_WordPress_Webhook {
             return;
         }
 
-        register_rest_route( 'notion-to-wordpress/v1', '/webhook/(?P<token>[a-zA-Z0-9]+)', [
-            'methods'             => 'POST',
-            'callback'            => [ $this, 'handle_webhook' ],
-            'permission_callback' => [ $this, 'verify_webhook_permission' ],
-            'args'                => [
+        register_rest_route('notion-to-wordpress/v1', '/webhook/(?P<token>[a-zA-Z0-9]+)', [
+            'methods' => 'POST',
+            'callback' => [$this, 'handle_webhook'],
+            'permission_callback' => '__return_true',
+            'args' => [
                 'token' => [
-                    'required'          => true,
+                    'required' => true,
                     'sanitize_callback' => 'sanitize_text_field',
-                ],
-            ],
-        ] );
+                ]
+            ]
+        ]);
     }
 
     /**
@@ -74,15 +73,12 @@ class Notion_To_WordPress_Webhook {
      * @return   WP_REST_Response               REST 响应对象
      */
     public function handle_webhook($request) {
-        // 在处理Webhook请求前先修复可能的会话冲突
-        $this->fix_session_conflicts();
-        
         $token_param = $request['token'] ?? '';
         $options = get_option('notion_to_wordpress_options', []);
         $expected_token = $options['webhook_token'] ?? '';
 
         if (empty($expected_token) || $token_param !== $expected_token) {
-            return new WP_REST_Response(['status' => 'error', 'message' => 'Token mismatch'], 403);
+            return new WP_REST_Response(['status' => 'error', 'message' => __('Token mismatch', 'notion-to-wordpress')], 403);
         }
 
         // 获取请求体
@@ -117,27 +113,24 @@ class Notion_To_WordPress_Webhook {
 
         // 验证请求体
         if (empty($body)) {
-            return new WP_REST_Response(['status' => 'error', 'message' => '无效的请求体'], 400);
+            return new WP_REST_Response(['status' => 'error', 'message' => __('无效的请求体', 'notion-to-wordpress')], 400);
         }
 
         // 新版 Notion Webhook 事件位于 event.type
         $event_type = $body['type'] ?? ($body['event']['type'] ?? '');
         if (empty($event_type)) {
-            return new WP_REST_Response(['status' => 'error', 'message' => '缺少事件类型'], 400);
+            return new WP_REST_Response(['status' => 'error', 'message' => __('缺少事件类型', 'notion-to-wordpress')], 400);
         }
 
         // 处理不同类型的事件
         if (preg_match('/^(page|block)\./', $event_type)) {
-            // 清理与插件相关的 transient 缓存，避免使用过期的块内容
-            global $wpdb;
-            $wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_ntw_%' OR option_name LIKE '_transient_timeout_ntw_%'" );
-
+            // 直接触发一次数据库同步（轻量化实现）
             try {
                 $this->notion_pages->import_pages();
-                return new WP_REST_Response(['status' => 'success', 'message' => '已触发同步'], 200);
+                return new WP_REST_Response(['status' => 'success', 'message' => __('已触发同步', 'notion-to-wordpress')], 200);
             } catch (Exception $e) {
                 Notion_To_WordPress_Helper::error_log('Webhook 同步失败: ' . $e->getMessage());
-                return new WP_REST_Response(['status' => 'error', 'message' => '同步过程中出错: ' . $e->getMessage()], 500);
+                return new WP_REST_Response(['status' => 'error', 'message' => __('同步过程中出错: ', 'notion-to-wordpress') . $e->getMessage()], 500);
             }
         }
 
@@ -168,39 +161,5 @@ class Notion_To_WordPress_Webhook {
             return $body['block']['id'];
         }
         return '';
-    }
-
-    /**
-     * 修复在Webhook处理期间可能发生的会话冲突
-     * 
-     * @since 1.1.0
-     */
-    private function fix_session_conflicts() {
-        // 直接禁用主题（如 ZIB）可能触发的 session_start，避免写入 PHPSESSID 破坏缓存
-        add_filter( 'zib_session_start', '__return_false' );
-    }
-
-    /**
-     * 权限校验：仅当 token 正确时通过
-     *
-     * @param \WP_REST_Request $request
-     * @return bool|\WP_Error
-     */
-    public function verify_webhook_permission( $request ) {
-        // 仅接受 POST
-        if ( ! isset( $_SERVER['REQUEST_METHOD'] ) || 'POST' !== $_SERVER['REQUEST_METHOD'] ) {
-            return new WP_Error( 'ntw_webhook_method', 'Invalid request method', [ 'status' => 405 ] );
-        }
-
-        $token_param = is_array( $request ) ? ( $request['token'] ?? '' ) : $request->get_param( 'token' );
-
-        $options        = get_option( 'notion_to_wordpress_options', [] );
-        $expected_token = $options['webhook_token'] ?? '';
-
-        if ( empty( $expected_token ) || $token_param !== $expected_token ) {
-            return new WP_Error( 'ntw_webhook_permission', 'Token mismatch', [ 'status' => 403 ] );
-        }
-
-        return true;
     }
 } 

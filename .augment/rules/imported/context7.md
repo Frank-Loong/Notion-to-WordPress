@@ -1,8 +1,7 @@
 ---
-description: 
-globs: 
-alwaysApply: true
+type: "always_apply"
 ---
+
 [[calls]]
 match = "when the user initiates or continues a structured AI-assisted development workflow using Claude 4.0 Sonnet, especially involving task planning, code editing, or feedback confirmation"
 tool = "mcp-feedback-enhanced"

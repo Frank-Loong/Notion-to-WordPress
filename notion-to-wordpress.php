@@ -29,17 +29,10 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-// Polyfill: PHP < 8.0 中没有 str_contains 函数，为确保兼容性进行定义
-if ( ! function_exists( 'str_contains' ) ) {
-	function str_contains( string $haystack, string $needle ): bool {
-		return $needle === '' || strpos( $haystack, $needle ) !== false;
-	}
-}
-
 /**
  * 主插件文件路径
  *
- * @since 1.1.0
+ * @since 1.0.10
  */
 define( 'NOTION_TO_WORDPRESS_FILE', __FILE__ );
 
