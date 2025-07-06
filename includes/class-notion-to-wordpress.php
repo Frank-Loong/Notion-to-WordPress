@@ -446,8 +446,19 @@ class Notion_To_WordPress {
 			true
 		);
 
-		wp_enqueue_script('katex');
-		wp_enqueue_script('katex-mhchem');
+		// 新增：KaTeX auto-render 扩展，依赖 KaTeX
+		wp_register_script(
+			'katex-auto-render',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
+			array( 'katex' ),
+			'0.16.22',
+			true
+		);
+
+		// 按顺序入队 KaTeX 相关脚本
+		wp_enqueue_script( 'katex' );
+		wp_enqueue_script( 'katex-mhchem' );
+		wp_enqueue_script( 'katex-auto-render' );
 
 		// ---------------- Mermaid ----------------
 		wp_enqueue_script(
@@ -462,7 +473,7 @@ class Notion_To_WordPress {
 		wp_enqueue_script(
 			$this->plugin_name . '-katex-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
-			array('jquery', 'mermaid', 'katex', 'katex-mhchem'),
+			array('jquery', 'mermaid', 'katex', 'katex-mhchem', 'katex-auto-render'),
 			$this->version,
 			true
 		);

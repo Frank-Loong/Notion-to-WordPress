@@ -221,6 +221,27 @@
         processMathScriptTags();
         processNotionEquations();
 
+        // 使用 KaTeX auto-render 扩展对页面剩余部分进行扫描渲染，兜底处理未被手动捕获的公式
+        if (typeof renderMathInElement === 'function') {
+            try {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$',  right: '$',  display: false},
+                        {left: '\\[', right: '\\]', display: true},
+                        {left: '\\(', right: '\\)', display: false}
+                    ],
+                    throwOnError: false,
+                    trust: true
+                });
+                console.log('KaTeX auto-render 完成');
+            } catch (autoErr) {
+                console.error('KaTeX auto-render 错误:', autoErr);
+            }
+        } else {
+            console.warn('renderMathInElement 不可用，跳过自动渲染');
+        }
+
         console.log('KaTeX 公式处理完成');
     }
     
