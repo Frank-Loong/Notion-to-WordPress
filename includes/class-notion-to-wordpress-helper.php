@@ -440,6 +440,7 @@ class Notion_To_WordPress_Helper {
 
             // 私密状态
             'private' => 'private',
+            'privacy' => 'private', // 增加可能的变体
             '私密' => 'private',
             'private_post' => 'private',
 

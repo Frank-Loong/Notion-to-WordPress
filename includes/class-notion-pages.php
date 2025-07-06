@@ -160,8 +160,13 @@ class Notion_Pages {
         $props    = $page['properties'] ?? [];
 
         // 获取保存的选项，包括字段映射
-        $options       = get_option( 'notion_to_wordpress_options', [] );
-        $field_mapping = $options['field_mapping'] ?? [
+        $options = get_option( 'notion_to_wordpress_options', [] );
+
+        /*
+         * 默认字段映射。即使用户在后台保存设置时遗漏了某些字段（例如密码映射），
+         * 依旧可以通过与默认值合并来保证关键字段存在，避免导入过程出错。
+         */
+        $default_mapping = [
             'title'          => 'Title,标题',
             'status'         => 'Status,状态',
             'post_type'      => 'Type,类型',
@@ -170,9 +175,13 @@ class Notion_Pages {
             'featured_image' => 'Featured Image,特色图片',
             'categories'     => 'Categories,分类',
             'tags'           => 'Tags,标签',
-
+            // 新增：密码字段映射，支持密码保护文章
             'password'       => 'Password,密码',
         ];
+
+        // 合并用户自定义映射，保持默认键不丢失
+        $field_mapping_saved = $options['field_mapping'] ?? [];
+        $field_mapping       = array_merge( $default_mapping, $field_mapping_saved );
 
         // 将逗号分隔的字符串转换为数组
         foreach ( $field_mapping as $key => $value ) {
@@ -205,20 +214,8 @@ class Notion_Pages {
 
         // 处理文章状态和密码
         if ( $status_val ) {
-            $status_lower = strtolower( trim($status_val) );
-
-            // 私密文章
-            if ( in_array( $status_lower, ['private', '私密', 'private_post'] ) ) {
-                $metadata['status'] = 'private';
-            }
-            // 已发布文章
-            elseif ( in_array( $status_lower, ['published', '已发布', 'publish', 'public', '公开', 'live', '上线'] ) ) {
-                $metadata['status'] = 'publish';
-            }
-            // 草稿
-            else {
-                $metadata['status'] = 'draft';
-            }
+            // 使用规范化函数来统一处理状态映射
+            $metadata['status'] = Notion_To_WordPress_Helper::normalize_post_status(trim($status_val));
         } else {
             $metadata['status'] = 'draft';
         }
@@ -226,18 +223,19 @@ class Notion_Pages {
         // 如果有密码，设置为加密文章
         if ( !empty($password_val) ) {
             $metadata['password'] = trim($password_val);
-            // 有密码的文章通常应该是已发布状态
+            // 有密码的文章应该是已发布状态，否则密码无效
             if ( $metadata['status'] === 'draft' ) {
                 $metadata['status'] = 'publish';
             }
         }
 
-        // 添加调试日志
+        // 添加详细调试日志
         Notion_To_WordPress_Helper::debug_log(
-            sprintf('Notion页面状态: %s, 密码: %s, 转换为WordPress状态: %s',
+            sprintf('Notion页面状态: %s, 密码: %s, 转换为WordPress状态: %s, 密码保护: %s',
                 $status_val ?: 'null',
                 !empty($password_val) ? '***' : 'null',
-                $metadata['status']
+                $metadata['status'],
+                !empty($metadata['password']) ? '是' : '否'
             ),
             'Notion Status',
             Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
@@ -1011,12 +1009,32 @@ class Notion_Pages {
             ],
         ];
 
-        // 处理文章密码
+        // 处理文章密码 - 确保密码保护正确应用
         if ( !empty($metadata['password']) ) {
             $post_data['post_password'] = $metadata['password'];
+            
+            // 确保有密码的文章处于发布状态，否则密码保护无效
+            if ($post_data['post_status'] === 'draft') {
+                $post_data['post_status'] = 'publish';
+                Notion_To_WordPress_Helper::debug_log(
+                    '文章有密码但状态为草稿，已自动调整为已发布状态以使密码生效',
+                    'Post Status',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+                );
+            }
         }
 
-        // 注意：文章状态和密码已在metadata提取阶段处理，这里不需要额外处理
+        // 记录最终的文章数据
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('文章数据: 标题=%s, 状态=%s, 类型=%s, 密码=%s', 
+                $post_data['post_title'],
+                $post_data['post_status'],
+                $post_data['post_type'],
+                !empty($post_data['post_password']) ? '已设置' : '无'
+            ),
+            'Post Data',
+            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+        );
 
         if (isset($metadata['date'])) {
             $post_data['post_date'] = $metadata['date'];
