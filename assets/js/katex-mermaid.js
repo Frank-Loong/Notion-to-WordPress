@@ -152,8 +152,13 @@
 
             if (content && typeof katex !== 'undefined') {
                 try {
-                    // 提取LaTeX内容，去除包裹符号
-                    var latex = content.replace(/^\\\[/, '').replace(/\\\]$/, '');
+                    // 提取 LaTeX 内容，去除常见包裹符号（\\[ \\]、$$ $$ 或 $ $）
+                    var latex = content
+                        // 块级公式包裹符号 \[ ... \] 或 $$ ... $$
+                        .replace(/^\\\[/, '').replace(/\\\]$/, '')
+                        .replace(/^\$\$/, '').replace(/\$\$$/, '')
+                        // 行内公式包裹符号 $ ... $（极少见于块级，但仍清理）
+                        .replace(/^\$/, '').replace(/\$$/, '');
                     
                     // 不需要额外转义，让KaTeX原样处理
                     // 之前的错误：content中的"\"已被HTML转义，再次转义会导致问题
@@ -179,8 +184,11 @@
 
             if (content && typeof katex !== 'undefined') {
                 try {
-                    // 提取LaTeX内容，去除包裹符号
-                    var latex = content.replace(/^\\\(/, '').replace(/\\\)$/, '');
+                    // 提取 LaTeX 内容，去除行内或块级常见包裹符号
+                    var latex = content
+                        // 行内公式 \( ... \) 或 $ ... $
+                        .replace(/^\\\(/, '').replace(/\\\)$/, '')
+                        .replace(/^\$/, '').replace(/\$$/, '');
                     
                     // 不再进行额外的转义
                     katex.render(latex, $equation[0], {
