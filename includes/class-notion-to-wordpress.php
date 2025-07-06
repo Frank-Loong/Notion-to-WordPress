@@ -12,6 +12,11 @@ declare(strict_types=1);
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  */
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 class Notion_To_WordPress {
 
 	/**
@@ -86,7 +91,11 @@ class Notion_To_WordPress {
 	 * @since    1.0.5
 	 */
 	public function __construct() {
-		$this->version = defined( 'NOTION_TO_WORDPRESS_VERSION' ) ? NOTION_TO_WORDPRESS_VERSION : 'dev';
+		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
+			$this->version = NOTION_TO_WORDPRESS_VERSION;
+		} else {
+			$this->version = '1.0.9';
+		}
 		$this->plugin_name = 'notion-to-wordpress';
 
 		$this->load_dependencies();
@@ -106,11 +115,7 @@ class Notion_To_WordPress {
 	 * - Notion_To_WordPress_Admin. 定义后台区域的所有钩子。
 	 * - Notion_API. 定义面向公众的站点的所有钩子。
 	 * - Notion_Pages. 处理页面处理。
-	 * - Notion_To_WordPress_Lock. 在同步期间处理文件锁定。
 	 * - Notion_To_WordPress_Webhook. 处理 Webhook 请求。
-	 * - Notion_To_WordPress_Download_Queue. 处理下载队列。
-	 * - Notion_To_WordPress_Import_Coordinator. 处理导入协调。
-	 * - Notion_To_WordPress_Block_Converter. 处理块转换。
 	 *
 	 * @since    1.0.5
 	 * @access   private
@@ -121,11 +126,7 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-lock.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-download-queue.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-import-coordinator.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-block-converter.php' );
 
 		$this->loader = new Notion_To_WordPress_Loader();
 	}
@@ -145,13 +146,12 @@ class Notion_To_WordPress {
 		$api_key       = $options['notion_api_key'] ?? '';
 		$database_id   = $options['notion_database_id'] ?? '';
 		$field_mapping = $options['field_mapping'] ?? array();
-		$lock_timeout  = $options['lock_timeout'] ?? 120;
 
-		// 获取（或初始化）单例 API 处理器
-		$this->notion_api = Notion_API::instance( $api_key );
+		// 实例化API处理器
+		$this->notion_api = new Notion_API( $api_key );
 
 		// 实例化页面处理器
-		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping, $lock_timeout );
+		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping );
 
 		// 实例化后台处理器
 		$this->admin = new Notion_To_WordPress_Admin(
@@ -165,12 +165,6 @@ class Notion_To_WordPress {
 		$this->webhook = new Notion_To_WordPress_Webhook(
 			$this->notion_pages
 		);
-
-		// 根据后台设置调整下载并发过滤器
-		add_filter( 'ntw_download_queue_concurrency', function( $default ) use ( $options ) {
-			$val = isset( $options['download_concurrency'] ) ? intval( $options['download_concurrency'] ) : $default;
-			return max( 1, min( 10, $val ) );
-		} );
 	}
 
 	/**
@@ -183,7 +177,16 @@ class Notion_To_WordPress {
 	 */
 	private function set_locale() {
 		$plugin_i18n = new Notion_To_WordPress_i18n();
-		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
+
+		// 注册多个钩子来确保语言切换生效
+		$this->loader->add_filter( 'plugin_locale', $plugin_i18n, 'maybe_override_locale', 10, 2 );
+		$this->loader->add_filter( 'gettext', $plugin_i18n, 'override_gettext', 10, 3 );
+
+		// 在 init 钩子上加载文本域
+		$this->loader->add_action( 'init', $plugin_i18n, 'load_plugin_textdomain' );
+
+		// 在 admin_init 钩子上强制重新加载翻译（仅在后台）
+		$this->loader->add_action( 'admin_init', $plugin_i18n, 'force_reload_translations' );
 	}
 
 	/**
@@ -202,12 +205,9 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_manual_sync', $this->admin, 'handle_manual_import' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_connection', $this->admin, 'handle_test_connection' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_all', $this->admin, 'handle_refresh_all' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_single', $this->admin, 'handle_refresh_single' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
-		// 同步进度查询
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -227,9 +227,6 @@ class Notion_To_WordPress {
 	 */
 	private function define_public_hooks() {
 		$this->loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue_frontend_scripts' );
-
-		// 前端占位符替换过滤器
-		$this->loader->add_filter( 'the_content', $this, 'replace_temp_media_placeholders', 20 );
 	}
 
 	/**
@@ -240,10 +237,6 @@ class Notion_To_WordPress {
 	public function run() {
 		$this->loader->run();
 		$this->define_webhook_hooks();
-		// 注册下载队列处理钩子
-		add_action( 'ntw_process_media_queue', [ 'Notion_Download_Queue', 'process_queue' ] );
-		// 定义所有钩子后，注册队列cron处理程序
-		add_action( 'ntw_async_media', [ 'Notion_Download_Queue', 'process_queue' ] );
 	}
 
 	/**
@@ -303,15 +296,9 @@ class Notion_To_WordPress {
 
 		$this->_core_import_process( $database_id, $options );
 
-		// 清理统计缓存，确保后台显示最新数据
-		Notion_To_WordPress_Helper::cache_delete( 'ntw_imported_posts_count' );
-		Notion_To_WordPress_Helper::cache_delete( 'ntw_published_posts_count' );
-
 		// 更新上次同步时间
 		$options['last_sync_time'] = current_time( 'mysql' );
 		update_option( 'notion_to_wordpress_options', $options );
-		// 兼容后台统计：单独记录最新同步时间
-		update_option( 'notion_to_wordpress_last_sync', $options['last_sync_time'] );
 	}
 
 	/**
@@ -322,41 +309,10 @@ class Notion_To_WordPress {
 	 * @param array  $options 插件设置选项
 	 */
 	private function _core_import_process( string $database_id, array $options ): void {
-		$lock_timeout = $options['lock_timeout'] ?? 120;
-
-		// 实例化锁
-		$lock = new Notion_To_WordPress_Lock( $database_id, $lock_timeout );
-
-		// 尝试获取锁
-		if ( ! $lock->acquire() ) {
-			Notion_To_WordPress_Helper::error_log( 'Import aborted: Another import process is already running.' );
-			return;
-		}
-
 		try {
-			// 同步前：暂停对象缓存写入和分类/评论计数，提高性能
-			wp_suspend_cache_addition( true );
-			wp_defer_term_counting( true );
-			if ( function_exists( 'wp_defer_comment_counting' ) ) {
-				wp_defer_comment_counting( true );
-			}
-
-			// 构造增量同步过滤器（仅拉取自上次同步后有改动的页面）
-			$filter = array();
-			if ( ! empty( $options['last_sync_time'] ) ) {
-				$iso_time = date( 'c', strtotime( $options['last_sync_time'] ) );
-				$filter   = array(
-					'timestamp'       => 'last_edited_time',
-					'last_edited_time' => array(
-						'after' => $iso_time,
-					),
-				);
-			}
-
-			$pages = $this->notion_api->get_database_pages( $database_id, $filter );
+			$pages = $this->notion_api->get_database_pages( $database_id );
 
 			if ( empty( $pages ) ) {
-				$lock->release();
 				return;
 			}
 
@@ -365,15 +321,6 @@ class Notion_To_WordPress {
 			}
 		} catch ( Exception $e ) {
 			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );
-		} finally {
-			// 同步结束：恢复 WP 默认行为
-			wp_suspend_cache_addition( false );
-			wp_defer_term_counting( false );
-			if ( function_exists( 'wp_defer_comment_counting' ) ) {
-				wp_defer_comment_counting( false );
-			}
-
-			$lock->release();
 		}
 	}
 
@@ -394,14 +341,15 @@ class Notion_To_WordPress {
 			'sync_schedule'       => 'manual',
 			'delete_on_uninstall' => 0,
 			'field_mapping'       => array(
-				'title'          => 'title,标题',
-				'status'         => 'status,状态',
-				'post_type'      => 'type,类型',
-				'date'           => 'date,日期',
-				'excerpt'        => 'summary,摘要',
-				'featured_image' => 'featured image,特色图片',
-				'categories'     => 'category,分类',
-				'tags'           => 'tags,标签',
+				'title'          => 'Title,标题',
+				'status'         => 'Status,状态',
+				'post_type'      => 'Type,类型',
+				'date'           => 'Date,日期',
+				'excerpt'        => 'Excerpt,摘要',
+				'featured_image' => 'Featured Image,特色图片',
+				'categories'     => 'Categories,分类',
+				'tags'           => 'Tags,标签',
+
 			),
 			'custom_field_mappings' => array(),
 			'debug_level'         => Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR,
@@ -418,21 +366,6 @@ class Notion_To_WordPress {
 			if ( ! wp_next_scheduled( 'notion_cron_import' ) ) {
 				wp_schedule_event( time(), $options['sync_schedule'], 'notion_cron_import' );
 			}
-		}
-
-		// 队列下载任务：每5分钟
-		if ( ! wp_next_scheduled( 'ntw_process_media_queue' ) ) {
-			wp_schedule_event( time() + 300, 'ntw_five_minutes', 'ntw_process_media_queue' );
-		}
-
-		// 为 postmeta 创建索引，加速 _notion_page_id 查询
-		global $wpdb;
-		$index_name = 'ntw_idx_notion_page_id';
-		$has_index  = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$wpdb->postmeta} WHERE Key_name = %s", $index_name ) );
-
-		if ( ! $has_index ) {
-			// meta_key + meta_value 前缀索引 (191) 以保持 mysql utf8mb4 兼容
-			$wpdb->query( "ALTER TABLE {$wpdb->postmeta} ADD INDEX {$index_name} (meta_key(50), meta_value(191))" );
 		}
 
 		// 刷新重写规则
@@ -457,7 +390,6 @@ class Notion_To_WordPress {
 
 		// 同时清除此钩子的任何其他计划
 		wp_clear_scheduled_hook( 'notion_cron_import' );
-		wp_clear_scheduled_hook( 'ntw_process_media_queue' );
 
 		// 刷新重写规则
 		flush_rewrite_rules();
@@ -469,35 +401,28 @@ class Notion_To_WordPress {
 	 * @since 1.1.0
 	 */
 	public function enqueue_frontend_scripts() {
-		// 仅在单篇文章/页面中加载，避免首页或存档页多余资源
-		if ( ! is_singular() ) {
-			return;
-		}
-
-		// ------- 内容检测：若正文未包含公式 / Mermaid 则跳过加载 -------
-		global $post;
-		if ( $post instanceof \WP_Post ) {
-			$cnt = $post->post_content ?? '';
-			// 检测 Notion 导入时插入的占位 class、KaTeX/LaTeX 语法或 mermaid 标记
-			if ( ! preg_match( '/notion\-(equation|chem)|\\\\\(|\\$\\$|<pre[^>]*class="[^"]*(mermaid)[^"]*"|class="mermaid"/i', $cnt ) ) {
-				return;
-			}
-		}
-
 		// 样式
-		// 直接加载编译后的前端单文件样式（assets/css/frontend.css）
 		wp_enqueue_style(
-			$this->plugin_name . '-frontend',
-			Notion_To_WordPress_Helper::plugin_url( 'assets/css/frontend.css' ),
+			$this->plugin_name . '-latex',
+			Notion_To_WordPress_Helper::plugin_url('assets/css/latex-styles.css'),
+			array(),
+			$this->version
+		);
+		wp_enqueue_style(
+			$this->plugin_name . '-custom',
+			Notion_To_WordPress_Helper::plugin_url('assets/css/custom-styles.css'),
 			array(),
 			$this->version
 		);
 
 		// ---------------- 公式相关（KaTeX） ----------------
+		// 允许通过过滤器自定义CDN前缀
+		$cdn_prefix = apply_filters( 'ntw_cdn_prefix', 'https://cdn.jsdelivr.net' );
+
 		// KaTeX 样式
 		wp_enqueue_style(
 			'katex',
-			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.css',
 			array(),
 			'0.16.22'
 		);
@@ -505,7 +430,7 @@ class Notion_To_WordPress {
 		// KaTeX 主库
 		wp_register_script(
 			'katex',
-			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.js',
 			array(),
 			'0.16.22',
 			true
@@ -514,53 +439,32 @@ class Notion_To_WordPress {
 		// mhchem 扩展（化学公式）依赖 KaTeX
 		wp_register_script(
 			'katex-mhchem',
-			'https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
 			array( 'katex' ),
 			'0.16.22',
 			true
 		);
 
+		wp_enqueue_script('katex');
+		wp_enqueue_script('katex-mhchem');
+
 		// ---------------- Mermaid ----------------
 		wp_enqueue_script(
 			'mermaid',
-			'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
+			$cdn_prefix . '/npm/mermaid@11/dist/mermaid.min.js',
 			array(),
 			'11.7.0',
 			true
 		);
 
 		// 处理公式与Mermaid渲染的脚本
-		$deps = array( 'jquery', 'mermaid', 'katex-mhchem' );
-
 		wp_enqueue_script(
-			$this->plugin_name . '-math-mermaid',
-			Notion_To_WordPress_Helper::plugin_url('assets/js/notion-math-mermaid.js'),
-			$deps,
+			$this->plugin_name . '-katex-mermaid',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
+			array('jquery', 'mermaid', 'katex', 'katex-mhchem'),
 			$this->version,
 			true
 		);
-
-		// -------- 减少渲染阻塞：为前端脚本添加 defer 属性 --------
-		$defer_handles = [ 'mermaid', 'katex', 'katex-mhchem', $this->plugin_name . '-math-mermaid' ];
-		add_filter( 'script_loader_tag', function( $tag, $handle ) use ( $defer_handles ) {
-			if ( in_array( $handle, $defer_handles, true ) ) {
-				if ( false === strpos( $tag, ' defer' ) ) {
-					$tag = str_replace( '<script ', '<script defer ', $tag );
-				}
-			}
-			return $tag;
-		}, 10, 2 );
-
-		// -------- 提前连接 CDN：DNS 预解析 + 预连接 --------
-		$cdn_origin = '//cdn.jsdelivr.net';
-		add_filter( 'wp_resource_hints', function ( $hints, $relation_type ) use ( $cdn_origin ) {
-			if ( in_array( $relation_type, [ 'dns-prefetch', 'preconnect' ], true ) ) {
-				if ( ! in_array( $cdn_origin, $hints, true ) ) {
-					$hints[] = $cdn_origin;
-				}
-			}
-			return $hints;
-		}, 10, 2 );
 	}
 
 	/**
@@ -595,124 +499,6 @@ class Notion_To_WordPress {
 			);
 		}
 
-		// 每5分钟一次
-		if ( ! isset( $schedules['ntw_five_minutes'] ) ) {
-			$schedules['ntw_five_minutes'] = array(
-				'interval' => 5 * MINUTE_IN_SECONDS,
-				'display'  => __( '每5分钟', 'notion-to-wordpress' ),
-			);
-		}
-
 		return $schedules;
-	}
-
-	/**
-	 * 替换 notion-temp-image / notion-temp-file 占位符为本地附件 URL
-	 */
-	public function replace_temp_media_placeholders( string $content ): string {
-		if ( false === strpos( $content, 'notion-temp-' ) ) {
-			return $content;
-		}
-
-		libxml_use_internal_errors( true );
-		$dom = new \DOMDocument();
-		$loaded = $dom->loadHTML( '<?xml encoding="utf-8" ?>' . $content, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
-		if ( ! $loaded ) {
-			return $content; // 解析失败则跳过
-		}
-
-		$changed = false;
-
-		$xpath = new \DOMXPath( $dom );
-		// 处理图片占位符
-		foreach ( $xpath->query( '//*[contains(concat(" ", normalize-space(@class), " "), " notion-temp-image ")]' ) as $figure ) {
-			/** @var \DOMElement $figure */
-			$url = $figure->getAttribute( 'data-ntw-url' );
-			if ( ! $url ) {
-				continue;
-			}
-			
-			// 移除查询参数以提高匹配率
-			$base_url = preg_replace( '/\?.*$/', '', $url );
-			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $base_url );
-			
-			if ( $aid <= 0 ) {
-				// 再尝试完整URL
-				$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
-				if ( $aid <= 0 ) {
-					continue;
-				}
-			}
-			
-			$local_url = wp_get_attachment_url( $aid );
-			if ( ! $local_url ) {
-				continue;
-			}
-			// 更新 <img> src
-			foreach ( $figure->getElementsByTagName( 'img' ) as $img ) {
-				$img->setAttribute( 'src', $local_url );
-			}
-			// 移除占位符 class & 属性
-			$figure->setAttribute( 'class', trim( str_replace( 'notion-temp-image', '', $figure->getAttribute( 'class' ) ) ) );
-			$figure->removeAttribute( 'data-ntw-url' );
-			$changed = true;
-		}
-
-		// 处理文件占位符
-		foreach ( $xpath->query( '//*[contains(concat(" ", normalize-space(@class), " "), " notion-temp-file ")]' ) as $box ) {
-			/** @var \DOMElement $box */
-			$url = $box->getAttribute( 'data-ntw-url' );
-			if ( ! $url ) {
-				continue;
-			}
-			
-			// 移除查询参数以提高匹配率
-			$base_url = preg_replace( '/\?.*$/', '', $url );
-			$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $base_url );
-			
-			if ( $aid <= 0 ) {
-				// 再尝试完整URL
-				$aid = Notion_To_WordPress_Helper::get_attachment_id_by_url( $url );
-				if ( $aid <= 0 ) {
-					continue;
-				}
-			}
-			
-			$local_url = wp_get_attachment_url( $aid );
-			if ( ! $local_url ) {
-				continue;
-			}
-			// 更新下载按钮 href
-			foreach ( $box->getElementsByTagName( 'a' ) as $a ) {
-				if ( $a->hasAttribute( 'href' ) ) {
-					$a->setAttribute( 'href', $local_url );
-					$a->textContent = __( '下载附件', 'notion-to-wordpress' );
-				}
-			}
-			$box->setAttribute( 'class', trim( str_replace( 'notion-temp-file', '', $box->getAttribute( 'class' ) ) ) );
-			$box->removeAttribute( 'data-ntw-url' );
-			$changed = true;
-		}
-
-		if ( ! $changed ) {
-			return $content;
-		}
-
-		$new_content = $dom->saveHTML();
-
-		// 若在单篇文章上下文，更新数据库以永久保存
-		if ( is_singular() && in_the_loop() ) {
-			global $post;
-			if ( $post instanceof \WP_Post && ! empty( $post->ID ) ) {
-				remove_filter( 'the_content', [ $this, 'replace_temp_media_placeholders' ], 20 ); // 避免递归
-				wp_update_post([
-					'ID'           => $post->ID,
-					'post_content' => $new_content,
-				]);
-				add_filter( 'the_content', [ $this, 'replace_temp_media_placeholders' ], 20 );
-			}
-		}
-
-		return $new_content;
 	}
 } 

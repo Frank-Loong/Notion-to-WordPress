@@ -1,3 +1,7 @@
+<!-- Lang Switch -->
+<p align="right">
+  English | <a href="./CONTRIBUTING-zh_CN.md">中文</a>
+</p>
 # Contributing to Notion·to-WordPress
 
 Thank you for your interest in contributing! We welcome all forms of contribution, including bug reports, feature requests, code, documentation, and translations.

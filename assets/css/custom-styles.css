@@ -666,38 +666,69 @@ blockquote {
     padding-right: 1em;
 }
 
-/* --- Notion 列布局 --- */
-.notion-column-list {
+/* PDF预览样式 */
+.notion-pdf {
+    margin: 20px 0;
+    border: 1px solid #e1e1e1;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.pdf-preview-container {
+    background: #f5f5f5;
+    min-height: 600px;
+    position: relative;
+}
+
+.pdf-preview-container object,
+.pdf-preview-container embed {
+    width: 100%;
+    height: 600px;
+    border: none;
+}
+
+.pdf-actions {
+    padding: 15px;
+    background: #f9f9f9;
+    border-top: 1px solid #e1e1e1;
     display: flex;
+    gap: 10px;
     flex-wrap: wrap;
-    gap: 1.5rem;
-    margin: 1.5em 0;
 }
 
-.notion-column {
-    flex: 1 1 50%;
-    min-width: 240px;
-    box-sizing: border-box;
+.pdf-download-btn, .pdf-open-btn {
+    background: #0073aa;
+    color: white !important;
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-@media (max-width: 768px) {
-    .notion-column {
-        flex: 1 1 100%;
-    }
+.pdf-open-btn {
+    background: #666;
 }
 
-/* 公式标签元素样式优化 */
-.tag .strut {
-    display: none !important;
+.pdf-download-btn:hover {
+    background: #005a87 !important;
+    color: white !important;
 }
 
-.tag .mord.text {
-    display: inline !important;
-    vertical-align: baseline !important;
+.pdf-open-btn:hover {
+    background: #444 !important;
+    color: white !important;
 }
 
-.tag .mord {
-    font-style: normal !important;
-    font-weight: normal !important;
-    display: inline !important;
+.notion-pdf-caption {
+    padding: 10px 15px;
+    margin: 0;
+    font-style: italic;
+    color: #666;
+    background: #f9f9f9;
+    border-top: 1px solid #e1e1e1;
+    font-size: 0.9em;
 }
