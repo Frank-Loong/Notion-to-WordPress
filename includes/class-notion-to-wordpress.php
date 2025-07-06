@@ -513,4 +513,10 @@ class Notion_To_WordPress {
 
 		return $schedules;
 	}
+
+	private function _convert_block_equation( array $block ): string {
+		$expression = $block['equation']['expression'] ?? '';
+		// 保持原始 LaTeX，避免对反斜杠做二次转义
+		return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
+	}
 } 

@@ -221,10 +221,12 @@ class Notion_To_WordPress_Helper {
                 'div'  => [
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于 equation
+                    'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
                 ],
                 'span' => [
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于颜色
+                    'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
                 ],
                 'iframe' => [
                     'src'             => true,

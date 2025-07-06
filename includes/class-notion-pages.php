@@ -124,9 +124,6 @@ class Notion_Pages {
         // 转换内容为 HTML 并做 KSES 过滤
         $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
 
-        // 处理Notion公式格式
-        $raw_content = $this->process_notion_equations($raw_content);
-
         $content     = Notion_To_WordPress_Helper::custom_kses($raw_content);
         
         $existing_post_id = $this->get_post_by_notion_id($page_id);
@@ -782,9 +779,26 @@ class Notion_Pages {
         return '<div class="notion-bookmark"><a href="' . $url . '" target="_blank" rel="noopener noreferrer">' . $url . '</a>' . $caption_html . '</div>';
     }
 
+    /**
+     * 转换块级公式 - 重构后的统一处理逻辑
+     *
+     * @since 1.0.9 重构公式处理系统，解决转义问题
+     * @param array $block 公式块数据
+     * @param Notion_API $notion_api Notion API实例
+     * @return string 转换后的HTML
+     */
     private function _convert_block_equation(array $block, Notion_API $notion_api): string {
-        // 不对表达式中的反斜杠进行额外转义
-        $expression = $block['equation']['expression'];
+        $expression = $block['equation']['expression'] ?? '';
+
+        // 保留化学公式的特殊处理（确保\ce前缀）
+        if (strpos($expression, 'ce{') !== false && strpos($expression, '\\ce{') === false) {
+            $expression = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expression);
+        }
+
+        // 恢复到旧版本的处理方式：反斜杠加倍保护
+        $expression = str_replace( '\\', '\\\\', $expression );
+
+        // 使用旧版本的简单类名，确保JavaScript能正确识别
         return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
@@ -897,16 +911,18 @@ class Notion_Pages {
         $result = '';
         
         foreach ($rich_text as $text) {
-            // 处理 inline equation
+            // 处理行内公式 - 恢复到旧版本逻辑
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr_raw = $text['equation']['expression'] ?? '';
-                
-                // 避免对表达式中的美元符号做二次转义
-                // 只转义原始LaTeX中未转义的反斜杠
-                $expr = $expr_raw;
-                
-                // 创建带有特殊class的元素，稍后由JS处理
-                $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
+
+                // 保留化学公式的特殊处理（确保\ce前缀）
+                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
+                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
+                }
+
+                // 恢复到旧版本的处理方式：反斜杠加倍保护
+                $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
+                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
@@ -1552,38 +1568,7 @@ class Notion_Pages {
         return '<p class="notion-link-to-page"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a></p>';
     }
 
-    /**
-     * 处理Notion公式格式
-     *
-     * @since 1.0.9
-     * @param string $content 内容
-     * @return string 处理后的内容
-     */
-    private function process_notion_equations(string $content): string {
-        // 处理行内公式 - 保留原始LaTeX内容，不添加额外转义
-        $content = preg_replace_callback(
-            '/<span class="notion-equation notion-equation-inline">\$(.+?)\$<\/span>/',
-            function($matches) {
-                // 将HTML实体解码回原始LaTeX
-                $latex = html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8');
-                return '<span class="notion-equation-inline">$' . $latex . '$</span>';
-            },
-            $content
-        );
 
-        // 处理块级公式 - 保留原始LaTeX内容，不添加额外转义
-        $content = preg_replace_callback(
-            '/<div class="notion-equation notion-equation-block">\$\$(.+?)\$\$<\/div>/s',
-            function($matches) {
-                // 将HTML实体解码回原始LaTeX
-                $latex = html_entity_decode($matches[1], ENT_QUOTES, 'UTF-8');
-                return '<div class="notion-equation-block">$$' . $latex . '$$</div>';
-            },
-            $content
-        );
-
-        return $content;
-    }
 
     /**
      * 验证PDF文件
