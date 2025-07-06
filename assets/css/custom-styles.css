@@ -827,3 +827,23 @@ blockquote {
     border-top: 1px solid #e1e1e1;
     font-size: 0.9em;
 }
+
+/* ===== KaTeX 标签简化样式（去除背景框及抖动） ===== */
+.katex-display .tag,
+.notion-equation-block .katex-display .tag {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    font-weight: normal !important;
+    transform: translateY(-50%) !important; /* 保持垂直居中，不缩放 */
+    transition: none !important;
+}
+
+.katex-display .tag:hover,
+.notion-equation-block .katex-display .tag:hover {
+    background: none !important;
+    border: none !important;
+    transform: translateY(-50%) !important; /* 取消缩放避免引发滚动条抖动 */
+}
