@@ -1200,8 +1200,14 @@ class Notion_Pages {
      */
     public function import_pages() {
         try {
+            // 添加调试日志
+            error_log('Notion to WordPress: import_pages() 开始执行');
+            error_log('Notion to WordPress: Database ID: ' . $this->database_id);
+
             // 获取数据库中的所有页面
+            error_log('Notion to WordPress: 调用get_database_pages()');
             $pages = $this->notion_api->get_database_pages($this->database_id);
+            error_log('Notion to WordPress: 获取到页面数量: ' . count($pages));
 
             if (empty($pages)) {
                 return new WP_Error('no_pages', __('未检索到任何页面。', 'notion-to-wordpress'));
@@ -1234,6 +1240,8 @@ class Notion_Pages {
             return $stats;
 
         } catch (Exception $e) {
+            error_log('Notion to WordPress: import_pages() 异常: ' . $e->getMessage());
+            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
             return new WP_Error('import_failed', __('导入失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
