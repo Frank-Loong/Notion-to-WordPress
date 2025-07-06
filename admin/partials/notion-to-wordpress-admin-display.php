@@ -32,7 +32,7 @@ $field_mapping         = $options['field_mapping'] ?? [
     'featured_image' => 'Featured Image,特色图片',
     'categories'     => 'Categories,分类',
     'tags'           => 'Tags,标签',
-
+    'password'       => 'Password,密码',
 ];
 $debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR;
 $max_image_size        = $options['max_image_size'] ?? 5;
@@ -279,7 +279,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <p class="description"><?php esc_html_e('用于设置WordPress文章标签的Notion属性名称', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
-
+                                <tr>
+                                    <th scope="row"><label for="mapping_password"><?php esc_html_e('文章密码', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <input name="field_mapping[password]" type="text" id="mapping_password" value="<?php echo esc_attr($field_mapping['password'] ?? 'Password,密码'); ?>" class="regular-text">
+                                        <p class="description"><?php esc_html_e('用于设置WordPress文章密码的Notion属性名称', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
 
