@@ -1,3 +1,8 @@
+<!-- Switch Links -->
+<p align="right">
+  <a href="./README.md">English</a> | 简体中文
+</p>
+
 # Notion·to·WordPress
 
 > 🚀 一键将 Notion 变身 WordPress — 60 秒完成全自动内容发布
@@ -22,7 +27,7 @@
 - **🌍 多语言**：内置 i18n，现已支持简体中文 / English
 - **📝 一键卸载**：可选清理所有设置与日志，干净无残留
 
-> 想了解所有高级玩法？访问 [Wiki 📚](./wiki/Home.md)
+> 想了解所有高级玩法？访问 [Wiki 📚](./wiki/README-Wiki.zh-CN.md) – [中文](./wiki/README-Wiki.zh-CN.md) | [English](./wiki/README-Wiki.md)
 
 ---
 
@@ -31,7 +36,7 @@
 2. **配置**：在「Notion to WordPress」菜单中填写 *Internal Integration Token* 及 *Database ID*
 3. **同步**：点击「手动同步」或等待自动/Webhook 触发，Notion 内容即刻出现在 WordPress！
 
-> 详细图文教程请见 [Wiki · Getting Started](./wiki/Getting-Started.md)
+> 详细图文教程请见 [Wiki · 快速上手](./wiki/README-Wiki.zh-CN.md#快速上手)
 
 ---
 

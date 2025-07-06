@@ -159,7 +159,7 @@ class Notion_Pages {
             'featured_image' => 'Featured Image,特色图片',
             'categories'     => 'Categories,分类',
             'tags'           => 'Tags,标签',
-            'visibility'     => 'Visibility,可见性',
+
             'password'       => 'Password,密码',
         ];
 
@@ -228,8 +228,7 @@ class Notion_Pages {
         $metadata['excerpt']        = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
         $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
         
-        // 提取可见性设置
-        $metadata['visibility']     = $this->get_property_value( $props, $field_mapping['visibility'], 'select', 'name' );
+
 
         // 处理分类和标签
         $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );

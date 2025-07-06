@@ -27,7 +27,7 @@
 - **🌍 Multilingual** – i18n built-in (English & Simplified Chinese)
 - **📝 Clean uninstall** – optional removal of settings, logs & imported content
 
-> Dive deeper? Check the [Wiki 📚](./wiki/Home.md) – English | [中文](./wiki/Home.zh-CN.md)
+> Dive deeper? Check the [Wiki 📚](./wiki/README-Wiki.md) – English | [中文](./wiki/README-Wiki.zh-CN.md)
 
 ---
 
@@ -36,7 +36,7 @@
 2. **Configure** – paste your *Internal Integration Token* & *Database ID* under "Notion to WordPress".
 3. **Sync** – click "Manual Sync" or wait for Cron/Webhook; your Notion content appears in WordPress.
 
-Need screenshots? See the [Getting Started guide](./wiki/Getting-Started.md).
+Need screenshots? See the [Getting Started guide](./wiki/README-Wiki.md#getting-started).
 
 ---
 

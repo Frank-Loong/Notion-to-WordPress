@@ -302,13 +302,7 @@ msgstr "Tags"
 msgid "用于设置WordPress文章标签的Notion属性名称"
 msgstr "Notion property name used to set WordPress post tags"
 
-#: admin/partials/notion-to-wordpress-admin-display.php:283
-msgid "可见性"
-msgstr "Visibility"
 
-#: admin/partials/notion-to-wordpress-admin-display.php:286
-msgid "用于设置WordPress文章可见性的Notion属性名称（公开、私密、密码保护）"
-msgstr "Notion property name used to set WordPress post visibility (public, private, password protected)"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:293
 msgid "自定义字段映射"

@@ -342,7 +342,7 @@ class Notion_To_WordPress {
 				'featured_image' => 'Featured Image,特色图片',
 				'categories'     => 'Categories,分类',
 				'tags'           => 'Tags,标签',
-				'visibility'     => 'Visibility,可见性',
+
 			),
 			'custom_field_mappings' => array(),
 			'debug_level'         => Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR,
