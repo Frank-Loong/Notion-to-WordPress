@@ -112,6 +112,8 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_database_pages(string $database_id, array $filter = []): array {
+        error_log('Notion to WordPress: get_database_pages() 开始，Database ID: ' . $database_id);
+
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
@@ -130,10 +132,13 @@ class Notion_API {
                 $data['start_cursor'] = $start_cursor;
             }
             
+            error_log('Notion to WordPress: 发送API请求到: ' . $endpoint);
             $response = $this->send_request($endpoint, 'POST', $data);
-            
+            error_log('Notion to WordPress: API响应状态: ' . (isset($response['results']) ? 'success' : 'no results'));
+
             if (isset($response['results'])) {
                 $all_results = array_merge($all_results, $response['results']);
+                error_log('Notion to WordPress: 当前批次页面数: ' . count($response['results']) . ', 总计: ' . count($all_results));
             }
 
             $has_more = $response['has_more'] ?? false;
