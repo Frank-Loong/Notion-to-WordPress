@@ -101,8 +101,8 @@ class Notion_To_WordPress_i18n {
             }
 
             if ( $plugin_language === 'en_US' ) {
-                // 强制返回英文原文
-                return $text;
+                // 返回英文翻译；若翻译不存在则保持原文
+                return $translation;
             } elseif ( $plugin_language === 'zh_CN' ) {
                 // 如果当前翻译是英文原文，尝试加载中文翻译
                 if ( $translation === $text ) {
