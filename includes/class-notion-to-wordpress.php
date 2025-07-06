@@ -178,6 +178,8 @@ class Notion_To_WordPress {
 	private function set_locale() {
 		$plugin_i18n = new Notion_To_WordPress_i18n();
 		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
+		// Allow forcing English UI via option
+		$this->loader->add_filter( 'plugin_locale', $plugin_i18n, 'maybe_force_english_locale', 10, 2 );
 	}
 
 	/**

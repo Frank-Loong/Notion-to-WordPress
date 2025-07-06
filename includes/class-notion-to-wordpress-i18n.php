@@ -27,4 +27,15 @@ class Notion_To_WordPress_i18n {
             dirname(dirname(plugin_basename(__FILE__))) . '/languages/'
         );
     }
+
+    public function maybe_force_english_locale( $locale, $domain ) {
+        // Force en_US for this plugin if the option is enabled
+        if ( 'notion-to-wordpress' === $domain ) {
+            $opts = get_option( 'notion_to_wordpress_options', [] );
+            if ( ! empty( $opts['force_english_ui'] ) ) {
+                return 'en_US';
+            }
+        }
+        return $locale;
+    }
 } 
