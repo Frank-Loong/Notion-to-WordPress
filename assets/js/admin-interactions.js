@@ -51,11 +51,11 @@ jQuery(document).ready(function($) {
         if (input.attr('type') === 'password') {
             input.attr('type', 'text');
             icon.removeClass('dashicons-visibility').addClass('dashicons-hidden');
-            $(this).attr('title', '隐藏密钥');
+            $(this).attr('title', notionToWp.i18n.hide_key);
         } else {
             input.attr('type', 'password');
             icon.removeClass('dashicons-hidden').addClass('dashicons-visibility');
-            $(this).attr('title', '显示密钥');
+            $(this).attr('title', notionToWp.i18n.show_key);
         }
     });
     
@@ -65,7 +65,7 @@ jQuery(document).ready(function($) {
         var button = $(this);
         
         // 确认操作
-        if (!confirm('确定要开始同步Notion内容吗？')) {
+        if (!confirm(notionToWp.i18n.confirm_sync)) {
             return;
         }
         
@@ -213,7 +213,7 @@ jQuery(document).ready(function($) {
         
         if (!targetSelector) {
             console.error('复制按钮缺少 data-clipboard-target 属性');
-            showModal('复制失败: 未指定目标元素', 'error');
+            showModal(notionToWp.i18n.copy_failed_no_target, 'error');
             return;
         }
         
@@ -221,7 +221,7 @@ jQuery(document).ready(function($) {
         
         if ($target.length === 0) {
             console.error('未找到目标元素:', targetSelector);
-            showModal('复制失败: 未找到目标元素', 'error');
+            showModal(notionToWp.i18n.copy_failed_not_found, 'error');
             return;
         }
         
@@ -232,7 +232,7 @@ jQuery(document).ready(function($) {
             if (success) {
                 showModal(notionToWp.i18n.copied, 'success');
             } else {
-                showModal('复制失败: ' + (errorMsg || '未知错误'), 'error');
+                showModal(notionToWp.i18n.copy_failed + (errorMsg || notionToWp.i18n.unknown_error), 'error');
             }
         });
     });
@@ -241,7 +241,7 @@ jQuery(document).ready(function($) {
     $('#clear-logs-button').on('click', function(e) {
         e.preventDefault();
         
-        if (!confirm('确定要清除所有日志文件吗？此操作不可恢复。')) {
+        if (!confirm(notionToWp.i18n.confirm_clear_logs)) {
             return;
         }
         
@@ -256,7 +256,7 @@ jQuery(document).ready(function($) {
                 nonce: notionToWp.nonce
             },
             success: function(response) {
-                var message = response.success ? response.data.message : (response.data.message || '未知错误');
+                var message = response.success ? response.data.message : (response.data.message || notionToWp.i18n.unknown_error);
                 var status = response.success ? 'success' : 'error';
                 
                 showModal(message, status);
@@ -283,12 +283,12 @@ jQuery(document).ready(function($) {
         const button = $(this);
 
         if (!logFile) {
-            viewer.val('请先选择一个日志文件。');
+            viewer.val(notionToWp.i18n.select_log_file);
             return;
         }
 
         button.prop('disabled', true);
-        viewer.val('正在加载日志...');
+        viewer.val(notionToWp.i18n.loading_logs);
 
         $.ajax({
             url: notionToWp.ajax_url,
@@ -302,11 +302,11 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     viewer.val(response.data);
                 } else {
-                    viewer.val('无法加载日志: ' + response.data.message);
+                    viewer.val(notionToWp.i18n.load_logs_failed + response.data.message);
                 }
             },
             error: function() {
-                viewer.val('请求日志时发生错误。');
+                viewer.val(notionToWp.i18n.log_request_error);
             },
             complete: function() {
                 button.prop('disabled', false);
@@ -373,7 +373,7 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         var button = $(this);
         
-        if (!confirm('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。')) {
+        if (!confirm(notionToWp.i18n.confirm_refresh_all)) {
             return;
         }
         
@@ -387,7 +387,7 @@ jQuery(document).ready(function($) {
                 nonce: notionToWp.nonce
             },
             success: function(response) {
-                var message = response.success ? response.data.message : (response.data.message || '未知错误');
+                var message = response.success ? response.data.message : (response.data.message || notionToWp.i18n.unknown_error);
                 var status = response.success ? 'success' : 'error';
                 
                 showModal(message, status);
@@ -412,12 +412,12 @@ jQuery(document).ready(function($) {
       
       // 验证页面ID和安全参数
       if (!pageId || typeof pageId !== 'string' || pageId.trim() === '') {
-        showModal('页面ID无效，无法刷新。', 'error');
+        showModal(notionToWp.i18n.invalid_page_id, 'error');
         return;
       }
       
       if (!notionToWp.nonce || !notionToWp.ajax_url) {
-        showModal('安全验证参数缺失，无法继续操作。请刷新页面后重试。', 'error');
+        showModal(notionToWp.i18n.security_missing, 'error');
         return;
       }
       
@@ -436,18 +436,18 @@ jQuery(document).ready(function($) {
         success: function(resp) {
           $overlay.fadeOut(300);
           if (resp.success) {
-            showModal('页面已刷新完成！', 'success');
+            showModal(notionToWp.i18n.page_refreshed, 'success');
             // 刷新统计信息
             fetchStats();
           } else {
-            showModal('刷新失败: ' + (resp.data?.message || '未知错误'), 'error');
+            showModal(notionToWp.i18n.refresh_failed + (resp.data?.message || notionToWp.i18n.unknown_error), 'error');
           }
         },
         error: function(xhr, status, error) {
           $overlay.fadeOut(300);
-          let errorMsg = '网络错误，无法刷新页面。';
+          let errorMsg = notionToWp.i18n.network_error;
           if (status === 'timeout') {
-            errorMsg = '操作超时，请检查该Notion页面内容是否过大。';
+            errorMsg = notionToWp.i18n.timeout_error;
           } else if (xhr.responseJSON && xhr.responseJSON.data) {
             errorMsg += ' 详细信息: ' + xhr.responseJSON.data.message;
           }
@@ -472,10 +472,10 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_sync || '从未');
-                    $('.stat-next-run').text(stats.next_sync || '未计划');
+                    $('.stat-last-update').text(stats.last_sync || notionToWp.i18n.never);
+                    $('.stat-next-run').text(stats.next_sync || notionToWp.i18n.not_scheduled);
                 } else {
-                    showModal('无法加载统计信息: ' + (response.data.message || '未知错误'), 'error');
+                    showModal(notionToWp.i18n.load_logs_failed + (response.data.message || notionToWp.i18n.unknown_error), 'error');
                 }
             },
             error: function() {
@@ -505,7 +505,7 @@ jQuery(document).ready(function($) {
         
         if (hasError) {
             e.preventDefault();
-            showModal('请填写所有必填字段', 'error');
+            showModal(notionToWp.i18n.required_fields, 'error');
             
             setTimeout(function() {
                 $('.error').removeClass('error');
@@ -554,7 +554,7 @@ jQuery(document).ready(function($) {
             
             // 确保按钮有正确的提示
             if (!$btn.attr('title')) {
-                $btn.attr('title', '复制到剪贴板');
+                $btn.attr('title', notionToWp.i18n.copy_to_clipboard);
             }
         });
     }
@@ -570,7 +570,7 @@ jQuery(document).ready(function($) {
             
             // 如果没有复制按钮，则添加一个
             if ($pre.find('.copy-button').length === 0) {
-                var $button = $('<button class="copy-button" title="复制代码"></button>');
+                var $button = $('<button class="copy-button"></button>').attr('title', notionToWp.i18n.copy_code);
                 $pre.css('position', 'relative').append($button); // 确保pre是相对定位
                 
                 // 添加复制功能
@@ -599,14 +599,14 @@ jQuery(document).ready(function($) {
             // 根据复制结果更新按钮文本
             if (success) {
                 var originalText = $button.text();
-                $button.text('已复制!');
+                $button.text(notionToWp.i18n.copied_success);
                 
                 // 2秒后恢复原始文本
                 setTimeout(function() {
                     $button.text(originalText);
                 }, 2000);
             } else {
-                alert('复制失败，请手动复制。');
+                alert(notionToWp.i18n.copy_manual);
             }
         }
     });

@@ -1205,7 +1205,7 @@ class Notion_Pages {
             $pages = $this->notion_api->get_database_pages($this->database_id);
 
             if (empty($pages)) {
-                return new WP_Error('no_pages', '未检索到任何页面。');
+                return new WP_Error('no_pages', __('未检索到任何页面。', 'notion-to-wordpress'));
             }
 
             $stats = [
@@ -1235,7 +1235,7 @@ class Notion_Pages {
             return $stats;
 
         } catch (Exception $e) {
-            return new WP_Error('import_failed', '导入失败: ' . $e->getMessage());
+            return new WP_Error('import_failed', __('导入失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
 

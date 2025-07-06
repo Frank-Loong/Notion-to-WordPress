@@ -78,7 +78,7 @@ class Notion_To_WordPress_Webhook {
         $expected_token = $options['webhook_token'] ?? '';
 
         if (empty($expected_token) || $token_param !== $expected_token) {
-            return new WP_REST_Response(['status' => 'error', 'message' => 'Token mismatch'], 403);
+            return new WP_REST_Response(['status' => 'error', 'message' => __('Token mismatch', 'notion-to-wordpress')], 403);
         }
 
         // 获取请求体
@@ -113,13 +113,13 @@ class Notion_To_WordPress_Webhook {
 
         // 验证请求体
         if (empty($body)) {
-            return new WP_REST_Response(['status' => 'error', 'message' => '无效的请求体'], 400);
+            return new WP_REST_Response(['status' => 'error', 'message' => __('无效的请求体', 'notion-to-wordpress')], 400);
         }
 
         // 新版 Notion Webhook 事件位于 event.type
         $event_type = $body['type'] ?? ($body['event']['type'] ?? '');
         if (empty($event_type)) {
-            return new WP_REST_Response(['status' => 'error', 'message' => '缺少事件类型'], 400);
+            return new WP_REST_Response(['status' => 'error', 'message' => __('缺少事件类型', 'notion-to-wordpress')], 400);
         }
 
         // 处理不同类型的事件
@@ -127,10 +127,10 @@ class Notion_To_WordPress_Webhook {
             // 直接触发一次数据库同步（轻量化实现）
             try {
                 $this->notion_pages->import_pages();
-                return new WP_REST_Response(['status' => 'success', 'message' => '已触发同步'], 200);
+                return new WP_REST_Response(['status' => 'success', 'message' => __('已触发同步', 'notion-to-wordpress')], 200);
             } catch (Exception $e) {
                 Notion_To_WordPress_Helper::error_log('Webhook 同步失败: ' . $e->getMessage());
-                return new WP_REST_Response(['status' => 'error', 'message' => '同步过程中出错: ' . $e->getMessage()], 500);
+                return new WP_REST_Response(['status' => 'error', 'message' => __('同步过程中出错: ', 'notion-to-wordpress') . $e->getMessage()], 500);
             }
         }
 
