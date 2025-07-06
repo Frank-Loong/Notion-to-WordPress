@@ -1,0 +1,53 @@
+# WordPress plugin development ignores
+# ------------------------------------
+
+# Dependency directories
+node_modules/
+vendor/
+
+# AI tooling and workspace metadata
+.cursor/
+.augment/
+
+# IDE / Editor settings
+.vscode/
+.idea/
+*.iml
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and debug output
+*.log
+debug.log
+logs/
+
+# Environment / secrets
+.env
+.env.*
+
+# Build & release artifacts
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Coverage / test output
+coverage/
+
+# Misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.swp
+*.bak
+*.tmp
+
+# Other plugin runtime caches/uploads (if generated inside plugin folder)
+uploads/
+.cache/ 
