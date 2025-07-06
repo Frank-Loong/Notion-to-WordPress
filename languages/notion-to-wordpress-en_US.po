@@ -6,10 +6,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Notion to WordPress 1.0.9\n"
-"Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/"
-"issues\n"
+"Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-06 12:00+0000\n"
-"PO-Revision-Date: 2025-07-06 10:30+0800\n"
+"PO-Revision-Date: 2025-07-06 11:01+0800\n"
 "Last-Translator: Frank-Loong <frankloong@qq.com>\n"
 "Language-Team: English (United States)\n"
 "Language: en_US\n"
@@ -35,8 +34,7 @@ msgstr "Error occurred during import"
 msgid "测试中..."
 msgstr "Testing..."
 
-#: admin/class-notion-to-wordpress-admin.php:138
-#: admin/partials/notion-to-wordpress-admin-display.php:214
+#: admin/class-notion-to-wordpress-admin.php:138 admin/partials/notion-to-wordpress-admin-display.php:214
 msgid "测试连接"
 msgstr "Test Connection"
 
@@ -52,19 +50,16 @@ msgstr "Please enter API key and database ID"
 msgid "已复制到剪贴板"
 msgstr "Copied to clipboard"
 
-#: admin/class-notion-to-wordpress-admin.php:168
-#: admin/partials/notion-to-wordpress-admin-display.php:50
+#: admin/class-notion-to-wordpress-admin.php:168 admin/partials/notion-to-wordpress-admin-display.php:50
 msgid "Notion to WordPress"
 msgstr "Notion to WordPress"
 
 #: admin/class-notion-to-wordpress-admin.php:388
 #, php-format
 msgid "导入完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
-msgstr ""
-"Import completed! Processed %d pages, imported %d pages, updated %d pages."
+msgstr "Import completed! Processed %d pages, imported %d pages, updated %d pages."
 
-#: admin/class-notion-to-wordpress-admin.php:467
-#: admin/partials/notion-to-wordpress-admin-display.php:105
+#: admin/class-notion-to-wordpress-admin.php:467 admin/partials/notion-to-wordpress-admin-display.php:105
 msgid "未计划"
 msgstr "unscheduled"
 
@@ -149,12 +144,8 @@ msgid "输入您的Notion数据库ID"
 msgstr "Enter your Notion database ID"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:131
-msgid ""
-"可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数据库"
-"ID</strong>?v=xxx"
-msgstr ""
-"Can be found in Notion database URL, format: https://www.notion.so/xxx/"
-"<strong>database-ID</strong>?v=xxx"
+msgid "可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数据库ID</strong>?v=xxx"
+msgstr "Can be found in Notion database URL, format: https://www.notion.so/xxx/<strong>database-ID</strong>?v=xxx"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:135
 msgid "自动同步频率"
@@ -200,8 +191,7 @@ msgstr "Enable Webhook Support"
 #: admin/partials/notion-to-wordpress-admin-display.php:168
 msgid "启用后，您可以设置 Notion 集成的 Webhook 以在内容变更时自动触发同步。"
 msgstr ""
-"When enabled, you can set up Notion integration webhooks to automatically "
-"trigger sync when content changes."
+"When enabled, you can set up Notion integration webhooks to automatically trigger sync when content changes."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:172
 msgid "Verification Token"
@@ -218,8 +208,8 @@ msgstr "Copy Token"
 #: admin/partials/notion-to-wordpress-admin-display.php:182
 msgid "首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。"
 msgstr ""
-"When sending webhook for the first time, Notion will return "
-"verification_token, which will be displayed here automatically."
+"When sending webhook for the first time, Notion will return verification_token, which will be displayed here "
+"automatically."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:185
 msgid "Webhook URL"
@@ -231,21 +221,17 @@ msgstr "Copy URL"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:195
 msgid "在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。"
-msgstr ""
-"Set this URL as your integration's webhook endpoint in Notion developer "
-"platform."
+msgstr "Set this URL as your integration's webhook endpoint in Notion developer platform."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:222
 msgid "字段映射"
 msgstr "Field Mapping"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:223
-msgid ""
-"设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英文逗"
-"号隔开。"
+msgid "设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英文逗号隔开。"
 msgstr ""
-"Set the mapping between your Notion database property names and WordPress "
-"fields. Separate multiple alternative names with commas."
+"Set the mapping between your Notion database property names and WordPress fields. Separate multiple alternative "
+"names with commas."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:227
 msgid "文章标题"
@@ -260,12 +246,9 @@ msgid "状态"
 msgstr "Status"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:237
-msgid ""
-"值为 \"Published\" 或 \"已发布\" 的页面会被设为 \"已发布\" 状态，其他则为 "
-"\"草稿\"。"
+msgid "值为 \"Published\" 或 \"已发布\" 的页面会被设为 \"已发布\" 状态，其他则为 \"草稿\"。"
 msgstr ""
-"Pages with value \"Published\" or \"已发布\" will be set to \"Published\" "
-"status, others will be \"Draft\"."
+"Pages with value \"Published\" or \"已发布\" will be set to \"Published\" status, others will be \"Draft\"."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:241
 msgid "文章类型"
@@ -298,9 +281,7 @@ msgstr "Featured Image"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:265
 msgid "用于设置WordPress特色图片的Notion属性名称（应为URL或文件类型）"
-msgstr ""
-"Notion property name used to set WordPress featured image (should be URL or "
-"file type)"
+msgstr "Notion property name used to set WordPress featured image (should be URL or file type)"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:269
 msgid "分类"
@@ -323,11 +304,8 @@ msgid "自定义字段映射"
 msgstr "Custom Field Mapping"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:294
-msgid ""
-"将Notion属性映射到WordPress自定义字段。您可以添加任意数量的自定义字段映射。"
-msgstr ""
-"Map Notion properties to WordPress custom fields. You can add any number of "
-"custom field mappings."
+msgid "将Notion属性映射到WordPress自定义字段。您可以添加任意数量的自定义字段映射。"
+msgstr "Map Notion properties to WordPress custom fields. You can add any number of custom field mappings."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:314
 msgid "文本"
@@ -375,8 +353,7 @@ msgstr "e.g.: Author,作者"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:335
 msgid "Notion中的属性名称，多个备选名称请用英文逗号分隔"
-msgstr ""
-"Property name in Notion, separate multiple alternative names with commas"
+msgstr "Property name in Notion, separate multiple alternative names with commas"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:338
 msgid "WordPress字段名称"
@@ -416,55 +393,55 @@ msgstr "Delete all synced content on uninstall"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:495
 msgid "卸载插件时，删除所有从Notion同步的文章和页面"
-msgstr ""
-"When uninstalling the plugin, delete all posts and pages synced from Notion"
+msgstr "When uninstalling the plugin, delete all posts and pages synced from Notion"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:497
 msgid "警告：此操作不可逆！所有通过Notion同步的内容将被永久删除。"
-msgstr ""
-"Warning: This operation is irreversible! All content synced through Notion "
-"will be permanently deleted."
+msgstr "Warning: This operation is irreversible! All content synced through Notion will be permanently deleted."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:503
 msgid "iframe 白名单域名"
 msgstr "iframe Whitelist Domains"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:509
-msgid ""
-"允许在内容中嵌入的 iframe 域名白名单，多个域名请用英文逗号分隔。输入 * 表示允"
-"许所有域名（不推荐）。"
+msgid "允许在内容中嵌入的 iframe 域名白名单，多个域名请用英文逗号分隔。输入 * 表示允许所有域名（不推荐）。"
 msgstr ""
-"Whitelist of iframe domains allowed to be embedded in content, separate "
-"multiple domains with commas. Enter * to allow all domains (not recommended)."
+"Whitelist of iframe domains allowed to be embedded in content, separate multiple domains with commas. Enter * to "
+"allow all domains (not recommended)."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:513
 msgid "允许的图片格式"
 msgstr "Allowed Image Formats"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:519
-msgid ""
-"允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许所有"
-"格式。"
+msgid "允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许所有格式。"
 msgstr ""
-"Image MIME types allowed for download and import, separate multiple types "
-"with commas. Enter * to allow all formats."
+"Image MIME types allowed for download and import, separate multiple types with commas. Enter * to allow all "
+"formats."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:523
 msgid "插件界面语言"
 msgstr "Plugin Interface Language"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:528
-msgid "强制使用英文界面（忽略站点语言设置）"
+msgid "强制使用英文界面（忽略站点语言设置）（已过时）"
 msgstr "Force English interface (ignore site language settings)"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:530
-msgid ""
-"启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多语言"
-"站点或需要英文界面的用户。"
+msgid "启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多语言站点或需要英文界面的用户。"
 msgstr ""
-"When enabled, the plugin interface will always display in English, "
-"regardless of the WordPress site language setting. Suitable for multilingual "
-"sites or users who need an English interface."
+"When enabled, the plugin interface will always display in English, regardless of the WordPress site language "
+"setting. Suitable for multilingual sites or users who need an English interface."
+
+#: admin/partials/notion-to-wordpress-admin-display.php:532
+msgid "自动检测（跟随站点语言）"
+msgstr "Auto-detect (Follow site language)"
+
+msgid "简体中文"
+msgstr "Simplified Chinese"
+
+msgid "选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。"
+msgstr "Select the language for the plugin interface. Auto-detect will follow the WordPress site language setting."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:535
 msgid "最大图片大小"
@@ -476,9 +453,7 @@ msgstr "MB"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:542
 msgid "允许下载的最大图片大小（以 MB 为单位）。建议不超过 10MB。"
-msgstr ""
-"Maximum image size allowed for download (in MB). Recommended not to exceed "
-"10MB."
+msgstr "Maximum image size allowed for download (in MB). Recommended not to exceed 10MB."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:552
 msgid "调试工具"
@@ -510,9 +485,7 @@ msgstr "All Logs (Debug)"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:565
 msgid "设置日志记录的详细程度。建议在生产环境中设置为\"仅错误\"。"
-msgstr ""
-"Set the verbosity of logging. Recommended to set to \"Errors Only\" in "
-"production environment."
+msgstr "Set the verbosity of logging. Recommended to set to \"Errors Only\" in production environment."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:569
 msgid "错误日志"
@@ -552,9 +525,7 @@ msgstr "Configure API key and database ID on this page"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:600
 msgid "配置字段映射，确保Notion属性名称与WordPress字段正确对应"
-msgstr ""
-"Configure field mapping, ensure Notion property names correctly correspond "
-"to WordPress fields"
+msgstr "Configure field mapping, ensure Notion property names correctly correspond to WordPress fields"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:601
 msgid "点击\"测试连接\"确认设置正确"
@@ -566,8 +537,7 @@ msgstr "Click \"Save All Settings\" to save your configuration"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:603
 msgid "点击\"手动同步\"或设置自动同步频率开始导入内容"
-msgstr ""
-"Click \"Manual Sync\" or set auto sync frequency to start importing content"
+msgstr "Click \"Manual Sync\" or set auto sync frequency to start importing content"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:608
 msgid "常见问题"
@@ -591,8 +561,7 @@ msgstr "Confirm your Notion integration has been shared with the database"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:614
 msgid "检查字段映射是否正确对应Notion中的属性名称"
-msgstr ""
-"Check if field mapping correctly corresponds to property names in Notion"
+msgstr "Check if field mapping correctly corresponds to property names in Notion"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:615
 msgid "尝试使用\"刷新全部内容\"按钮重新同步"
@@ -604,25 +573,21 @@ msgstr "Q: How to customize the format of imported content?"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:619
 msgid ""
-"答：本插件会尽可能保留Notion中的格式，包括标题、列表、表格、代码块等。对于特"
-"殊内容（如数学公式、图表），插件也提供了支持。"
+"答：本插件会尽可能保留Notion中的格式，包括标题、列表、表格、代码块等。对于特殊内容（如数学公式、图表），插件也提"
+"供了支持。"
 msgstr ""
-"A: This plugin will preserve the format in Notion as much as possible, "
-"including headings, lists, tables, code blocks, etc. For special content "
-"(such as mathematical formulas, charts), the plugin also provides support."
+"A: This plugin will preserve the format in Notion as much as possible, including headings, lists, tables, code "
+"blocks, etc. For special content (such as mathematical formulas, charts), the plugin also provides support."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:621
 msgid "问：导入后如何更新内容？"
 msgstr "Q: How to update content after import?"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:622
-msgid ""
-"答：当您在Notion中更新内容后，可以点击\"刷新全部内容\"按钮手动更新，或等待自"
-"动同步（如果已设置）。"
+msgid "答：当您在Notion中更新内容后，可以点击\"刷新全部内容\"按钮手动更新，或等待自动同步（如果已设置）。"
 msgstr ""
-"A: After you update content in Notion, you can click the \"Refresh All "
-"Content\" button to manually update, or wait for automatic sync (if "
-"configured)."
+"A: After you update content in Notion, you can click the \"Refresh All Content\" button to manually update, or "
+"wait for automatic sync (if configured)."
 
 #: admin/partials/notion-to-wordpress-admin-display.php:626
 msgid "获取支持"
@@ -630,8 +595,7 @@ msgstr "Get Support"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:627
 msgid "如果您遇到任何问题或需要帮助，请访问我们的GitHub仓库："
-msgstr ""
-"If you encounter any issues or need help, please visit our GitHub repository:"
+msgstr "If you encounter any issues or need help, please visit our GitHub repository:"
 
 #: admin/partials/notion-to-wordpress-admin-display.php:635
 msgid "关于作者"
@@ -676,13 +640,10 @@ msgstr "Are you sure you want to start syncing Notion content?"
 
 msgid "确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。"
 msgstr ""
-"Are you sure you want to refresh all content? This will re-sync all pages "
-"based on the current state of Notion."
+"Are you sure you want to refresh all content? This will re-sync all pages based on the current state of Notion."
 
 msgid "确定要清除所有日志文件吗？此操作不可恢复。"
-msgstr ""
-"Are you sure you want to clear all log files? This operation cannot be "
-"undone."
+msgstr "Are you sure you want to clear all log files? This operation cannot be undone."
 
 msgid "请填写所有必填字段"
 msgstr "Please fill in all required fields"
@@ -703,9 +664,7 @@ msgid "页面ID无效，无法刷新。"
 msgstr "Invalid page ID, cannot refresh."
 
 msgid "安全验证参数缺失，无法继续操作。请刷新页面后重试。"
-msgstr ""
-"Security verification parameters missing, cannot continue. Please refresh "
-"the page and try again."
+msgstr "Security verification parameters missing, cannot continue. Please refresh the page and try again."
 
 msgid "页面已刷新完成！"
 msgstr "Page refresh completed!"
@@ -717,8 +676,7 @@ msgid "网络错误，无法刷新页面。"
 msgstr "Network error, unable to refresh page."
 
 msgid "操作超时，请检查该Notion页面内容是否过大。"
-msgstr ""
-"Operation timed out, please check if the Notion page content is too large."
+msgstr "Operation timed out, please check if the Notion page content is too large."
 
 msgid "请先选择一个日志文件。"
 msgstr "Please select a log file first."
@@ -831,28 +789,20 @@ msgid "清除日志失败"
 msgstr "Failed to clear logs"
 
 # Plugin description and author info
-msgid ""
-"从 Notion 数据库同步内容到 WordPress 文章，支持自动同步、手动同步和 Webhook "
-"触发。"
+msgid "从 Notion 数据库同步内容到 WordPress 文章，支持自动同步、手动同步和 Webhook 触发。"
 msgstr ""
-"Sync content from Notion database to WordPress posts, supports automatic "
-"sync, manual sync and webhook triggers."
+"Sync content from Notion database to WordPress posts, supports automatic sync, manual sync and webhook triggers."
 
 msgid "科技爱好者 & AI玩家"
 msgstr "Tech Enthusiast & AI Player"
 
 msgid "对互联网、计算机等科技行业充满热情，擅长 AI 工具的使用与调教。"
-msgstr ""
-"Passionate about internet, computer and technology industries, skilled in "
-"using and fine-tuning AI tools."
+msgstr "Passionate about internet, computer and technology industries, skilled in using and fine-tuning AI tools."
 
-msgid ""
-"此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣的项"
-"目分享给大家。"
+msgid "此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣的项目分享给大家。"
 msgstr ""
-"This plugin was completed with the assistance of powerful AI programming "
-"assistants Cursor and Augment, now sharing this interesting project with "
-"everyone."
+"This plugin was completed with the assistance of powerful AI programming assistants Cursor and Augment, now "
+"sharing this interesting project with everyone."
 
 msgid "个人网站"
 msgstr "Personal Website"

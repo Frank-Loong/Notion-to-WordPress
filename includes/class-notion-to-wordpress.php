@@ -177,9 +177,16 @@ class Notion_To_WordPress {
 	 */
 	private function set_locale() {
 		$plugin_i18n = new Notion_To_WordPress_i18n();
-		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
-		// Allow forcing English UI via option
-		$this->loader->add_filter( 'plugin_locale', $plugin_i18n, 'maybe_force_english_locale', 10, 2 );
+
+		// 注册多个钩子来确保语言切换生效
+		$this->loader->add_filter( 'plugin_locale', $plugin_i18n, 'maybe_override_locale', 10, 2 );
+		$this->loader->add_filter( 'gettext', $plugin_i18n, 'override_gettext', 10, 3 );
+
+		// 在 init 钩子上加载文本域
+		$this->loader->add_action( 'init', $plugin_i18n, 'load_plugin_textdomain' );
+
+		// 在 admin_init 钩子上强制重新加载翻译（仅在后台）
+		$this->loader->add_action( 'admin_init', $plugin_i18n, 'force_reload_translations' );
 	}
 
 	/**
