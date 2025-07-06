@@ -106,6 +106,7 @@ class Notion_Pages {
         error_log('Notion to WordPress: 提取页面元数据...');
         $metadata = $this->extract_page_metadata($page);
         error_log('Notion to WordPress: 元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'));
+        error_log('Notion to WordPress: 元数据详情: ' . print_r($metadata, true));
 
         if (empty($metadata['title'])) {
             error_log('Notion to WordPress: 页面标题为空，跳过导入');
@@ -178,19 +179,28 @@ class Notion_Pages {
             $field_mapping[ $key ] = array_map( 'trim', explode( ',', $value ) );
         }
 
-        $metadata['title'] = $this->get_property_value( $props, $field_mapping['title'], 'title', 'plain_text' );
+        $metadata['title'] = '';
+        if (isset($field_mapping['title']) && is_array($field_mapping['title'])) {
+            $metadata['title'] = $this->get_property_value( $props, $field_mapping['title'], 'title', 'plain_text' );
+        }
 
         // 兼容新版 Notion "Status" 属性（类型为 status）以及旧版 select
-        $status_val = $this->get_property_value( $props, $field_mapping['status'], 'select', 'name' );
-        if ( ! $status_val ) {
-            $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
+        $status_val = '';
+        if (isset($field_mapping['status']) && is_array($field_mapping['status'])) {
+            $status_val = $this->get_property_value( $props, $field_mapping['status'], 'select', 'name' );
+            if ( ! $status_val ) {
+                $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
+            }
         }
 
         // 获取密码字段
-        $password_val = $this->get_property_value( $props, $field_mapping['password'], 'rich_text', 'plain_text' );
-        if ( ! $password_val ) {
-            // 也尝试从其他类型获取密码
-            $password_val = $this->get_property_value( $props, $field_mapping['password'], 'title', 'plain_text' );
+        $password_val = '';
+        if (isset($field_mapping['password']) && is_array($field_mapping['password'])) {
+            $password_val = $this->get_property_value( $props, $field_mapping['password'], 'rich_text', 'plain_text' );
+            if ( ! $password_val ) {
+                // 也尝试从其他类型获取密码
+                $password_val = $this->get_property_value( $props, $field_mapping['password'], 'title', 'plain_text' );
+            }
         }
 
         // 处理文章状态和密码
@@ -233,38 +243,57 @@ class Notion_Pages {
             Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
         );
 
-        $metadata['post_type']      = $this->get_property_value( $props, $field_mapping['post_type'], 'select', 'name' ) ?? 'post';
-        $metadata['date']           = $this->get_property_value( $props, $field_mapping['date'], 'date', 'start' );
-        $metadata['excerpt']        = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
-        $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
+        $metadata['post_type'] = 'post';
+        if (isset($field_mapping['post_type']) && is_array($field_mapping['post_type'])) {
+            $metadata['post_type'] = $this->get_property_value( $props, $field_mapping['post_type'], 'select', 'name' ) ?? 'post';
+        }
+
+        $metadata['date'] = '';
+        if (isset($field_mapping['date']) && is_array($field_mapping['date'])) {
+            $metadata['date'] = $this->get_property_value( $props, $field_mapping['date'], 'date', 'start' );
+        }
+
+        $metadata['excerpt'] = '';
+        if (isset($field_mapping['excerpt']) && is_array($field_mapping['excerpt'])) {
+            $metadata['excerpt'] = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
+        }
+
+        $metadata['featured_image'] = '';
+        if (isset($field_mapping['featured_image']) && is_array($field_mapping['featured_image'])) {
+            $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
+        }
         
 
 
         // 处理分类和标签
-        $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
-        if ( $categories_prop ) {
-            $categories = [];
-            foreach ( $categories_prop as $category ) {
-                $term = get_term_by( 'name', $category['name'], 'category' );
-                if ( ! $term ) {
-                    $term_data = wp_create_term( $category['name'], 'category' );
-                    if ( ! is_wp_error( $term_data ) ) {
-                        $categories[] = $term_data['term_id'];
+        if (isset($field_mapping['categories']) && is_array($field_mapping['categories'])) {
+            $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
+            if ( $categories_prop ) {
+                $categories = [];
+                foreach ( $categories_prop as $category ) {
+                    $term = get_term_by( 'name', $category['name'], 'category' );
+                    if ( ! $term ) {
+                        $term_data = wp_create_term( $category['name'], 'category' );
+                        if ( ! is_wp_error( $term_data ) ) {
+                            $categories[] = $term_data['term_id'];
+                        }
+                    } else {
+                        $categories[] = $term->term_id;
                     }
-                } else {
-                    $categories[] = $term->term_id;
                 }
+                $metadata['categories'] = array_filter( $categories );
             }
-            $metadata['categories'] = array_filter( $categories );
         }
 
-        $tags_prop = $this->get_property_value( $props, $field_mapping['tags'], 'multi_select' );
-        if ( $tags_prop ) {
-            $tags = [];
-            foreach ( $tags_prop as $tag ) {
-                $tags[] = $tag['name'];
+        if (isset($field_mapping['tags']) && is_array($field_mapping['tags'])) {
+            $tags_prop = $this->get_property_value( $props, $field_mapping['tags'], 'multi_select' );
+            if ( $tags_prop ) {
+                $tags = [];
+                foreach ( $tags_prop as $tag ) {
+                    $tags[] = $tag['name'];
+                }
+                $metadata['tags'] = $tags;
             }
-            $metadata['tags'] = $tags;
         }
         
         // 处理自定义字段映射
@@ -756,7 +785,7 @@ class Notion_Pages {
     }
 
     private function _convert_block_equation(array $block, Notion_API $notion_api): string {
-        $expression = str_replace( '\\', '\\\\', $block['equation']['expression'] ?? '' );
+        $expression = str_replace('\\', '\\\\', $block['equation']['expression']);
         return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
@@ -871,7 +900,8 @@ class Notion_Pages {
         foreach ($rich_text as $text) {
             // 处理 inline equation
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
-                $expr    = str_replace( '\\', '\\\\', $text['equation']['expression'] ?? '' );
+                $expr_raw = $text['equation']['expression'] ?? '';
+                $expr = str_replace('\\', '\\\\', $expr_raw);
                 $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
             } else {
                 // 对纯文本内容进行转义
