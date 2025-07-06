@@ -88,14 +88,14 @@ class Notion_API {
         $response = wp_remote_request($url, $args);
         
         if (is_wp_error($response)) {
-            throw new Exception('API请求失败: ' . $response->get_error_message());
+            throw new Exception(__('API请求失败: ', 'notion-to-wordpress') . $response->get_error_message());
         }
         
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code < 200 || $response_code >= 300) {
             $error_body = json_decode(wp_remote_retrieve_body($response), true);
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);
-            throw new Exception('API错误 (' . $response_code . '): ' . $error_message);
+            throw new Exception(__('API错误 (', 'notion-to-wordpress') . $response_code . '): ' . $error_message);
         }
         
         $body = wp_remote_retrieve_body($response);
@@ -259,7 +259,7 @@ class Notion_API {
 
             return true;
         } catch (Exception $e) {
-            return new WP_Error('connection_failed', '连接测试失败: ' . $e->getMessage());
+            return new WP_Error('connection_failed', __('连接测试失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
 

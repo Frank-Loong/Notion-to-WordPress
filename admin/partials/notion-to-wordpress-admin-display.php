@@ -2,23 +2,23 @@
 declare(strict_types=1);
 
 /**
- * 为插件管理后台页面提供视图。
+ * Provide a admin area view for the plugin
  *
- * 这个文件负责渲染插件设置页面的所有HTML内容。
+ * This file is used to markup the admin-facing aspects of the plugin.
  *
  * @since      1.0.9
  * @package    Notion_To_WordPress
  */
 
-// 如果直接访问此文件，则退出
+// If this file is called directly, abort.
 if (!defined('WPINC')) {
     die;
 }
 
-// 一次性获取所有选项
+// Get all options at once
 $options = get_option('notion_to_wordpress_options', []);
 
-// 从选项数组中安全地获取值，并提供默认值
+// Safely get values from options array with defaults
 $api_key               = $options['notion_api_key'] ?? '';
 $database_id           = $options['notion_database_id'] ?? '';
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
@@ -38,7 +38,7 @@ $debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::
 $max_image_size        = $options['max_image_size'] ?? 5;
 $force_english_ui      = $options['force_english_ui'] ?? 0;
 
-// 生成nonce用于内联脚本
+// Generate nonce for inline scripts
 $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
 ?>
@@ -295,10 +295,10 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             
                             <div id="custom-field-mappings">
                                 <?php
-                                // 获取已保存的自定义字段映射
+                                // Get saved custom field mappings
                                 $custom_field_mappings = $options['custom_field_mappings'] ?? [];
                                 
-                                // 如果没有映射，添加一个空的默认映射
+                                // If no mappings exist, add an empty default mapping
                                 if (empty($custom_field_mappings)) {
                                     $custom_field_mappings = [
                                         [
@@ -309,7 +309,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     ];
                                 }
                                 
-                                // 字段类型选项
+                                // Field type options
                                 $field_types = [
                                     'text' => __('文本', 'notion-to-wordpress'),
                                     'number' => __('数字', 'notion-to-wordpress'),
@@ -371,59 +371,59 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     const container = document.getElementById('custom-field-mappings');
                                     const addButton = document.getElementById('add-custom-field');
                                     
-                                    // 添加新字段
+                                    // Add new field
                                     addButton.addEventListener('click', function() {
                                         const fields = container.querySelectorAll('.custom-field-mapping');
                                         const newIndex = fields.length;
                                         const fieldTemplate = fields[0].cloneNode(true);
                                         
-                                        // 重置字段值
+                                        // Reset field values
                                         const inputs = fieldTemplate.querySelectorAll('input');
                                         inputs.forEach(input => {
                                             input.value = '';
                                             input.name = input.name.replace(/\[\d+\]/, '[' + newIndex + ']');
                                         });
                                         
-                                        // 更新选择框名称
+                                        // Update select names
                                         const selects = fieldTemplate.querySelectorAll('select');
                                         selects.forEach(select => {
                                             select.name = select.name.replace(/\[\d+\]/, '[' + newIndex + ']');
                                         });
                                         
-                                        // 显示删除按钮
+                                        // Show remove button
                                         const removeButton = fieldTemplate.querySelector('.remove-field');
                                         removeButton.style.display = 'inline-block';
                                         
                                         container.appendChild(fieldTemplate);
                                         
-                                        // 确保所有删除按钮可见
+                                        // Ensure all remove buttons are visible
                                         document.querySelectorAll('.remove-field').forEach(btn => {
                                             btn.style.display = 'inline-block';
                                         });
                                     });
                                     
-                                    // 删除字段（使用事件委托）
+                                    // Remove field (using event delegation)
                                     container.addEventListener('click', function(e) {
                                         if (e.target.classList.contains('remove-field') || e.target.closest('.remove-field')) {
                                             const fieldRow = e.target.closest('.custom-field-mapping');
                                             
-                                            // 如果只剩一个字段，则不删除
+                                            // Don't delete if only one field remains
                                             const fields = container.querySelectorAll('.custom-field-mapping');
                                             if (fields.length > 1) {
                                                 fieldRow.remove();
                                                 
-                                                // 如果只剩一个字段，隐藏其删除按钮
+                                                // Hide remove button if only one field remains
                                                 if (fields.length === 2) {
                                                     container.querySelector('.remove-field').style.display = 'none';
                                                 }
                                                 
-                                                // 重新编号字段
+                                                // Reindex fields
                                                 reindexFields();
                                             }
                                         }
                                     });
                                     
-                                    // 重新编号字段
+                                    // Reindex fields
                                     function reindexFields() {
                                         const fields = container.querySelectorAll('.custom-field-mapping');
                                         fields.forEach((field, index) => {
@@ -520,14 +520,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th scope="row"><label for="force_english_ui"><?php esc_html_e('强制英文界面', 'notion-to-wordpress'); ?></label></th>
+                                    <th scope="row"><label for="force_english_ui"><?php esc_html_e('插件界面语言', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <fieldset>
                                             <label for="force_english_ui" class="checkbox-with-label">
                                                 <input type="checkbox" id="force_english_ui" name="force_english_ui" value="1" <?php checked(1, $force_english_ui); ?>>
-                                                <span><?php esc_html_e('无论站点语言为何，都显示英文插件文本', 'notion-to-wordpress'); ?></span>
+                                                <span><?php esc_html_e('强制使用英文界面（忽略站点语言设置）', 'notion-to-wordpress'); ?></span>
                                             </label>
-                                            <p class="description"><?php esc_html_e('适用于双语站点或调试翻译时快速切换语言。', 'notion-to-wordpress'); ?></p>
+                                            <p class="description"><?php esc_html_e('启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多语言站点或需要英文界面的用户。', 'notion-to-wordpress'); ?></p>
                                         </fieldset>
                                     </td>
                                 </tr>
@@ -640,19 +640,19 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             </div>
                             <div class="author-details">
                                 <h3>Frank-Loong</h3>
-                                <p class="author-title">科技爱好者 & AI玩家</p>
+                                <p class="author-title"><?php esc_html_e('科技爱好者 & AI玩家', 'notion-to-wordpress'); ?></p>
                                 <p class="author-description">
-                                    对互联网、计算机等科技行业充满热情，擅长 AI 工具的使用与调教。
-                                    此插件在强大的 AI 编程助手 Cursor 的协助下完成，现在将这个有趣的项目分享给大家。
+                                    <?php esc_html_e('对互联网、计算机等科技行业充满热情，擅长 AI 工具的使用与调教。', 'notion-to-wordpress'); ?>
+                                    <?php esc_html_e('此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣的项目分享给大家。', 'notion-to-wordpress'); ?>
                                 </p>
                                 <div class="author-links">
                                     <a href="https://frankloong.com" target="_blank" class="author-link">
                                         <span class="link-icon">🌐</span>
-                                        个人网站
+                                        <?php esc_html_e('个人网站', 'notion-to-wordpress'); ?>
                                     </a>
                                     <a href="mailto:frankloong@qq.com" class="author-link">
                                         <span class="link-icon">📧</span>
-                                        联系邮箱
+                                        <?php esc_html_e('联系邮箱', 'notion-to-wordpress'); ?>
                                     </a>
                                     <a href="https://github.com/Frank-Loong/Notion-to-WordPress" target="_blank" class="author-link">
                                         <span class="link-icon">💻</span>
@@ -666,15 +666,15 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             <h4><?php esc_html_e('插件信息', 'notion-to-wordpress'); ?></h4>
                             <div class="info-grid">
                                 <div class="info-item">
-                                    <span class="info-label">版本：</span>
+                                    <span class="info-label"><?php esc_html_e('版本：', 'notion-to-wordpress'); ?></span>
                                     <span class="info-value"><?php echo esc_html( NOTION_TO_WORDPRESS_VERSION ); ?></span>
                                 </div>
                                 <div class="info-item">
-                                    <span class="info-label">许可证：</span>
+                                    <span class="info-label"><?php esc_html_e('许可证：', 'notion-to-wordpress'); ?></span>
                                     <span class="info-value">GPL v3</span>
                                 </div>
                                 <div class="info-item">
-                                    <span class="info-label">兼容性：</span>
+                                    <span class="info-label"><?php esc_html_e('兼容性：', 'notion-to-wordpress'); ?></span>
                                     <span class="info-value">WordPress 5.0+</span>
                                 </div>
                             </div>

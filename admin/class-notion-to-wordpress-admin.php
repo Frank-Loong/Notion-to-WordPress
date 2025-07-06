@@ -139,6 +139,34 @@ class Notion_To_WordPress_Admin {
                 'test_error' => __('测试连接时发生错误', 'notion-to-wordpress'),
                 'fill_fields' => __('请输入API密钥和数据库ID', 'notion-to-wordpress'),
                 'copied' => __('已复制到剪贴板', 'notion-to-wordpress'),
+                'stats_error' => __('统计信息错误', 'notion-to-wordpress'),
+                'confirm_sync' => __('确定要开始同步Notion内容吗？', 'notion-to-wordpress'),
+                'confirm_refresh_all' => __('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。', 'notion-to-wordpress'),
+                'confirm_clear_logs' => __('确定要清除所有日志文件吗？此操作不可恢复。', 'notion-to-wordpress'),
+                'required_fields' => __('请填写所有必填字段', 'notion-to-wordpress'),
+                'hide_key' => __('隐藏密钥', 'notion-to-wordpress'),
+                'show_key' => __('显示密钥', 'notion-to-wordpress'),
+                'never' => __('从未', 'notion-to-wordpress'),
+                'not_scheduled' => __('未计划', 'notion-to-wordpress'),
+                'unknown_error' => __('未知错误', 'notion-to-wordpress'),
+                'invalid_page_id' => __('页面ID无效，无法刷新。', 'notion-to-wordpress'),
+                'security_missing' => __('安全验证参数缺失，无法继续操作。请刷新页面后重试。', 'notion-to-wordpress'),
+                'page_refreshed' => __('页面已刷新完成！', 'notion-to-wordpress'),
+                'refresh_failed' => __('刷新失败: ', 'notion-to-wordpress'),
+                'network_error' => __('网络错误，无法刷新页面。', 'notion-to-wordpress'),
+                'timeout_error' => __('操作超时，请检查该Notion页面内容是否过大。', 'notion-to-wordpress'),
+                'select_log_file' => __('请先选择一个日志文件。', 'notion-to-wordpress'),
+                'loading_logs' => __('正在加载日志...', 'notion-to-wordpress'),
+                'load_logs_failed' => __('无法加载日志: ', 'notion-to-wordpress'),
+                'log_request_error' => __('请求日志时发生错误。', 'notion-to-wordpress'),
+                'copy_failed_no_target' => __('复制失败: 未指定目标元素', 'notion-to-wordpress'),
+                'copy_failed_not_found' => __('复制失败: 未找到目标元素', 'notion-to-wordpress'),
+                'copy_failed' => __('复制失败: ', 'notion-to-wordpress'),
+                'copy_to_clipboard' => __('复制到剪贴板', 'notion-to-wordpress'),
+                'copy_code' => __('复制代码', 'notion-to-wordpress'),
+                'copied_success' => __('已复制!', 'notion-to-wordpress'),
+                'copy_manual' => __('复制失败，请手动复制。', 'notion-to-wordpress'),
+                'loading' => __('加载中...', 'notion-to-wordpress'),
                 'loading_stats' => __('加载统计信息...', 'notion-to-wordpress'),
                 'stats_error' => __('无法加载统计信息', 'notion-to-wordpress'),
                 'refresh_all' => __('刷新全部内容', 'notion-to-wordpress'),
@@ -393,7 +421,7 @@ class Notion_To_WordPress_Admin {
             ] );
             
         } catch ( Exception $e ) {
-            wp_send_json_error( [ 'message' => '导入失败: ' . $e->getMessage() ] );
+            wp_send_json_error( [ 'message' => __('导入失败: ', 'notion-to-wordpress') . $e->getMessage() ] );
         }
     }
 
@@ -406,7 +434,7 @@ class Notion_To_WordPress_Admin {
         check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => '权限不足']);
+            wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
             return;
         }
 
@@ -415,7 +443,7 @@ class Notion_To_WordPress_Admin {
             $this->handle_manual_import();
 
         } catch (Exception $e) {
-            wp_send_json_error(['message' => '刷新失败: ' . $e->getMessage()]);
+            wp_send_json_error(['message' => __('刷新失败: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
     }
 
@@ -596,12 +624,12 @@ class Notion_To_WordPress_Admin {
         check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => '权限不足']);
+            wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
         }
 
         $file = isset($_POST['file']) ? sanitize_text_field($_POST['file']) : '';
         if (empty($file)) {
-            wp_send_json_error(['message' => '未指定日志文件']);
+            wp_send_json_error(['message' => __('未指定日志文件', 'notion-to-wordpress')]);
         }
 
         $content = Notion_To_WordPress_Helper::get_log_content($file);
