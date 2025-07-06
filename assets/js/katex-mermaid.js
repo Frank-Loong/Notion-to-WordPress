@@ -21,6 +21,121 @@ function checkMermaidLoaded() {
            typeof window.mermaid.initialize === 'function';
 }
 
+/* ---------------- 智能备用资源加载器 ---------------- */
+const ResourceFallbackManager = {
+    // 显示主题兼容性检查建议
+    showCompatibilityTips: function() {
+        console.group('🔧 [Notion to WordPress] 主题兼容性检查建议');
+        console.info('如果数学公式或图表显示异常，请尝试以下解决方案：');
+        console.info('1. 确认当前主题正确调用了wp_footer()函数');
+        console.info('2. 检查主题是否与其他插件存在JavaScript冲突');
+        console.info('3. 尝试切换到WordPress默认主题（如Twenty Twenty-Three）测试');
+        console.info('4. 检查浏览器控制台是否有其他错误信息');
+        console.info('5. 确认网络连接正常，CDN资源可以正常访问');
+        console.groupEnd();
+    },
+
+    // 动态加载本地CSS文件
+    loadFallbackCSS: function(localPath) {
+        return new Promise(function(resolve, reject) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = localPath;
+
+            link.onload = function() {
+                console.log('✅ 备用CSS加载成功:', localPath);
+                resolve();
+            };
+
+            link.onerror = function() {
+                console.error('❌ 备用CSS加载失败:', localPath);
+                reject(new Error('CSS加载失败'));
+            };
+
+            document.head.appendChild(link);
+        });
+    },
+
+    // 动态加载本地JS文件
+    loadFallbackJS: function(localPath, callback) {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = localPath;
+
+        script.onload = function() {
+            console.log('✅ 备用JS加载成功:', localPath);
+            if (callback) callback();
+        };
+
+        script.onerror = function() {
+            console.error('❌ 备用JS加载失败:', localPath);
+            if (callback) callback(new Error('JS加载失败'));
+        };
+
+        document.head.appendChild(script);
+    },
+
+    // 按顺序加载KaTeX相关文件
+    loadKatexFallback: function() {
+        const basePath = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/wp-content/plugins/notion-to-wordpress/assets/vendor/katex/';
+
+        console.info('📦 [Notion to WordPress] 开始加载KaTeX本地备用资源...');
+
+        // 1. 先加载CSS
+        this.loadFallbackCSS(basePath + 'katex.min.css').then(() => {
+            // 2. 加载KaTeX核心JS
+            this.loadFallbackJS(basePath + 'katex.min.js', (error) => {
+                if (error) return;
+
+                // 3. 加载mhchem扩展
+                this.loadFallbackJS(basePath + 'mhchem.min.js', (error) => {
+                    if (error) return;
+
+                    // 4. 加载auto-render扩展
+                    this.loadFallbackJS(basePath + 'auto-render.min.js', (error) => {
+                        if (error) return;
+
+                        console.log('✅ [Notion to WordPress] KaTeX备用资源加载完成，重新尝试渲染数学公式');
+                        // 重新尝试渲染
+                        setTimeout(renderAllKatex, 100);
+                    });
+                });
+            });
+        }).catch((error) => {
+            console.error('❌ [Notion to WordPress] KaTeX备用CSS加载失败:', error);
+            console.error('🔍 故障排除建议：');
+            console.error('   1. 检查插件文件是否完整：assets/vendor/katex/katex.min.css');
+            console.error('   2. 确认WordPress主题正确调用了wp_footer()');
+            console.error('   3. 检查是否有其他插件冲突');
+            console.error('   4. 尝试切换到默认主题测试');
+        });
+    },
+
+    // 加载Mermaid备用文件
+    loadMermaidFallback: function() {
+        const basePath = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/wp-content/plugins/notion-to-wordpress/assets/vendor/mermaid/';
+
+        console.info('📦 [Notion to WordPress] 开始加载Mermaid本地备用资源...');
+
+        this.loadFallbackJS(basePath + 'mermaid.min.js', (error) => {
+            if (error) {
+                console.error('❌ [Notion to WordPress] Mermaid备用资源加载失败:', error);
+                console.error('🔍 故障排除建议：');
+                console.error('   1. 检查插件文件是否完整：assets/vendor/mermaid/mermaid.min.js');
+                console.error('   2. 确认WordPress主题正确调用了wp_footer()');
+                console.error('   3. 检查是否有其他插件冲突');
+                console.error('   4. 尝试切换到默认主题测试');
+                return;
+            }
+
+            console.log('✅ [Notion to WordPress] Mermaid备用资源加载完成，重新尝试初始化图表渲染');
+            // 重新尝试初始化
+            setTimeout(initMermaid, 100);
+        });
+    }
+};
+
 /* ---------------- KaTeX 渲染 ---------------- */
 const katexOptions = { throwOnError: false };
 
@@ -47,8 +162,11 @@ console.error('KaTeX 渲染错误:', e, '公式:', tex);
 function renderAllKatex() {
 	// 检测KaTeX是否成功加载
 	if (!checkKatexLoaded()) {
-		console.warn('KaTeX库未加载，尝试使用备用资源');
-		// 这里将在下一个任务中添加备用加载机制
+		console.warn('🔧 [Notion to WordPress] KaTeX数学公式库未能从CDN加载');
+		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
+		console.info('🔄 正在自动切换到本地备用资源...');
+		ResourceFallbackManager.showCompatibilityTips();
+		ResourceFallbackManager.loadKatexFallback();
 		return;
 	}
 
@@ -72,8 +190,11 @@ document.querySelectorAll('.notion-equation-inline, .notion-equation-block').for
 function initMermaid() {
 	// 检测Mermaid是否成功加载
 	if (!checkMermaidLoaded()) {
-		console.warn('Mermaid库未加载，尝试使用备用资源');
-		// 这里将在下一个任务中添加备用加载机制
+		console.warn('🔧 [Notion to WordPress] Mermaid图表库未能从CDN加载');
+		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
+		console.info('🔄 正在自动切换到本地备用资源...');
+		ResourceFallbackManager.showCompatibilityTips();
+		ResourceFallbackManager.loadMermaidFallback();
 		return;
 	}
 

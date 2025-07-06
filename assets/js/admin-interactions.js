@@ -10,7 +10,6 @@ jQuery(document).ready(function($) {
     
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
-      console.log('正在加载统计信息...');
       fetchStats();
     }
 
@@ -154,7 +153,6 @@ jQuery(document).ready(function($) {
     // 全局复制函数
     window.copyTextToClipboard = function(text, callback) {
         if (!text) {
-            console.warn('要复制的文本为空');
             if (callback) callback(false, '要复制的文本为空');
             return;
         }
@@ -163,7 +161,6 @@ jQuery(document).ready(function($) {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text)
                     .then(() => {
-                        console.log('文本已成功复制到剪贴板');
                         if (callback) callback(true);
                     })
                     .catch(err => {
@@ -194,10 +191,8 @@ jQuery(document).ready(function($) {
             document.body.removeChild(textarea);
             
             if (successful) {
-                console.log('使用备用方法成功复制文本');
                 if (callback) callback(true);
             } else {
-                console.warn('execCommand 复制命令失败');
                 if (callback) callback(false, 'execCommand 复制命令失败');
             }
         } catch (e) {
@@ -538,19 +533,11 @@ jQuery(document).ready(function($) {
     // 初始化复制按钮函数
     function initCopyButtons() {
         const copyButtons = $('.copy-to-clipboard');
-        console.log('找到复制按钮数量:', copyButtons.length);
         
         copyButtons.each(function(index) {
             const $btn = $(this);
             const target = $btn.data('clipboard-target');
             const $target = $(target);
-            
-            console.log(`按钮 ${index + 1}:`, {
-                '目标选择器': target,
-                '目标元素存在': $target.length > 0,
-                '目标元素值': $target.val() || '(空)',
-                '按钮HTML': $btn.prop('outerHTML')
-            });
             
             // 确保按钮有正确的提示
             if (!$btn.attr('title')) {
