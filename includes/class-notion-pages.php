@@ -93,10 +93,10 @@ class Notion_Pages {
      * @return   boolean                 导入是否成功
      */
     public function import_notion_page(array $page): bool {
-        error_log('Notion to WordPress: import_notion_page() 开始执行');
+        Notion_To_WordPress_Helper::debug_log('import_notion_page() 开始执行', 'Page Import');
 
         if (empty($page) || !isset($page['id'])) {
-            error_log('Notion to WordPress: 页面数据为空或缺少ID');
+            Notion_To_WordPress_Helper::error_log('页面数据为空或缺少ID', 'Page Import');
             return false;
         }
 
@@ -141,6 +141,12 @@ class Notion_Pages {
         // 分类 / 标签 / 特色图
         $this->apply_taxonomies($post_id, $metadata);
         $this->apply_featured_image($post_id, $metadata);
+
+        // 更新同步时间戳
+        $notion_last_edited = $page['last_edited_time'] ?? '';
+        if ($notion_last_edited) {
+            $this->update_page_sync_time($page_id, $notion_last_edited);
+        }
 
         return true;
     }
@@ -498,13 +504,13 @@ class Notion_Pages {
                     }
                 } catch (Exception $e) {
                     // 记录错误并添加注释
-                    error_log('Notion块转换错误: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage(), 'Block Convert');
                     $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
                 }
             } else {
                 // 未知块类型，添加调试注释
                 $html .= '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
-                error_log('未支持的Notion块类型: ' . $block_type);
+                Notion_To_WordPress_Helper::debug_log('未支持的Notion块类型: ' . $block_type, 'Block Convert');
             }
         }
 
@@ -1276,18 +1282,22 @@ class Notion_Pages {
      * 导入所有Notion页面
      *
      * @since    1.0.8
+     * @param    bool    $check_deletions    是否检查删除的页面
+     * @param    bool    $incremental        是否启用增量同步
      * @return   array|WP_Error    导入结果统计或错误
      */
-    public function import_pages() {
+    public function import_pages($check_deletions = true, $incremental = true) {
         try {
             // 添加调试日志
-            error_log('Notion to WordPress: import_pages() 开始执行');
-            error_log('Notion to WordPress: Database ID: ' . $this->database_id);
+            Notion_To_WordPress_Helper::info_log('import_pages() 开始执行', 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('Database ID: ' . $this->database_id, 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('增量同步: ' . ($incremental ? 'yes' : 'no'), 'Pages Import');
 
             // 获取数据库中的所有页面
-            error_log('Notion to WordPress: 调用get_database_pages()');
+            Notion_To_WordPress_Helper::debug_log('调用get_database_pages()', 'Pages Import');
             $pages = $this->notion_api->get_database_pages($this->database_id);
-            error_log('Notion to WordPress: 获取到页面数量: ' . count($pages));
+            Notion_To_WordPress_Helper::info_log('获取到页面数量: ' . count($pages), 'Pages Import');
 
             if (empty($pages)) {
                 return new WP_Error('no_pages', __('未检索到任何页面。', 'notion-to-wordpress'));
@@ -1297,8 +1307,37 @@ class Notion_Pages {
                 'total' => count($pages),
                 'imported' => 0,
                 'updated' => 0,
-                'failed' => 0
+                'failed' => 0,
+                'deleted' => 0
             ];
+
+            // 如果启用删除检测，先处理删除的页面（使用完整页面列表）
+            if ($check_deletions) {
+                error_log('Notion to WordPress: 开始执行删除检测...');
+                try {
+                    $deleted_count = $this->cleanup_deleted_pages($pages);
+                    $stats['deleted'] = $deleted_count;
+                    error_log('Notion to WordPress: 删除检测完成，删除了 ' . $deleted_count . ' 个页面');
+                } catch (Exception $e) {
+                    error_log('Notion to WordPress: 删除检测失败: ' . $e->getMessage());
+                    $stats['deleted'] = 0;
+                }
+            }
+
+            // 如果启用增量同步，过滤出需要更新的页面
+            if ($incremental) {
+                $pages = $this->filter_pages_for_incremental_sync($pages);
+                error_log('Notion to WordPress: 增量同步过滤后页面数量: ' . count($pages));
+
+                // 更新统计中的总数为实际处理的页面数
+                $stats['total'] = count($pages);
+            }
+
+            if (empty($pages)) {
+                // 如果增量同步后没有页面需要处理，返回成功但无操作的结果
+                error_log('Notion to WordPress: 增量同步无页面需要更新');
+                return $stats;
+            }
 
             error_log('Notion to WordPress: 开始处理页面，总数: ' . count($pages));
 
@@ -1308,11 +1347,11 @@ class Notion_Pages {
                 try {
                     // 检查页面是否已存在
                     $existing_post_id = $this->get_post_by_notion_id($page['id']);
-                    error_log('Notion to WordPress: 页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'));
+                    Notion_To_WordPress_Helper::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
 
-                    error_log('Notion to WordPress: 开始导入单个页面...');
+                    Notion_To_WordPress_Helper::debug_log('开始导入单个页面...', 'Pages Import');
                     $result = $this->import_notion_page($page);
-                    error_log('Notion to WordPress: 单个页面导入结果: ' . ($result ? 'success' : 'failed'));
+                    Notion_To_WordPress_Helper::debug_log('单个页面导入结果: ' . ($result ? 'success' : 'failed'), 'Pages Import');
 
                     if ($result) {
                         if ($existing_post_id) {
@@ -1324,22 +1363,22 @@ class Notion_Pages {
                         $stats['failed']++;
                     }
                 } catch (Exception $e) {
-                    error_log('Notion to WordPress: 处理页面异常: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
                     $stats['failed']++;
                 } catch (Error $e) {
-                    error_log('Notion to WordPress: 处理页面错误: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
                     $stats['failed']++;
                 }
 
-                error_log('Notion to WordPress: 页面 ' . ($index + 1) . ' 处理完成');
+                Notion_To_WordPress_Helper::debug_log('页面 ' . ($index + 1) . ' 处理完成', 'Pages Import');
             }
 
-            error_log('Notion to WordPress: 所有页面处理完成，统计: ' . print_r($stats, true));
+            Notion_To_WordPress_Helper::info_log('所有页面处理完成，统计: ' . print_r($stats, true), 'Pages Import');
             return $stats;
 
         } catch (Exception $e) {
-            error_log('Notion to WordPress: import_pages() 异常: ' . $e->getMessage());
-            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
+            Notion_To_WordPress_Helper::error_log('import_pages() 异常: ' . $e->getMessage(), 'Pages Import');
+            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Pages Import');
             return new WP_Error('import_failed', __('导入失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
@@ -1601,5 +1640,202 @@ class Notion_Pages {
         }
 
         return true;
+    }
+
+    /**
+     * 清理已删除的页面
+     *
+     * @since    1.1.0
+     * @param    array    $current_pages    当前Notion数据库中的页面
+     * @return   int                        删除的页面数量
+     */
+    private function cleanup_deleted_pages(array $current_pages): int {
+        // 获取当前Notion页面的ID列表
+        $current_notion_ids = array_map(function($page) {
+            return $page['id'];
+        }, $current_pages);
+
+        error_log('Notion to WordPress: 当前Notion页面ID: ' . implode(', ', $current_notion_ids));
+
+        // 查找所有WordPress中有Notion ID的文章
+        $args = array(
+            'post_type'      => 'any',
+            'post_status'    => 'any',
+            'posts_per_page' => -1,
+            'meta_query'     => array(
+                array(
+                    'key'     => '_notion_page_id',
+                    'compare' => 'EXISTS'
+                )
+            ),
+            'fields' => 'ids'
+        );
+
+        $wordpress_posts = get_posts($args);
+        $deleted_count = 0;
+
+        error_log('Notion to WordPress: 找到 ' . count($wordpress_posts) . ' 个WordPress文章有Notion ID');
+
+        foreach ($wordpress_posts as $post_id) {
+            $notion_id = get_post_meta($post_id, '_notion_page_id', true);
+
+            // 如果这个Notion ID不在当前页面列表中，说明已被删除
+            if (!in_array($notion_id, $current_notion_ids)) {
+                error_log('Notion to WordPress: 发现孤儿文章，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id);
+
+                $result = wp_delete_post($post_id, true); // true表示彻底删除
+
+                if ($result) {
+                    $deleted_count++;
+                    Notion_To_WordPress_Helper::info_log(
+                        '删除孤儿文章成功，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id,
+                        'Cleanup'
+                    );
+                } else {
+                    Notion_To_WordPress_Helper::error_log(
+                        '删除孤儿文章失败，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id
+                    );
+                }
+            }
+        }
+
+        if ($deleted_count > 0) {
+            Notion_To_WordPress_Helper::info_log(
+                '删除检测完成，共删除 ' . $deleted_count . ' 个孤儿文章',
+                'Cleanup'
+            );
+        }
+
+        return $deleted_count;
+    }
+
+    /**
+     * 过滤出需要增量同步的页面
+     *
+     * @since    1.1.0
+     * @param    array    $pages    所有Notion页面
+     * @return   array              需要同步的页面
+     */
+    private function filter_pages_for_incremental_sync(array $pages): array {
+        $pages_to_sync = [];
+
+        foreach ($pages as $page) {
+            $page_id = $page['id'];
+            $notion_last_edited = $page['last_edited_time'] ?? '';
+
+            if (empty($notion_last_edited)) {
+                // 如果没有编辑时间，默认需要同步
+                $pages_to_sync[] = $page;
+                continue;
+            }
+
+            // 获取本地记录的最后同步时间
+            $local_last_sync = $this->get_page_last_sync_time($page_id);
+
+            if (empty($local_last_sync)) {
+                // 新页面，需要同步
+                Notion_To_WordPress_Helper::debug_log(
+                    "新页面需要同步: {$page_id}",
+                    'Incremental Sync'
+                );
+                $pages_to_sync[] = $page;
+                continue;
+            }
+
+            // 比较时间戳（统一转换为UTC时间戳）
+            $notion_timestamp = strtotime($notion_last_edited);
+
+            // 确保本地时间也是UTC格式进行比较
+            if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $local_last_sync)) {
+                // 如果是MySQL格式，假设为UTC时间
+                $local_timestamp = strtotime($local_last_sync . ' UTC');
+            } else {
+                // 如果是ISO格式，直接转换
+                $local_timestamp = strtotime($local_last_sync);
+            }
+
+            // 添加详细的时间比较日志
+            Notion_To_WordPress_Helper::debug_log(
+                "时间比较 - 页面ID: {$page_id}, Notion编辑时间: {$notion_last_edited} ({$notion_timestamp}), 本地同步时间: {$local_last_sync} ({$local_timestamp})",
+                'Incremental Sync'
+            );
+
+            // 使用更宽松的时间比较，允许1秒的误差
+            if ($notion_timestamp > $local_timestamp + 1) {
+                // Notion页面更新时间晚于本地同步时间，需要同步
+                Notion_To_WordPress_Helper::debug_log(
+                    "页面有更新需要同步: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
+                    'Incremental Sync'
+                );
+                $pages_to_sync[] = $page;
+            } else {
+                // 页面无变化，跳过
+                Notion_To_WordPress_Helper::debug_log(
+                    "页面无变化跳过: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
+                    'Incremental Sync'
+                );
+            }
+        }
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('增量同步检测完成，总页面: %d, 需要同步: %d', count($pages), count($pages_to_sync)),
+            'Incremental Sync'
+        );
+
+        return $pages_to_sync;
+    }
+
+    /**
+     * 获取页面最后同步时间
+     *
+     * @since    1.1.0
+     * @param    string    $page_id    Notion页面ID
+     * @return   string                最后同步时间
+     */
+    private function get_page_last_sync_time(string $page_id): string {
+        $post_id = $this->get_post_by_notion_id($page_id);
+
+        if (!$post_id) {
+            return '';
+        }
+
+        return get_post_meta($post_id, '_notion_last_sync_time', true) ?: '';
+    }
+
+    /**
+     * 更新页面同步时间
+     *
+     * @since    1.1.0
+     * @param    string    $page_id              Notion页面ID
+     * @param    string    $notion_last_edited   Notion最后编辑时间
+     */
+    private function update_page_sync_time(string $page_id, string $notion_last_edited): void {
+        $post_id = $this->get_post_by_notion_id($page_id);
+
+        if (!$post_id) {
+            return;
+        }
+
+        // 更新同步时间戳（统一使用UTC时间）
+        $current_utc_time = gmdate('Y-m-d H:i:s');
+        update_post_meta($post_id, '_notion_last_sync_time', $current_utc_time);
+        update_post_meta($post_id, '_notion_last_edited_time', $notion_last_edited);
+
+        Notion_To_WordPress_Helper::debug_log(
+            "更新页面同步时间: {$page_id}, 编辑时间: {$notion_last_edited}",
+            'Incremental Sync'
+        );
+    }
+
+    /**
+     * 获取单个页面数据（用于webhook强制同步）
+     *
+     * @since    1.1.0
+     * @param    string    $page_id    页面ID
+     * @return   array                 页面数据
+     * @throws   Exception             如果获取失败
+     */
+    public function get_page_data(string $page_id): array {
+        return $this->notion_api->get_page($page_id);
     }
 }

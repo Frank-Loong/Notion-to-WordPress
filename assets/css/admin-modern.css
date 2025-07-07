@@ -142,10 +142,19 @@ body.wp-admin {
     font-weight: 500;
 }
 
+.stat-card .stat-imported-count,
+.stat-card .stat-published-count {
+    font-size: 32px;
+    min-height: 48px; /* 保持与日期卡片一致的高度，底部标签对齐 */
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
 .stat-card .stat-last-update,
 .stat-card .stat-next-run {
-    font-size: 24px; /* 与其他统计卡片保持一致 */
-    line-height: 1.4;
+    font-size: 20px !important; /* 日期/文字稍小，避免撑高卡片 */
+    line-height: 1.3;
     word-wrap: break-word;
     overflow-wrap: break-word;
     min-height: 48px; /* 保持卡片高度一致 */
@@ -1134,5 +1143,45 @@ code {
 .plugin-info{margin-bottom:32px;padding:24px;background:var(--notion-gray-100);border-radius:var(--notion-border-radius);border:1px solid var(--notion-gray-200);} 
 .plugin-info h4{margin:0 0 16px 0;font-size:16px;font-weight:600;color:var(--notion-gray-900);} 
 .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;} 
-.info-item{display:flex;gap:6px;font-size:13px;color:var(--notion-gray-700);} 
-.info-label{font-weight:600;color:var(--notion-gray-800);} 
+.info-item{display:flex;gap:6px;font-size:13px;color:var(--notion-gray-700);}
+.info-label{font-weight:600;color:var(--notion-gray-800);}
+
+/* =============== 同步选项样式 =============== */
+.sync-options-group {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+}
+
+.sync-options-info {
+    margin-top: 5px;
+}
+
+.sync-options-info .description {
+    color: #666;
+    line-height: 1.4;
+    font-size: 12px;
+}
+
+.sync-options-group .button {
+    position: relative;
+}
+
+.sync-options-group .button:hover {
+    transform: translateY(-1px);
+    transition: all 0.2s ease;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    .sync-options-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .sync-options-group .button {
+        width: 100%;
+        justify-content: center;
+    }
+}

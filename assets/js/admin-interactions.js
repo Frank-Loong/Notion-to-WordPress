@@ -7,7 +7,7 @@
 
 jQuery(document).ready(function($) {
     const $overlay = $('#loading-overlay');
-    
+
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
       fetchStats();
@@ -18,6 +18,30 @@ jQuery(document).ready(function($) {
       console.error('安全验证参数缺失或无效');
       return;
     }
+
+    // 记录页面加载时的原始语言设置，用于检测变化
+    var originalLanguage = $('#plugin_language').val();
+    console.log('Notion to WordPress: Original language on page load:', originalLanguage);
+
+    // 记录页面加载时的原始webhook设置，用于检测变化
+    var originalWebhookEnabled = $('#webhook_enabled').is(':checked');
+    console.log('Notion to WordPress: Original webhook enabled on page load:', originalWebhookEnabled);
+
+    // 监听语言选择器的变化，但不立即更新originalLanguage
+    // 只有在表单成功提交后才更新originalLanguage
+    $('#plugin_language').on('change', function() {
+        var currentValue = $(this).val();
+        console.log('Notion to WordPress: Language selector changed to:', currentValue);
+        console.log('Notion to WordPress: Will compare with original:', originalLanguage);
+    });
+
+    // 监听webhook设置的变化，但不立即更新originalWebhookEnabled
+    // 只有在表单成功提交后才更新originalWebhookEnabled
+    $('#webhook_enabled').on('change', function() {
+        var currentValue = $(this).is(':checked');
+        console.log('Notion to WordPress: Webhook enabled changed to:', currentValue);
+        console.log('Notion to WordPress: Will compare with original:', originalWebhookEnabled);
+    });
 
     // 标签切换动画效果
     $('.notion-wp-menu-item').on('click', function(e) {
@@ -58,44 +82,64 @@ jQuery(document).ready(function($) {
         }
     });
     
-    // 手动导入
+    // 智能同步（增量同步）
     $('#notion-manual-import').on('click', function(e) {
         e.preventDefault();
-        var button = $(this);
-        
+        performSync($(this), true, true, '智能同步'); // 增量同步，检查删除
+    });
+
+    // 完全同步（全量同步）
+    $('#notion-full-import').on('click', function(e) {
+        e.preventDefault();
+        performSync($(this), false, true, '完全同步'); // 全量同步，检查删除
+    });
+
+    // 统一的同步处理函数
+    function performSync(button, incremental, checkDeletions, syncTypeName) {
         // 确认操作
-        if (!confirm(notionToWp.i18n.confirm_sync)) {
+        var confirmMessage = incremental ?
+            '确定要执行智能同步吗？（仅同步有变化的内容）' :
+            '确定要执行完全同步吗？（同步所有内容，耗时较长）';
+
+        if (!confirm(confirmMessage)) {
             return;
         }
-        
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.importing);
-        
+
+        var originalHtml = button.html();
+        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + syncTypeName + '中...');
+
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
             data: {
                 action: 'notion_to_wordpress_manual_sync',
-                nonce: notionToWp.nonce
+                nonce: notionToWp.nonce,
+                incremental: incremental,
+                check_deletions: checkDeletions
             },
             success: function(response) {
                 var message = response.success ? response.data.message : response.data.message;
                 var status = response.success ? 'success' : 'error';
-                
+
+                if (response.success) {
+                    message += ' (' + syncTypeName + '完成)';
+                }
+
                 showModal(message, status);
-                
+
                 // 如果成功，刷新统计信息
                 if (response.success) {
                     fetchStats();
                 }
             },
             error: function() {
-                showModal(notionToWp.i18n.import_error, 'error');
+                showModal(syncTypeName + '失败，请稍后重试', 'error');
             },
             complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-download"></span> ' + notionToWp.i18n.import);
+                button.prop('disabled', false).html(originalHtml);
             }
         });
-    });
+    }
     
     // 测试连接
     $('#notion-test-connection').on('click', function(e) {
@@ -467,8 +511,17 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_update || notionToWp.i18n.never);
-                    $('.stat-next-run').text(stats.next_run || notionToWp.i18n.not_scheduled);
+
+                    /* 格式化日期字符串，将时间换行展示 */
+                    const formatDateTime = (dt) => {
+                        if (!dt) return notionToWp.i18n.never;
+                        if (dt.indexOf(' ') === -1) return dt; // 无空格，直接返回
+                        const firstSpace = dt.indexOf(' ');
+                        return dt.slice(0, firstSpace) + '<br>' + dt.slice(firstSpace + 1);
+                    };
+
+                    $('.stat-last-update').html(formatDateTime(stats.last_update));
+                    $('.stat-next-run').html(formatDateTime(stats.next_run || notionToWp.i18n.not_scheduled));
                 } else {
                     showModal(notionToWp.i18n.load_logs_failed + (response.data.message || notionToWp.i18n.unknown_error), 'error');
                 }
@@ -480,8 +533,52 @@ jQuery(document).ready(function($) {
                  $('.notion-stats-grid .stat-card h3, .notion-stats-grid .stat-card span').removeClass('loading');
             }
         });
+
+    // 刷新验证令牌
+    $('#refresh-verification-token').on('click', function(e) {
+        e.preventDefault();
+
+        var button = $(this);
+        var tokenInput = $('#verification_token');
+
+        // 防止重复点击
+        if (button.prop('disabled')) {
+            return;
+        }
+
+        button.prop('disabled', true);
+        button.find('.dashicons').removeClass('dashicons-update').addClass('dashicons-update').addClass('spin');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'notion_to_wordpress_refresh_verification_token',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    tokenInput.val(response.data.verification_token || '');
+                    if (response.data.verification_token) {
+                        showModal(response.data.message || '验证令牌已更新', 'success');
+                    } else {
+                        showModal('暂无新的验证令牌', 'info');
+                    }
+                } else {
+                    showModal(response.data.message || '刷新失败', 'error');
+                }
+            },
+            error: function() {
+                showModal('网络错误，请稍后重试', 'error');
+            },
+            complete: function() {
+                button.prop('disabled', false);
+                button.find('.dashicons').removeClass('spin');
+            }
+        });
+    });
     }
-    
+
     // 表单验证和 AJAX 提交
     $('#notion-to-wordpress-settings-form').on('submit', function(e) {
         e.preventDefault(); // 阻止默认的表单提交
@@ -489,6 +586,12 @@ jQuery(document).ready(function($) {
         var $form = $(this);
         var $submitButton = $form.find('input[type="submit"]');
         var originalButtonText = $submitButton.val();
+
+        // 防止重复提交
+        if ($submitButton.prop('disabled')) {
+            console.log('Notion to WordPress: Form submission blocked - already in progress');
+            return false;
+        }
 
         // 基础验证
         var apiKey = $('#notion_to_wordpress_api_key').val();
@@ -500,6 +603,12 @@ jQuery(document).ready(function($) {
             setTimeout(() => $('.error').removeClass('error'), 2000);
             return;
         }
+
+        // 获取当前语言设置值（用户选择的新值）
+        var newLanguage = $('#plugin_language').val();
+
+        // 获取当前webhook设置值（用户选择的新值）
+        var newWebhookEnabled = $('#webhook_enabled').is(':checked');
 
         // 禁用按钮并显示加载状态
         $submitButton.prop('disabled', true).val(notionToWp.i18n.saving);
@@ -515,17 +624,76 @@ jQuery(document).ready(function($) {
             contentType: false, // 告诉jQuery不要设置contentType
             success: function(response) {
                 if (response.success) {
-                    showModal(notionToWp.i18n.settings_saved, 'success');
+                    // 检查语言设置是否发生变化（比较原始值和用户选择的新值）
+                    var languageChanged = (originalLanguage !== newLanguage);
+
+                    // 检查webhook设置是否发生变化（比较原始值和用户选择的新值）
+                    var webhookChanged = (originalWebhookEnabled !== newWebhookEnabled);
+
+                    // 添加调试日志
+                    console.log('Notion to WordPress: Language change detection', {
+                        original: originalLanguage,
+                        new: newLanguage,
+                        changed: languageChanged
+                    });
+
+                    console.log('Notion to WordPress: Webhook change detection', {
+                        original: originalWebhookEnabled,
+                        new: newWebhookEnabled,
+                        changed: webhookChanged
+                    });
+
+                    // 检查是否需要刷新页面（语言或webhook设置发生变化）
+                    var needsRefresh = languageChanged || webhookChanged;
+
+                    if (needsRefresh) {
+                        // 设置发生变化，显示消息后刷新页面
+                        var refreshReasons = [];
+                        if (languageChanged) {
+                            refreshReasons.push('语言设置');
+                        }
+                        if (webhookChanged) {
+                            refreshReasons.push('Webhook设置');
+                        }
+
+                        var refreshMessage = notionToWp.i18n.page_refreshing || '页面即将刷新以应用设置变更...';
+                        var fullMessage = notionToWp.i18n.settings_saved + ' ' + refreshMessage.replace('语言设置', refreshReasons.join('和'));
+                        showModal(fullMessage, 'success');
+
+                        console.log('Notion to WordPress: Settings changed (' + refreshReasons.join(', ') + '), refreshing page in 1.5 seconds');
+
+                        // 延迟1.5秒后刷新页面，让用户看到成功消息
+                        setTimeout(function() {
+                            console.log('Notion to WordPress: Refreshing page now');
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // 设置没有变化，使用正常的AJAX响应
+                        console.log('Notion to WordPress: No critical settings changed, using normal AJAX response');
+                        showModal(notionToWp.i18n.settings_saved, 'success');
+
+                        // 更新原始值为当前值，为下次比较做准备
+                        originalLanguage = newLanguage;
+                        originalWebhookEnabled = newWebhookEnabled;
+                        console.log('Notion to WordPress: Updated original values - language:', originalLanguage, 'webhook:', originalWebhookEnabled);
+
+                        // 恢复按钮状态
+                        $submitButton.prop('disabled', false).val(originalButtonText);
+                    }
                 } else {
                     showModal(response.data.message || notionToWp.i18n.unknown_error, 'error');
+                    // 恢复按钮状态
+                    $submitButton.prop('disabled', false).val(originalButtonText);
                 }
             },
             error: function() {
                 showModal(notionToWp.i18n.unknown_error, 'error');
-            },
-            complete: function() {
                 // 恢复按钮状态
                 $submitButton.prop('disabled', false).val(originalButtonText);
+            },
+            complete: function() {
+                // 注意：如果语言发生变化，按钮状态恢复会在页面刷新前处理
+                // 如果没有语言变化，按钮状态已在success/error回调中处理
             }
         });
     });

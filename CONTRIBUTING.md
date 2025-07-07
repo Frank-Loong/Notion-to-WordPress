@@ -4,35 +4,120 @@
 </p>
 # Contributing to Notion·to-WordPress
 
-Thank you for your interest in contributing! We welcome all forms of contribution, including bug reports, feature requests, code, documentation, and translations.
+🎉 **Thank you for your interest in contributing to Notion to WordPress!**
+
+This project thrives because of contributors like you. Whether you're fixing bugs, adding features, improving documentation, or helping other users, every contribution makes a difference.
+
+## 🚀 Quick Start for Contributors
+
+### Development Environment Setup
+```bash
+# Clone the repository
+git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
+cd Notion-to-WordPress
+
+# Create a development branch
+git checkout -b feature/your-feature-name
+```
+
+**Requirements:**
+- WordPress 6.0+ (for testing)
+- PHP 8.0+ (with curl, mbstring extensions)
+- Notion Account (for testing integrations)
 
 ## How to Contribute
 
-### 1. Reporting Bugs
-- Please use [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) to report bugs.
-- Provide clear steps to reproduce, expected and actual behavior, and environment info (WP version, PHP version, etc).
+### 1. 🐛 Reporting Bugs
+**Before Reporting:**
+- Search existing issues to avoid duplicates
+- Test with the latest version
+- Gather detailed information
 
-### 2. Suggesting Features
-- Open an issue with the `enhancement` label and describe your idea in detail.
+**What to Include:**
+- WordPress Version, PHP Version, Plugin Version
+- Steps to reproduce (detailed, step-by-step)
+- Expected vs. actual behavior
+- Error messages or screenshots
+- Browser/environment details (if relevant)
 
-### 3. Submitting Pull Requests (PR)
-- Fork the repository and create a new branch for your feature or fix.
-- Follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/).
-- Write clear commit messages and document your changes.
-- Ensure your code passes `php -l` and, if possible, add tests.
-- Submit your PR and describe what it does and why.
+**Use [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) with the bug template.**
 
-### 4. Documentation & Translation
-- Help improve the README, user guides, or translate the plugin.
-- Submit documentation changes as PRs or open issues for suggestions.
+### 2. ✨ Suggesting Features
+- Check existing issues/discussions first
+- Consider if it fits the plugin's scope
+- Include use case, proposed solution, and examples
+- **Use [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions) for feature ideas**
 
-### 5. Communication
-- For questions, use GitHub Issues or Discussions.
-- For security issues, please contact the maintainer directly (see GitHub profile).
+### 3. 🔧 Submitting Pull Requests (PR)
+**Code Standards:**
+- Follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/)
+- PSR-12 compatible where applicable
+- Document complex logic and public methods
+- Sanitize inputs, escape outputs, validate data
+
+**PR Process:**
+1. Fork repository and create feature branch
+2. Make changes following code standards
+3. Test thoroughly (manual testing required)
+4. Update documentation if needed
+5. Submit PR with clear description
+
+**Testing Checklist:**
+- [ ] Manual testing completed
+- [ ] Edge cases tested
+- [ ] Cross-browser testing (if UI changes)
+- [ ] WordPress compatibility tested
+
+### 4. 📚 Documentation & Translation
+**Documentation Areas:**
+- Wiki pages and tutorials
+- Code comments and inline docs
+- README and guides
+- Troubleshooting content
+
+**Translation Support:**
+- Current: English (en_US), Chinese (zh_CN)
+- Help add new languages using .pot files
+- Test translations in WordPress
+
+### 5. 💬 Communication
+- **General Questions**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+- **Security Issues**: Please contact the maintainer directly via email：<a href="mailto:frankloong@qq.com">frankloong@qq.com</a>
+
+## 🏆 Recognition & Community
+
+### Contributors
+All contributors are recognized in:
+- README Contributors section
+- Changelog with specific contributions
+- GitHub contributor graphs
+
+### Community Guidelines
+- **Be Respectful**: Welcome contributors of all backgrounds
+- **Constructive Feedback**: Provide helpful, actionable suggestions
+- **Professional Tone**: Maintain respectful communication
+- Follow [WordPress Community Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/)
+
+## 🛠️ Development Resources
+
+### Useful Links
+- [WordPress Plugin Development](https://developer.wordpress.org/plugins/)
+- [Notion API Documentation](https://developers.notion.com/)
+- [Plugin Architecture Guide](./wiki/README-Wiki.md)
+
+### Good First Issues
+Look for labels:
+- `good first issue`: Perfect for newcomers
+- `help wanted`: Community contributions welcome
+- `documentation`: Improve docs and guides
+- `translation`: Help with internationalization
 
 ## License
 All contributions are licensed under GPL v3 or later, in line with the project.
 
 ---
 
-Thank you for making Notion·to-WordPress better! 
+**Thank you for making Notion·to-WordPress better! 🚀**
+
+*Together, we're building the best Notion-to-WordPress integration possible.*
