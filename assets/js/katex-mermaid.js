@@ -151,30 +151,13 @@ const katexOptions = {
     output: "html"          // 输出HTML格式
 };
 
-// HTML实体解码函数
-function decodeHtmlEntities(text) {
-    const textarea = document.createElement('textarea');
-    textarea.innerHTML = text;
-    return textarea.value;
-}
+
 
 // 渲染单个元素
 function renderKatexElement(el) {
 const isBlock = el.classList.contains('notion-equation-block');
-// 使用innerHTML而不是textContent来保持反斜杠转义，然后解码HTML实体
-let tex = decodeHtmlEntities(el.innerHTML.trim());
-
-// 清理HTML标签 - 移除可能被wpautop插入的标签
-tex = tex.replace(/<br\s*\/?>/gi, ''); // 移除<br>标签
-tex = tex.replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, ''); // 移除<p>标签
-tex = tex.replace(/<div[^>]*>/gi, '').replace(/<\/div>/gi, ''); // 移除<div>标签
-tex = tex.replace(/<span[^>]*>/gi, '').replace(/<\/span>/gi, ''); // 移除<span>标签
-tex = tex.replace(/&nbsp;/gi, ' '); // 替换非断行空格
-tex = tex.replace(/&amp;/gi, '&'); // 替换HTML实体
-tex = tex.replace(/&lt;/gi, '<'); // 替换HTML实体
-tex = tex.replace(/&gt;/gi, '>'); // 替换HTML实体
-tex = tex.replace(/\s+/g, ' '); // 合并多个空格为单个空格
-tex = tex.trim(); // 去除首尾空格
+// 回退到简单的textContent获取，避免复杂的HTML处理
+let tex = el.textContent.trim();
 
 // 去除包围符号 $ 或 $$
 if (isBlock) {
@@ -183,118 +166,25 @@ tex = tex.replace(/^\$\$|\$\$$/g, '').replace(/\$\$$/, '');
 tex = tex.replace(/^\$/, '').replace(/\$$/, '');
 }
 
-// 智能化学公式修复 - 在清理HTML标签之后进行
-tex = fixChemistryFormula(tex);
-
-// 智能中文字符修复 - 自动包装中文字符
-tex = fixChineseCharacters(tex);
+// 化学公式处理：如果包含ce{但没有\ce{，则添加反斜杠
+if (tex.indexOf('ce{') !== -1 && tex.indexOf('\\ce{') === -1) {
+tex = tex.replace(/ce\{([^}]+)\}/g, '\\ce{$1}');
+// 仅当 ce{ 前面不是反斜杠时才加上 \
+tex = tex.replace(/(^|[^\\])ce\{/g, function(match, p1){
+return p1 + '\\ce{';
+});
+}
 
 try {
 katex.render(tex, el, { displayMode: isBlock, ...katexOptions });
 } catch (e) {
 console.error('KaTeX 渲染错误:', e, '公式:', tex);
-console.error('原始HTML内容:', el.innerHTML);
 // 显示错误信息而不是空白
 el.innerHTML = '<span style="color: red; font-family: monospace;">公式渲染失败: ' + tex.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
 }
 }
 
-// 智能化学公式修复函数
-function fixChemistryFormula(tex) {
-// 如果已经包含\ce{，不需要修复
-if (tex.includes('\\ce{')) {
-return tex;
-}
 
-// 检测 ce 开头的化学公式（最常见的情况）
-if (tex.startsWith('ce')) {
-// 去掉开头的 ce 并包装在 \ce{} 中
-const chemFormula = tex.substring(2);
-return '\\ce{' + chemFormula + '}';
-}
-
-// 检测包含化学反应符号的公式
-const reactionSymbols = ['->', '→', '<->', '↔', '<=>', '<=>'];
-const hasReactionSymbol = reactionSymbols.some(symbol => tex.includes(symbol));
-
-if (hasReactionSymbol) {
-// 包含反应符号，很可能是化学公式
-return '\\ce{' + tex + '}';
-}
-
-// 检测化学元素模式（大写字母开头，可能跟小写字母、数字、离子符号）
-const chemElementPattern = /^[A-Z][a-z]?\d*[\+\-\^\{\}]*.*[A-Z]/;
-if (chemElementPattern.test(tex)) {
-// 包含多个化学元素，很可能是化学公式
-return '\\ce{' + tex + '}';
-}
-
-// 检测单个化学元素或简单化合物
-const simpleChemPattern = /^[A-Z][a-z]?\d*[\+\-\^\{\}]*$/;
-if (simpleChemPattern.test(tex)) {
-// 简单的化学元素或离子
-return '\\ce{' + tex + '}';
-}
-
-// 如果不匹配任何化学公式模式，返回原文
-return tex;
-}
-
-// 智能中文字符修复函数
-function fixChineseCharacters(tex) {
-// 如果公式中没有中文字符，直接返回
-if (!/[\u4e00-\u9fff]/.test(tex)) {
-return tex;
-}
-
-// 更智能的中文字符包装策略
-// 使用正则表达式精确匹配，避免破坏已有的\text{}结构
-let result = tex;
-
-// 由于某些浏览器不支持负向前瞻，使用更兼容的方法
-// 先找到所有\text{...}的位置，然后避开这些区域
-const textBlocks = [];
-const textPattern = /\\text\{[^}]*\}/g;
-let textMatch;
-while ((textMatch = textPattern.exec(tex)) !== null) {
-textBlocks.push({
-start: textMatch.index,
-end: textMatch.index + textMatch[0].length
-});
-}
-
-// 找到所有中文字符序列
-const chineseMatches = [];
-const simpleChinese = /([\u4e00-\u9fff]+)/g;
-let chineseMatch;
-while ((chineseMatch = simpleChinese.exec(tex)) !== null) {
-const start = chineseMatch.index;
-const end = start + chineseMatch[0].length;
-
-// 检查是否在\text{}块内
-const isInTextBlock = textBlocks.some(block =>
-start >= block.start && end <= block.end
-);
-
-if (!isInTextBlock) {
-chineseMatches.push({
-start: start,
-end: end,
-text: chineseMatch[1],
-original: chineseMatch[0]
-});
-}
-}
-
-// 从后往前替换，避免位置偏移
-chineseMatches.reverse().forEach(match => {
-const before = result.substring(0, match.start);
-const after = result.substring(match.end);
-result = before + '\\text{' + match.text + '}' + after;
-});
-
-return result;
-}
 
 // 遍历并渲染页面中所有公式
 function renderAllKatex() {
@@ -318,7 +208,7 @@ function renderAllKatex() {
 		return;
 	}
 
-// 化学公式预处理已移至 fixChemistryFormula 函数中统一处理
+// 化学公式预处理已移至renderKatexElement函数中处理
 
 document.querySelectorAll('.notion-equation-inline, .notion-equation-block').forEach(renderKatexElement);
 }
@@ -326,9 +216,7 @@ document.querySelectorAll('.notion-equation-inline, .notion-equation-block').for
 // 暴露函数到全局作用域，供调试和测试使用
 window.NotionToWordPressKaTeX = {
     renderAllKatex: renderAllKatex,
-    renderKatexElement: renderKatexElement,
-    fixChineseCharacters: fixChineseCharacters,
-    fixChemistryFormula: fixChemistryFormula
+    renderKatexElement: renderKatexElement
 };
 /* ---------------- Mermaid 渲染 ---------------- */
 function initMermaid() {
