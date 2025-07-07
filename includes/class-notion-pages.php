@@ -1299,12 +1299,6 @@ class Notion_Pages {
             $pages = $this->notion_api->get_database_pages($this->database_id);
             Notion_To_WordPress_Helper::info_log('获取到页面数量: ' . count($pages), 'Pages Import');
 
-            // 如果启用增量同步，过滤出需要更新的页面
-            if ($incremental) {
-                $pages = $this->filter_pages_for_incremental_sync($pages);
-                error_log('Notion to WordPress: 增量同步过滤后页面数量: ' . count($pages));
-            }
-
             if (empty($pages)) {
                 return new WP_Error('no_pages', __('未检索到任何页面。', 'notion-to-wordpress'));
             }
@@ -1317,11 +1311,26 @@ class Notion_Pages {
                 'deleted' => 0
             ];
 
-            // 如果启用删除检测，先处理删除的页面
+            // 如果启用删除检测，先处理删除的页面（使用完整页面列表）
             if ($check_deletions) {
                 $deleted_count = $this->cleanup_deleted_pages($pages);
                 $stats['deleted'] = $deleted_count;
                 error_log('Notion to WordPress: 删除检测完成，删除了 ' . $deleted_count . ' 个页面');
+            }
+
+            // 如果启用增量同步，过滤出需要更新的页面
+            if ($incremental) {
+                $pages = $this->filter_pages_for_incremental_sync($pages);
+                error_log('Notion to WordPress: 增量同步过滤后页面数量: ' . count($pages));
+
+                // 更新统计中的总数为实际处理的页面数
+                $stats['total'] = count($pages);
+            }
+
+            if (empty($pages)) {
+                // 如果增量同步后没有页面需要处理，返回成功但无操作的结果
+                error_log('Notion to WordPress: 增量同步无页面需要更新');
+                return $stats;
             }
 
             error_log('Notion to WordPress: 开始处理页面，总数: ' . count($pages));

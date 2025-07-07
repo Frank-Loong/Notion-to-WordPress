@@ -220,6 +220,27 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 </div>
                                                 <p class="description"><?php esc_html_e('在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。', 'notion-to-wordpress'); ?></p>
                                             </div>
+
+                                            <div class="notion-wp-field">
+                                                <label><?php esc_html_e('Webhook 同步选项', 'notion-to-wordpress'); ?></label>
+                                                <?php
+                                                $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+                                                $webhook_check_deletions = $options['webhook_check_deletions'] ?? 1;
+                                                ?>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="webhook_incremental_sync" value="1" <?php checked($webhook_incremental, 1); ?>>
+                                                        <?php esc_html_e('启用增量同步', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                    <p class="description"><?php esc_html_e('Webhook触发时仅同步有变化的页面，提高响应速度', 'notion-to-wordpress'); ?></p>
+
+                                                    <label>
+                                                        <input type="checkbox" name="webhook_check_deletions" value="1" <?php checked($webhook_check_deletions, 1); ?>>
+                                                        <?php esc_html_e('数据库事件检查删除', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                    <p class="description"><?php esc_html_e('数据库结构变化时检查删除的页面（单页面事件不受影响）', 'notion-to-wordpress'); ?></p>
+                                                </fieldset>
+                                            </div>
                                         </div>
                                         <script>
                                             document.addEventListener('DOMContentLoaded', function() {

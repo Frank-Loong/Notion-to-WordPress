@@ -186,6 +186,7 @@ class Notion_To_WordPress_Webhook {
             case 'page.content_updated':
             case 'page.property_updated':
             case 'page.restored':
+            case 'page.undeleted':
                 return $this->handle_page_updated($page_id);
 
             case 'page.locked':
@@ -197,9 +198,13 @@ class Notion_To_WordPress_Webhook {
                 return $this->handle_database_updated();
 
             default:
-                // 对于其他事件，执行全量同步
-                $this->notion_pages->import_pages();
-                return __('已触发全量同步', 'notion-to-wordpress');
+                // 对于其他事件，根据配置执行同步（不检查删除，避免误删）
+                $options = get_option('notion_to_wordpress_options', []);
+                $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+
+                $this->notion_pages->import_pages(false, (bool)$webhook_incremental);
+                $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
+                return sprintf(__('已触发%s', 'notion-to-wordpress'), $sync_type);
         }
     }
 
@@ -243,10 +248,15 @@ class Notion_To_WordPress_Webhook {
      * @return   string                处理结果消息
      */
     private function handle_page_updated(string $page_id): string {
+        // 获取webhook配置
+        $options = get_option('notion_to_wordpress_options', []);
+        $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+
         if (empty($page_id)) {
-            // 如果没有具体页面ID，执行全量同步
-            $this->notion_pages->import_pages();
-            return __('已触发全量同步', 'notion-to-wordpress');
+            // 如果没有具体页面ID，根据配置执行同步（不检查删除）
+            $this->notion_pages->import_pages(false, (bool)$webhook_incremental);
+            $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
+            return sprintf(__('已触发%s', 'notion-to-wordpress'), $sync_type);
         }
 
         try {
@@ -261,9 +271,10 @@ class Notion_To_WordPress_Webhook {
             }
         } catch (Exception $e) {
             Notion_To_WordPress_Helper::error_log('单页面同步失败: ' . $e->getMessage());
-            // 回退到全量同步
-            $this->notion_pages->import_pages();
-            return __('单页面同步失败，已执行全量同步', 'notion-to-wordpress');
+            // 回退到配置的同步方式（不检查删除）
+            $this->notion_pages->import_pages(false, (bool)$webhook_incremental);
+            $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
+            return sprintf(__('单页面同步失败，已执行%s', 'notion-to-wordpress'), $sync_type);
         }
     }
 
@@ -286,9 +297,18 @@ class Notion_To_WordPress_Webhook {
      * @return   string    处理结果消息
      */
     private function handle_database_updated(): string {
-        // 数据库结构或内容更新，执行全量同步
-        $this->notion_pages->import_pages();
-        return __('数据库已更新，已触发全量同步', 'notion-to-wordpress');
+        // 获取webhook配置
+        $options = get_option('notion_to_wordpress_options', []);
+        $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+        $webhook_check_deletions = $options['webhook_check_deletions'] ?? 1;
+
+        // 数据库结构或内容更新，根据配置执行同步
+        $this->notion_pages->import_pages((bool)$webhook_check_deletions, (bool)$webhook_incremental);
+
+        $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
+        $deletion_check = $webhook_check_deletions ? '（含删除检测）' : '';
+
+        return sprintf(__('数据库已更新，已触发%s%s', 'notion-to-wordpress'), $sync_type, $deletion_check);
     }
 
     /**
