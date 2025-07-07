@@ -10,7 +10,6 @@ jQuery(document).ready(function($) {
     
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
-      console.log('正在加载统计信息...');
       fetchStats();
     }
 
@@ -154,7 +153,6 @@ jQuery(document).ready(function($) {
     // 全局复制函数
     window.copyTextToClipboard = function(text, callback) {
         if (!text) {
-            console.warn('要复制的文本为空');
             if (callback) callback(false, '要复制的文本为空');
             return;
         }
@@ -163,7 +161,6 @@ jQuery(document).ready(function($) {
             if (navigator.clipboard) {
                 navigator.clipboard.writeText(text)
                     .then(() => {
-                        console.log('文本已成功复制到剪贴板');
                         if (callback) callback(true);
                     })
                     .catch(err => {
@@ -194,10 +191,8 @@ jQuery(document).ready(function($) {
             document.body.removeChild(textarea);
             
             if (successful) {
-                console.log('使用备用方法成功复制文本');
                 if (callback) callback(true);
             } else {
-                console.warn('execCommand 复制命令失败');
                 if (callback) callback(false, 'execCommand 复制命令失败');
             }
         } catch (e) {
@@ -472,8 +467,8 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_sync || notionToWp.i18n.never);
-                    $('.stat-next-run').text(stats.next_sync || notionToWp.i18n.not_scheduled);
+                    $('.stat-last-update').text(stats.last_update || notionToWp.i18n.never);
+                    $('.stat-next-run').text(stats.next_run || notionToWp.i18n.not_scheduled);
                 } else {
                     showModal(notionToWp.i18n.load_logs_failed + (response.data.message || notionToWp.i18n.unknown_error), 'error');
                 }
@@ -487,32 +482,54 @@ jQuery(document).ready(function($) {
         });
     }
     
-    // 表单验证
-    $('form').on('submit', function(e) {
-        var api_key = $('#notion_to_wordpress_api_key').val();
-        var database_id = $('#notion_to_wordpress_database_id').val();
-        var hasError = false;
-        
-        if (!api_key) {
-            $('#notion_to_wordpress_api_key').addClass('error');
-            hasError = true;
-        }
-        
-        if (!database_id) {
-            $('#notion_to_wordpress_database_id').addClass('error');
-            hasError = true;
-        }
-        
-        if (hasError) {
-            e.preventDefault();
+    // 表单验证和 AJAX 提交
+    $('#notion-to-wordpress-settings-form').on('submit', function(e) {
+        e.preventDefault(); // 阻止默认的表单提交
+
+        var $form = $(this);
+        var $submitButton = $form.find('input[type="submit"]');
+        var originalButtonText = $submitButton.val();
+
+        // 基础验证
+        var apiKey = $('#notion_to_wordpress_api_key').val();
+        var dbId = $('#notion_to_wordpress_database_id').val();
+        if (!apiKey || !dbId) {
             showModal(notionToWp.i18n.required_fields, 'error');
-            
-            setTimeout(function() {
-                $('.error').removeClass('error');
-            }, 2000);
+            if (!apiKey) $('#notion_to_wordpress_api_key').addClass('error');
+            if (!dbId) $('#notion_to_wordpress_database_id').addClass('error');
+            setTimeout(() => $('.error').removeClass('error'), 2000);
+            return;
         }
+
+        // 禁用按钮并显示加载状态
+        $submitButton.prop('disabled', true).val(notionToWp.i18n.saving);
+
+        var formData = new FormData(this);
+        formData.set('action', 'save_notion_settings'); // 确保action正确
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            data: formData,
+            processData: false, // 告诉jQuery不要处理数据
+            contentType: false, // 告诉jQuery不要设置contentType
+            success: function(response) {
+                if (response.success) {
+                    showModal(notionToWp.i18n.settings_saved, 'success');
+                } else {
+                    showModal(response.data.message || notionToWp.i18n.unknown_error, 'error');
+                }
+            },
+            error: function() {
+                showModal(notionToWp.i18n.unknown_error, 'error');
+            },
+            complete: function() {
+                // 恢复按钮状态
+                $submitButton.prop('disabled', false).val(originalButtonText);
+            }
+        });
     });
-    
+
     // 添加CSS样式
     $('<style>')
         .prop('type', 'text/css')
@@ -538,19 +555,11 @@ jQuery(document).ready(function($) {
     // 初始化复制按钮函数
     function initCopyButtons() {
         const copyButtons = $('.copy-to-clipboard');
-        console.log('找到复制按钮数量:', copyButtons.length);
         
         copyButtons.each(function(index) {
             const $btn = $(this);
             const target = $btn.data('clipboard-target');
             const $target = $(target);
-            
-            console.log(`按钮 ${index + 1}:`, {
-                '目标选择器': target,
-                '目标元素存在': $target.length > 0,
-                '目标元素值': $target.val() || '(空)',
-                '按钮HTML': $btn.prop('outerHTML')
-            });
             
             // 确保按钮有正确的提示
             if (!$btn.attr('title')) {

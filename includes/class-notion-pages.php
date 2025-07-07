@@ -93,28 +93,36 @@ class Notion_Pages {
      * @return   boolean                 导入是否成功
      */
     public function import_notion_page(array $page): bool {
+        error_log('Notion to WordPress: import_notion_page() 开始执行');
+
         if (empty($page) || !isset($page['id'])) {
+            error_log('Notion to WordPress: 页面数据为空或缺少ID');
             return false;
         }
 
         $page_id  = $page['id'];
+        error_log('Notion to WordPress: 处理页面ID: ' . $page_id);
+
+        error_log('Notion to WordPress: 提取页面元数据...');
         $metadata = $this->extract_page_metadata($page);
-        
+        error_log('Notion to WordPress: 元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'));
+        error_log('Notion to WordPress: 元数据详情: ' . print_r($metadata, true));
+
         if (empty($metadata['title'])) {
+            error_log('Notion to WordPress: 页面标题为空，跳过导入');
             return false;
         }
 
         // 获取页面内容
+        error_log('Notion to WordPress: 获取页面内容...');
         $blocks = $this->notion_api->get_page_content($page_id);
+        error_log('Notion to WordPress: 获取到内容块数量: ' . count($blocks));
         if (empty($blocks)) {
             return false;
         }
 
         // 转换内容为 HTML 并做 KSES 过滤
         $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
-
-        // 处理Notion公式格式
-        $raw_content = $this->process_notion_equations($raw_content);
 
         $content     = Notion_To_WordPress_Helper::custom_kses($raw_content);
         
@@ -149,8 +157,13 @@ class Notion_Pages {
         $props    = $page['properties'] ?? [];
 
         // 获取保存的选项，包括字段映射
-        $options       = get_option( 'notion_to_wordpress_options', [] );
-        $field_mapping = $options['field_mapping'] ?? [
+        $options = get_option( 'notion_to_wordpress_options', [] );
+
+        /*
+         * 默认字段映射。即使用户在后台保存设置时遗漏了某些字段（例如密码映射），
+         * 依旧可以通过与默认值合并来保证关键字段存在，避免导入过程出错。
+         */
+        $default_mapping = [
             'title'          => 'Title,标题',
             'status'         => 'Status,状态',
             'post_type'      => 'Type,类型',
@@ -159,46 +172,47 @@ class Notion_Pages {
             'featured_image' => 'Featured Image,特色图片',
             'categories'     => 'Categories,分类',
             'tags'           => 'Tags,标签',
-
+            // 新增：密码字段映射，支持密码保护文章
             'password'       => 'Password,密码',
         ];
+
+        // 合并用户自定义映射，保持默认键不丢失
+        $field_mapping_saved = $options['field_mapping'] ?? [];
+        $field_mapping       = array_merge( $default_mapping, $field_mapping_saved );
 
         // 将逗号分隔的字符串转换为数组
         foreach ( $field_mapping as $key => $value ) {
             $field_mapping[ $key ] = array_map( 'trim', explode( ',', $value ) );
         }
 
-        $metadata['title'] = $this->get_property_value( $props, $field_mapping['title'], 'title', 'plain_text' );
+        $metadata['title'] = '';
+        if (isset($field_mapping['title']) && is_array($field_mapping['title'])) {
+            $metadata['title'] = $this->get_property_value( $props, $field_mapping['title'], 'title', 'plain_text' );
+        }
 
         // 兼容新版 Notion "Status" 属性（类型为 status）以及旧版 select
-        $status_val = $this->get_property_value( $props, $field_mapping['status'], 'select', 'name' );
-        if ( ! $status_val ) {
-            $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
+        $status_val = '';
+        if (isset($field_mapping['status']) && is_array($field_mapping['status'])) {
+            $status_val = $this->get_property_value( $props, $field_mapping['status'], 'select', 'name' );
+            if ( ! $status_val ) {
+                $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
+            }
         }
 
         // 获取密码字段
-        $password_val = $this->get_property_value( $props, $field_mapping['password'], 'rich_text', 'plain_text' );
-        if ( ! $password_val ) {
-            // 也尝试从其他类型获取密码
-            $password_val = $this->get_property_value( $props, $field_mapping['password'], 'title', 'plain_text' );
+        $password_val = '';
+        if (isset($field_mapping['password']) && is_array($field_mapping['password'])) {
+            $password_val = $this->get_property_value( $props, $field_mapping['password'], 'rich_text', 'plain_text' );
+            if ( ! $password_val ) {
+                // 也尝试从其他类型获取密码
+                $password_val = $this->get_property_value( $props, $field_mapping['password'], 'title', 'plain_text' );
+            }
         }
 
         // 处理文章状态和密码
         if ( $status_val ) {
-            $status_lower = strtolower( trim($status_val) );
-
-            // 私密文章
-            if ( in_array( $status_lower, ['private', '私密', 'private_post'] ) ) {
-                $metadata['status'] = 'private';
-            }
-            // 已发布文章
-            elseif ( in_array( $status_lower, ['published', '已发布', 'publish', 'public', '公开', 'live', '上线'] ) ) {
-                $metadata['status'] = 'publish';
-            }
-            // 草稿
-            else {
-                $metadata['status'] = 'draft';
-            }
+            // 使用规范化函数来统一处理状态映射
+            $metadata['status'] = Notion_To_WordPress_Helper::normalize_post_status(trim($status_val));
         } else {
             $metadata['status'] = 'draft';
         }
@@ -206,55 +220,75 @@ class Notion_Pages {
         // 如果有密码，设置为加密文章
         if ( !empty($password_val) ) {
             $metadata['password'] = trim($password_val);
-            // 有密码的文章通常应该是已发布状态
+            // 有密码的文章应该是已发布状态，否则密码无效
             if ( $metadata['status'] === 'draft' ) {
                 $metadata['status'] = 'publish';
             }
         }
 
-        // 添加调试日志
+        // 添加详细调试日志
         Notion_To_WordPress_Helper::debug_log(
-            sprintf('Notion页面状态: %s, 密码: %s, 转换为WordPress状态: %s',
+            sprintf('Notion页面状态: %s, 密码: %s, 转换为WordPress状态: %s, 密码保护: %s',
                 $status_val ?: 'null',
                 !empty($password_val) ? '***' : 'null',
-                $metadata['status']
+                $metadata['status'],
+                !empty($metadata['password']) ? '是' : '否'
             ),
             'Notion Status',
             Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
         );
 
-        $metadata['post_type']      = $this->get_property_value( $props, $field_mapping['post_type'], 'select', 'name' ) ?? 'post';
-        $metadata['date']           = $this->get_property_value( $props, $field_mapping['date'], 'date', 'start' );
-        $metadata['excerpt']        = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
-        $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
+        $metadata['post_type'] = 'post';
+        if (isset($field_mapping['post_type']) && is_array($field_mapping['post_type'])) {
+            $metadata['post_type'] = $this->get_property_value( $props, $field_mapping['post_type'], 'select', 'name' ) ?? 'post';
+        }
+
+        $metadata['date'] = '';
+        if (isset($field_mapping['date']) && is_array($field_mapping['date'])) {
+            $metadata['date'] = $this->get_property_value( $props, $field_mapping['date'], 'date', 'start' );
+        }
+
+        $metadata['excerpt'] = '';
+        if (isset($field_mapping['excerpt']) && is_array($field_mapping['excerpt'])) {
+            $metadata['excerpt'] = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
+        }
+
+        $metadata['featured_image'] = '';
+        if (isset($field_mapping['featured_image']) && is_array($field_mapping['featured_image'])) {
+            $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
+        }
         
 
 
         // 处理分类和标签
-        $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
-        if ( $categories_prop ) {
-            $categories = [];
-            foreach ( $categories_prop as $category ) {
-                $term = get_term_by( 'name', $category['name'], 'category' );
-                if ( ! $term ) {
-                    $term_data = wp_create_term( $category['name'], 'category' );
-                    if ( ! is_wp_error( $term_data ) ) {
-                        $categories[] = $term_data['term_id'];
+        if (isset($field_mapping['categories']) && is_array($field_mapping['categories'])) {
+            $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
+            if ( $categories_prop ) {
+                $categories = [];
+                foreach ( $categories_prop as $category ) {
+                    $term = get_term_by( 'name', $category['name'], 'category' );
+                    if ( ! $term ) {
+                        $term_data = wp_create_term( $category['name'], 'category' );
+                        if ( ! is_wp_error( $term_data ) ) {
+                            $categories[] = $term_data['term_id'];
+                        }
+                    } else {
+                        $categories[] = $term->term_id;
                     }
-                } else {
-                    $categories[] = $term->term_id;
                 }
+                $metadata['categories'] = array_filter( $categories );
             }
-            $metadata['categories'] = array_filter( $categories );
         }
 
-        $tags_prop = $this->get_property_value( $props, $field_mapping['tags'], 'multi_select' );
-        if ( $tags_prop ) {
-            $tags = [];
-            foreach ( $tags_prop as $tag ) {
-                $tags[] = $tag['name'];
+        if (isset($field_mapping['tags']) && is_array($field_mapping['tags'])) {
+            $tags_prop = $this->get_property_value( $props, $field_mapping['tags'], 'multi_select' );
+            if ( $tags_prop ) {
+                $tags = [];
+                foreach ( $tags_prop as $tag ) {
+                    $tags[] = $tag['name'];
+                }
+                $metadata['tags'] = $tags;
             }
-            $metadata['tags'] = $tags;
         }
         
         // 处理自定义字段映射
@@ -745,8 +779,26 @@ class Notion_Pages {
         return '<div class="notion-bookmark"><a href="' . $url . '" target="_blank" rel="noopener noreferrer">' . $url . '</a>' . $caption_html . '</div>';
     }
 
+    /**
+     * 转换块级公式 - 重构后的统一处理逻辑
+     *
+     * @since 1.0.9 重构公式处理系统，解决转义问题
+     * @param array $block 公式块数据
+     * @param Notion_API $notion_api Notion API实例
+     * @return string 转换后的HTML
+     */
     private function _convert_block_equation(array $block, Notion_API $notion_api): string {
-        $expression = str_replace( '\\', '\\\\', $block['equation']['expression'] ?? '' );
+        $expression = $block['equation']['expression'] ?? '';
+
+        // 保留化学公式的特殊处理（确保\ce前缀）
+        if (strpos($expression, 'ce{') !== false && strpos($expression, '\\ce{') === false) {
+            $expression = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expression);
+        }
+
+        // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+        $expression = str_replace( '\\', '\\\\', $expression );
+
+        // 使用旧版本的简单类名，确保JavaScript能正确识别
         return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
@@ -859,10 +911,18 @@ class Notion_Pages {
         $result = '';
         
         foreach ($rich_text as $text) {
-            // 处理 inline equation
+            // 处理行内公式 - 恢复到旧版本逻辑
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
-                $expr    = str_replace( '\\', '\\\\', $text['equation']['expression'] ?? '' );
-                $content = '<span class="notion-equation notion-equation-inline">$' . $expr . '$</span>';
+                $expr_raw = $text['equation']['expression'] ?? '';
+
+                // 保留化学公式的特殊处理（确保\ce前缀）
+                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
+                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
+                }
+
+                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+                $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
+                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
@@ -971,12 +1031,32 @@ class Notion_Pages {
             ],
         ];
 
-        // 处理文章密码
+        // 处理文章密码 - 确保密码保护正确应用
         if ( !empty($metadata['password']) ) {
             $post_data['post_password'] = $metadata['password'];
+            
+            // 确保有密码的文章处于发布状态，否则密码保护无效
+            if ($post_data['post_status'] === 'draft') {
+                $post_data['post_status'] = 'publish';
+                Notion_To_WordPress_Helper::debug_log(
+                    '文章有密码但状态为草稿，已自动调整为已发布状态以使密码生效',
+                    'Post Status',
+                    Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+                );
+            }
         }
 
-        // 注意：文章状态和密码已在metadata提取阶段处理，这里不需要额外处理
+        // 记录最终的文章数据
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('文章数据: 标题=%s, 状态=%s, 类型=%s, 密码=%s', 
+                $post_data['post_title'],
+                $post_data['post_status'],
+                $post_data['post_type'],
+                !empty($post_data['post_password']) ? '已设置' : '无'
+            ),
+            'Post Data',
+            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+        );
 
         if (isset($metadata['date'])) {
             $post_data['post_date'] = $metadata['date'];
@@ -1200,8 +1280,14 @@ class Notion_Pages {
      */
     public function import_pages() {
         try {
+            // 添加调试日志
+            error_log('Notion to WordPress: import_pages() 开始执行');
+            error_log('Notion to WordPress: Database ID: ' . $this->database_id);
+
             // 获取数据库中的所有页面
+            error_log('Notion to WordPress: 调用get_database_pages()');
             $pages = $this->notion_api->get_database_pages($this->database_id);
+            error_log('Notion to WordPress: 获取到页面数量: ' . count($pages));
 
             if (empty($pages)) {
                 return new WP_Error('no_pages', __('未检索到任何页面。', 'notion-to-wordpress'));
@@ -1214,26 +1300,46 @@ class Notion_Pages {
                 'failed' => 0
             ];
 
-            foreach ($pages as $page) {
-                // 检查页面是否已存在
-                $existing_post_id = $this->get_post_by_notion_id($page['id']);
+            error_log('Notion to WordPress: 开始处理页面，总数: ' . count($pages));
 
-                $result = $this->import_notion_page($page);
+            foreach ($pages as $index => $page) {
+                error_log('Notion to WordPress: 处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'));
 
-                if ($result) {
-                    if ($existing_post_id) {
-                        $stats['updated']++;
+                try {
+                    // 检查页面是否已存在
+                    $existing_post_id = $this->get_post_by_notion_id($page['id']);
+                    error_log('Notion to WordPress: 页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'));
+
+                    error_log('Notion to WordPress: 开始导入单个页面...');
+                    $result = $this->import_notion_page($page);
+                    error_log('Notion to WordPress: 单个页面导入结果: ' . ($result ? 'success' : 'failed'));
+
+                    if ($result) {
+                        if ($existing_post_id) {
+                            $stats['updated']++;
+                        } else {
+                            $stats['imported']++;
+                        }
                     } else {
-                        $stats['imported']++;
+                        $stats['failed']++;
                     }
-                } else {
+                } catch (Exception $e) {
+                    error_log('Notion to WordPress: 处理页面异常: ' . $e->getMessage());
+                    $stats['failed']++;
+                } catch (Error $e) {
+                    error_log('Notion to WordPress: 处理页面错误: ' . $e->getMessage());
                     $stats['failed']++;
                 }
+
+                error_log('Notion to WordPress: 页面 ' . ($index + 1) . ' 处理完成');
             }
 
+            error_log('Notion to WordPress: 所有页面处理完成，统计: ' . print_r($stats, true));
             return $stats;
 
         } catch (Exception $e) {
+            error_log('Notion to WordPress: import_pages() 异常: ' . $e->getMessage());
+            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
             return new WP_Error('import_failed', __('导入失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
@@ -1462,34 +1568,7 @@ class Notion_Pages {
         return '<p class="notion-link-to-page"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">' . esc_html( $label ) . '</a></p>';
     }
 
-    /**
-     * 处理Notion公式格式
-     *
-     * @since 1.0.9
-     * @param string $content 内容
-     * @return string 处理后的内容
-     */
-    private function process_notion_equations(string $content): string {
-        // 处理行内公式 - 保持原始$格式，让KaTeX直接处理
-        $content = preg_replace_callback(
-            '/<span class="notion-equation notion-equation-inline">\$(.+?)\$<\/span>/',
-            function($matches) {
-                return '<span class="notion-equation-inline">$' . $matches[1] . '$</span>';
-            },
-            $content
-        );
 
-        // 处理块级公式 - 保持原始$$格式，让KaTeX直接处理
-        $content = preg_replace_callback(
-            '/<div class="notion-equation notion-equation-block">\$\$(.+?)\$\$<\/div>/s',
-            function($matches) {
-                return '<div class="notion-equation-block">$$' . $matches[1] . '$$</div>';
-            },
-            $content
-        );
-
-        return $content;
-    }
 
     /**
      * 验证PDF文件

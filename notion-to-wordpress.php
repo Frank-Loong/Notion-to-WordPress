@@ -15,7 +15,7 @@ declare(strict_types=1);
  * Plugin Name:       Notion to WordPress
  * Plugin URI:        https://github.com/Frank-Loong/Notion-to-WordPress
  * Description:       从 Notion 数据库同步内容到 WordPress 文章，支持自动同步、手动同步和 Webhook 触发。
- * Version:           1.0.9
+ * Version:           1.1.0
  * Author:            Frank-Loong
  * Author URI:        https://github.com/Frank-Loong
  * License:           GPL-3.0-or-later
@@ -39,7 +39,7 @@ define( 'NOTION_TO_WORDPRESS_FILE', __FILE__ );
 /**
  * 插件的当前版本号。
  */
-define( 'NOTION_TO_WORDPRESS_VERSION', '1.0.9' );
+define( 'NOTION_TO_WORDPRESS_VERSION', '1.1.0' );
 
 /**
  * 核心依赖加载
@@ -60,7 +60,10 @@ function activate_notion_to_wordpress() {
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
  */
 function deactivate_notion_to_wordpress() {
-	Notion_To_WordPress::deactivate();
+	// Clear any scheduled cron jobs
+	wp_clear_scheduled_hook('notion_cron_import');
+	wp_clear_scheduled_hook('notion_to_wordpress_cron_update');
+	wp_clear_scheduled_hook('notion_to_wordpress_log_cleanup');
 }
 
 register_activation_hook( NOTION_TO_WORDPRESS_FILE, 'activate_notion_to_wordpress' );

@@ -38,14 +38,19 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
+        // 临时强制启用最高级别调试用于问题诊断
+        self::$debug_level = self::DEBUG_LEVEL_DEBUG;
+
         // 从选项中获取调试级别
-        $options = get_option('notion_to_wordpress_options', []);
-        self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
-        
+        // $options = get_option('notion_to_wordpress_options', []);
+        // self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
-        if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
-            self::$debug_level = self::DEBUG_LEVEL_ERROR;
-        }
+        // if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
+        //     self::$debug_level = self::DEBUG_LEVEL_ERROR;
+        // }
+
+        error_log('Notion to WordPress: 调试级别设置为: ' . self::$debug_level);
     }
 
     /**
@@ -93,10 +98,10 @@ class Notion_To_WordPress_Helper {
      * @param    string    $message    要写入文件的日志消息。
      */
     private static function log_to_file($message) {
-        // 如果当前调试级别为 NONE，则不记录
-        if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
-            return;
-        }
+        // 临时强制启用日志记录用于调试
+        // if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
+        //     return;
+        // }
 
         $upload_dir = wp_upload_dir();
         $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
@@ -114,7 +119,7 @@ class Notion_To_WordPress_Helper {
         }
         
         // 日志文件路径
-        $log_file = $log_dir . '/error-' . date('Y-m-d') . '.log';
+        $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
         
         // 写入日志
         file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
@@ -216,10 +221,12 @@ class Notion_To_WordPress_Helper {
                 'div'  => [
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于 equation
+                    'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
                 ],
                 'span' => [
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于颜色
+                    'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
                 ],
                 'iframe' => [
                     'src'             => true,
@@ -395,6 +402,46 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
+     * 执行日志清理任务。
+     *
+     * @since 2.0.0
+     */
+    public static function run_log_cleanup() {
+        $options = get_option('notion_to_wordpress_options', []);
+        $retention_days = isset($options['log_retention_days']) ? (int)$options['log_retention_days'] : 0;
+
+        if ($retention_days <= 0) {
+            self::info_log('日志清理任务跳过：未设置保留期限。', 'LogCleanup');
+            return;
+        }
+
+        $upload_dir = wp_upload_dir();
+        $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+        $files = self::get_log_files();
+        $deleted_count = 0;
+        $time_now = time();
+        $retention_seconds = $retention_days * DAY_IN_SECONDS;
+
+        foreach ($files as $file) {
+            $file_path = $log_dir . '/' . $file;
+            if (is_file($file_path) && is_writable($file_path)) {
+                $file_mod_time = filemtime($file_path);
+                if (($time_now - $file_mod_time) > $retention_seconds) {
+                    if (unlink($file_path)) {
+                        $deleted_count++;
+                    }
+                }
+            }
+        }
+        
+        if ($deleted_count > 0) {
+            self::info_log("日志清理完成，删除了 {$deleted_count} 个旧日志文件。", 'LogCleanup');
+        } else {
+            self::debug_log('日志清理任务运行，没有需要删除的文件。', 'LogCleanup');
+        }
+    }
+
+    /**
      * 获取插件文件或目录的绝对服务器路径。
      *
      * @since 1.0.10
@@ -435,6 +482,7 @@ class Notion_To_WordPress_Helper {
 
             // 私密状态
             'private' => 'private',
+            'privacy' => 'private', // 增加可能的变体
             '私密' => 'private',
             'private_post' => 'private',
 

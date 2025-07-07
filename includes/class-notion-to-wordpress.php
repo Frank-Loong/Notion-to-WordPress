@@ -94,7 +94,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.0.9';
+			$this->version = '1.0.10';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 
@@ -200,6 +200,7 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu' );
 		$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
+		$this->loader->add_action( 'wp_ajax_save_notion_settings', $this->admin, 'handle_save_settings_ajax' );
 
 		// AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_manual_sync', $this->admin, 'handle_manual_import' );
@@ -208,6 +209,7 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -217,6 +219,10 @@ class Notion_To_WordPress {
 
 		// 注册自定义计划频率过滤器
 		$this->loader->add_filter( 'cron_schedules', $this, 'add_custom_cron_schedules' );
+
+		// 新增：添加新的cron事件
+		$this->loader->add_action('notion_to_wordpress_cron_update', $this->notion_pages, 'update_post_from_notion_cron', 10, 1);
+		$this->loader->add_action('notion_to_wordpress_log_cleanup', 'Notion_To_WordPress_Helper', 'run_log_cleanup');
 	}
 
 	/**
@@ -227,6 +233,14 @@ class Notion_To_WordPress {
 	 */
 	private function define_public_hooks() {
 		$this->loader->add_action( 'wp_enqueue_scripts', $this, 'enqueue_frontend_scripts' );
+
+		// 添加内容过滤器来保护公式不被wpautop处理
+		$this->loader->add_filter( 'the_content', $this, 'protect_formulas_from_wpautop', 8 );
+		$this->loader->add_filter( 'the_content', $this, 'restore_formulas_after_wpautop', 12 );
+
+		// 同样保护摘要中的公式
+		$this->loader->add_filter( 'the_excerpt', $this, 'protect_formulas_from_wpautop', 8 );
+		$this->loader->add_filter( 'the_excerpt', $this, 'restore_formulas_after_wpautop', 12 );
 	}
 
 	/**
@@ -445,8 +459,19 @@ class Notion_To_WordPress {
 			true
 		);
 
-		wp_enqueue_script('katex');
-		wp_enqueue_script('katex-mhchem');
+		// 新增：KaTeX auto-render 扩展，依赖 KaTeX
+		wp_register_script(
+			'katex-auto-render',
+			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
+			array( 'katex' ),
+			'0.16.22',
+			true
+		);
+
+		// 按顺序入队 KaTeX 相关脚本
+		wp_enqueue_script( 'katex' );
+		wp_enqueue_script( 'katex-mhchem' );
+		wp_enqueue_script( 'katex-auto-render' );
 
 		// ---------------- Mermaid ----------------
 		wp_enqueue_script(
@@ -461,7 +486,7 @@ class Notion_To_WordPress {
 		wp_enqueue_script(
 			$this->plugin_name . '-katex-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
-			array('jquery', 'mermaid', 'katex', 'katex-mhchem'),
+			array('jquery', 'mermaid', 'katex', 'katex-mhchem', 'katex-auto-render'),
 			$this->version,
 			true
 		);
@@ -501,4 +526,81 @@ class Notion_To_WordPress {
 
 		return $schedules;
 	}
-} 
+
+	private function _convert_block_equation( array $block ): string {
+		$expression = $block['equation']['expression'] ?? '';
+		// 保持原始 LaTeX，避免对反斜杠做二次转义
+		return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
+	}
+
+	/**
+	 * 保护公式内容不被wpautop处理
+	 *
+	 * 在wpautop之前运行，将公式内容替换为占位符
+	 *
+	 * @since 1.0.10
+	 * @param string $content 文章内容
+	 * @return string 处理后的内容
+	 */
+	public function protect_formulas_from_wpautop( $content ) {
+		// 只在包含公式的内容上运行，提高性能
+		if ( strpos( $content, 'notion-equation' ) === false ) {
+			return $content;
+		}
+
+		// 静态变量存储公式内容，确保在同一请求中可以恢复
+		static $formula_placeholders = array();
+
+		// 匹配所有公式标签（行内和块级），使用更精确的正则表达式
+		$patterns = array(
+			// 匹配行内公式 span 标签
+			'/<span[^>]*class="[^"]*notion-equation-inline[^"]*"[^>]*>.*?<\/span>/s',
+			// 匹配块级公式 div 标签
+			'/<div[^>]*class="[^"]*notion-equation-block[^"]*"[^>]*>.*?<\/div>/s',
+			// 兼容旧版本的通用匹配
+			'/<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>/s',
+			'/<div[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/div>/s'
+		);
+
+		foreach ( $patterns as $pattern ) {
+			$content = preg_replace_callback( $pattern, function( $matches ) use ( &$formula_placeholders ) {
+				$placeholder = '<!--NOTION_FORMULA_PLACEHOLDER_' . count( $formula_placeholders ) . '-->';
+				$formula_placeholders[ $placeholder ] = $matches[0];
+				return $placeholder;
+			}, $content );
+		}
+
+		// 将占位符数组存储到全局变量中，以便后续恢复
+		$GLOBALS['notion_formula_placeholders'] = $formula_placeholders;
+
+		return $content;
+	}
+
+	/**
+	 * 恢复被保护的公式内容
+	 *
+	 * 在wpautop之后运行，将占位符替换回原始公式内容
+	 *
+	 * @since 1.0.10
+	 * @param string $content 经过wpautop处理的内容
+	 * @return string 恢复公式后的内容
+	 */
+	public function restore_formulas_after_wpautop( $content ) {
+		// 从全局变量中获取占位符数组
+		$formula_placeholders = isset( $GLOBALS['notion_formula_placeholders'] ) ? $GLOBALS['notion_formula_placeholders'] : array();
+
+		if ( empty( $formula_placeholders ) ) {
+			return $content;
+		}
+
+		// 将占位符替换回原始公式内容
+		foreach ( $formula_placeholders as $placeholder => $formula_html ) {
+			$content = str_replace( $placeholder, $formula_html, $content );
+		}
+
+		// 清理全局变量
+		unset( $GLOBALS['notion_formula_placeholders'] );
+
+		return $content;
+	}
+}
