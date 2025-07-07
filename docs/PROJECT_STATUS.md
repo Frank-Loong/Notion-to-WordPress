@@ -456,4 +456,10 @@ The plugin is now ready for production use across all types of WordPress sites, 
 
 ---
 
+<div align="center">
+
 *Last Updated: 2025-07-07 | Version: 1.1.0 | Status: Production Ready*
+
+**[⬆️ Back to Top](#-notion-to-wordpress---project-status-report) • [🏠 Main README](../README.md) • [🇨🇳 中文版](./PROJECT_STATUS-zh_CN.md) • [📚 Docs Hub](./README.md)**
+
+</div>

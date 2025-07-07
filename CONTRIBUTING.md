@@ -118,6 +118,12 @@ All contributions are licensed under GPL v3 or later, in line with the project.
 
 ---
 
+<div align="center">
+
 **Thank you for making Notion·to-WordPress better! 🚀**
 
 *Together, we're building the best Notion-to-WordPress integration possible.*
+
+**[⬆️ Back to Top](#contributing-to-notiontowordpress) • [🏠 Main README](./README.md) • [🇨🇳 中文版](./CONTRIBUTING-zh_CN.md) • [📚 Docs Hub](./docs/README.md)**
+
+</div>
