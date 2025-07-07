@@ -7,7 +7,7 @@
 
 jQuery(document).ready(function($) {
     const $overlay = $('#loading-overlay');
-    
+
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
       fetchStats();
@@ -18,6 +18,18 @@ jQuery(document).ready(function($) {
       console.error('安全验证参数缺失或无效');
       return;
     }
+
+    // 记录页面加载时的原始语言设置，用于检测变化
+    var originalLanguage = $('#plugin_language').val();
+    console.log('Notion to WordPress: Original language on page load:', originalLanguage);
+
+    // 监听语言选择器的变化，但不立即更新originalLanguage
+    // 只有在表单成功提交后才更新originalLanguage
+    $('#plugin_language').on('change', function() {
+        var currentValue = $(this).val();
+        console.log('Notion to WordPress: Language selector changed to:', currentValue);
+        console.log('Notion to WordPress: Will compare with original:', originalLanguage);
+    });
 
     // 标签切换动画效果
     $('.notion-wp-menu-item').on('click', function(e) {
@@ -480,8 +492,52 @@ jQuery(document).ready(function($) {
                  $('.notion-stats-grid .stat-card h3, .notion-stats-grid .stat-card span').removeClass('loading');
             }
         });
+
+    // 刷新验证令牌
+    $('#refresh-verification-token').on('click', function(e) {
+        e.preventDefault();
+
+        var button = $(this);
+        var tokenInput = $('#verification_token');
+
+        // 防止重复点击
+        if (button.prop('disabled')) {
+            return;
+        }
+
+        button.prop('disabled', true);
+        button.find('.dashicons').removeClass('dashicons-update').addClass('dashicons-update').addClass('spin');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'notion_to_wordpress_refresh_verification_token',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    tokenInput.val(response.data.verification_token || '');
+                    if (response.data.verification_token) {
+                        showModal(response.data.message || '验证令牌已更新', 'success');
+                    } else {
+                        showModal('暂无新的验证令牌', 'info');
+                    }
+                } else {
+                    showModal(response.data.message || '刷新失败', 'error');
+                }
+            },
+            error: function() {
+                showModal('网络错误，请稍后重试', 'error');
+            },
+            complete: function() {
+                button.prop('disabled', false);
+                button.find('.dashicons').removeClass('spin');
+            }
+        });
+    });
     }
-    
+
     // 表单验证和 AJAX 提交
     $('#notion-to-wordpress-settings-form').on('submit', function(e) {
         e.preventDefault(); // 阻止默认的表单提交
@@ -490,8 +546,11 @@ jQuery(document).ready(function($) {
         var $submitButton = $form.find('input[type="submit"]');
         var originalButtonText = $submitButton.val();
 
-        // 记录提交前的语言设置值，用于检测是否发生变化
-        var originalLanguage = $('#plugin_language').val();
+        // 防止重复提交
+        if ($submitButton.prop('disabled')) {
+            console.log('Notion to WordPress: Form submission blocked - already in progress');
+            return false;
+        }
 
         // 基础验证
         var apiKey = $('#notion_to_wordpress_api_key').val();
@@ -503,6 +562,9 @@ jQuery(document).ready(function($) {
             setTimeout(() => $('.error').removeClass('error'), 2000);
             return;
         }
+
+        // 获取当前语言设置值（用户选择的新值）
+        var newLanguage = $('#plugin_language').val();
 
         // 禁用按钮并显示加载状态
         $submitButton.prop('disabled', true).val(notionToWp.i18n.saving);
@@ -518,8 +580,7 @@ jQuery(document).ready(function($) {
             contentType: false, // 告诉jQuery不要设置contentType
             success: function(response) {
                 if (response.success) {
-                    // 检查语言设置是否发生变化
-                    var newLanguage = $('#plugin_language').val();
+                    // 检查语言设置是否发生变化（比较原始值和用户选择的新值）
                     var languageChanged = (originalLanguage !== newLanguage);
 
                     // 添加调试日志
@@ -545,6 +606,10 @@ jQuery(document).ready(function($) {
                         // 语言设置没有变化，使用正常的AJAX响应
                         console.log('Notion to WordPress: Language unchanged, using normal AJAX response');
                         showModal(notionToWp.i18n.settings_saved, 'success');
+
+                        // 更新原始语言值为当前值，为下次比较做准备
+                        originalLanguage = newLanguage;
+                        console.log('Notion to WordPress: Updated original language to:', originalLanguage);
 
                         // 恢复按钮状态
                         $submitButton.prop('disabled', false).val(originalButtonText);
