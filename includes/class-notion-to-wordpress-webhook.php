@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * 处理来自 Notion 的 Webhook 请求，并触发相应的同步操作。
  *
- * @since      1.0.10
+ * @since      1.1.0
  * @package    Notion_To_WordPress
  * @license    GPL-3.0-or-later
  */
@@ -20,7 +20,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * Notion Pages 实例
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @access   private
      * @var      Notion_Pages    $notion_pages    Notion Pages 实例
      */
@@ -29,7 +29,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 构造函数
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    Notion_Pages    $notion_pages    Notion Pages 实例
      */
     public function __construct(Notion_Pages $notion_pages) {
@@ -39,7 +39,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 注册 REST API 路由
      *
-     * @since    1.0.10
+     * @since    1.1.0
      */
     public function register_routes() {
         // 获取选项
@@ -68,7 +68,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理 Webhook 请求
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    WP_REST_Request    $request    REST 请求对象
      * @return   WP_REST_Response               REST 响应对象
      */
@@ -163,7 +163,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 从 Webhook 请求中提取页面 ID
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    array     $body    Webhook 请求体
      * @return   string             页面 ID 或空字符串
      */
@@ -195,7 +195,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理特定的webhook事件
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $event_type    事件类型
      * @param    array     $body          webhook请求体
      * @return   string                   处理结果消息
@@ -241,7 +241,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理页面删除事件
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id    页面ID
      * @return   string                处理结果消息
      */
@@ -277,7 +277,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理页面更新事件
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id    页面ID
      * @return   string                处理结果消息
      */
@@ -319,7 +319,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理页面状态变化事件
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id    页面ID
      * @return   string                处理结果消息
      */
@@ -331,7 +331,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理页面内容更新事件（强制同步，不依赖时间戳）
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id    页面ID
      * @return   string                处理结果消息
      */
@@ -400,7 +400,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 处理数据库更新事件
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @return   string    处理结果消息
      */
     private function handle_database_updated(): string {
@@ -421,7 +421,7 @@ class Notion_To_WordPress_Webhook {
     /**
      * 根据Notion页面ID获取WordPress文章ID
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $notion_id    Notion页面ID
      * @return   int                     WordPress文章ID，未找到返回0
      */

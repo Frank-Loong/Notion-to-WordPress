@@ -796,7 +796,7 @@ class Notion_To_WordPress_Admin {
     /**
      * 刷新验证令牌
      *
-     * @since    1.0.10
+     * @since    1.1.0
      */
     public function handle_refresh_verification_token() {
         check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
@@ -818,7 +818,7 @@ class Notion_To_WordPress_Admin {
     /**
      * 测试调试方法
      *
-     * @since    1.0.10
+     * @since    1.1.0
      */
     public function handle_test_debug() {
         error_log('Notion to WordPress: handle_test_debug 被调用');

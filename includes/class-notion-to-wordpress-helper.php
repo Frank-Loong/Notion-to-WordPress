@@ -326,7 +326,7 @@ class Notion_To_WordPress_Helper {
     /**
      * 过滤 iframe，仅保留白名单域
      *
-     * @since 1.0.10
+     * @since 1.1.0
      */
     private static function filter_iframe_src(string $html): string {
         // 从选项中获取白名单域名
@@ -492,7 +492,7 @@ class Notion_To_WordPress_Helper {
     /**
      * 获取插件文件或目录的绝对服务器路径。
      *
-     * @since 1.0.10
+     * @since 1.1.0
      * @param string $path （可选）相对于插件根目录的路径。
      * @return string 绝对服务器路径。
      */
@@ -503,7 +503,7 @@ class Notion_To_WordPress_Helper {
     /**
      * 获取插件文件或目录的URL。
      *
-     * @since 1.0.10
+     * @since 1.1.0
      * @param string $path （可选）相对于插件根目录的路径。
      * @return string 插件资源的URL。
      */

@@ -73,7 +73,7 @@ class Notion_To_WordPress_i18n {
     /**
      * 强制重新加载指定语言的翻译文件
      *
-     * @since 1.0.10
+     * @since 1.1.0
      */
     public function force_reload_translations() {
         $opts = get_option( 'notion_to_wordpress_options', [] );
@@ -104,7 +104,7 @@ class Notion_To_WordPress_i18n {
     /**
      * 拦截翻译函数调用，根据用户选择返回对应语言
      *
-     * @since 1.0.10
+     * @since 1.1.0
      */
     public function override_gettext( $translation, $text, $domain ) {
         if ( 'notion-to-wordpress' === $domain ) {
