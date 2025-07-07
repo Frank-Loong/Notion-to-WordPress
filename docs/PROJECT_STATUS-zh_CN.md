@@ -81,57 +81,28 @@
 ### **核心组件**
 ```
 notion-to-wordpress/
-├── includes/                                  # 核心功能实现目录
-│   ├── class-notion-api.php                   # Notion API 封装与请求处理
-│   ├── class-notion-pages.php                 # Notion页面与数据库同步主逻辑
-│   ├── class-notion-to-wordpress-webhook.php  # Webhook事件监听与分发
-│   ├── class-notion-to-wordpress-helper.php   # 公共工具与辅助函数
-│   ├── class-notion-to-wordpress-i18n.php     # 国际化处理
-│   ├── class-notion-to-wordpress-loader.php   # 钩子加载器
-│   └── class-notion-to-wordpress.php          # 核心插件类
-├── admin/                                     # 管理界面实现目录
-│   ├── class-notion-to-wordpress-admin.php    # 后台管理主界面
-│   └── partials/                              # 管理界面模板片段
-│       └── notion-to-wordpress-admin-display.php  # 主设置页面
-├── assets/                                    # 前端资源目录
-│   ├── js/                                    # JavaScript文件
-│   │   ├── admin-interactions.js              # 管理界面交互
-│   │   └── katex-mermaid.js                   # KaTeX和Mermaid渲染
-│   ├── css/                                   # 样式表文件
-│   │   ├── admin-modern.css                   # 现代化管理界面样式
-│   │   ├── custom-styles.css                  # 自定义样式
-│   │   ├── latex-styles.css                   # LaTeX公式样式
-│   │   └── tooltip.css                        # 工具提示样式
-│   └── vendor/                                # 第三方前端库
-│       ├── katex/                             # KaTeX数学公式渲染库
-│       └── mermaid/                           # Mermaid图表渲染库
-├── docs/                                      # 项目文档与开发说明
-│   ├── CHANGELOG.md                           # 更新日志(英文)
-│   ├── CHANGELOG-zh_CN.md                     # 更新日志(中文)
-│   ├── FEATURES_COMPARISON.md                 # 功能对比(英文)
-│   ├── FEATURES_COMPARISON-zh_CN.md           # 功能对比(中文)
-│   ├── PROJECT_STATUS.md                      # 项目状态(英文)
-│   ├── PROJECT_STATUS-zh_CN.md                # 项目状态(中文)
-│   ├── README.md                              # 文档中心(英文)
-│   └── README-zh_CN.md                        # 文档中心(中文)
-├── languages/                                 # 多语言翻译文件
-│   ├── notion-to-wordpress.pot                # 翻译模板
-│   ├── notion-to-wordpress-en_US.po           # 英文翻译源文件
-│   ├── notion-to-wordpress-en_US.mo           # 英文翻译编译文件
-│   ├── notion-to-wordpress-zh_CN.po           # 中文翻译源文件
-│   ├── notion-to-wordpress-zh_CN.mo           # 中文翻译编译文件
-│   └── README.md                              # 语言文件说明
-├── wiki/                                      # 详细使用文档
-│   ├── README-Wiki.md                         # 完整使用指南(英文)
-│   └── README-Wiki.zh-CN.md                   # 完整使用指南(中文)
-├── CONTRIBUTING.md                            # 贡献指南(英文)
-├── CONTRIBUTING-zh_CN.md                      # 贡献指南(中文)
-├── LICENSE                                    # 开源许可证
-├── README.md                                  # 项目说明(英文)
-├── README-zh_CN.md                            # 项目说明(中文)
-├── notion-to-wordpress.php                    # 插件主文件
-├── readme.txt                                 # WordPress插件目录格式说明
-└── uninstall.php                              # 卸载清理脚本
+├── includes/                          # 核心功能
+│   ├── class-notion-api.php           # API封装
+│   ├── class-notion-pages.php         # 同步逻辑
+│   ├── class-notion-to-wordpress-webhook.php  # Webhook处理
+│   ├── class-notion-to-wordpress-helper.php   # 工具函数
+│   ├── class-notion-to-wordpress-i18n.php     # 国际化
+│   ├── class-notion-to-wordpress-loader.php   # 钩子加载
+│   └── class-notion-to-wordpress.php  # 核心类
+├── admin/                             # 管理界面
+│   ├── class-notion-to-wordpress-admin.php    # 后台管理
+│   └── partials/notion-to-wordpress-admin-display.php  # 设置页面
+├── assets/                            # 前端资源
+│   ├── js/                            # JavaScript
+│   ├── css/                           # 样式表
+│   └── vendor/                        # 第三方库
+├── docs/                              # 项目文档
+├── languages/                         # 多语言文件
+├── wiki/                              # 使用指南
+├── notion-to-wordpress.php            # 插件主文件
+├── readme.txt                         # WordPress插件说明
+└── uninstall.php                      # 卸载脚本
+```
 
 ### **核心类关系图**
 ```mermaid
