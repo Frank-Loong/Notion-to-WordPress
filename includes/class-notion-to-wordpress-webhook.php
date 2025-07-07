@@ -193,11 +193,13 @@ class Notion_To_WordPress_Webhook {
                 return $this->handle_page_deleted($page_id);
 
             case 'page.created':
-            case 'page.content_updated':
             case 'page.property_updated':
             case 'page.restored':
             case 'page.undeleted':
                 return $this->handle_page_updated($page_id);
+
+            case 'page.content_updated':
+                return $this->handle_page_content_updated($page_id);
 
             case 'page.locked':
             case 'page.unlocked':
@@ -306,6 +308,51 @@ class Notion_To_WordPress_Webhook {
     private function handle_page_status_changed(string $page_id): string {
         // 页面锁定/解锁状态变化，重新同步该页面
         return $this->handle_page_updated($page_id);
+    }
+
+    /**
+     * 处理页面内容更新事件（强制同步，不依赖时间戳）
+     *
+     * @since    1.0.10
+     * @param    string    $page_id    页面ID
+     * @return   string                处理结果消息
+     */
+    private function handle_page_content_updated(string $page_id): string {
+        Notion_To_WordPress_Helper::info_log('处理页面内容更新事件（强制同步）: ' . $page_id, 'Notion Webhook');
+
+        if (empty($page_id)) {
+            // 如果没有具体页面ID，执行增量同步（不检查删除）
+            $options = get_option('notion_to_wordpress_options', []);
+            $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+
+            $this->notion_pages->import_pages(false, (bool)$webhook_incremental);
+            $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
+            return sprintf(__('已触发%s', 'notion-to-wordpress'), $sync_type);
+        }
+
+        try {
+            // 强制同步页面内容，不进行增量检测
+            $page = $this->notion_pages->notion_api->get_page($page_id);
+
+            Notion_To_WordPress_Helper::info_log('强制同步页面内容: ' . $page_id, 'Notion Webhook');
+
+            $result = $this->notion_pages->import_notion_page($page);
+
+            if ($result) {
+                return sprintf(__('已强制同步页面内容: %s', 'notion-to-wordpress'), $page_id);
+            } else {
+                return __('页面内容同步失败', 'notion-to-wordpress');
+            }
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log('页面内容同步失败: ' . $e->getMessage());
+            // 回退到增量同步（不检查删除）
+            $options = get_option('notion_to_wordpress_options', []);
+            $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+
+            $this->notion_pages->import_pages(false, (bool)$webhook_incremental);
+            $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
+            return sprintf(__('页面内容同步失败，已执行%s', 'notion-to-wordpress'), $sync_type);
+        }
     }
 
     /**

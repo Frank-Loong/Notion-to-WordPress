@@ -1742,9 +1742,17 @@ class Notion_Pages {
                 continue;
             }
 
-            // 比较时间戳（添加容错机制，允许1秒的误差）
+            // 比较时间戳（统一转换为UTC时间戳）
             $notion_timestamp = strtotime($notion_last_edited);
-            $local_timestamp = strtotime($local_last_sync);
+
+            // 确保本地时间也是UTC格式进行比较
+            if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $local_last_sync)) {
+                // 如果是MySQL格式，假设为UTC时间
+                $local_timestamp = strtotime($local_last_sync . ' UTC');
+            } else {
+                // 如果是ISO格式，直接转换
+                $local_timestamp = strtotime($local_last_sync);
+            }
 
             // 添加详细的时间比较日志
             Notion_To_WordPress_Helper::debug_log(
@@ -1808,8 +1816,9 @@ class Notion_Pages {
             return;
         }
 
-        // 更新同步时间戳
-        update_post_meta($post_id, '_notion_last_sync_time', current_time('mysql'));
+        // 更新同步时间戳（统一使用UTC时间）
+        $current_utc_time = gmdate('Y-m-d H:i:s');
+        update_post_meta($post_id, '_notion_last_sync_time', $current_utc_time);
         update_post_meta($post_id, '_notion_last_edited_time', $notion_last_edited);
 
         Notion_To_WordPress_Helper::debug_log(
