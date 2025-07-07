@@ -1,9 +1,10 @@
-# 🚀 Notion to WordPress - 项目状态报告
+---
+**📖 导航：** [🏠 主页](../README-zh_CN.md) • [📚 使用指南](../wiki/README-Wiki.zh-CN.md) • **📊 项目状态** • [🔄 更新日志](CHANGELOG-zh_CN.md) • [⚖️ 功能对比](FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
 
-<!-- Language Switch -->
-<p align="right">
-  <a href="./PROJECT_STATUS.md">English</a> | 简体中文
-</p>
+**🌐 语言：** [English](PROJECT_STATUS.md) • **中文**
+---
+
+# 🚀 Notion to WordPress - 项目状态报告
 
 > **当前版本**: 1.1.0  
 > **状态**: 生产就绪 ✅  

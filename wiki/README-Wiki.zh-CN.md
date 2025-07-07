@@ -1,7 +1,8 @@
-<!-- Switch Links -->
-<p align="right">
-  <a href="./README-Wiki.md">English</a> | 简体中文
-</p>
+---
+**📖 导航：** [🏠 主页](../README-zh_CN.md) • **📚 使用指南** • [📊 项目状态](../docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](../docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](../docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
+
+**🌐 语言：** [English](README-Wiki.md) • **中文**
+---
 
 # 📚 Notion to WordPress - 完整使用指南
 

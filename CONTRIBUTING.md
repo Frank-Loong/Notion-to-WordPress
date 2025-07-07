@@ -1,7 +1,9 @@
-<!-- Lang Switch -->
-<p align="right">
-  English | <a href="./CONTRIBUTING-zh_CN.md">中文</a>
-</p>
+---
+**📖 Navigation:** [🏠 Home](README.md) • [📚 User Guide](wiki/README-Wiki.md) • [📊 Project Status](docs/PROJECT_STATUS.md) • [🔄 Changelog](docs/CHANGELOG.md) • [⚖️ Feature Comparison](docs/FEATURES_COMPARISON.md) • **🤝 Contributing**
+
+**🌐 Language:** **English** • [中文](CONTRIBUTING-zh_CN.md)
+---
+
 # Contributing to Notion·to-WordPress
 
 🎉 **Thank you for your interest in contributing to Notion to WordPress!**

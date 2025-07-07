@@ -1,9 +1,10 @@
-# 🚀 Notion to WordPress - Project Status Report
+---
+**📖 Navigation:** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • **📊 Project Status** • [🔄 Changelog](CHANGELOG.md) • [⚖️ Feature Comparison](FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
-<!-- Language Switch -->
-<p align="right">
-  English | <a href="./PROJECT_STATUS-zh_CN.md">简体中文</a>
-</p>
+**🌐 Language:** **English** • [中文](PROJECT_STATUS-zh_CN.md)
+---
+
+# 🚀 Notion to WordPress - Project Status Report
 
 > **Current Version**: 1.1.0
 > **Status**: Production Ready ✅
