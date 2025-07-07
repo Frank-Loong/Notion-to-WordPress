@@ -1,9 +1,10 @@
-# Changelog
+---
+**📖 Navigation:** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • [📊 Project Status](PROJECT_STATUS.md) • **🔄 Changelog** • [⚖️ Feature Comparison](FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
-<!-- Language Switch -->
-<p align="right">
-  English | <a href="./CHANGELOG-zh_CN.md">简体中文</a>
-</p>
+**🌐 Language:** **English** • [中文](CHANGELOG-zh_CN.md)
+---
+
+# Changelog
 
 All notable changes to the Notion to WordPress plugin will be documented in this file.
 
