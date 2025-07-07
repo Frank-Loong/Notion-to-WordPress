@@ -1,7 +1,7 @@
----
 **📖 导航：** **🏠 主页** • [📚 使用指南](wiki/README-Wiki.zh-CN.md) • [📊 项目状态](docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](CONTRIBUTING-zh_CN.md)
 
 **🌐 语言：** [English](README.md) • **中文**
+
 ---
 
 # Notion·to·WordPress
@@ -36,11 +36,35 @@
 ---
 
 ## 快速上手
+
+### 📸 项目演示
+<!-- TODO: 添加项目演示截图/动图 -->
+<div align="center">
+  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress 演示" width="800">
+  <p><em>🎬 60秒完整演示：从 Notion 到 WordPress 的无缝同步</em></p>
+</div>
+
+### 🚀 三步上手
 1. **安装**：下载 ZIP → WordPress 后台上传 → 激活插件
 2. **配置**：在「Notion to WordPress」菜单中填写 *Internal Integration Token* 及 *Database ID*
 3. **同步**：点击「手动同步」或等待自动/Webhook 触发，Notion 内容即刻出现在 WordPress！
 
-> 详细图文教程请见 [Wiki · 快速上手](./wiki/README-Wiki.zh-CN.md#快速上手)
+### 📋 Notion 数据库模板
+我们为你准备了开箱即用的 Notion 数据库模板：
+
+| 模板类型 | 描述 | 链接 |
+|:---:|:---:|:---:|
+| 📝 **博客模板** | 适合个人博客、技术文章 | [复制模板](https://notion.so/template/blog-zh) |
+| 📚 **知识库模板** | 适合团队文档、产品手册 | [复制模板](https://notion.so/template/docs-zh) |
+| 🎓 **课程模板** | 适合在线教育、培训内容 | [复制模板](https://notion.so/template/course-zh) |
+
+> 💡 **提示**：复制模板后，记得在 Notion 中邀请你的集成访问数据库！
+
+### 🎥 图文教程
+> 详细图文教程请见 [Wiki · 快速上手](./wiki/README-Wiki.zh-CN.md#快速上手) 获取：
+> - 📷 **逐步截图指南**
+> - 🎬 **动图演示教程**
+> - 🔧 **常见问题解决**
 
 ---
 
