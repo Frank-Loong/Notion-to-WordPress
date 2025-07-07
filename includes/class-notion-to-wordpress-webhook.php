@@ -352,15 +352,15 @@ class Notion_To_WordPress_Webhook {
             // 强制同步页面内容，不进行增量检测
             Notion_To_WordPress_Helper::info_log('开始获取页面数据: ' . $page_id, 'Notion Webhook');
 
-            // 检查API对象是否存在
-            if (!$this->notion_pages || !$this->notion_pages->notion_api) {
-                Notion_To_WordPress_Helper::error_log('Notion API对象不存在');
-                return __('Notion API对象不存在', 'notion-to-wordpress');
+            // 检查Pages对象是否存在
+            if (!$this->notion_pages) {
+                Notion_To_WordPress_Helper::error_log('Notion Pages对象不存在');
+                return __('Notion Pages对象不存在', 'notion-to-wordpress');
             }
 
-            Notion_To_WordPress_Helper::info_log('调用get_page API: ' . $page_id, 'Notion Webhook');
-            $page = $this->notion_pages->notion_api->get_page($page_id);
-            Notion_To_WordPress_Helper::info_log('get_page API调用完成', 'Notion Webhook');
+            Notion_To_WordPress_Helper::info_log('调用get_page_data方法: ' . $page_id, 'Notion Webhook');
+            $page = $this->notion_pages->get_page_data($page_id);
+            Notion_To_WordPress_Helper::info_log('get_page_data方法调用完成', 'Notion Webhook');
 
             if (empty($page)) {
                 Notion_To_WordPress_Helper::error_log('获取页面数据失败，页面为空: ' . $page_id);
