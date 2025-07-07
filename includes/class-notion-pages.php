@@ -1313,9 +1313,15 @@ class Notion_Pages {
 
             // 如果启用删除检测，先处理删除的页面（使用完整页面列表）
             if ($check_deletions) {
-                $deleted_count = $this->cleanup_deleted_pages($pages);
-                $stats['deleted'] = $deleted_count;
-                error_log('Notion to WordPress: 删除检测完成，删除了 ' . $deleted_count . ' 个页面');
+                error_log('Notion to WordPress: 开始执行删除检测...');
+                try {
+                    $deleted_count = $this->cleanup_deleted_pages($pages);
+                    $stats['deleted'] = $deleted_count;
+                    error_log('Notion to WordPress: 删除检测完成，删除了 ' . $deleted_count . ' 个页面');
+                } catch (Exception $e) {
+                    error_log('Notion to WordPress: 删除检测失败: ' . $e->getMessage());
+                    $stats['deleted'] = 0;
+                }
             }
 
             // 如果启用增量同步，过滤出需要更新的页面
@@ -1736,11 +1742,18 @@ class Notion_Pages {
                 continue;
             }
 
-            // 比较时间戳
+            // 比较时间戳（添加容错机制，允许1秒的误差）
             $notion_timestamp = strtotime($notion_last_edited);
             $local_timestamp = strtotime($local_last_sync);
 
-            if ($notion_timestamp > $local_timestamp) {
+            // 添加详细的时间比较日志
+            Notion_To_WordPress_Helper::debug_log(
+                "时间比较 - 页面ID: {$page_id}, Notion编辑时间: {$notion_last_edited} ({$notion_timestamp}), 本地同步时间: {$local_last_sync} ({$local_timestamp})",
+                'Incremental Sync'
+            );
+
+            // 使用更宽松的时间比较，允许1秒的误差
+            if ($notion_timestamp > $local_timestamp + 1) {
                 // Notion页面更新时间晚于本地同步时间，需要同步
                 Notion_To_WordPress_Helper::debug_log(
                     "页面有更新需要同步: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
@@ -1750,7 +1763,7 @@ class Notion_Pages {
             } else {
                 // 页面无变化，跳过
                 Notion_To_WordPress_Helper::debug_log(
-                    "页面无变化跳过: {$page_id}",
+                    "页面无变化跳过: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
                     'Incremental Sync'
                 );
             }

@@ -150,13 +150,19 @@ class Notion_To_WordPress_Webhook {
      * @return   string             页面 ID 或空字符串
      */
     private function extract_page_id(array $body): string {
-        // 新版结构: event.data 或 entity
+        // 当前Notion webhook结构: entity.id
+        if (isset($body['entity']['id']) && isset($body['entity']['type']) && $body['entity']['type'] === 'page') {
+            return $body['entity']['id'];
+        }
+
+        // 新版结构: event.data 或 event.entity
         if (isset($body['event']['data']['id'])) {
             return $body['event']['data']['id'];
         }
         if (isset($body['event']['entity']['id'])) {
             return $body['event']['entity']['id'];
         }
+
         // 兼容旧结构
         if (!empty($body['page']['id'])) {
             return $body['page']['id'];
@@ -164,6 +170,7 @@ class Notion_To_WordPress_Webhook {
         if (!empty($body['block']['id'])) {
             return $body['block']['id'];
         }
+
         return '';
     }
 
@@ -177,6 +184,9 @@ class Notion_To_WordPress_Webhook {
      */
     private function handle_specific_event(string $event_type, array $body): string {
         $page_id = $this->extract_page_id($body);
+
+        // 添加调试日志
+        Notion_To_WordPress_Helper::info_log('处理事件: ' . $event_type . ', 页面ID: ' . $page_id, 'Notion Webhook');
 
         switch ($event_type) {
             case 'page.deleted':
@@ -216,12 +226,16 @@ class Notion_To_WordPress_Webhook {
      * @return   string                处理结果消息
      */
     private function handle_page_deleted(string $page_id): string {
+        Notion_To_WordPress_Helper::info_log('开始处理页面删除事件，页面ID: ' . $page_id, 'Notion Webhook');
+
         if (empty($page_id)) {
+            Notion_To_WordPress_Helper::error_log('页面ID为空，无法处理删除事件');
             return __('页面ID为空，无法处理删除事件', 'notion-to-wordpress');
         }
 
         // 查找对应的WordPress文章
         $post_id = $this->get_wordpress_post_by_notion_id($page_id);
+        Notion_To_WordPress_Helper::info_log('查找WordPress文章结果，页面ID: ' . $page_id . ', 文章ID: ' . $post_id, 'Notion Webhook');
 
         if (!$post_id) {
             Notion_To_WordPress_Helper::info_log('未找到对应的WordPress文章，页面ID: ' . $page_id, 'Notion Webhook');
@@ -260,8 +274,12 @@ class Notion_To_WordPress_Webhook {
         }
 
         try {
-            // 获取页面数据并导入
+            // 获取页面数据并导入（强制同步，不进行增量检测）
             $page = $this->notion_pages->notion_api->get_page($page_id);
+
+            // 记录强制同步日志
+            Notion_To_WordPress_Helper::info_log('Webhook强制同步页面: ' . $page_id, 'Notion Webhook');
+
             $result = $this->notion_pages->import_notion_page($page);
 
             if ($result) {
