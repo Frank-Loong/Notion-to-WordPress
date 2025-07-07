@@ -139,6 +139,8 @@ class Notion_To_WordPress_Admin {
                 'test_error' => __('测试连接时发生错误', 'notion-to-wordpress'),
                 'fill_fields' => __('请输入API密钥和数据库ID', 'notion-to-wordpress'),
                 'copied' => __('已复制到剪贴板', 'notion-to-wordpress'),
+                'refreshing_token' => __('刷新中...', 'notion-to-wordpress'),
+                'refresh_token' => __('刷新验证令牌', 'notion-to-wordpress'),
                 'stats_error' => __('统计信息错误', 'notion-to-wordpress'),
                 'confirm_sync' => __('确定要开始同步Notion内容吗？', 'notion-to-wordpress'),
                 'confirm_refresh_all' => __('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。', 'notion-to-wordpress'),
@@ -783,6 +785,28 @@ class Notion_To_WordPress_Admin {
         }
 
         wp_send_json_success($content);
+    }
+
+    /**
+     * 刷新验证令牌
+     *
+     * @since    1.0.10
+     */
+    public function handle_refresh_verification_token() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
+        }
+
+        // 获取最新的验证令牌
+        $options = get_option('notion_to_wordpress_options', []);
+        $verification_token = $options['webhook_verify_token'] ?? '';
+
+        wp_send_json_success([
+            'verification_token' => $verification_token,
+            'message' => __('验证令牌已刷新', 'notion-to-wordpress')
+        ]);
     }
 
     /**

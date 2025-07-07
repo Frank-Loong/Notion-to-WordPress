@@ -172,14 +172,18 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <label for="verification_token"><?php esc_html_e('Verification Token', 'notion-to-wordpress'); ?></label>
                                                 <div class="input-with-button">
                                                     <input type="text" id="verification_token" value="<?php echo esc_attr($verification_token); ?>" class="regular-text" readonly placeholder="<?php esc_attr_e('等待 Notion 返回…', 'notion-to-wordpress'); ?>">
-                                                    <button type="button" class="button button-secondary copy-to-clipboard" 
-                                                        data-clipboard-target="#verification_token" 
+                                                    <button type="button" class="button button-secondary" id="refresh-verification-token"
+                                                        title="<?php esc_attr_e('刷新验证令牌', 'notion-to-wordpress'); ?>">
+                                                        <span class="dashicons dashicons-update"></span>
+                                                    </button>
+                                                    <button type="button" class="button button-secondary copy-to-clipboard"
+                                                        data-clipboard-target="#verification_token"
                                                         onclick="window.copyTextToClipboard(document.getElementById('verification_token').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
                                                         title="<?php esc_attr_e('复制令牌', 'notion-to-wordpress'); ?>">
                                                         <span class="dashicons dashicons-clipboard"></span>
                                                     </button>
                                                 </div>
-                                                <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。', 'notion-to-wordpress'); ?></p>
+                                                <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。点击刷新按钮可获取最新的令牌。', 'notion-to-wordpress'); ?></p>
                                             </div>
                                             <div class="notion-wp-field">
                                                 <label for="webhook_url"><?php esc_html_e('Webhook URL', 'notion-to-wordpress'); ?></label>

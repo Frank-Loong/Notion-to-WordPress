@@ -123,7 +123,10 @@ class Notion_To_WordPress_Webhook {
         }
 
         // 处理不同类型的事件
-        if (preg_match('/^(page|block)\./', $event_type)) {
+        if (preg_match('/^(page|block|database)\./', $event_type)) {
+            // 记录触发的事件类型
+            Notion_To_WordPress_Helper::info_log('触发同步，事件类型: ' . $event_type, 'Notion Webhook');
+
             // 直接触发一次数据库同步（轻量化实现）
             try {
                 $this->notion_pages->import_pages();
@@ -135,6 +138,7 @@ class Notion_To_WordPress_Webhook {
         }
 
         // 其他事件暂时忽略
+        Notion_To_WordPress_Helper::info_log('忽略事件类型: ' . $event_type, 'Notion Webhook');
         return new WP_REST_Response(['status' => 'ignored', 'event_type' => $event_type], 200);
     }
 
