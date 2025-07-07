@@ -795,10 +795,8 @@ class Notion_Pages {
             $expression = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expression);
         }
 
-        // 保持原始反斜杠，直接交由 KaTeX 处理
+        // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
         $expression = str_replace( '\\', '\\\\', $expression );
-        // 取消双反斜杠转义，修复 KaTeX mhchem \ce{} 解析问题（行内公式）
-        $expression = str_replace('\\\\', '\\', $expression);
 
         // 使用旧版本的简单类名，确保JavaScript能正确识别
         return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
@@ -922,10 +920,8 @@ class Notion_Pages {
                     $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
                 }
 
-                // 恢复到旧版本的处理方式：反斜杠加倍保护
+                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
                 $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
-                // 取消双反斜杠转义，修复 KaTeX mhchem \ce{} 解析问题（行内公式）
-                $expr_escaped = str_replace('\\\\', '\\', $expr_escaped);
                 $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
             } else {
                 // 对纯文本内容进行转义

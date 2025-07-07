@@ -402,6 +402,46 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
+     * 执行日志清理任务。
+     *
+     * @since 2.0.0
+     */
+    public static function run_log_cleanup() {
+        $options = get_option('notion_to_wordpress_options', []);
+        $retention_days = isset($options['log_retention_days']) ? (int)$options['log_retention_days'] : 0;
+
+        if ($retention_days <= 0) {
+            self::info_log('日志清理任务跳过：未设置保留期限。', 'LogCleanup');
+            return;
+        }
+
+        $upload_dir = wp_upload_dir();
+        $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+        $files = self::get_log_files();
+        $deleted_count = 0;
+        $time_now = time();
+        $retention_seconds = $retention_days * DAY_IN_SECONDS;
+
+        foreach ($files as $file) {
+            $file_path = $log_dir . '/' . $file;
+            if (is_file($file_path) && is_writable($file_path)) {
+                $file_mod_time = filemtime($file_path);
+                if (($time_now - $file_mod_time) > $retention_seconds) {
+                    if (unlink($file_path)) {
+                        $deleted_count++;
+                    }
+                }
+            }
+        }
+        
+        if ($deleted_count > 0) {
+            self::info_log("日志清理完成，删除了 {$deleted_count} 个旧日志文件。", 'LogCleanup');
+        } else {
+            self::debug_log('日志清理任务运行，没有需要删除的文件。', 'LogCleanup');
+        }
+    }
+
+    /**
      * 获取插件文件或目录的绝对服务器路径。
      *
      * @since 1.0.10

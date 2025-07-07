@@ -132,7 +132,7 @@ body.wp-admin {
 }
 .stat-card h3 {
     margin: 0 0 8px 0;
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 700;
     color: var(--notion-primary);
 }
@@ -140,6 +140,18 @@ body.wp-admin {
     color: var(--notion-gray-700);
     font-size: 14px;
     font-weight: 500;
+}
+
+.stat-card .stat-last-update,
+.stat-card .stat-next-run {
+    font-size: 24px; /* 与其他统计卡片保持一致 */
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-height: 48px; /* 保持卡片高度一致 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 响应式：小屏表格横向滚动 */
