@@ -20,9 +20,9 @@
 - [🇨🇳 贡献指南](../CONTRIBUTING-zh_CN.md) - 如何贡献 (中文)
 
 ### 📊 **项目信息**
-- [📋 更新日志](./CHANGELOG.md) - 版本历史和更新
-- [📊 项目状态](./PROJECT_STATUS.md) - 当前项目状态和指标
-- [🏆 功能对比](./FEATURES_COMPARISON.md) - 竞品分析
+- [📋 更新日志](./CHANGELOG-zh_CN.md) - 版本历史和更新
+- [📊 项目状态](./PROJECT_STATUS-zh_CN.md) - 当前项目状态和指标
+- [🏆 功能对比](./FEATURES_COMPARISON-zh_CN.md) - 竞品分析
 
 ---
 
@@ -35,13 +35,13 @@
 
 ### **开发者**
 1. 阅读 [贡献指南](../CONTRIBUTING-zh_CN.md) 了解标准
-2. 查看 [项目状态](./PROJECT_STATUS.md) 了解架构
-3. 检查 [更新日志](./CHANGELOG.md) 了解最新变化
+2. 查看 [项目状态](./PROJECT_STATUS-zh_CN.md) 了解架构
+3. 检查 [更新日志](./CHANGELOG-zh_CN.md) 了解最新变化
 
 ### **决策者**
-1. 查看 [功能对比](./FEATURES_COMPARISON.md) 了解优势
-2. 检查 [项目状态](./PROJECT_STATUS.md) 了解可靠性指标
-3. 查看 [性能基准](./FEATURES_COMPARISON.md#performance-benchmarks)
+1. 查看 [功能对比](./FEATURES_COMPARISON-zh_CN.md) 了解优势
+2. 检查 [项目状态](./PROJECT_STATUS-zh_CN.md) 了解可靠性指标
+3. 查看 [性能基准](./FEATURES_COMPARISON-zh_CN.md#性能基准)
 
 ---
 

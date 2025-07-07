@@ -754,8 +754,56 @@ msgstr "缺少事件类型"
 msgid "已触发同步"
 msgstr "已触发同步"
 
+msgid "Webhook已接收，正在处理"
+msgstr "Webhook已接收，正在处理"
+
 msgid "同步过程中出错: "
 msgstr "同步过程中出错: "
+
+msgid "已触发%s"
+msgstr "已触发%s"
+
+msgid "页面ID为空，无法处理删除事件"
+msgstr "页面ID为空，无法处理删除事件"
+
+msgid "未找到对应的WordPress文章"
+msgstr "未找到对应的WordPress文章"
+
+msgid "已删除对应的WordPress文章 (ID: %d)"
+msgstr "已删除对应的WordPress文章 (ID: %d)"
+
+msgid "删除WordPress文章失败"
+msgstr "删除WordPress文章失败"
+
+msgid "已同步页面: %s"
+msgstr "已同步页面: %s"
+
+msgid "页面同步失败"
+msgstr "页面同步失败"
+
+msgid "单页面同步失败，已执行%s"
+msgstr "单页面同步失败，已执行%s"
+
+msgid "Notion Pages对象不存在"
+msgstr "Notion Pages对象不存在"
+
+msgid "获取页面数据失败"
+msgstr "获取页面数据失败"
+
+msgid "已强制同步页面内容: %s"
+msgstr "已强制同步页面内容: %s"
+
+msgid "页面内容同步失败"
+msgstr "页面内容同步失败"
+
+msgid "页面内容同步失败，已执行%s"
+msgstr "页面内容同步失败，已执行%s"
+
+msgid "页面内容同步发生致命错误"
+msgstr "页面内容同步发生致命错误"
+
+msgid "数据库已更新，已触发%s%s"
+msgstr "数据库已更新，已触发%s%s"
 
 # #-#-#-#-#  catalog.po (Notion to WordPress 1.0.9)  #-#-#-#-#
 # Additional admin interface strings
