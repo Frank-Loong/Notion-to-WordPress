@@ -146,4 +146,10 @@ Notion to WordPress 插件的所有重要变更都将记录在此文件中。
 
 ---
 
+<div align="center">
+
 *详细技术文档，请访问我们的 [Wiki](../wiki/README-Wiki.zh-CN.md)*
+
+**[⬆️ 返回顶部](#更新日志) • [🏠 主 README](../README-zh_CN.md) • [🇺🇸 English](./CHANGELOG.md) • [📚 文档中心](./README-zh_CN.md)**
+
+</div>

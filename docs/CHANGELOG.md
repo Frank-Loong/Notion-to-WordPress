@@ -146,4 +146,10 @@ Special thanks to all contributors, testers, and users who provided feedback to 
 
 ---
 
-*For detailed technical documentation, visit our [Wiki](./wiki/README-Wiki.md)*
+<div align="center">
+
+*For detailed technical documentation, visit our [Wiki](../wiki/README-Wiki.md)*
+
+**[⬆️ Back to Top](#changelog) • [🏠 Main README](../README.md) • [🇨🇳 中文版](./CHANGELOG-zh_CN.md) • [📚 Docs Hub](./README.md)**
+
+</div>
