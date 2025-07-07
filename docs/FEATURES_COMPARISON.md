@@ -1,9 +1,10 @@
-# 🏆 Notion to WordPress - Feature Comparison
+---
+**📖 Navigation:** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • [📊 Project Status](PROJECT_STATUS.md) • [🔄 Changelog](CHANGELOG.md) • **⚖️ Feature Comparison** • [🤝 Contributing](../CONTRIBUTING.md)
 
-<!-- Language Switch -->
-<p align="right">
-  English | <a href="./FEATURES_COMPARISON-zh_CN.md">简体中文</a>
-</p>
+**🌐 Language:** **English** • [中文](FEATURES_COMPARISON-zh_CN.md)
+---
+
+# 🏆 Notion to WordPress - Feature Comparison
 
 > **Why Notion to WordPress is the Superior Choice**
 

@@ -1,7 +1,8 @@
-<!-- Switch Links -->
-<p align="right">
-  English | <a href="./README-Wiki.zh-CN.md">简体中文</a>
-</p>
+---
+**📖 Navigation:** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Status](../docs/PROJECT_STATUS.md) • [🔄 Changelog](../docs/CHANGELOG.md) • [⚖️ Feature Comparison](../docs/FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
+
+**🌐 Language:** **English** • [中文](README-Wiki.zh-CN.md)
+---
 
 # Notion to WordPress - Complete User Guide
 
