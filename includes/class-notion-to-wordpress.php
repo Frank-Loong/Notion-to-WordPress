@@ -309,7 +309,11 @@ class Notion_To_WordPress {
 			return;
 		}
 
-		$this->_core_import_process( $database_id, $options );
+		// 定时同步默认启用增量同步和删除检测
+		$incremental = $options['cron_incremental_sync'] ?? true;
+		$check_deletions = $options['cron_check_deletions'] ?? true;
+
+		$this->_core_import_process( $database_id, $options, $incremental, $check_deletions );
 
 		// 更新上次同步时间
 		$options['last_sync_time'] = current_time( 'mysql' );
@@ -322,17 +326,27 @@ class Notion_To_WordPress {
 	 * @since 1.0.10
 	 * @param string $database_id 要导入的数据库ID
 	 * @param array  $options 插件设置选项
+	 * @param bool   $incremental 是否启用增量同步
+	 * @param bool   $check_deletions 是否检查删除
 	 */
-	private function _core_import_process( string $database_id, array $options ): void {
+	private function _core_import_process( string $database_id, array $options, bool $incremental = true, bool $check_deletions = true ): void {
 		try {
-			$pages = $this->notion_api->get_database_pages( $database_id );
+			// 使用统一的import_pages方法，支持增量同步和删除检测
+			$result = $this->notion_pages->import_pages($check_deletions, $incremental);
 
-			if ( empty( $pages ) ) {
-				return;
-			}
-
-			foreach ( $pages as $page ) {
-				$this->notion_pages->import_notion_page( $page );
+			if (is_wp_error($result)) {
+				Notion_To_WordPress_Helper::error_log('Cron import failed: ' . $result->get_error_message());
+			} else {
+				Notion_To_WordPress_Helper::info_log(
+					sprintf('定时同步完成 - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d',
+						$result['total'] ?? 0,
+						$result['imported'] ?? 0,
+						$result['updated'] ?? 0,
+						$result['deleted'] ?? 0,
+						$result['failed'] ?? 0
+					),
+					'Cron Sync'
+				);
 			}
 		} catch ( Exception $e ) {
 			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );

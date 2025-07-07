@@ -127,10 +127,10 @@ class Notion_To_WordPress_Webhook {
             // 记录触发的事件类型
             Notion_To_WordPress_Helper::info_log('触发同步，事件类型: ' . $event_type, 'Notion Webhook');
 
-            // 直接触发一次数据库同步（轻量化实现）
             try {
-                $this->notion_pages->import_pages();
-                return new WP_REST_Response(['status' => 'success', 'message' => __('已触发同步', 'notion-to-wordpress')], 200);
+                // 根据事件类型进行不同的处理
+                $result = $this->handle_specific_event($event_type, $body);
+                return new WP_REST_Response(['status' => 'success', 'message' => $result], 200);
             } catch (Exception $e) {
                 Notion_To_WordPress_Helper::error_log('Webhook 同步失败: ' . $e->getMessage());
                 return new WP_REST_Response(['status' => 'error', 'message' => __('同步过程中出错: ', 'notion-to-wordpress') . $e->getMessage()], 500);
@@ -166,4 +166,155 @@ class Notion_To_WordPress_Webhook {
         }
         return '';
     }
-} 
+
+    /**
+     * 处理特定的webhook事件
+     *
+     * @since    1.0.10
+     * @param    string    $event_type    事件类型
+     * @param    array     $body          webhook请求体
+     * @return   string                   处理结果消息
+     */
+    private function handle_specific_event(string $event_type, array $body): string {
+        $page_id = $this->extract_page_id($body);
+
+        switch ($event_type) {
+            case 'page.deleted':
+                return $this->handle_page_deleted($page_id);
+
+            case 'page.created':
+            case 'page.content_updated':
+            case 'page.property_updated':
+            case 'page.restored':
+                return $this->handle_page_updated($page_id);
+
+            case 'page.locked':
+            case 'page.unlocked':
+                return $this->handle_page_status_changed($page_id);
+
+            case 'database.updated':
+            case 'database.schema_updated':
+                return $this->handle_database_updated();
+
+            default:
+                // 对于其他事件，执行全量同步
+                $this->notion_pages->import_pages();
+                return __('已触发全量同步', 'notion-to-wordpress');
+        }
+    }
+
+    /**
+     * 处理页面删除事件
+     *
+     * @since    1.0.10
+     * @param    string    $page_id    页面ID
+     * @return   string                处理结果消息
+     */
+    private function handle_page_deleted(string $page_id): string {
+        if (empty($page_id)) {
+            return __('页面ID为空，无法处理删除事件', 'notion-to-wordpress');
+        }
+
+        // 查找对应的WordPress文章
+        $post_id = $this->get_wordpress_post_by_notion_id($page_id);
+
+        if (!$post_id) {
+            Notion_To_WordPress_Helper::info_log('未找到对应的WordPress文章，页面ID: ' . $page_id, 'Notion Webhook');
+            return __('未找到对应的WordPress文章', 'notion-to-wordpress');
+        }
+
+        // 删除WordPress文章
+        $result = wp_delete_post($post_id, true); // true表示彻底删除，不放入回收站
+
+        if ($result) {
+            Notion_To_WordPress_Helper::info_log('已删除WordPress文章，文章ID: ' . $post_id . '，对应Notion页面ID: ' . $page_id, 'Notion Webhook');
+            return sprintf(__('已删除对应的WordPress文章 (ID: %d)', 'notion-to-wordpress'), $post_id);
+        } else {
+            Notion_To_WordPress_Helper::error_log('删除WordPress文章失败，文章ID: ' . $post_id);
+            return __('删除WordPress文章失败', 'notion-to-wordpress');
+        }
+    }
+
+    /**
+     * 处理页面更新事件
+     *
+     * @since    1.0.10
+     * @param    string    $page_id    页面ID
+     * @return   string                处理结果消息
+     */
+    private function handle_page_updated(string $page_id): string {
+        if (empty($page_id)) {
+            // 如果没有具体页面ID，执行全量同步
+            $this->notion_pages->import_pages();
+            return __('已触发全量同步', 'notion-to-wordpress');
+        }
+
+        try {
+            // 获取页面数据并导入
+            $page = $this->notion_pages->notion_api->get_page($page_id);
+            $result = $this->notion_pages->import_notion_page($page);
+
+            if ($result) {
+                return sprintf(__('已同步页面: %s', 'notion-to-wordpress'), $page_id);
+            } else {
+                return __('页面同步失败', 'notion-to-wordpress');
+            }
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log('单页面同步失败: ' . $e->getMessage());
+            // 回退到全量同步
+            $this->notion_pages->import_pages();
+            return __('单页面同步失败，已执行全量同步', 'notion-to-wordpress');
+        }
+    }
+
+    /**
+     * 处理页面状态变化事件
+     *
+     * @since    1.0.10
+     * @param    string    $page_id    页面ID
+     * @return   string                处理结果消息
+     */
+    private function handle_page_status_changed(string $page_id): string {
+        // 页面锁定/解锁状态变化，重新同步该页面
+        return $this->handle_page_updated($page_id);
+    }
+
+    /**
+     * 处理数据库更新事件
+     *
+     * @since    1.0.10
+     * @return   string    处理结果消息
+     */
+    private function handle_database_updated(): string {
+        // 数据库结构或内容更新，执行全量同步
+        $this->notion_pages->import_pages();
+        return __('数据库已更新，已触发全量同步', 'notion-to-wordpress');
+    }
+
+    /**
+     * 根据Notion页面ID获取WordPress文章ID
+     *
+     * @since    1.0.10
+     * @param    string    $notion_id    Notion页面ID
+     * @return   int                     WordPress文章ID，未找到返回0
+     */
+    private function get_wordpress_post_by_notion_id(string $notion_id): int {
+        $args = array(
+            'post_type'      => 'any',
+            'post_status'    => 'any',
+            'posts_per_page' => 1,
+            'meta_query'     => array(
+                array(
+                    'key'     => '_notion_page_id',
+                    'value'   => $notion_id,
+                    'compare' => '='
+                )
+            ),
+            'fields' => 'ids'
+        );
+
+        $posts = get_posts($args);
+
+        return !empty($posts) ? $posts[0] : 0;
+    }
+}
