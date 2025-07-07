@@ -1826,4 +1826,16 @@ class Notion_Pages {
             'Incremental Sync'
         );
     }
+
+    /**
+     * 获取单个页面数据（用于webhook强制同步）
+     *
+     * @since    1.0.10
+     * @param    string    $page_id    页面ID
+     * @return   array                 页面数据
+     * @throws   Exception             如果获取失败
+     */
+    public function get_page_data(string $page_id): array {
+        return $this->notion_api->get_page($page_id);
+    }
 }
