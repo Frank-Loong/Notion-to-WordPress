@@ -1,9 +1,10 @@
-# 🚀 Notion to WordPress - Project Status Report
+---
+**📖 Navigation:** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • **📊 Project Status** • [🔄 Changelog](CHANGELOG.md) • [⚖️ Feature Comparison](FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
-<!-- Language Switch -->
-<p align="right">
-  English | <a href="./PROJECT_STATUS-zh_CN.md">简体中文</a>
-</p>
+**🌐 Language:** **English** • [中文](PROJECT_STATUS-zh_CN.md)
+---
+
+# 🚀 Notion to WordPress - Project Status Report
 
 > **Current Version**: 1.1.0
 > **Status**: Production Ready ✅
@@ -81,57 +82,27 @@
 ### **Core Components**
 ```
 notion-to-wordpress/
-├── includes/                                  # Core functionality directory
-│   ├── class-notion-api.php                   # Notion API integration
-│   ├── class-notion-pages.php                 # Core sync logic
+├── includes/                          # Core functionality
+│   ├── class-notion-api.php           # API integration
+│   ├── class-notion-pages.php         # Sync logic
 │   ├── class-notion-to-wordpress-webhook.php  # Webhook handling
-│   ├── class-notion-to-wordpress-helper.php   # Utilities and helpers
+│   ├── class-notion-to-wordpress-helper.php   # Utilities
 │   ├── class-notion-to-wordpress-i18n.php     # Internationalization
 │   ├── class-notion-to-wordpress-loader.php   # Hook loader
-│   └── class-notion-to-wordpress.php          # Core plugin class
-├── admin/                                     # Admin interface directory
+│   └── class-notion-to-wordpress.php  # Core class
+├── admin/                             # Admin interface
 │   ├── class-notion-to-wordpress-admin.php    # Admin interface
-│   └── partials/                              # Admin template partials
-│       └── notion-to-wordpress-admin-display.php  # Main settings page
-├── assets/                                    # Frontend resources directory
-│   ├── js/                                    # JavaScript files
-│   │   ├── admin-interactions.js              # Admin interface interactions
-│   │   └── katex-mermaid.js                   # KaTeX and Mermaid rendering
-│   ├── css/                                   # Stylesheet files
-│   │   ├── admin-modern.css                   # Modern admin interface styles
-│   │   ├── custom-styles.css                  # Custom styles
-│   │   ├── latex-styles.css                   # LaTeX formula styles
-│   │   └── tooltip.css                        # Tooltip styles
-│   └── vendor/                                # Third-party frontend libraries
-│       ├── katex/                             # KaTeX math rendering library
-│       └── mermaid/                           # Mermaid diagram library
-├── docs/                                      # Project documentation
-│   ├── CHANGELOG.md                           # Changelog (English)
-│   ├── CHANGELOG-zh_CN.md                     # Changelog (Chinese)
-│   ├── FEATURES_COMPARISON.md                 # Feature comparison (English)
-│   ├── FEATURES_COMPARISON-zh_CN.md           # Feature comparison (Chinese)
-│   ├── PROJECT_STATUS.md                      # Project status (English)
-│   ├── PROJECT_STATUS-zh_CN.md                # Project status (Chinese)
-│   ├── README.md                              # Documentation center (English)
-│   └── README-zh_CN.md                        # Documentation center (Chinese)
-├── languages/                                 # Internationalization files
-│   ├── notion-to-wordpress.pot                # Translation template
-│   ├── notion-to-wordpress-en_US.po           # English translation source
-│   ├── notion-to-wordpress-en_US.mo           # English translation compiled
-│   ├── notion-to-wordpress-zh_CN.po           # Chinese translation source
-│   ├── notion-to-wordpress-zh_CN.mo           # Chinese translation compiled
-│   └── README.md                              # Language files guide
-├── wiki/                                      # Detailed usage documentation
-│   ├── README-Wiki.md                         # Complete usage guide (English)
-│   └── README-Wiki.zh-CN.md                   # Complete usage guide (Chinese)
-├── CONTRIBUTING.md                            # Contributing guide (English)
-├── CONTRIBUTING-zh_CN.md                      # Contributing guide (Chinese)
-├── LICENSE                                    # Open source license
-├── README.md                                  # Project description (English)
-├── README-zh_CN.md                            # Project description (Chinese)
-├── notion-to-wordpress.php                    # Main plugin file
-├── readme.txt                                 # WordPress plugin directory format
-└── uninstall.php                              # Uninstall cleanup script
+│   └── partials/notion-to-wordpress-admin-display.php  # Settings page
+├── assets/                            # Frontend resources
+│   ├── js/                            # JavaScript
+│   ├── css/                           # Stylesheets
+│   └── vendor/                        # Third-party libraries
+├── docs/                              # Project documentation
+├── languages/                         # Internationalization files
+├── wiki/                              # Usage guides
+├── notion-to-wordpress.php            # Main plugin file
+├── readme.txt                         # WordPress plugin description
+└── uninstall.php                      # Uninstall script
 ```
 
 ### **Core Class Diagram**
