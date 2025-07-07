@@ -144,7 +144,11 @@ body.wp-admin {
 
 .stat-card .stat-imported-count,
 .stat-card .stat-published-count {
-    font-size: 32px; /* 数字保持醒目 */
+    font-size: 32px;
+    min-height: 48px; /* 保持与日期卡片一致的高度，底部标签对齐 */
+    display:flex;
+    align-items:center;
+    justify-content:center;
 }
 
 .stat-card .stat-last-update,

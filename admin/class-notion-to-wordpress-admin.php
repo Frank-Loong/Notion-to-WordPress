@@ -176,6 +176,7 @@ class Notion_To_WordPress_Admin {
                 'clear_logs' => __('清除所有日志', 'notion-to-wordpress'),
                 'settings_saved' => __('设置已保存！', 'notion-to-wordpress'),
                 'saving' => __('保存中...', 'notion-to-wordpress'),
+                'page_refreshing' => __('页面即将刷新以应用语言设置...', 'notion-to-wordpress'),
             ]
         ));
         
