@@ -80,7 +80,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         </div>
         
         <div class="notion-wp-content">
-            <form method="post" action="admin-post.php">
+            <form id="notion-to-wordpress-settings-form" method="post" action="admin-post.php">
                 <input type="hidden" name="action" value="notion_to_wordpress_options">
                 <?php wp_nonce_field('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce'); ?>
 
@@ -569,6 +569,27 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             <option value="<?php echo Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG; ?>" <?php selected($debug_level, Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG); ?>><?php esc_html_e('所有日志 (调试)', 'notion-to-wordpress'); ?></option>
                                         </select>
                                         <p class="description"><?php esc_html_e('设置日志记录的详细程度。建议在生产环境中设置为"仅错误"。', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="log_retention_days"><?php esc_html_e('日志保留期限', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <?php
+                                        $log_retention_days = $options['log_retention_days'] ?? 0;
+                                        $retention_options = [
+                                            '0'  => __('从不自动清理', 'notion-to-wordpress'),
+                                            '7'  => __('7 天', 'notion-to-wordpress'),
+                                            '14' => __('14 天', 'notion-to-wordpress'),
+                                            '30' => __('30 天', 'notion-to-wordpress'),
+                                            '60' => __('60 天', 'notion-to-wordpress'),
+                                        ];
+                                        ?>
+                                        <select id="log_retention_days" name="log_retention_days">
+                                            <?php foreach ($retention_options as $days => $label): ?>
+                                            <option value="<?php echo esc_attr($days); ?>" <?php selected($log_retention_days, $days); ?>><?php echo esc_html($label); ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <p class="description"><?php esc_html_e('自动删除超过指定天数的旧日志文件。设置为"从不"以禁用。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>

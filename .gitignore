@@ -4,7 +4,7 @@
 # Dependency directories
 node_modules/
 vendor/
-# 但保留插件的备用资源文件
+# 保留插件的备用资源文件
 !assets/vendor/
 
 # AI tooling and workspace metadata

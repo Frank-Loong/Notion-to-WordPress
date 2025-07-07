@@ -78,7 +78,7 @@ const ResourceFallbackManager = {
 
     // 按顺序加载KaTeX相关文件
     loadKatexFallback: function() {
-        const basePath = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/wp-content/plugins/notion-to-wordpress/assets/vendor/katex/';
+        const basePath = window.location.origin + '/wp-content/plugins/notion-to-wordpress/assets/vendor/katex/';
 
         console.info('📦 [Notion to WordPress] 开始加载KaTeX本地备用资源...');
 
@@ -114,7 +114,7 @@ const ResourceFallbackManager = {
 
     // 加载Mermaid备用文件
     loadMermaidFallback: function() {
-        const basePath = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '') + '/wp-content/plugins/notion-to-wordpress/assets/vendor/mermaid/';
+        const basePath = window.location.origin + '/wp-content/plugins/notion-to-wordpress/assets/vendor/mermaid/';
 
         console.info('📦 [Notion to WordPress] 开始加载Mermaid本地备用资源...');
 
@@ -137,12 +137,44 @@ const ResourceFallbackManager = {
 };
 
 /* ---------------- KaTeX 渲染 ---------------- */
-const katexOptions = { throwOnError: false };
+const katexOptions = {
+    throwOnError: false,    // 遇到错误时不抛出异常，而是显示错误信息
+    strict: false,          // 🔓 宽松模式：允许Unicode字符和非标准LaTeX语法
+    trust: true,            // 🔓 信任模式：允许HTML、CSS和URL等
+    fleqn: false,           // 不强制左对齐（保持居中）
+    colorIsTextColor: false, // 颜色不影响文本颜色
+    macros: {},             // 自定义宏定义（可扩展）
+    globalGroup: false,     // 不使用全局组（避免宏污染）
+    maxSize: Infinity,      // 🔓 无限制字体大小
+    maxExpand: 1000,        // 🔓 宏展开次数限制（宽松设置）
+    errorColor: "#cc0000",  // 错误信息颜色
+    output: "html"          // 输出HTML格式
+};
+
+// HTML实体解码函数
+function decodeHtmlEntities(text) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
 
 // 渲染单个元素
 function renderKatexElement(el) {
 const isBlock = el.classList.contains('notion-equation-block');
-let tex = el.textContent.trim();
+// 使用innerHTML而不是textContent来保持反斜杠转义，然后解码HTML实体
+let tex = decodeHtmlEntities(el.innerHTML.trim());
+
+// 清理HTML标签 - 移除可能被wpautop插入的标签
+tex = tex.replace(/<br\s*\/?>/gi, ''); // 移除<br>标签
+tex = tex.replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, ''); // 移除<p>标签
+tex = tex.replace(/<div[^>]*>/gi, '').replace(/<\/div>/gi, ''); // 移除<div>标签
+tex = tex.replace(/<span[^>]*>/gi, '').replace(/<\/span>/gi, ''); // 移除<span>标签
+tex = tex.replace(/&nbsp;/gi, ' '); // 替换非断行空格
+tex = tex.replace(/&amp;/gi, '&'); // 替换HTML实体
+tex = tex.replace(/&lt;/gi, '<'); // 替换HTML实体
+tex = tex.replace(/&gt;/gi, '>'); // 替换HTML实体
+tex = tex.replace(/\s+/g, ' '); // 合并多个空格为单个空格
+tex = tex.trim(); // 去除首尾空格
 
 // 去除包围符号 $ 或 $$
 if (isBlock) {
@@ -151,50 +183,172 @@ tex = tex.replace(/^\$\$|\$\$$/g, '').replace(/\$\$$/, '');
 tex = tex.replace(/^\$/, '').replace(/\$$/, '');
 }
 
+// 智能化学公式修复 - 在清理HTML标签之后进行
+tex = fixChemistryFormula(tex);
+
+// 智能中文字符修复 - 自动包装中文字符
+tex = fixChineseCharacters(tex);
+
 try {
 katex.render(tex, el, { displayMode: isBlock, ...katexOptions });
 } catch (e) {
 console.error('KaTeX 渲染错误:', e, '公式:', tex);
+console.error('原始HTML内容:', el.innerHTML);
+// 显示错误信息而不是空白
+el.innerHTML = '<span style="color: red; font-family: monospace;">公式渲染失败: ' + tex.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
 }
+}
+
+// 智能化学公式修复函数
+function fixChemistryFormula(tex) {
+// 如果已经包含\ce{，不需要修复
+if (tex.includes('\\ce{')) {
+return tex;
+}
+
+// 检测 ce 开头的化学公式（最常见的情况）
+if (tex.startsWith('ce')) {
+// 去掉开头的 ce 并包装在 \ce{} 中
+const chemFormula = tex.substring(2);
+return '\\ce{' + chemFormula + '}';
+}
+
+// 检测包含化学反应符号的公式
+const reactionSymbols = ['->', '→', '<->', '↔', '<=>', '<=>'];
+const hasReactionSymbol = reactionSymbols.some(symbol => tex.includes(symbol));
+
+if (hasReactionSymbol) {
+// 包含反应符号，很可能是化学公式
+return '\\ce{' + tex + '}';
+}
+
+// 检测化学元素模式（大写字母开头，可能跟小写字母、数字、离子符号）
+const chemElementPattern = /^[A-Z][a-z]?\d*[\+\-\^\{\}]*.*[A-Z]/;
+if (chemElementPattern.test(tex)) {
+// 包含多个化学元素，很可能是化学公式
+return '\\ce{' + tex + '}';
+}
+
+// 检测单个化学元素或简单化合物
+const simpleChemPattern = /^[A-Z][a-z]?\d*[\+\-\^\{\}]*$/;
+if (simpleChemPattern.test(tex)) {
+// 简单的化学元素或离子
+return '\\ce{' + tex + '}';
+}
+
+// 如果不匹配任何化学公式模式，返回原文
+return tex;
+}
+
+// 智能中文字符修复函数
+function fixChineseCharacters(tex) {
+// 如果公式中没有中文字符，直接返回
+if (!/[\u4e00-\u9fff]/.test(tex)) {
+return tex;
+}
+
+// 更智能的中文字符包装策略
+// 使用正则表达式精确匹配，避免破坏已有的\text{}结构
+let result = tex;
+
+// 由于某些浏览器不支持负向前瞻，使用更兼容的方法
+// 先找到所有\text{...}的位置，然后避开这些区域
+const textBlocks = [];
+const textPattern = /\\text\{[^}]*\}/g;
+let textMatch;
+while ((textMatch = textPattern.exec(tex)) !== null) {
+textBlocks.push({
+start: textMatch.index,
+end: textMatch.index + textMatch[0].length
+});
+}
+
+// 找到所有中文字符序列
+const chineseMatches = [];
+const simpleChinese = /([\u4e00-\u9fff]+)/g;
+let chineseMatch;
+while ((chineseMatch = simpleChinese.exec(tex)) !== null) {
+const start = chineseMatch.index;
+const end = start + chineseMatch[0].length;
+
+// 检查是否在\text{}块内
+const isInTextBlock = textBlocks.some(block =>
+start >= block.start && end <= block.end
+);
+
+if (!isInTextBlock) {
+chineseMatches.push({
+start: start,
+end: end,
+text: chineseMatch[1],
+original: chineseMatch[0]
+});
+}
+}
+
+// 从后往前替换，避免位置偏移
+chineseMatches.reverse().forEach(match => {
+const before = result.substring(0, match.start);
+const after = result.substring(match.end);
+result = before + '\\text{' + match.text + '}' + after;
+});
+
+return result;
 }
 
 // 遍历并渲染页面中所有公式
 function renderAllKatex() {
-	// 检测KaTeX是否成功加载
+	// 检测KaTeX是否成功加载，给CDN一些时间
 	if (!checkKatexLoaded()) {
 		console.warn('🔧 [Notion to WordPress] KaTeX数学公式库未能从CDN加载');
 		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
-		console.info('🔄 正在自动切换到本地备用资源...');
-		ResourceFallbackManager.showCompatibilityTips();
-		ResourceFallbackManager.loadKatexFallback();
+		console.info('🔄 等待2秒后重试，如仍失败将切换到本地备用资源...');
+
+		// 等待2秒后重试，给CDN更多时间
+		setTimeout(() => {
+			if (!checkKatexLoaded()) {
+				console.info('🔄 CDN仍未加载成功，正在切换到本地备用资源...');
+				ResourceFallbackManager.showCompatibilityTips();
+				ResourceFallbackManager.loadKatexFallback();
+			} else {
+				console.log('✅ [Notion to WordPress] KaTeX CDN资源延迟加载成功，继续正常渲染');
+				renderAllKatex(); // 重新调用渲染
+			}
+		}, 2000);
 		return;
 	}
 
-// 预处理化学公式 ce{..} => \ce{..}
-$('.notion-equation-inline, .notion-equation-block').each(function () {
-let html = $(this).html();
-            if (html.indexOf('ce{') !== -1) {
-                html = html.replace(/ce\{([^}]+)\}/g, '\\ce{$1}');
-                $(this).html(html);
-            }
-            // 仅当 ce{ 前面不是反斜杠时才加上 \
-            html = html.replace(/(^|[^\\])ce\{/g, function(match, p1){
-                return p1 + '\\ce{';
-            });
-            $(this).html(html);
-});
+// 化学公式预处理已移至 fixChemistryFormula 函数中统一处理
 
 document.querySelectorAll('.notion-equation-inline, .notion-equation-block').forEach(renderKatexElement);
 }
+
+// 暴露函数到全局作用域，供调试和测试使用
+window.NotionToWordPressKaTeX = {
+    renderAllKatex: renderAllKatex,
+    renderKatexElement: renderKatexElement,
+    fixChineseCharacters: fixChineseCharacters,
+    fixChemistryFormula: fixChemistryFormula
+};
 /* ---------------- Mermaid 渲染 ---------------- */
 function initMermaid() {
-	// 检测Mermaid是否成功加载
+	// 检测Mermaid是否成功加载，给CDN一些时间
 	if (!checkMermaidLoaded()) {
 		console.warn('🔧 [Notion to WordPress] Mermaid图表库未能从CDN加载');
 		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
-		console.info('🔄 正在自动切换到本地备用资源...');
-		ResourceFallbackManager.showCompatibilityTips();
-		ResourceFallbackManager.loadMermaidFallback();
+		console.info('🔄 等待2秒后重试，如仍失败将切换到本地备用资源...');
+
+		// 等待2秒后重试，给CDN更多时间
+		setTimeout(() => {
+			if (!checkMermaidLoaded()) {
+				console.info('🔄 CDN仍未加载成功，正在切换到本地备用资源...');
+				ResourceFallbackManager.showCompatibilityTips();
+				ResourceFallbackManager.loadMermaidFallback();
+			} else {
+				console.log('✅ [Notion to WordPress] Mermaid CDN资源延迟加载成功，继续正常初始化');
+				initMermaid(); // 重新调用初始化
+			}
+		}, 2000);
 		return;
 	}
 

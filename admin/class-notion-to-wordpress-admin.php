@@ -174,6 +174,8 @@ class Notion_To_WordPress_Admin {
                 'refresh_error' => __('刷新失败', 'notion-to-wordpress'),
                 'clearing' => __('清除中...', 'notion-to-wordpress'),
                 'clear_logs' => __('清除所有日志', 'notion-to-wordpress'),
+                'settings_saved' => __('设置已保存！', 'notion-to-wordpress'),
+                'saving' => __('保存中...', 'notion-to-wordpress'),
             ]
         ));
         
@@ -302,15 +304,25 @@ class Notion_To_WordPress_Admin {
      * 根据选项更新或清理 cron 计划
      */
     private function update_cron_schedule(array $options): void {
-        $sync_schedule = $options['sync_schedule'] ?? 'manual';
+        $schedule = $options['sync_schedule'] ?? 'manual';
+        if ('manual' !== $schedule && !wp_next_scheduled('notion_cron_import')) {
+            wp_schedule_event(time(), $schedule, 'notion_cron_import');
+        } elseif ('manual' === $schedule && wp_next_scheduled('notion_cron_import')) {
+            wp_clear_scheduled_hook('notion_cron_import');
+        }
+    }
 
-        if ( $sync_schedule && 'manual' !== $sync_schedule ) {
-            if ( ! wp_next_scheduled( 'notion_cron_import' ) ) {
-                wp_schedule_event( time(), $sync_schedule, 'notion_cron_import' );
+    private function update_log_cleanup_schedule(array $options): void {
+        $retention_days = isset($options['log_retention_days']) ? (int)$options['log_retention_days'] : 0;
+        $hook_name = 'notion_to_wordpress_log_cleanup';
+
+        if ($retention_days > 0) {
+            if (!wp_next_scheduled($hook_name)) {
+                wp_schedule_event(time(), 'daily', $hook_name);
             }
         } else {
-            if ( wp_next_scheduled( 'notion_cron_import' ) ) {
-                wp_clear_scheduled_hook( 'notion_cron_import' );
+            if (wp_next_scheduled($hook_name)) {
+                wp_clear_scheduled_hook($hook_name);
             }
         }
     }
@@ -328,9 +340,41 @@ class Notion_To_WordPress_Admin {
 
         // 更新 cron
         $this->update_cron_schedule( $options );
+        $this->update_log_cleanup_schedule($options);
 
-        wp_redirect( admin_url( 'admin.php?page=' . $this->plugin_name . '&status=updated' ) );
+        // 设置一个短暂的transient来传递成功消息
+        set_transient('notion_to_wordpress_settings_saved', true, 5);
+
+        // 重定向回设置页面
+        wp_safe_redirect(admin_url('admin.php?page=' . $this->plugin_name));
         exit;
+    }
+
+    public function handle_save_settings_ajax() {
+        try {
+            check_ajax_referer('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce');
+
+            if (!current_user_can('manage_options')) {
+                wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')], 403);
+            }
+
+            $current_options = get_option('notion_to_wordpress_options', []);
+            $options = $this->parse_settings($current_options);
+
+            update_option('notion_to_wordpress_options', $options);
+
+            // 重新初始化调试级别
+            Notion_To_WordPress_Helper::init();
+
+            // 更新 cron
+            $this->update_cron_schedule($options);
+            $this->update_log_cleanup_schedule($options);
+
+            wp_send_json_success(['message' => __('设置已成功保存。', 'notion-to-wordpress')]);
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => __('保存设置时发生错误：', 'notion-to-wordpress') . $e->getMessage()]);
+        }
     }
 
     /**
@@ -445,8 +489,6 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error( [ 'message' => $result->get_error_message() ] );
                 return;
             }
-
-
 
             wp_send_json_success( [
                 'message' => sprintf(
