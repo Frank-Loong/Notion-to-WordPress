@@ -23,12 +23,24 @@ jQuery(document).ready(function($) {
     var originalLanguage = $('#plugin_language').val();
     console.log('Notion to WordPress: Original language on page load:', originalLanguage);
 
+    // 记录页面加载时的原始webhook设置，用于检测变化
+    var originalWebhookEnabled = $('#webhook_enabled').is(':checked');
+    console.log('Notion to WordPress: Original webhook enabled on page load:', originalWebhookEnabled);
+
     // 监听语言选择器的变化，但不立即更新originalLanguage
     // 只有在表单成功提交后才更新originalLanguage
     $('#plugin_language').on('change', function() {
         var currentValue = $(this).val();
         console.log('Notion to WordPress: Language selector changed to:', currentValue);
         console.log('Notion to WordPress: Will compare with original:', originalLanguage);
+    });
+
+    // 监听webhook设置的变化，但不立即更新originalWebhookEnabled
+    // 只有在表单成功提交后才更新originalWebhookEnabled
+    $('#webhook_enabled').on('change', function() {
+        var currentValue = $(this).is(':checked');
+        console.log('Notion to WordPress: Webhook enabled changed to:', currentValue);
+        console.log('Notion to WordPress: Will compare with original:', originalWebhookEnabled);
     });
 
     // 标签切换动画效果
@@ -586,6 +598,9 @@ jQuery(document).ready(function($) {
         // 获取当前语言设置值（用户选择的新值）
         var newLanguage = $('#plugin_language').val();
 
+        // 获取当前webhook设置值（用户选择的新值）
+        var newWebhookEnabled = $('#webhook_enabled').is(':checked');
+
         // 禁用按钮并显示加载状态
         $submitButton.prop('disabled', true).val(notionToWp.i18n.saving);
 
@@ -603,6 +618,9 @@ jQuery(document).ready(function($) {
                     // 检查语言设置是否发生变化（比较原始值和用户选择的新值）
                     var languageChanged = (originalLanguage !== newLanguage);
 
+                    // 检查webhook设置是否发生变化（比较原始值和用户选择的新值）
+                    var webhookChanged = (originalWebhookEnabled !== newWebhookEnabled);
+
                     // 添加调试日志
                     console.log('Notion to WordPress: Language change detection', {
                         original: originalLanguage,
@@ -610,12 +628,30 @@ jQuery(document).ready(function($) {
                         changed: languageChanged
                     });
 
-                    if (languageChanged) {
-                        // 语言设置发生变化，显示消息后刷新页面
-                        var refreshMessage = notionToWp.i18n.page_refreshing || '页面即将刷新以应用语言设置...';
-                        showModal(notionToWp.i18n.settings_saved + ' ' + refreshMessage, 'success');
+                    console.log('Notion to WordPress: Webhook change detection', {
+                        original: originalWebhookEnabled,
+                        new: newWebhookEnabled,
+                        changed: webhookChanged
+                    });
 
-                        console.log('Notion to WordPress: Language changed, refreshing page in 1.5 seconds');
+                    // 检查是否需要刷新页面（语言或webhook设置发生变化）
+                    var needsRefresh = languageChanged || webhookChanged;
+
+                    if (needsRefresh) {
+                        // 设置发生变化，显示消息后刷新页面
+                        var refreshReasons = [];
+                        if (languageChanged) {
+                            refreshReasons.push('语言设置');
+                        }
+                        if (webhookChanged) {
+                            refreshReasons.push('Webhook设置');
+                        }
+
+                        var refreshMessage = notionToWp.i18n.page_refreshing || '页面即将刷新以应用设置变更...';
+                        var fullMessage = notionToWp.i18n.settings_saved + ' ' + refreshMessage.replace('语言设置', refreshReasons.join('和'));
+                        showModal(fullMessage, 'success');
+
+                        console.log('Notion to WordPress: Settings changed (' + refreshReasons.join(', ') + '), refreshing page in 1.5 seconds');
 
                         // 延迟1.5秒后刷新页面，让用户看到成功消息
                         setTimeout(function() {
@@ -623,13 +659,14 @@ jQuery(document).ready(function($) {
                             window.location.reload();
                         }, 1500);
                     } else {
-                        // 语言设置没有变化，使用正常的AJAX响应
-                        console.log('Notion to WordPress: Language unchanged, using normal AJAX response');
+                        // 设置没有变化，使用正常的AJAX响应
+                        console.log('Notion to WordPress: No critical settings changed, using normal AJAX response');
                         showModal(notionToWp.i18n.settings_saved, 'success');
 
-                        // 更新原始语言值为当前值，为下次比较做准备
+                        // 更新原始值为当前值，为下次比较做准备
                         originalLanguage = newLanguage;
-                        console.log('Notion to WordPress: Updated original language to:', originalLanguage);
+                        originalWebhookEnabled = newWebhookEnabled;
+                        console.log('Notion to WordPress: Updated original values - language:', originalLanguage, 'webhook:', originalWebhookEnabled);
 
                         // 恢复按钮状态
                         $submitButton.prop('disabled', false).val(originalButtonText);
