@@ -29,7 +29,8 @@ $options = array(
     'notion_to_wordpress_custom_css',
     'notion_to_wordpress_global_cron_interval',
     'notion_to_wordpress_last_refresh',
-    'notion_to_wordpress_last_update'
+    'notion_to_wordpress_last_update',
+    'notion_to_wordpress_last_sync'
 );
 
 // 新版插件将所有设置存储于单一数组中
@@ -97,6 +98,9 @@ if ($delete_content) {
 
 // 最后删除插件设置
 delete_option( 'notion_to_wordpress_options' );
+
+// 清理日志文件
+notion_to_wordpress_clear_logs();
 
 // 刷新重写规则
 flush_rewrite_rules();
@@ -167,4 +171,45 @@ function notion_to_wordpress_delete_plugin_attachments() {
         "DELETE FROM {$wpdb->postmeta}
          WHERE meta_key IN ('_notion_attachment', '_notion_file_url', '_notion_original_url')"
     );
+}
+
+/**
+ * 清理插件的日志目录
+ *
+ * @since 2.0.0
+ */
+function notion_to_wordpress_clear_logs() {
+    $upload_dir = wp_upload_dir();
+    $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+
+    if (!is_dir($log_dir)) {
+        return;
+    }
+
+    // 递归删除目录及其内容
+    notion_to_wordpress_recursive_delete($log_dir);
+}
+
+/**
+ * 递归删除目录和文件
+ *
+ * @since 2.0.0
+ * @param string $dir 要删除的目录路径
+ */
+function notion_to_wordpress_recursive_delete($dir) {
+    if (!file_exists($dir)) {
+        return;
+    }
+    
+    $it = new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS);
+    $files = new RecursiveIteratorIterator($it,
+                 RecursiveIteratorIterator::CHILD_FIRST);
+    foreach($files as $file) {
+        if ($file->isDir()){
+            @rmdir($file->getRealPath());
+        } else {
+            @unlink($file->getRealPath());
+        }
+    }
+    @rmdir($dir);
 }

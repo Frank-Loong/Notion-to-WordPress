@@ -6,220 +6,441 @@
  */
 
 (function($) {
-    'use strict';
-    
-    // 初始化Mermaid
-    function initMermaid() {
-        if (typeof mermaid !== 'undefined') {
-            console.log('初始化Mermaid图表渲染');
-            
-            // 配置Mermaid
-            mermaid.initialize({
-                startOnLoad: false, // 手动控制加载
-                theme: 'default',
-                securityLevel: 'loose',
-                flowchart: {
-                    useMaxWidth: true,
-                    htmlLabels: true
-                },
-                er: {
-                    useMaxWidth: true
-                },
-                sequence: {
-                    useMaxWidth: true,
-                    noteFontWeight: '14px',
-                    actorFontSize: '14px',
-                    messageFontSize: '16px'
-                }
-            });
-            
-            // 等待DOM完全加载后再处理
-            setTimeout(function() {
-                try {
-                    // 查找所有Mermaid图表容器
-                    var mermaidElements = document.querySelectorAll('.mermaid, pre.mermaid, pre code.language-mermaid');
-                    
-                    if (mermaidElements.length === 0) {
-                        console.log('未找到Mermaid图表');
-                        return;
-                    }
-                    
-                    console.log('找到 ' + mermaidElements.length + ' 个Mermaid图表');
-                    
-                    // 使用mermaid 10.x的新API
-                    if (typeof mermaid.run === 'function') {
-                        mermaid.run({
-                            querySelector: '.mermaid, pre.mermaid, pre code.language-mermaid'
-                        }).then(function() {
-                            console.log('Mermaid图表渲染成功');
-                        }).catch(function(error) {
-                            console.error('Mermaid渲染错误:', error);
-                            fallbackMermaidRendering();
-                        });
-                    } else {
-                        // 回退到老版本API
-                        fallbackMermaidRendering();
-                    }
-                } catch (e) {
-                    console.error('Mermaid初始化错误:', e);
-                    fallbackMermaidRendering();
-                }
-            }, 500);
-        } else {
-            console.warn('Mermaid库未加载');
-        }
-    }
-    
-    // 回退到老版本的Mermaid渲染方法
-    function fallbackMermaidRendering() {
-        try {
-            console.log('尝试使用回退方法渲染Mermaid图表');
-            
-            // 查找所有包含Mermaid代码的pre标签
-            document.querySelectorAll('pre.mermaid, pre code.language-mermaid').forEach(function(element) {
-                var content = element.tagName === 'CODE' ? element.textContent : element.innerHTML;
-                var div = document.createElement('div');
-                div.className = 'mermaid';
-                div.textContent = content.trim();
-                
-                // 替换pre或code标签
-                if (element.tagName === 'CODE') {
-                    element.parentNode.parentNode.replaceChild(div, element.parentNode);
-                } else {
-                    element.parentNode.replaceChild(div, element);
-                }
-            });
-            
-            // 尝试旧版本渲染方法
-            if (typeof mermaid.init === 'function') {
-                mermaid.init(undefined, document.querySelectorAll('.mermaid'));
-                console.log('使用mermaid.init()方法渲染完成');
-            }
-        } catch (fallbackError) {
-            console.error('Mermaid回退渲染错误:', fallbackError);
-        }
-    }
-    
-    // 处理Notion中的化学方程式（ce{}格式）
-    function processChemicalEquations() {
-        // 查找包含ce{...}格式的元素
-        $('p, li, td, div').each(function() {
-            var $element = $(this);
-            var html = $element.html();
+'use strict';
 
-            if (html && html.indexOf('ce{') !== -1) {
-                // 将ce{...}替换为\ce{...}以符合LaTeX语法
-                html = html.replace(/ce\{([^}]+)\}/g, '\\ce{$1}');
-                $element.html(html);
-                console.log('处理了化学方程式');
-            }
+/* ---------------- 资源加载检测 ---------------- */
+// 检测KaTeX是否成功加载
+function checkKatexLoaded() {
+    return typeof window.katex !== 'undefined' &&
+           typeof window.katex.render === 'function';
+}
+
+// 检测Mermaid是否成功加载
+function checkMermaidLoaded() {
+    return typeof window.mermaid !== 'undefined' &&
+           typeof window.mermaid.initialize === 'function';
+}
+
+/* ---------------- 智能备用资源加载器 ---------------- */
+const ResourceFallbackManager = {
+    // 显示主题兼容性检查建议
+    showCompatibilityTips: function() {
+        console.group('🔧 [Notion to WordPress] 主题兼容性检查建议');
+        console.info('如果数学公式或图表显示异常，请尝试以下解决方案：');
+        console.info('1. 确认当前主题正确调用了wp_footer()函数');
+        console.info('2. 检查主题是否与其他插件存在JavaScript冲突');
+        console.info('3. 尝试切换到WordPress默认主题（如Twenty Twenty-Three）测试');
+        console.info('4. 检查浏览器控制台是否有其他错误信息');
+        console.info('5. 确认网络连接正常，CDN资源可以正常访问');
+        console.groupEnd();
+    },
+
+    // 动态加载本地CSS文件
+    loadFallbackCSS: function(localPath) {
+        return new Promise(function(resolve, reject) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = localPath;
+
+            link.onload = function() {
+                console.log('✅ 备用CSS加载成功:', localPath);
+                resolve();
+            };
+
+            link.onerror = function() {
+                console.error('❌ 备用CSS加载失败:', localPath);
+                reject(new Error('CSS加载失败'));
+            };
+
+            document.head.appendChild(link);
         });
-    }
-    
-    // 处理Notion中的数学公式脚本标签
-    function processMathScriptTags() {
-        // 查找所有script类型为math/tex的标签
-        $('script[type="math/tex"], script[type="math/tex; mode=display"]').each(function() {
-            var $script = $(this);
-            var content = $script.text().trim();
+    },
 
-            if (content) {
-                // 创建新的元素
-                var $newElement = $('<span></span>');
-                var isDisplay = $script.attr('type') === 'math/tex; mode=display';
+    // 动态加载本地JS文件
+    loadFallbackJS: function(localPath, callback) {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = localPath;
 
-                if (isDisplay) {
-                    // 块级公式
-                    $newElement.addClass('notion-equation-block').html('\\[' + content + '\\]');
-                } else {
-                    // 行内公式
-                    $newElement.addClass('notion-equation-inline').html('\\(' + content + '\\)');
-                }
+        script.onload = function() {
+            console.log('✅ 备用JS加载成功:', localPath);
+            if (callback) callback();
+        };
 
-                // 替换原始标签
-                $script.replaceWith($newElement);
-                console.log('处理了数学公式脚本标签');
-            }
-        });
-    }
-    
-    // 处理Notion中的方程块
-    function processNotionEquations() {
-        // 查找Notion方程块
-        $('.notion-equation-block').each(function() {
-            var $equation = $(this);
-            var content = $equation.text().trim();
+        script.onerror = function() {
+            console.error('❌ 备用JS加载失败:', localPath);
+            if (callback) callback(new Error('JS加载失败'));
+        };
 
-            if (content && typeof katex !== 'undefined') {
-                try {
-                    // 提取LaTeX内容
-                    var latex = content.replace(/^\\\[/, '').replace(/\\\]$/, '');
+        document.head.appendChild(script);
+    },
 
-                    // 使用KaTeX渲染
-                    katex.render(latex, $equation[0], {
-                        displayMode: true,
-                        throwOnError: false,
-                        trust: true
+    // 按顺序加载KaTeX相关文件
+    loadKatexFallback: function() {
+        const basePath = window.location.origin + '/wp-content/plugins/notion-to-wordpress/assets/vendor/katex/';
+
+        console.info('📦 [Notion to WordPress] 开始加载KaTeX本地备用资源...');
+
+        // 1. 先加载CSS
+        this.loadFallbackCSS(basePath + 'katex.min.css').then(() => {
+            // 2. 加载KaTeX核心JS
+            this.loadFallbackJS(basePath + 'katex.min.js', (error) => {
+                if (error) return;
+
+                // 3. 加载mhchem扩展
+                this.loadFallbackJS(basePath + 'mhchem.min.js', (error) => {
+                    if (error) return;
+
+                    // 4. 加载auto-render扩展
+                    this.loadFallbackJS(basePath + 'auto-render.min.js', (error) => {
+                        if (error) return;
+
+                        console.log('✅ [Notion to WordPress] KaTeX备用资源加载完成，重新尝试渲染数学公式');
+                        // 重新尝试渲染
+                        setTimeout(renderAllKatex, 100);
                     });
-                    console.log('KaTeX渲染了块级公式');
-                } catch (e) {
-                    console.error('KaTeX块级公式渲染错误:', e);
-                }
-            }
+                });
+            });
+        }).catch((error) => {
+            console.error('❌ [Notion to WordPress] KaTeX备用CSS加载失败:', error);
+            console.error('🔍 故障排除建议：');
+            console.error('   1. 检查插件文件是否完整：assets/vendor/katex/katex.min.css');
+            console.error('   2. 确认WordPress主题正确调用了wp_footer()');
+            console.error('   3. 检查是否有其他插件冲突');
+            console.error('   4. 尝试切换到默认主题测试');
         });
+    },
 
-        // 处理行内公式
-        $('.notion-equation-inline').each(function() {
-            var $equation = $(this);
-            var content = $equation.text().trim();
+    // 加载Mermaid备用文件
+    loadMermaidFallback: function() {
+        const basePath = window.location.origin + '/wp-content/plugins/notion-to-wordpress/assets/vendor/mermaid/';
 
-            if (content && typeof katex !== 'undefined') {
-                try {
-                    // 提取LaTeX内容
-                    var latex = content.replace(/^\\\(/, '').replace(/\\\)$/, '');
+        console.info('📦 [Notion to WordPress] 开始加载Mermaid本地备用资源...');
 
-                    // 使用KaTeX渲染
-                    katex.render(latex, $equation[0], {
-                        displayMode: false,
-                        throwOnError: false,
-                        trust: true
-                    });
-                    console.log('KaTeX渲染了行内公式');
-                } catch (e) {
-                    console.error('KaTeX行内公式渲染错误:', e);
-                }
+        this.loadFallbackJS(basePath + 'mermaid.min.js', (error) => {
+            if (error) {
+                console.error('❌ [Notion to WordPress] Mermaid备用资源加载失败:', error);
+                console.error('🔍 故障排除建议：');
+                console.error('   1. 检查插件文件是否完整：assets/vendor/mermaid/mermaid.min.js');
+                console.error('   2. 确认WordPress主题正确调用了wp_footer()');
+                console.error('   3. 检查是否有其他插件冲突');
+                console.error('   4. 尝试切换到默认主题测试');
+                return;
             }
+
+            console.log('✅ [Notion to WordPress] Mermaid备用资源加载完成，重新尝试初始化图表渲染');
+            // 重新尝试初始化
+            setTimeout(initMermaid, 100);
         });
     }
-    
-    // 检查KaTeX是否已加载
-    function checkKaTeXLoaded() {
-        if (typeof katex === 'undefined') {
-            console.warn('KaTeX未加载，等待加载...');
-            setTimeout(checkKaTeXLoaded, 500);
-            return;
-        }
+};
 
-        console.log('KaTeX已加载，版本:', katex.version || 'unknown');
+/* ---------------- KaTeX 渲染 ---------------- */
+const katexOptions = {
+    throwOnError: false,    // 遇到错误时不抛出异常，而是显示错误信息
+    strict: false,          // 🔓 宽松模式：允许Unicode字符和非标准LaTeX语法
+    trust: true,            // 🔓 信任模式：允许HTML、CSS和URL等
+    fleqn: false,           // 不强制左对齐（保持居中）
+    colorIsTextColor: false, // 颜色不影响文本颜色
+    macros: {},             // 自定义宏定义（可扩展）
+    globalGroup: false,     // 不使用全局组（避免宏污染）
+    maxSize: Infinity,      // 🔓 无限制字体大小
+    maxExpand: 1000,        // 🔓 宏展开次数限制（宽松设置）
+    errorColor: "#cc0000",  // 错误信息颜色
+    output: "html"          // 输出HTML格式
+};
 
-        // KaTeX已加载，可以处理公式
-        processChemicalEquations();
-        processMathScriptTags();
-        processNotionEquations();
+// HTML实体解码函数
+function decodeHtmlEntities(text) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
 
-        console.log('KaTeX 公式处理完成');
-    }
-    
-    // 文档加载完成后初始化
-    $(document).ready(function() {
-        console.log('Notion to WordPress: 初始化数学公式和图表渲染');
+// 渲染单个元素
+function renderKatexElement(el) {
+const isBlock = el.classList.contains('notion-equation-block');
+// 使用innerHTML而不是textContent来保持反斜杠转义，然后解码HTML实体
+let tex = decodeHtmlEntities(el.innerHTML.trim());
 
-        // 检查KaTeX是否已加载
-        checkKaTeXLoaded();
+// 清理HTML标签 - 移除可能被wpautop插入的标签
+tex = tex.replace(/<br\s*\/?>/gi, ''); // 移除<br>标签
+tex = tex.replace(/<p[^>]*>/gi, '').replace(/<\/p>/gi, ''); // 移除<p>标签
+tex = tex.replace(/<div[^>]*>/gi, '').replace(/<\/div>/gi, ''); // 移除<div>标签
+tex = tex.replace(/<span[^>]*>/gi, '').replace(/<\/span>/gi, ''); // 移除<span>标签
+tex = tex.replace(/&nbsp;/gi, ' '); // 替换非断行空格
+tex = tex.replace(/&amp;/gi, '&'); // 替换HTML实体
+tex = tex.replace(/&lt;/gi, '<'); // 替换HTML实体
+tex = tex.replace(/&gt;/gi, '>'); // 替换HTML实体
+tex = tex.replace(/\s+/g, ' '); // 合并多个空格为单个空格
+tex = tex.trim(); // 去除首尾空格
 
-        // 延迟初始化Mermaid图表，确保KaTeX不会干扰它
-        setTimeout(function() {
-            initMermaid();
-        }, 1000);
-    });
-})(jQuery); 
+// 去除包围符号 $ 或 $$
+if (isBlock) {
+tex = tex.replace(/^\$\$|\$\$$/g, '').replace(/\$\$$/, '');
+} else {
+tex = tex.replace(/^\$/, '').replace(/\$$/, '');
+}
+
+// 智能化学公式修复 - 在清理HTML标签之后进行
+tex = fixChemistryFormula(tex);
+
+// 智能中文字符修复 - 自动包装中文字符
+tex = fixChineseCharacters(tex);
+
+try {
+katex.render(tex, el, { displayMode: isBlock, ...katexOptions });
+} catch (e) {
+console.error('KaTeX 渲染错误:', e, '公式:', tex);
+console.error('原始HTML内容:', el.innerHTML);
+// 显示错误信息而不是空白
+el.innerHTML = '<span style="color: red; font-family: monospace;">公式渲染失败: ' + tex.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+}
+}
+
+// 智能化学公式修复函数
+function fixChemistryFormula(tex) {
+// 如果已经包含\ce{，不需要修复
+if (tex.includes('\\ce{')) {
+return tex;
+}
+
+// 检测 ce 开头的化学公式（最常见的情况）
+if (tex.startsWith('ce')) {
+// 去掉开头的 ce 并包装在 \ce{} 中
+const chemFormula = tex.substring(2);
+return '\\ce{' + chemFormula + '}';
+}
+
+// 检测包含化学反应符号的公式
+const reactionSymbols = ['->', '→', '<->', '↔', '<=>', '<=>'];
+const hasReactionSymbol = reactionSymbols.some(symbol => tex.includes(symbol));
+
+if (hasReactionSymbol) {
+// 包含反应符号，很可能是化学公式
+return '\\ce{' + tex + '}';
+}
+
+// 检测化学元素模式（大写字母开头，可能跟小写字母、数字、离子符号）
+const chemElementPattern = /^[A-Z][a-z]?\d*[\+\-\^\{\}]*.*[A-Z]/;
+if (chemElementPattern.test(tex)) {
+// 包含多个化学元素，很可能是化学公式
+return '\\ce{' + tex + '}';
+}
+
+// 检测单个化学元素或简单化合物
+const simpleChemPattern = /^[A-Z][a-z]?\d*[\+\-\^\{\}]*$/;
+if (simpleChemPattern.test(tex)) {
+// 简单的化学元素或离子
+return '\\ce{' + tex + '}';
+}
+
+// 如果不匹配任何化学公式模式，返回原文
+return tex;
+}
+
+// 智能中文字符修复函数
+function fixChineseCharacters(tex) {
+// 如果公式中没有中文字符，直接返回
+if (!/[\u4e00-\u9fff]/.test(tex)) {
+return tex;
+}
+
+// 更智能的中文字符包装策略
+// 使用正则表达式精确匹配，避免破坏已有的\text{}结构
+let result = tex;
+
+// 由于某些浏览器不支持负向前瞻，使用更兼容的方法
+// 先找到所有\text{...}的位置，然后避开这些区域
+const textBlocks = [];
+const textPattern = /\\text\{[^}]*\}/g;
+let textMatch;
+while ((textMatch = textPattern.exec(tex)) !== null) {
+textBlocks.push({
+start: textMatch.index,
+end: textMatch.index + textMatch[0].length
+});
+}
+
+// 找到所有中文字符序列
+const chineseMatches = [];
+const simpleChinese = /([\u4e00-\u9fff]+)/g;
+let chineseMatch;
+while ((chineseMatch = simpleChinese.exec(tex)) !== null) {
+const start = chineseMatch.index;
+const end = start + chineseMatch[0].length;
+
+// 检查是否在\text{}块内
+const isInTextBlock = textBlocks.some(block =>
+start >= block.start && end <= block.end
+);
+
+if (!isInTextBlock) {
+chineseMatches.push({
+start: start,
+end: end,
+text: chineseMatch[1],
+original: chineseMatch[0]
+});
+}
+}
+
+// 从后往前替换，避免位置偏移
+chineseMatches.reverse().forEach(match => {
+const before = result.substring(0, match.start);
+const after = result.substring(match.end);
+result = before + '\\text{' + match.text + '}' + after;
+});
+
+return result;
+}
+
+// 遍历并渲染页面中所有公式
+function renderAllKatex() {
+	// 检测KaTeX是否成功加载，给CDN一些时间
+	if (!checkKatexLoaded()) {
+		console.warn('🔧 [Notion to WordPress] KaTeX数学公式库未能从CDN加载');
+		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
+		console.info('🔄 等待2秒后重试，如仍失败将切换到本地备用资源...');
+
+		// 等待2秒后重试，给CDN更多时间
+		setTimeout(() => {
+			if (!checkKatexLoaded()) {
+				console.info('🔄 CDN仍未加载成功，正在切换到本地备用资源...');
+				ResourceFallbackManager.showCompatibilityTips();
+				ResourceFallbackManager.loadKatexFallback();
+			} else {
+				console.log('✅ [Notion to WordPress] KaTeX CDN资源延迟加载成功，继续正常渲染');
+				renderAllKatex(); // 重新调用渲染
+			}
+		}, 2000);
+		return;
+	}
+
+// 化学公式预处理已移至 fixChemistryFormula 函数中统一处理
+
+document.querySelectorAll('.notion-equation-inline, .notion-equation-block').forEach(renderKatexElement);
+}
+
+// 暴露函数到全局作用域，供调试和测试使用
+window.NotionToWordPressKaTeX = {
+    renderAllKatex: renderAllKatex,
+    renderKatexElement: renderKatexElement,
+    fixChineseCharacters: fixChineseCharacters,
+    fixChemistryFormula: fixChemistryFormula
+};
+/* ---------------- Mermaid 渲染 ---------------- */
+function initMermaid() {
+	// 检测Mermaid是否成功加载，给CDN一些时间
+	if (!checkMermaidLoaded()) {
+		console.warn('🔧 [Notion to WordPress] Mermaid图表库未能从CDN加载');
+		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
+		console.info('🔄 等待2秒后重试，如仍失败将切换到本地备用资源...');
+
+		// 等待2秒后重试，给CDN更多时间
+		setTimeout(() => {
+			if (!checkMermaidLoaded()) {
+				console.info('🔄 CDN仍未加载成功，正在切换到本地备用资源...');
+				ResourceFallbackManager.showCompatibilityTips();
+				ResourceFallbackManager.loadMermaidFallback();
+			} else {
+				console.log('✅ [Notion to WordPress] Mermaid CDN资源延迟加载成功，继续正常初始化');
+				initMermaid(); // 重新调用初始化
+			}
+		}, 2000);
+		return;
+	}
+
+console.log('初始化Mermaid图表渲染');
+
+mermaid.initialize({
+startOnLoad: false, // 手动控制加载
+theme: 'default',
+securityLevel: 'loose',
+flowchart: {
+useMaxWidth: true,
+htmlLabels: true
+},
+er: {
+useMaxWidth: true
+},
+sequence: {
+useMaxWidth: true,
+noteFontWeight: '14px',
+actorFontSize: '14px',
+messageFontSize: '16px'
+}
+});
+
+// 等待DOM完全加载后再处理
+setTimeout(function() {
+try {
+// 查找所有Mermaid图表容器
+var mermaidElements = document.querySelectorAll('.mermaid, pre.mermaid, pre code.language-mermaid');
+if (mermaidElements.length === 0) {
+console.log('未找到Mermaid图表');
+return;
+}
+
+console.log('找到 ' + mermaidElements.length + ' 个Mermaid图表');
+
+// 使用mermaid 10.x的新API
+if (typeof mermaid.run === 'function') {
+mermaid.run({
+querySelector: '.mermaid, pre.mermaid, pre code.language-mermaid'
+}).then(function() {
+console.log('Mermaid图表渲染成功');
+}).catch(function(error) {
+console.error('Mermaid渲染错误:', error);
+fallbackMermaidRendering();
+});
+} else {
+// 回退到老版本API
+fallbackMermaidRendering();
+}
+} catch (e) {
+console.error('Mermaid初始化错误:', e);
+fallbackMermaidRendering();
+}
+}, 500);
+}
+
+// 回退到老版本的Mermaid渲染方法
+function fallbackMermaidRendering() {
+try {
+console.log('尝试使用回退方法渲染Mermaid图表');
+
+document.querySelectorAll('pre.mermaid, pre code.language-mermaid').forEach(function(element) {
+var content = element.tagName === 'CODE' ? element.textContent : element.innerHTML;
+var div = document.createElement('div');
+div.className = 'mermaid';
+div.textContent = content.trim();
+
+if (element.tagName === 'CODE') {
+element.parentNode.parentNode.replaceChild(div, element.parentNode);
+} else {
+element.parentNode.replaceChild(div, element);
+}
+});
+
+if (typeof mermaid.init === 'function') {
+mermaid.init(undefined, document.querySelectorAll('.mermaid'));
+console.log('使用mermaid.init()方法渲染完成');
+}
+} catch (fallbackError) {
+console.error('Mermaid回退渲染错误:', fallbackError);
+}
+}
+
+/* ---------------- 初始化 ---------------- */
+$(function () {
+// KaTeX 已作为依赖加载，直接渲染
+renderAllKatex();
+
+// Mermaid 延迟初始化，避免与渲染冲突
+setTimeout(initMermaid, 500);
+});
+
+})(jQuery);
+
