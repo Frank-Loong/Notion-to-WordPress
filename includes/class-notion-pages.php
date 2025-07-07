@@ -1645,7 +1645,7 @@ class Notion_Pages {
     /**
      * 清理已删除的页面
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    array    $current_pages    当前Notion数据库中的页面
      * @return   int                        删除的页面数量
      */
@@ -1712,7 +1712,7 @@ class Notion_Pages {
     /**
      * 过滤出需要增量同步的页面
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    array    $pages    所有Notion页面
      * @return   array              需要同步的页面
      */
@@ -1788,7 +1788,7 @@ class Notion_Pages {
     /**
      * 获取页面最后同步时间
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id    Notion页面ID
      * @return   string                最后同步时间
      */
@@ -1805,7 +1805,7 @@ class Notion_Pages {
     /**
      * 更新页面同步时间
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id              Notion页面ID
      * @param    string    $notion_last_edited   Notion最后编辑时间
      */
@@ -1830,7 +1830,7 @@ class Notion_Pages {
     /**
      * 获取单个页面数据（用于webhook强制同步）
      *
-     * @since    1.0.10
+     * @since    1.1.0
      * @param    string    $page_id    页面ID
      * @return   array                 页面数据
      * @throws   Exception             如果获取失败

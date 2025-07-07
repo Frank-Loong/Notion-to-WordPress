@@ -76,7 +76,7 @@ class Notion_To_WordPress {
 	/**
 	 * Webhook 处理器实例。
 	 *
-	 * @since    1.0.10
+	 * @since    1.1.0
 	 * @access   protected
 	 * @var      Notion_To_WordPress_Webhook    $webhook    Webhook 处理器实例。
 	 */
@@ -94,7 +94,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.0.10';
+			$this->version = '1.1.0';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 
@@ -257,7 +257,7 @@ class Notion_To_WordPress {
 	/**
 	 * 注册与 Webhook 功能相关的所有钩子。
 	 *
-	 * @since    1.0.10
+	 * @since    1.1.0
 	 * @access   private
 	 */
 	private function define_webhook_hooks() {
@@ -323,7 +323,7 @@ class Notion_To_WordPress {
 	/**
 	 * 核心导入逻辑，可由cron或手动调用。
 	 *
-	 * @since 1.0.10
+	 * @since 1.1.0
 	 * @param string $database_id 要导入的数据库ID
 	 * @param array  $options 插件设置选项
 	 * @param bool   $incremental 是否启用增量同步
@@ -553,7 +553,7 @@ class Notion_To_WordPress {
 	 *
 	 * 在wpautop之前运行，将公式内容替换为占位符
 	 *
-	 * @since 1.0.10
+	 * @since 1.1.0
 	 * @param string $content 文章内容
 	 * @return string 处理后的内容
 	 */
@@ -596,7 +596,7 @@ class Notion_To_WordPress {
 	 *
 	 * 在wpautop之后运行，将占位符替换回原始公式内容
 	 *
-	 * @since 1.0.10
+	 * @since 1.1.0
 	 * @param string $content 经过wpautop处理的内容
 	 * @return string 恢复公式后的内容
 	 */
