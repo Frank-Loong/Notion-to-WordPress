@@ -7,13 +7,25 @@
 
 Welcome to the official documentation hub for **Notion to WordPress**! From onboarding to power-user tricks, everything you need is here.
 
+<div align="center">
+
+**[🚀 Getting Started](#-getting-started) • [🚀 Advanced Features](#-advanced-features) • [🔗 Webhook Auto-Sync](#-webhook-auto-sync) • [🐞 Troubleshooting](#-troubleshooting)**
+
+</div>
+
+---
+
 ## 📋 Table of Contents
 
 - [🚀 Getting Started](#-getting-started)
-- [⚙️ Advanced Configuration](#-advanced-configuration)
+- [💾 Installation Guide](#-installation-guide)
+- [🚀 Advanced Features](#-advanced-features)
+- [⚙️ Field Mapping Configuration](#️-field-mapping-configuration)
 - [🔗 Webhook Auto-Sync](#-webhook-auto-sync)
 - [🐞 Troubleshooting](#-troubleshooting)
 - [❓ Frequently Asked Questions](#-frequently-asked-questions)
+- [🔗 Related Links](#-related-links)
+- [📚 Additional Resources](#-additional-resources)
 
 ---
 
@@ -61,7 +73,82 @@ Stats, logs & errors update in real time inside the admin page.
 
 ---
 
-## ⚙️ Advanced Configuration
+## 💾 Installation Guide
+
+### System Requirements
+- **WordPress**: 6.0 or later
+- **PHP**: 8.0+ with `curl` extension enabled
+- **Server**: Any hosting provider supporting WordPress
+- **Permissions**: Plugin installation and activation rights
+
+### Installation Methods
+
+#### Method 1: WordPress Admin Dashboard (Recommended)
+1. **Download Plugin**: Get the latest `.zip` file from [GitHub Releases](https://github.com/Frank-Loong/Notion-to-WordPress/releases)
+2. **Upload Plugin**:
+   - Go to `Plugins` → `Add New` → `Upload Plugin`
+   - Choose the downloaded `.zip` file
+   - Click `Install Now`
+3. **Activate**: Click `Activate Plugin` after installation
+
+#### Method 2: FTP Upload
+1. **Extract Files**: Unzip the plugin to `notion-to-wordpress/` folder
+2. **Upload via FTP**: Upload the folder to `/wp-content/plugins/`
+3. **Activate**: Go to WordPress admin → `Plugins` → Activate "Notion to WordPress"
+
+#### Method 3: WP-CLI (Advanced Users)
+```bash
+# Download and install
+wp plugin install https://github.com/Frank-Loong/Notion-to-WordPress/releases/latest/download/notion-to-wordpress.zip
+
+# Activate
+wp plugin activate notion-to-wordpress
+```
+
+### Post-Installation Setup
+1. **Access Settings**: Go to `Settings` → `Notion to WordPress`
+2. **Language Selection**: Choose your preferred interface language
+3. **API Configuration**: Follow the [Getting Started](#-getting-started) guide
+4. **Test Connection**: Verify your Notion integration works
+
+### Troubleshooting Installation
+- **Permission Issues**: Ensure your user has plugin installation rights
+- **File Upload Limits**: Check PHP `upload_max_filesize` and `post_max_size`
+- **Plugin Conflicts**: Temporarily deactivate other plugins if issues occur
+
+---
+
+## 🚀 Advanced Features
+
+### Content Type Support
+The plugin supports various Notion content types and converts them to WordPress equivalents:
+
+#### Text & Formatting
+- **Rich Text**: Bold, italic, underline, strikethrough
+- **Code Blocks**: Syntax highlighting preserved
+- **Lists**: Bulleted, numbered, and toggle lists
+- **Quotes**: Block quotes and callouts
+
+#### Media & Embeds
+- **Images**: Auto-download and upload to WordPress media library
+- **Files**: Download and attach to posts
+- **Videos**: Embed support for YouTube, Vimeo, etc.
+- **Links**: Preserve all internal and external links
+
+#### Advanced Content
+- **Math Formulas**: LaTeX rendering with KaTeX
+- **Diagrams**: Mermaid chart support
+- **Tables**: Full table structure preservation
+- **Databases**: Nested database content
+
+### Sync Modes
+1. **Manual Sync**: On-demand synchronization
+2. **Webhook Sync**: Real-time updates from Notion
+3. **Scheduled Sync**: Automated periodic updates (coming soon)
+
+---
+
+## ⚙️ Field Mapping Configuration
 
 ### 1. Field Mapping Explained
 The plugin uses **field mapping** to connect Notion database properties to WordPress fields.
@@ -348,6 +435,50 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 **📚 Wiki Complete**
 
 *This documentation is continuously updated. For the latest information, visit our [GitHub repository](https://github.com/Frank-Loong/Notion-to-WordPress).*
+
+---
+
+## 🔗 Related Links
+
+### Official Resources
+- **[GitHub Repository](https://github.com/Frank-Loong/Notion-to-WordPress)** - Source code and releases
+- **[Project Status](../docs/PROJECT_STATUS.md)** - Current development status and roadmap
+- **[Feature Comparison](../docs/FEATURES_COMPARISON.md)** - Comparison with other solutions
+- **[Changelog](../docs/CHANGELOG.md)** - Version history and updates
+
+### Community & Support
+- **[Issues & Bug Reports](https://github.com/Frank-Loong/Notion-to-WordPress/issues)** - Report problems or request features
+- **[Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)** - Community discussions and Q&A
+- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to the project
+
+### External Resources
+- **[Notion API Documentation](https://developers.notion.com/)** - Official Notion API reference
+- **[WordPress Plugin Development](https://developer.wordpress.org/plugins/)** - WordPress development resources
+- **[KaTeX Documentation](https://katex.org/)** - Math rendering library
+- **[Mermaid Documentation](https://mermaid-js.github.io/)** - Diagram rendering library
+
+---
+
+## 📚 Additional Resources
+
+### Learning Materials
+- **[Notion API Basics](https://developers.notion.com/docs/getting-started)** - Understanding Notion's API
+- **[WordPress Hooks & Filters](https://developer.wordpress.org/plugins/hooks/)** - Extending WordPress functionality
+- **[REST API Integration](https://developer.wordpress.org/rest-api/)** - WordPress REST API usage
+
+### Tools & Utilities
+- **[Notion API Tester](https://developers.notion.com/tools/api-tester)** - Test your Notion API calls
+- **[WordPress Debug Tools](https://wordpress.org/plugins/debug-bar/)** - Debug WordPress issues
+- **[JSON Formatter](https://jsonformatter.org/)** - Format and validate JSON data
+
+### Best Practices
+- **[Content Migration Strategy](../docs/README.md#migration-strategy)** - Planning your content migration
+- **[Performance Optimization](../docs/PROJECT_STATUS.md#performance-metrics)** - Optimizing sync performance
+- **[Security Considerations](../docs/PROJECT_STATUS.md#security-features)** - Keeping your integration secure
+
+---
+
+<div align="center">
 
 **[⬆️ Back to Top](#notion-to-wordpress---complete-user-guide) • [🏠 Main README](../README.md) • [🇨🇳 中文版](./README-Wiki.zh-CN.md) • [📚 Docs Hub](../docs/README.md)**
 

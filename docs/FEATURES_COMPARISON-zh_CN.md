@@ -1,5 +1,10 @@
 # 🏆 Notion to WordPress - 功能对比分析
 
+<!-- Language Switch -->
+<p align="right">
+  <a href="./FEATURES_COMPARISON.md">English</a> | 简体中文
+</p>
+
 > **为什么 Notion to WordPress 是更优的选择**
 
 本文档将我们的插件与其他 Notion-to-WordPress 解决方案进行对比，突出使我们脱颖而出的独特优势和企业级功能。
@@ -295,3 +300,11 @@
 **今天就转变您的 Notion-to-WordPress 体验。选择为性能、可靠性和未来而构建的插件。**
 
 *[下载 Notion to WordPress](https://github.com/Frank-Loong/Notion-to-WordPress) 并体验差异。*
+
+---
+
+<div align="center">
+
+**[⬆️ 返回顶部](#-notion-to-wordpress---功能对比分析) • [🏠 主 README](../README-zh_CN.md) • [🇺🇸 English](./FEATURES_COMPARISON.md) • [📚 文档中心](./README-zh_CN.md)**
+
+</div>

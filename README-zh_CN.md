@@ -106,7 +106,7 @@
 ## 贡献 & Star
 如果这个项目帮助到了你，请 **点个 ⭐Star 支持一下**！同时欢迎 PR、Issue、翻译与任何形式的贡献。
 
-- [贡献指南](./CONTRIBUTING.md)
+- [贡献指南](./CONTRIBUTING-zh_CN.md)
 - [提交 Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 - [功能请求](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
 

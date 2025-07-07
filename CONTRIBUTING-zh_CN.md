@@ -179,6 +179,12 @@ echo '<p>' . $message . '</p>';
 
 ---
 
+<div align="center">
+
 **感谢您为 Notion·to·WordPress 做出贡献！🚀**
 
 *让我们一起构建最好的 Notion-to-WordPress 集成解决方案。*
+
+**[⬆️ 返回顶部](#为-notiontowordpress-做贡献) • [🏠 主 README](./README-zh_CN.md) • [🇺🇸 English](./CONTRIBUTING.md) • [📚 文档中心](./docs/README-zh_CN.md)**
+
+</div>

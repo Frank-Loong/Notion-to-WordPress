@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Notion to WordPress 1.0.9\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-06 12:00+0000\n"
-"PO-Revision-Date: 2025-07-06 11:01+0800\n"
+"PO-Revision-Date: 2025-07-07 21:54+0800\n"
 "Last-Translator: Frank-Loong <frankloong@qq.com>\n"
 "Language-Team: English (United States)\n"
 "Language: en_US\n"
@@ -730,8 +730,56 @@ msgstr "Missing event type"
 msgid "已触发同步"
 msgstr "Sync triggered"
 
+msgid "Webhook已接收，正在处理"
+msgstr "Webhook received, processing"
+
 msgid "同步过程中出错: "
 msgstr "Error during sync: "
+
+msgid "已触发%s"
+msgstr "%s triggered"
+
+msgid "页面ID为空，无法处理删除事件"
+msgstr "Page ID is empty, cannot handle delete event"
+
+msgid "未找到对应的WordPress文章"
+msgstr "No corresponding WordPress post found"
+
+msgid "已删除对应的WordPress文章 (ID: %d)"
+msgstr "Deleted corresponding WordPress post (ID: %d)"
+
+msgid "删除WordPress文章失败"
+msgstr "Failed to delete WordPress post"
+
+msgid "已同步页面: %s"
+msgstr "Synced page: %s"
+
+msgid "页面同步失败"
+msgstr "Page sync failed"
+
+msgid "单页面同步失败，已执行%s"
+msgstr "Single page sync failed, executed %s"
+
+msgid "Notion Pages对象不存在"
+msgstr "Notion Pages object does not exist"
+
+msgid "获取页面数据失败"
+msgstr "Failed to get page data"
+
+msgid "已强制同步页面内容: %s"
+msgstr "Force synced page content: %s"
+
+msgid "页面内容同步失败"
+msgstr "Page content sync failed"
+
+msgid "页面内容同步失败，已执行%s"
+msgstr "Page content sync failed, executed %s"
+
+msgid "页面内容同步发生致命错误"
+msgstr "Fatal error occurred during page content sync"
+
+msgid "数据库已更新，已触发%s%s"
+msgstr "Database updated, triggered %s%s"
 
 # #-#-#-#-#  catalog.po (Notion to WordPress 1.0.9)  #-#-#-#-#
 # Additional admin interface strings
