@@ -9,11 +9,11 @@ Welcome to the official documentation hub for **Notion to WordPress**! From onbo
 
 ## 📋 Table of Contents
 
-- [🚀 Getting Started](#getting-started)
-- [⚙️ Advanced Configuration](#advanced-configuration)
-- [🔗 Webhook Auto-Sync](#webhook-auto-sync)
-- [🐞 Troubleshooting](#troubleshooting)
-- [❓ Frequently Asked Questions](#frequently-asked-questions)
+- [🚀 Getting Started](#-getting-started)
+- [⚙️ Advanced Configuration](#-advanced-configuration)
+- [🔗 Webhook Auto-Sync](#-webhook-auto-sync)
+- [🐞 Troubleshooting](#-troubleshooting)
+- [❓ Frequently Asked Questions](#-frequently-asked-questions)
 
 ---
 

@@ -16,13 +16,27 @@ if (!defined('ABSPATH')) {
 class Notion_To_WordPress_i18n {
 
     /**
+     * 标记textdomain是否已加载，避免重复日志
+     *
+     * @since    1.1.0
+     * @access   private
+     * @var      bool
+     */
+    private static $textdomain_loaded = false;
+
+    /**
      * 加载插件的文本域
      *
      * @since    1.0.5
      */
     public function load_plugin_textdomain() {
-        // 添加调试日志
-        error_log( 'Notion to WordPress: Loading textdomain' );
+        // 仅在首次加载时记录日志，避免重复输出
+        $is_first_load = !self::$textdomain_loaded;
+
+        if ($is_first_load) {
+            Notion_To_WordPress_Helper::info_log('Loading textdomain', 'Notion i18n');
+            self::$textdomain_loaded = true;
+        }
 
         load_plugin_textdomain(
             'notion-to-wordpress',
@@ -30,9 +44,11 @@ class Notion_To_WordPress_i18n {
             dirname(dirname(plugin_basename(__FILE__))) . '/languages/'
         );
 
-        // 验证语言文件是否加载成功
-        $current_locale = get_locale();
-        error_log( 'Notion to WordPress: Current locale is: ' . $current_locale );
+        // 仅在首次加载时验证语言文件加载状态
+        if ($is_first_load) {
+            $current_locale = get_locale();
+            Notion_To_WordPress_Helper::info_log('Current locale is: ' . $current_locale, 'Notion i18n');
+        }
     }
 
     public function maybe_override_locale( $locale, $domain ) {
@@ -47,7 +63,7 @@ class Notion_To_WordPress_i18n {
             }
 
             if ( $plugin_language !== 'auto' ) {
-                error_log( 'Notion to WordPress: Overriding locale to: ' . $plugin_language . ' for domain: ' . $domain );
+                Notion_To_WordPress_Helper::debug_log('Overriding locale to: ' . $plugin_language . ' for domain: ' . $domain, 'Notion i18n');
                 return $plugin_language;
             }
         }
@@ -78,9 +94,9 @@ class Notion_To_WordPress_i18n {
 
             if ( file_exists( $mo_file ) ) {
                 load_textdomain( 'notion-to-wordpress', $mo_file );
-                error_log( 'Notion to WordPress: Force loaded ' . $plugin_language . ' translations from: ' . $mo_file );
+                Notion_To_WordPress_Helper::debug_log('Force loaded ' . $plugin_language . ' translations from: ' . $mo_file, 'Notion i18n');
             } else {
-                error_log( 'Notion to WordPress: Translation file not found: ' . $mo_file );
+                Notion_To_WordPress_Helper::error_log('Translation file not found: ' . $mo_file, 'Notion i18n');
             }
         }
     }

@@ -38,19 +38,17 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
-        // 临时强制启用最高级别调试用于问题诊断
-        self::$debug_level = self::DEBUG_LEVEL_DEBUG;
-
         // 从选项中获取调试级别
-        // $options = get_option('notion_to_wordpress_options', []);
-        // self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+        $options = get_option('notion_to_wordpress_options', []);
+        self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
 
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
-        // if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
-        //     self::$debug_level = self::DEBUG_LEVEL_ERROR;
-        // }
+        if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
+            self::$debug_level = self::DEBUG_LEVEL_ERROR;
+        }
 
-        error_log('Notion to WordPress: 调试级别设置为: ' . self::$debug_level);
+        // 使用Helper类的方法记录日志，避免直接使用error_log
+        self::debug_log('调试级别设置为: ' . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
     }
 
     /**
@@ -83,13 +81,63 @@ class Notion_To_WordPress_Helper {
         // 准备日志内容
         $log_content = is_array($data) || is_object($data) ? print_r($data, true) : $data;
 
-        // 记录到标准PHP错误日志
-        error_log($log_prefix . $log_content);
+        // 过滤敏感内容，保护用户隐私
+        $filtered_content = self::filter_sensitive_content($log_content, $level);
 
-        // 总是尝试记录到专用文件
-        self::log_to_file($log_prefix . $log_content);
+        // 仅在最高调试级别且WP_DEBUG启用时才写入WordPress error_log，避免污染
+        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG && defined('WP_DEBUG') && WP_DEBUG === true) {
+            error_log($log_prefix . $filtered_content);
+        }
+
+        // 总是记录到专用文件，确保用户可以查看日志
+        self::log_to_file($log_prefix . $filtered_content);
     }
-    
+
+    /**
+     * 过滤敏感内容，保护用户隐私
+     *
+     * @since    1.0.11
+     * @access   private
+     * @param    string    $content    要过滤的内容
+     * @param    int       $level      日志级别
+     * @return   string                过滤后的内容
+     */
+    private static function filter_sensitive_content($content, $level) {
+        // 错误级别的日志保持完整，便于问题诊断
+        if ($level <= self::DEBUG_LEVEL_ERROR) {
+            return $content;
+        }
+
+        // 检查内容长度，超过500字符进行截断
+        if (strlen($content) > 500) {
+            $content = substr($content, 0, 500) . '... [内容已截断，完整内容请查看专用日志文件]';
+        }
+
+        // 检测并过滤HTML内容（可能包含文章内容）
+        if (preg_match('/<[^>]+>/', $content)) {
+            // 如果包含HTML标签，进行脱敏处理
+            $content = preg_replace('/<[^>]+>/', '[HTML标签已过滤]', $content);
+            if (strlen($content) > 200) {
+                $content = substr($content, 0, 200) . '... [HTML内容已过滤]';
+            }
+        }
+
+        // 过滤可能的JSON响应内容（API响应）
+        if (preg_match('/^\s*[\{\[]/', $content) && strlen($content) > 300) {
+            $decoded = json_decode($content, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $content = '[JSON响应已过滤，长度: ' . strlen($content) . ' 字符]';
+            }
+        }
+
+        // 过滤包含大量文本的数组输出
+        if (strpos($content, 'Array') === 0 && strlen($content) > 400) {
+            $content = '[数组内容已过滤，长度: ' . strlen($content) . ' 字符]';
+        }
+
+        return $content;
+    }
+
     /**
      * 将日志消息写入到专用文件。
      *

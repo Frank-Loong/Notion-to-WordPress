@@ -93,10 +93,10 @@ class Notion_Pages {
      * @return   boolean                 导入是否成功
      */
     public function import_notion_page(array $page): bool {
-        error_log('Notion to WordPress: import_notion_page() 开始执行');
+        Notion_To_WordPress_Helper::debug_log('import_notion_page() 开始执行', 'Page Import');
 
         if (empty($page) || !isset($page['id'])) {
-            error_log('Notion to WordPress: 页面数据为空或缺少ID');
+            Notion_To_WordPress_Helper::error_log('页面数据为空或缺少ID', 'Page Import');
             return false;
         }
 
@@ -504,13 +504,13 @@ class Notion_Pages {
                     }
                 } catch (Exception $e) {
                     // 记录错误并添加注释
-                    error_log('Notion块转换错误: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage(), 'Block Convert');
                     $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
                 }
             } else {
                 // 未知块类型，添加调试注释
                 $html .= '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
-                error_log('未支持的Notion块类型: ' . $block_type);
+                Notion_To_WordPress_Helper::debug_log('未支持的Notion块类型: ' . $block_type, 'Block Convert');
             }
         }
 
@@ -1289,15 +1289,15 @@ class Notion_Pages {
     public function import_pages($check_deletions = true, $incremental = true) {
         try {
             // 添加调试日志
-            error_log('Notion to WordPress: import_pages() 开始执行');
-            error_log('Notion to WordPress: Database ID: ' . $this->database_id);
-            error_log('Notion to WordPress: 检查删除: ' . ($check_deletions ? 'yes' : 'no'));
-            error_log('Notion to WordPress: 增量同步: ' . ($incremental ? 'yes' : 'no'));
+            Notion_To_WordPress_Helper::info_log('import_pages() 开始执行', 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('Database ID: ' . $this->database_id, 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('增量同步: ' . ($incremental ? 'yes' : 'no'), 'Pages Import');
 
             // 获取数据库中的所有页面
-            error_log('Notion to WordPress: 调用get_database_pages()');
+            Notion_To_WordPress_Helper::debug_log('调用get_database_pages()', 'Pages Import');
             $pages = $this->notion_api->get_database_pages($this->database_id);
-            error_log('Notion to WordPress: 获取到页面数量: ' . count($pages));
+            Notion_To_WordPress_Helper::info_log('获取到页面数量: ' . count($pages), 'Pages Import');
 
             // 如果启用增量同步，过滤出需要更新的页面
             if ($incremental) {
@@ -1332,11 +1332,11 @@ class Notion_Pages {
                 try {
                     // 检查页面是否已存在
                     $existing_post_id = $this->get_post_by_notion_id($page['id']);
-                    error_log('Notion to WordPress: 页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'));
+                    Notion_To_WordPress_Helper::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
 
-                    error_log('Notion to WordPress: 开始导入单个页面...');
+                    Notion_To_WordPress_Helper::debug_log('开始导入单个页面...', 'Pages Import');
                     $result = $this->import_notion_page($page);
-                    error_log('Notion to WordPress: 单个页面导入结果: ' . ($result ? 'success' : 'failed'));
+                    Notion_To_WordPress_Helper::debug_log('单个页面导入结果: ' . ($result ? 'success' : 'failed'), 'Pages Import');
 
                     if ($result) {
                         if ($existing_post_id) {
@@ -1348,22 +1348,22 @@ class Notion_Pages {
                         $stats['failed']++;
                     }
                 } catch (Exception $e) {
-                    error_log('Notion to WordPress: 处理页面异常: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
                     $stats['failed']++;
                 } catch (Error $e) {
-                    error_log('Notion to WordPress: 处理页面错误: ' . $e->getMessage());
+                    Notion_To_WordPress_Helper::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
                     $stats['failed']++;
                 }
 
-                error_log('Notion to WordPress: 页面 ' . ($index + 1) . ' 处理完成');
+                Notion_To_WordPress_Helper::debug_log('页面 ' . ($index + 1) . ' 处理完成', 'Pages Import');
             }
 
-            error_log('Notion to WordPress: 所有页面处理完成，统计: ' . print_r($stats, true));
+            Notion_To_WordPress_Helper::info_log('所有页面处理完成，统计: ' . print_r($stats, true), 'Pages Import');
             return $stats;
 
         } catch (Exception $e) {
-            error_log('Notion to WordPress: import_pages() 异常: ' . $e->getMessage());
-            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
+            Notion_To_WordPress_Helper::error_log('import_pages() 异常: ' . $e->getMessage(), 'Pages Import');
+            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Pages Import');
             return new WP_Error('import_failed', __('导入失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
