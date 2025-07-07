@@ -479,9 +479,15 @@ class Notion_To_WordPress_Admin {
             $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
 
+            // 检查是否启用增量同步
+            $incremental = isset($_POST['incremental']) ? (bool) $_POST['incremental'] : true;
+            $check_deletions = isset($_POST['check_deletions']) ? (bool) $_POST['check_deletions'] : true;
+
+            error_log('Notion to WordPress: 手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'));
+
             // 执行导入
             error_log('Notion to WordPress: 开始执行import_pages()');
-            $result = $notion_pages->import_pages();
+            $result = $notion_pages->import_pages($check_deletions, $incremental);
             error_log('Notion to WordPress: import_pages()执行完成，结果: ' . print_r($result, true));
 
             // 更新最后同步时间

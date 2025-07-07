@@ -70,44 +70,64 @@ jQuery(document).ready(function($) {
         }
     });
     
-    // 手动导入
+    // 智能同步（增量同步）
     $('#notion-manual-import').on('click', function(e) {
         e.preventDefault();
-        var button = $(this);
-        
+        performSync($(this), true, true, '智能同步'); // 增量同步，检查删除
+    });
+
+    // 完全同步（全量同步）
+    $('#notion-full-import').on('click', function(e) {
+        e.preventDefault();
+        performSync($(this), false, true, '完全同步'); // 全量同步，检查删除
+    });
+
+    // 统一的同步处理函数
+    function performSync(button, incremental, checkDeletions, syncTypeName) {
         // 确认操作
-        if (!confirm(notionToWp.i18n.confirm_sync)) {
+        var confirmMessage = incremental ?
+            '确定要执行智能同步吗？（仅同步有变化的内容）' :
+            '确定要执行完全同步吗？（同步所有内容，耗时较长）';
+
+        if (!confirm(confirmMessage)) {
             return;
         }
-        
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.importing);
-        
+
+        var originalHtml = button.html();
+        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + syncTypeName + '中...');
+
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
             data: {
                 action: 'notion_to_wordpress_manual_sync',
-                nonce: notionToWp.nonce
+                nonce: notionToWp.nonce,
+                incremental: incremental,
+                check_deletions: checkDeletions
             },
             success: function(response) {
                 var message = response.success ? response.data.message : response.data.message;
                 var status = response.success ? 'success' : 'error';
-                
+
+                if (response.success) {
+                    message += ' (' + syncTypeName + '完成)';
+                }
+
                 showModal(message, status);
-                
+
                 // 如果成功，刷新统计信息
                 if (response.success) {
                     fetchStats();
                 }
             },
             error: function() {
-                showModal(notionToWp.i18n.import_error, 'error');
+                showModal(syncTypeName + '失败，请稍后重试', 'error');
             },
             complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-download"></span> ' + notionToWp.i18n.import);
+                button.prop('disabled', false).html(originalHtml);
             }
         });
-    });
+    }
     
     // 测试连接
     $('#notion-test-connection').on('click', function(e) {
