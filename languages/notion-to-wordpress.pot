@@ -732,7 +732,55 @@ msgstr ""
 msgid "已触发同步"
 msgstr ""
 
+msgid "Webhook已接收，正在处理"
+msgstr ""
+
 msgid "同步过程中出错: "
+msgstr ""
+
+msgid "已触发%s"
+msgstr ""
+
+msgid "页面ID为空，无法处理删除事件"
+msgstr ""
+
+msgid "未找到对应的WordPress文章"
+msgstr ""
+
+msgid "已删除对应的WordPress文章 (ID: %d)"
+msgstr ""
+
+msgid "删除WordPress文章失败"
+msgstr ""
+
+msgid "已同步页面: %s"
+msgstr ""
+
+msgid "页面同步失败"
+msgstr ""
+
+msgid "单页面同步失败，已执行%s"
+msgstr ""
+
+msgid "Notion Pages对象不存在"
+msgstr ""
+
+msgid "获取页面数据失败"
+msgstr ""
+
+msgid "已强制同步页面内容: %s"
+msgstr ""
+
+msgid "页面内容同步失败"
+msgstr ""
+
+msgid "页面内容同步失败，已执行%s"
+msgstr ""
+
+msgid "页面内容同步发生致命错误"
+msgstr ""
+
+msgid "数据库已更新，已触发%s%s"
 msgstr ""
 
 # Additional admin interface strings
