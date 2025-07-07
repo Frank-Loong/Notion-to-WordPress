@@ -511,8 +511,17 @@ jQuery(document).ready(function($) {
                     const stats = response.data;
                     $('.stat-imported-count').text(stats.imported_count || 0);
                     $('.stat-published-count').text(stats.published_count || 0);
-                    $('.stat-last-update').text(stats.last_update || notionToWp.i18n.never);
-                    $('.stat-next-run').text(stats.next_run || notionToWp.i18n.not_scheduled);
+
+                    /* 格式化日期字符串，将时间换行展示 */
+                    const formatDateTime = (dt) => {
+                        if (!dt) return notionToWp.i18n.never;
+                        if (dt.indexOf(' ') === -1) return dt; // 无空格，直接返回
+                        const firstSpace = dt.indexOf(' ');
+                        return dt.slice(0, firstSpace) + '<br>' + dt.slice(firstSpace + 1);
+                    };
+
+                    $('.stat-last-update').html(formatDateTime(stats.last_update));
+                    $('.stat-next-run').html(formatDateTime(stats.next_run || notionToWp.i18n.not_scheduled));
                 } else {
                     showModal(notionToWp.i18n.load_logs_failed + (response.data.message || notionToWp.i18n.unknown_error), 'error');
                 }
