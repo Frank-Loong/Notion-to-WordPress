@@ -153,6 +153,28 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     </td>
                                 </tr>
                                 <tr>
+                                    <th scope="row"><?php esc_html_e('定时同步选项', 'notion-to-wordpress'); ?></th>
+                                    <td>
+                                        <?php
+                                        $cron_incremental_sync = $options['cron_incremental_sync'] ?? 1;
+                                        $cron_check_deletions = $options['cron_check_deletions'] ?? 1;
+                                        ?>
+                                        <fieldset>
+                                            <label>
+                                                <input type="checkbox" name="cron_incremental_sync" value="1" <?php checked($cron_incremental_sync, 1); ?>>
+                                                <?php esc_html_e('启用增量同步', 'notion-to-wordpress'); ?>
+                                            </label>
+                                            <p class="description"><?php esc_html_e('仅同步有变化的页面，提高同步速度', 'notion-to-wordpress'); ?></p>
+
+                                            <label>
+                                                <input type="checkbox" name="cron_check_deletions" value="1" <?php checked($cron_check_deletions, 1); ?>>
+                                                <?php esc_html_e('检查删除的页面', 'notion-to-wordpress'); ?>
+                                            </label>
+                                            <p class="description"><?php esc_html_e('自动删除在Notion中已删除但WordPress中仍存在的文章', 'notion-to-wordpress'); ?></p>
+                                        </fieldset>
+                                    </td>
+                                </tr>
+                                <tr>
                                     <th scope="row"><label for="webhook_enabled"><?php esc_html_e('Webhook 支持', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <?php 
@@ -172,14 +194,18 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <label for="verification_token"><?php esc_html_e('Verification Token', 'notion-to-wordpress'); ?></label>
                                                 <div class="input-with-button">
                                                     <input type="text" id="verification_token" value="<?php echo esc_attr($verification_token); ?>" class="regular-text" readonly placeholder="<?php esc_attr_e('等待 Notion 返回…', 'notion-to-wordpress'); ?>">
-                                                    <button type="button" class="button button-secondary copy-to-clipboard" 
-                                                        data-clipboard-target="#verification_token" 
+                                                    <button type="button" class="button button-secondary" id="refresh-verification-token"
+                                                        title="<?php esc_attr_e('刷新验证令牌', 'notion-to-wordpress'); ?>">
+                                                        <span class="dashicons dashicons-update"></span>
+                                                    </button>
+                                                    <button type="button" class="button button-secondary copy-to-clipboard"
+                                                        data-clipboard-target="#verification_token"
                                                         onclick="window.copyTextToClipboard(document.getElementById('verification_token').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
                                                         title="<?php esc_attr_e('复制令牌', 'notion-to-wordpress'); ?>">
                                                         <span class="dashicons dashicons-clipboard"></span>
                                                     </button>
                                                 </div>
-                                                <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。', 'notion-to-wordpress'); ?></p>
+                                                <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。点击刷新按钮可获取最新的令牌。', 'notion-to-wordpress'); ?></p>
                                             </div>
                                             <div class="notion-wp-field">
                                                 <label for="webhook_url"><?php esc_html_e('Webhook URL', 'notion-to-wordpress'); ?></label>
@@ -193,6 +219,27 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                     </button>
                                                 </div>
                                                 <p class="description"><?php esc_html_e('在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。', 'notion-to-wordpress'); ?></p>
+                                            </div>
+
+                                            <div class="notion-wp-field">
+                                                <label><?php esc_html_e('Webhook 同步选项', 'notion-to-wordpress'); ?></label>
+                                                <?php
+                                                $webhook_incremental = $options['webhook_incremental_sync'] ?? 1;
+                                                $webhook_check_deletions = $options['webhook_check_deletions'] ?? 1;
+                                                ?>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="webhook_incremental_sync" value="1" <?php checked($webhook_incremental, 1); ?>>
+                                                        <?php esc_html_e('启用增量同步', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                    <p class="description"><?php esc_html_e('Webhook触发时仅同步有变化的页面，提高响应速度', 'notion-to-wordpress'); ?></p>
+
+                                                    <label>
+                                                        <input type="checkbox" name="webhook_check_deletions" value="1" <?php checked($webhook_check_deletions, 1); ?>>
+                                                        <?php esc_html_e('数据库事件检查删除', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                    <p class="description"><?php esc_html_e('数据库结构变化时检查删除的页面（单页面事件不受影响）', 'notion-to-wordpress'); ?></p>
+                                                </fieldset>
                                             </div>
                                         </div>
                                         <script>
@@ -711,12 +758,23 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
                 <div class="notion-wp-actions-bar">
                     <div class="left-actions">
-                        <button type="button" id="notion-manual-import" class="button button-secondary">
-                            <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('手动同步', 'notion-to-wordpress'); ?>
-                        </button>
-                        <button type="button" class="button button-secondary refresh-all-content">
-                            <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
-                        </button>
+                        <div class="sync-options-group">
+                            <button type="button" id="notion-manual-import" class="button button-secondary">
+                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
+                            </button>
+                            <button type="button" id="notion-full-import" class="button button-secondary">
+                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
+                            </button>
+                            <button type="button" class="button button-secondary refresh-all-content">
+                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
+                            </button>
+                        </div>
+                        <div class="sync-options-info">
+                            <small class="description">
+                                <strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?><br>
+                                <strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?>
+                            </small>
+                        </div>
                     </div>
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
                 </div>

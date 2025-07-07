@@ -139,6 +139,8 @@ class Notion_To_WordPress_Admin {
                 'test_error' => __('测试连接时发生错误', 'notion-to-wordpress'),
                 'fill_fields' => __('请输入API密钥和数据库ID', 'notion-to-wordpress'),
                 'copied' => __('已复制到剪贴板', 'notion-to-wordpress'),
+                'refreshing_token' => __('刷新中...', 'notion-to-wordpress'),
+                'refresh_token' => __('刷新验证令牌', 'notion-to-wordpress'),
                 'stats_error' => __('统计信息错误', 'notion-to-wordpress'),
                 'confirm_sync' => __('确定要开始同步Notion内容吗？', 'notion-to-wordpress'),
                 'confirm_refresh_all' => __('确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。', 'notion-to-wordpress'),
@@ -176,6 +178,7 @@ class Notion_To_WordPress_Admin {
                 'clear_logs' => __('清除所有日志', 'notion-to-wordpress'),
                 'settings_saved' => __('设置已保存！', 'notion-to-wordpress'),
                 'saving' => __('保存中...', 'notion-to-wordpress'),
+                'page_refreshing' => __('页面即将刷新以应用设置变更...', 'notion-to-wordpress'),
             ]
         ));
         
@@ -476,10 +479,16 @@ class Notion_To_WordPress_Admin {
             $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
 
+            // 检查是否启用增量同步
+            $incremental = isset($_POST['incremental']) ? (bool) $_POST['incremental'] : true;
+            $check_deletions = isset($_POST['check_deletions']) ? (bool) $_POST['check_deletions'] : true;
+
+            Notion_To_WordPress_Helper::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Manual Sync');
+
             // 执行导入
-            error_log('Notion to WordPress: 开始执行import_pages()');
-            $result = $notion_pages->import_pages();
-            error_log('Notion to WordPress: import_pages()执行完成，结果: ' . print_r($result, true));
+            Notion_To_WordPress_Helper::info_log('开始执行import_pages()', 'Manual Sync');
+            $result = $notion_pages->import_pages($check_deletions, $incremental);
+            Notion_To_WordPress_Helper::info_log('import_pages()执行完成，结果: ' . print_r($result, true), 'Manual Sync');
 
             // 更新最后同步时间
             update_option( 'notion_to_wordpress_last_sync', current_time( 'mysql' ) );
@@ -500,8 +509,8 @@ class Notion_To_WordPress_Admin {
             ] );
             
         } catch ( Exception $e ) {
-            error_log('Notion to WordPress: 捕获异常: ' . $e->getMessage());
-            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
+            Notion_To_WordPress_Helper::error_log('捕获异常: ' . $e->getMessage(), 'Manual Sync');
+            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Manual Sync');
             wp_send_json_error( [ 'message' => __('导入失败: ', 'notion-to-wordpress') . $e->getMessage() ] );
         }
     }
@@ -785,9 +794,31 @@ class Notion_To_WordPress_Admin {
     }
 
     /**
+     * 刷新验证令牌
+     *
+     * @since    1.1.0
+     */
+    public function handle_refresh_verification_token() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
+        }
+
+        // 获取最新的验证令牌
+        $options = get_option('notion_to_wordpress_options', []);
+        $verification_token = $options['webhook_verify_token'] ?? '';
+
+        wp_send_json_success([
+            'verification_token' => $verification_token,
+            'message' => __('验证令牌已刷新', 'notion-to-wordpress')
+        ]);
+    }
+
+    /**
      * 测试调试方法
      *
-     * @since    1.0.10
+     * @since    1.1.0
      */
     public function handle_test_debug() {
         error_log('Notion to WordPress: handle_test_debug 被调用');
@@ -820,7 +851,7 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            error_log('Notion to WordPress: 权限检查成功');
+            Notion_To_WordPress_Helper::info_log('权限检查成功', 'Debug Test');
 
             $test_data = [
                 'php_version' => PHP_VERSION,
@@ -833,16 +864,16 @@ class Notion_To_WordPress_Admin {
                 'ajax_url' => admin_url('admin-ajax.php')
             ];
 
-            error_log('Notion to WordPress: 测试数据: ' . print_r($test_data, true));
+            Notion_To_WordPress_Helper::info_log('测试数据: ' . print_r($test_data, true), 'Debug Test');
             wp_send_json_success(['message' => '调试测试成功', 'data' => $test_data]);
 
         } catch (Exception $e) {
-            error_log('Notion to WordPress: 测试异常: ' . $e->getMessage());
-            error_log('Notion to WordPress: 异常堆栈: ' . $e->getTraceAsString());
+            Notion_To_WordPress_Helper::error_log('测试异常: ' . $e->getMessage(), 'Debug Test');
+            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Debug Test');
             wp_send_json_error(['message' => '测试失败: ' . $e->getMessage()]);
         } catch (Error $e) {
-            error_log('Notion to WordPress: 测试错误: ' . $e->getMessage());
-            error_log('Notion to WordPress: 错误堆栈: ' . $e->getTraceAsString());
+            Notion_To_WordPress_Helper::error_log('测试错误: ' . $e->getMessage(), 'Debug Test');
+            Notion_To_WordPress_Helper::error_log('错误堆栈: ' . $e->getTraceAsString(), 'Debug Test');
             wp_send_json_error(['message' => '测试错误: ' . $e->getMessage()]);
         }
     }
