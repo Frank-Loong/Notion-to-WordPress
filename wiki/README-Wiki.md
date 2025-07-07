@@ -1,7 +1,7 @@
----
 **📖 Navigation:** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Status](../docs/PROJECT_STATUS.md) • [🔄 Changelog](../docs/CHANGELOG.md) • [⚖️ Feature Comparison](../docs/FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
 **🌐 Language:** **English** • [中文](README-Wiki.zh-CN.md)
+
 ---
 
 # Notion to WordPress - Complete User Guide
@@ -32,7 +32,59 @@ Welcome to the official documentation hub for **Notion to WordPress**! From onbo
 
 ## 🚀 Getting Started
 
-Follow this **5-minute guide** to complete your first Notion → WordPress sync.
+### 📸 Complete Visual Tutorial
+
+#### 🎬 Animated Demo
+<!-- TODO: Add complete setup animation -->
+<div align="center">
+  <img src="../docs/images/setup-complete.gif" alt="Complete Setup Flow" width="800">
+  <p><em>🎯 Complete setup flow: from zero to sync success</em></p>
+</div>
+
+#### 📋 Notion Database Templates
+Before you start, grab one of our ready-to-use templates:
+
+<div align="center">
+
+| 🎯 Template Type | 📝 Use Case | 🔗 Copy Link |
+|:---:|:---:|:---:|
+| **📝 Blog Template** | Personal blogs, tech articles, journals | [📋 Copy Template](https://notion.so/template/blog-en) |
+| **📚 Knowledge Base** | Team docs, product manuals, FAQs | [📋 Copy Template](https://notion.so/template/docs-en) |
+| **🎓 Course Template** | Online education, training content, tutorials | [📋 Copy Template](https://notion.so/template/course-en) |
+
+</div>
+
+> 💡 **Usage Tip**: After copying the template, remember to invite your integration to access the database in Notion!
+
+### ⚡ 5-Minute Setup Guide
+
+#### 📷 Step 1: Install Plugin (2 minutes)
+<!-- TODO: Add installation screenshots -->
+<div align="center">
+  <img src="../docs/images/install-step1.png" alt="Installation Step 1" width="600">
+  <p><em>WordPress Admin → Plugins → Add New Plugin</em></p>
+</div>
+
+#### 🔑 Step 2: Get Configuration Info (2 minutes)
+<!-- TODO: Add configuration screenshots -->
+<div align="center">
+  <img src="../docs/images/config-step2.png" alt="Configuration Step 2" width="600">
+  <p><em>Notion Developer Page to get API key</em></p>
+</div>
+
+#### 🚀 Step 3: First Sync (1 minute)
+<!-- TODO: Add sync screenshots -->
+<div align="center">
+  <img src="../docs/images/sync-step3.png" alt="Sync Step 3" width="600">
+  <p><em>Click "Smart Sync" to start content synchronization</em></p>
+</div>
+
+### 🎬 Video Tutorials
+<!-- TODO: Add video tutorial links -->
+> 📺 **Coming Soon**:
+> - 🎥 **Complete Setup Video** (5-minute detailed tutorial)
+> - 🎬 **Troubleshooting Guide** (animated problem-solving)
+> - 📱 **Mobile Setup** (phone/tablet configuration guide)
 
 ### Prerequisites
 1. WordPress 6.0 or later (plugin install rights)

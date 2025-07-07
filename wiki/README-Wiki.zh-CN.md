@@ -1,7 +1,7 @@
----
 **📖 导航：** [🏠 主页](../README-zh_CN.md) • **📚 使用指南** • [📊 项目状态](../docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](../docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](../docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
 
 **🌐 语言：** [English](README-Wiki.md) • **中文**
+
 ---
 
 # 📚 Notion to WordPress - 完整使用指南
@@ -41,23 +41,69 @@
 
 ## 🎯 快速上手
 
+### 📸 完整图文教程
+
+#### 🎬 动图演示
+<!-- TODO: 添加完整操作动图 -->
+<div align="center">
+  <img src="../docs/images/setup-complete.gif" alt="完整设置流程" width="800">
+  <p><em>🎯 完整设置流程：从零到同步成功</em></p>
+</div>
+
+#### 📋 Notion 数据库模板
+在开始之前，你可以直接复制我们的模板：
+
+<div align="center">
+
+| 🎯 模板类型 | 📝 适用场景 | 🔗 复制链接 |
+|:---:|:---:|:---:|
+| **📝 博客模板** | 个人博客、技术文章、日记 | [📋 复制模板](https://notion.so/template/blog-zh) |
+| **📚 知识库模板** | 团队文档、产品手册、FAQ | [📋 复制模板](https://notion.so/template/docs-zh) |
+| **🎓 课程模板** | 在线教育、培训内容、教程 | [📋 复制模板](https://notion.so/template/course-zh) |
+
+</div>
+
+> 💡 **使用提示**：复制模板后，记得在 Notion 中邀请你的集成访问数据库！
+
 ### ⚡ 60秒快速配置
 
-**第1步：安装** (30秒)
+#### 📷 第1步：安装插件 (30秒)
+<!-- TODO: 添加安装步骤截图 -->
+<div align="center">
+  <img src="../docs/images/install-step1.png" alt="安装步骤1" width="600">
+  <p><em>WordPress 后台 → 插件 → 安装新插件</em></p>
+</div>
+
 ```bash
 # 下载 → WordPress管理后台 → 插件 → 安装新插件 → 上传ZIP → 激活
 ```
 
-**第2步：配置** (20秒)
+#### 🔑 第2步：获取配置信息 (20秒)
+<!-- TODO: 添加配置步骤截图 -->
+<div align="center">
+  <img src="../docs/images/config-step2.png" alt="配置步骤2" width="600">
+  <p><em>Notion 开发者页面获取 API 密钥</em></p>
+</div>
+
 1. 获取你的 [Notion API密钥](https://developers.notion.com/)
 2. 复制你的 Notion 数据库ID
 3. 在 WordPress管理后台 → Notion to WordPress 中粘贴
 
-**第3步：同步** (10秒)
+#### 🚀 第3步：首次同步 (10秒)
+<!-- TODO: 添加同步步骤截图 -->
+<div align="center">
+  <img src="../docs/images/sync-step3.png" alt="同步步骤3" width="600">
+  <p><em>点击"智能同步"开始内容同步</em></p>
+</div>
+
 点击"智能同步"，观看你的内容出现在WordPress中！🎉
 
 ### 🎬 视频教程
-> 📺 **即将推出**：分步视频指南
+<!-- TODO: 添加视频教程链接 -->
+> 📺 **即将推出**：
+> - 🎥 **完整设置视频** (5分钟详细教程)
+> - 🎬 **常见问题解决** (故障排查动图)
+> - 📱 **移动端操作** (手机/平板设置指南)
 
 ---
 

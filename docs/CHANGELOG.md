@@ -1,7 +1,7 @@
----
 **📖 Navigation:** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • [📊 Project Status](PROJECT_STATUS.md) • **🔄 Changelog** • [⚖️ Feature Comparison](FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
 **🌐 Language:** **English** • [中文](CHANGELOG-zh_CN.md)
+
 ---
 
 # Changelog
