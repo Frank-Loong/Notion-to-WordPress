@@ -1,4 +1,4 @@
-**📖 导航：** [🏠 主页](README-zh_CN.md) • [📚 使用指南](wiki/README-Wiki.zh-CN.md) • [📊 项目状态](docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](docs/FEATURES_COMPARISON-zh_CN.md) • **🤝 贡献指南**
+** [🏠 主页](README-zh_CN.md) • [📚 使用指南](wiki/README-Wiki.zh-CN.md) • [📊 项目状态](docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](docs/FEATURES_COMPARISON-zh_CN.md) • **🤝 贡献指南**
 
 **🌐 语言：** [English](CONTRIBUTING.md) • **中文**
 
@@ -8,7 +8,7 @@
 
 🎉 **感谢您对 Notion to WordPress 项目的关注！**
 
-这个项目因为像您这样的贡献者而蓬勃发展。无论您是修复bug、添加功能、改进文档，还是帮助其他用户，每一份贡献都很重要。
+这个项目因为像您这样的贡献者而蓬勃发展。无论您是修复 bug、添加功能、改进文档，还是帮助其他用户，每一份贡献都很重要。
 
 ## 🚀 贡献者快速开始
 
@@ -29,20 +29,20 @@ git checkout -b feature/your-feature-name
 
 ## 🎯 贡献方式
 
-### 1. 🐛 报告Bug
+### 1. 🐛 报告 Bug
 **报告前请：**
 - 搜索现有问题避免重复
 - 使用最新版本测试
 - 收集详细信息
 
 **需要包含的信息：**
-- WordPress版本、PHP版本、插件版本
+- WordPress 版本、PHP 版本、插件版本
 - 重现步骤（详细的分步说明）
 - 期望行为 vs 实际行为
 - 错误信息或截图
 - 浏览器/环境详情（如相关）
 
-**使用 [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) 提交bug报告。**
+**使用 [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) 提交 bug 报告。**
 
 ### 2. ✨ 功能建议
 - 首先检查现有问题/讨论
@@ -67,24 +67,24 @@ git checkout -b feature/your-feature-name
 **测试清单：**
 - [ ] 完成手动测试
 - [ ] 测试边缘情况
-- [ ] 跨浏览器测试（如有UI更改）
-- [ ] WordPress兼容性测试
+- [ ] 跨浏览器测试（如有 UI 更改）
+- [ ] WordPress 兼容性测试
 
 ### 4. 📚 文档和翻译
 **文档领域：**
-- Wiki页面和教程
+- Wiki 页面和教程
 - 代码注释和内联文档
-- README和指南
+- README 和指南
 - 故障排除内容
 
 **翻译支持：**
 - 当前支持：英语 (en_US)、简体中文 (zh_CN)
 - 使用 .pot 文件帮助添加新语言
-- 在WordPress中测试翻译
+- 在 WordPress 中测试翻译
 
 ### 5. 💬 交流沟通
 - **一般问题**：[GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
-- **Bug报告**：[GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+- **Bug 报告**：[GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 - **安全问题**：请直接通过邮箱 <a href="mailto:frankloong@qq.com">frankloong@qq.com</a> 联系维护者。
 
 ## 🏆 认可与社区
@@ -172,7 +172,7 @@ echo '<p>' . $message . '</p>';
 ## 💬 有问题？
 
 - **一般问题**：[GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
-- **Bug报告**：[GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+- **Bug 报告**：[GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 - **功能想法**：[GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
 
 ## 许可证

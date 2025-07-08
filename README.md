@@ -1,4 +1,4 @@
-**📖 Navigation:** **🏠 Home** • [📚 User Guide](wiki/README-Wiki.md) • [📊 Project Status](docs/PROJECT_STATUS.md) • [🔄 Changelog](docs/CHANGELOG.md) • [⚖️ Feature Comparison](docs/FEATURES_COMPARISON.md) • [🤝 Contributing](CONTRIBUTING.md)
+** **🏠 Home** • [📚 User Guide](wiki/README-Wiki.md) • [📊 Project Status](docs/PROJECT_STATUS.md) • [🔄 Changelog](docs/CHANGELOG.md) • [⚖️ Feature Comparison](docs/FEATURES_COMPARISON.md) • [🤝 Contributing](CONTRIBUTING.md)
 
 **🌐 Language:** **English** • [中文](README-zh_CN.md)
 
@@ -6,7 +6,7 @@
 
 # Notion-to-WordPress
 
-> 🚀 Turn Notion into WordPress in **60 seconds** – auto-publish, auto-update, zero copy-paste.
+> 🚀 Transform Notion into WordPress with one click — Say goodbye to copy-pasting and achieve fully automated content publishing and synchronization
 
 ![GitHub Stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![Release](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/Frank-Loong/Notion-to-WordPress)
 
@@ -52,8 +52,20 @@
 ### 📋 Notion Database Templates
 We've prepared ready-to-use Notion database templates for you:
 
+| Template Type | Link |
+|---------|------|
 | 📝 **Chinese template** | [Copy the template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
 | 📚 **English template** | [Copy the template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
+
+#### 🔗 **NotionNext Compatibility**
+Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024/NotionNext)** database schemas! You can also use NotionNext's official templates:
+
+| Template Type | Link |
+|---------|------|
+| 🇨🇳 **NotionNext 中文模板** | [NotionNext 博客](https://tanghh.notion.site/02ab3b8678004aa69e9e415905ef32a5?v=b7eb215720224ca5827bfaa5ef82cf2d) |
+| 🇺🇸 **NotionNext English Template** | [NotionNext Blog](https://www.notion.so/tanghh/7c1d570661754c8fbc568e00a01fd70e?v=8c801924de3840b3814aea6f13c8484f&pvs=4) |
+
+> 🚀 **Dual Platform Publishing**: With NotionNext compatibility, you can write in Notion and automatically sync to **both NotionNext and WordPress** simultaneously! Perfect for content creators who want maximum reach across platforms.
 
 > 💡 **Tip**: After copying the template, remember to invite your integration to access the database in Notion!
 
@@ -131,6 +143,18 @@ If this project helps you, please smash that **Star**! PRs, issues, translations
 * [Contributing Guide](./CONTRIBUTING.md)
 * [Open an Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 * [Feature Requests](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+
+---
+
+## Acknowledgments
+
+This project was inspired by and references the following excellent open-source projects:
+
+- **[NotionNext](https://github.com/tangly1024/NotionNext)** - A powerful static blog system based on Notion, providing valuable insights for Notion API integration and content processing
+- **[Elog](https://github.com/LetTTGACO/elog)** - An open-source blog writing client that supports multiple platforms, offering great reference for multi-platform content synchronization
+- **[notion-content](https://github.com/pchang78/notion-content)** - Content management solutions that helped shape our approach to Notion content handling
+
+We extend our heartfelt gratitude to these projects and their maintainers for their contributions to the open-source community, which made this project possible.
 
 ---
 

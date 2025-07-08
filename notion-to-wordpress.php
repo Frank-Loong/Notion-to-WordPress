@@ -7,6 +7,11 @@ declare(strict_types=1);
  * WordPress 读取此文件以在插件管理后台生成插件信息。
  * 此文件还包括插件使用的所有依赖项，注册激活和停用函数，并定义一个启动插件的函数。
  *
+ * 本项目参考了以下优秀的开源项目：
+ * - NotionNext (https://github.com/tangly1024/NotionNext)
+ * - Elog (https://github.com/LetTTGACO/elog)
+ * - notion-content (https://github.com/pchang78/notion-content)
+ *
  * @link              https://github.com/Frank-Loong/Notion-to-WordPress
  * @since             1.0.9
  * @package           Notion_To_WordPress
