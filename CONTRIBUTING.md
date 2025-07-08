@@ -1,4 +1,4 @@
-**📖 Navigation:** [🏠 Home](README.md) • [📚 User Guide](wiki/README-Wiki.md) • [📊 Project Status](docs/PROJECT_STATUS.md) • [🔄 Changelog](docs/CHANGELOG.md) • [⚖️ Feature Comparison](docs/FEATURES_COMPARISON.md) • **🤝 Contributing**
+** [🏠 Home](README.md) • [📚 User Guide](wiki/README-Wiki.md) • [📊 Project Status](docs/PROJECT_STATUS.md) • [🔄 Changelog](docs/CHANGELOG.md) • [⚖️ Feature Comparison](docs/FEATURES_COMPARISON.md) • **🤝 Contributing**
 
 **🌐 Language:** **English** • [中文](CONTRIBUTING-zh_CN.md)
 

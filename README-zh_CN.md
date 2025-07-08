@@ -1,4 +1,4 @@
-**📖 导航：** **🏠 主页** • [📚 使用指南](wiki/README-Wiki.zh-CN.md) • [📊 项目状态](docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](CONTRIBUTING-zh_CN.md)
+**🏠 主页** • [📚 使用指南](wiki/README-Wiki.zh-CN.md) • [📊 项目状态](docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](CONTRIBUTING-zh_CN.md)
 
 **🌐 语言：** [English](README.md) • **中文**
 
@@ -6,7 +6,7 @@
 
 # Notion·to·WordPress
 
-> 🚀 一键将 Notion 变身 WordPress — 60 秒完成全自动内容发布
+> 🚀 一键将 Notion 变身 WordPress — 告别复制粘贴，实现全自动内容发布与同步
 
 ![GitHub stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![GitHub release (latest by tag)](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/Frank-Loong/Notion-to-WordPress)
 
@@ -21,9 +21,9 @@
 
 ## 核心特性
 - **⚡ 极速同步**：支持手动、一键刷新、定时 Cron 以及 Notion Webhook 四种触发方式
-- **🧠 智能增量同步**：仅同步变更内容，性能提升80%+
-- **🔄 三重同步模式**：手动控制 + 自动调度 + 实时Webhook
-- **🗑️ 智能删除检测**：自动清理已删除的Notion页面
+- **🧠 智能增量同步**：仅同步变更内容，性能提升 80%+
+- **🔄 三重同步模式**：手动控制 + 自动调度 + 实时 Webhook
+- **🗑️ 智能删除检测**：自动清理已删除的 Notion 页面
 - **🧠 智能映射**：可视化字段映射，轻松绑定分类、标签、自定义字段与特色图
 - **📐 完美排版**：KaTeX 数学公式、mhchem 化学式、Mermaid 流程 / 时序图原生渲染
 - **🔒 安全稳定**：严格 nonce、权限 与 CSP 校验，附件下载自动校验 MIME & 大小
@@ -52,8 +52,20 @@
 ### 📋 Notion 数据库模板
 我们为你准备了开箱即用的 Notion 数据库模板：
 
+| 模板类型 | 链接 |
+|---------|------|
 | 📝 **中文模板** | [复制模板](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
 | 📚 **English template** | [复制模板](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
+
+#### 🔗 **NotionNext 兼容性**
+本项目已对 Notion 数据库做了完美兼容，**完全适配 [NotionNext](https://github.com/tangly1024/NotionNext)**！你也可以直接使用 NotionNext 提供的数据库模板：
+
+| 模板类型 | 链接 |
+|---------|------|
+| 🇨🇳 **NotionNext 中文模板** | [NotionNext 博客](https://tanghh.notion.site/02ab3b8678004aa69e9e415905ef32a5?v=b7eb215720224ca5827bfaa5ef82cf2d) |
+| 🇺🇸 **NotionNext English Template** | [NotionNext Blog](https://www.notion.so/tanghh/7c1d570661754c8fbc568e00a01fd70e?v=8c801924de3840b3814aea6f13c8484f&pvs=4) |
+
+> 🚀 **双平台发布**：通过 NotionNext 兼容性，你可以在 Notion 写作，文章实时同步至 **NotionNext 和 WordPress 两个平台**！为内容创作者提供最大化的平台覆盖。
 
 > 💡 **提示**：复制模板后，记得在 Notion 中将你的集成添加到数据库中！
 
@@ -99,17 +111,17 @@
 - **运行时间**：生产环境99.9%可靠性
 
 ### **企业级特性**
-- ✅ **全面日志记录** 3级调试系统
+- ✅ **全面日志记录** 3 级调试系统
 - ✅ **健壮错误处理** 自动恢复机制
-- ✅ **安全加固** 遵循WordPress标准
+- ✅ **安全加固** 遵循 WordPress 标准
 - ✅ **性能优化** 适用于高流量站点
 - ✅ **备份友好** 干净卸载选项
 
 ## 📚 文档资源
 
 ### 📖 **完整指南**
-- **[📖 完整Wiki](./wiki/README-Wiki.md)** - 综合使用指南 (English)
-- **[🇨🇳 中文Wiki](./wiki/README-Wiki.zh-CN.md)** - 完整中文使用指南
+- **[📖 完整 Wiki](./wiki/README-Wiki.md)** - 综合使用指南 (English)
+- **[🇨🇳 中文 Wiki](./wiki/README-Wiki.zh-CN.md)** - 完整中文使用指南
 - **[📚 文档中心](./docs/README-zh_CN.md)** - 所有文档索引
 
 ### 🛠️ **开发相关**
@@ -121,7 +133,7 @@
 - **[📊 项目状态](./docs/PROJECT_STATUS-zh_CN.md)** - 当前项目状态
 - **[🏆 功能对比](./docs/FEATURES_COMPARISON-zh_CN.md)** - 为什么选择我们
 
-## 🌟 Star历史
+## 🌟 Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
 
@@ -131,6 +143,18 @@
 - [贡献指南](./CONTRIBUTING-zh_CN.md)
 - [提交 Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 - [功能请求](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+
+---
+
+## 致谢与参考
+
+本项目的开发过程中参考了以下优秀的开源项目，在此表示感谢：
+
+- **[NotionNext](https://github.com/tangly1024/NotionNext)** - 基于 Notion 的强大静态博客系统，为 Notion API 集成和内容处理提供了宝贵的参考
+- **[Elog](https://github.com/LetTTGACO/elog)** - 支持多平台的开源博客写作客户端，为多平台内容同步提供了优秀的参考方案
+- **[notion-content](https://github.com/pchang78/notion-content)** - 内容管理解决方案，帮助我们完善了 Notion 内容处理的方法
+
+感谢这些项目及其维护者对开源社区的贡献，正是有了他们的努力，才让本项目得以实现。
 
 ---
 
