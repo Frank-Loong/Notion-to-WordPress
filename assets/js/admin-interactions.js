@@ -197,7 +197,7 @@ jQuery(document).ready(function($) {
     // 全局复制函数
     window.copyTextToClipboard = function(text, callback) {
         if (!text) {
-            if (callback) callback(false, '要复制的文本为空');
+            if (callback) callback(false, notionToWp.i18n.copy_text_empty);
             return;
         }
         
@@ -562,10 +562,10 @@ jQuery(document).ready(function($) {
                     if (response.data.verification_token) {
                         showModal(response.data.message || '验证令牌已更新', 'success');
                     } else {
-                        showModal('暂无新的验证令牌', 'info');
+                        showModal(notionToWp.i18n.no_new_verification_token, 'info');
                     }
                 } else {
-                    showModal(response.data.message || '刷新失败', 'error');
+                    showModal(response.data.message || notionToWp.i18n.refresh_error, 'error');
                 }
             },
             error: function() {
