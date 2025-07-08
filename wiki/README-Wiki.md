@@ -1,4 +1,4 @@
-**📖 Navigation:** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Status](../docs/PROJECT_STATUS.md) • [🔄 Changelog](../docs/CHANGELOG.md) • [⚖️ Feature Comparison](../docs/FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
+** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Status](../docs/PROJECT_STATUS.md) • [🔄 Changelog](../docs/CHANGELOG.md) • [⚖️ Feature Comparison](../docs/FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
 **🌐 Language:** **English** • [中文](README-Wiki.zh-CN.md)
 
@@ -46,10 +46,26 @@ Before you start, grab one of our ready-to-use templates:
 
 <div align="center">
 
+| Template Type | Link |
+|---------|------|
 | 📝 **Chinese template** | [Copy the template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
 | 📚 **English template** | [Copy the template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
 </div>
+
+##### 🔗 **NotionNext Compatibility**
+Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024/NotionNext)** database schemas! You can also use NotionNext's official templates:
+
+<div align="center">
+
+| Template Type | Link |
+|---------|------|
+| 🇨🇳 **NotionNext 中文模板** | [NotionNext 博客](https://tanghh.notion.site/02ab3b8678004aa69e9e415905ef32a5?v=b7eb215720224ca5827bfaa5ef82cf2d) |
+| 🇺🇸 **NotionNext English Template** | [NotionNext Blog](https://www.notion.so/tanghh/7c1d570661754c8fbc568e00a01fd70e?v=8c801924de3840b3814aea6f13c8484f&pvs=4) |
+
+</div>
+
+> 🚀 **Dual Platform Publishing**: With NotionNext compatibility, you can write in Notion and automatically sync to **both NotionNext and WordPress** simultaneously!
 
 > 💡 **Usage Tip**: After copying the template, remember to invite your integration to access the database in Notion!
 

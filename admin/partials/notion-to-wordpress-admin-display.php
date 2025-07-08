@@ -191,7 +191,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         
                                         <div id="webhook-settings" style="<?php echo $webhook_enabled ? '' : 'display: none;'; ?>" class="notion-wp-subsetting">
                                             <div class="notion-wp-field">
-                                                <label for="verification_token"><?php esc_html_e('Verification Token', 'notion-to-wordpress'); ?></label>
+                                                <label for="verification_token"><?php esc_html_e('验证令牌', 'notion-to-wordpress'); ?></label>
                                                 <div class="input-with-button">
                                                     <input type="text" id="verification_token" value="<?php echo esc_attr($verification_token); ?>" class="regular-text" readonly placeholder="<?php esc_attr_e('等待 Notion 返回…', 'notion-to-wordpress'); ?>">
                                                     <button type="button" class="button button-secondary" id="refresh-verification-token"
@@ -208,7 +208,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <p class="description"><?php esc_html_e('首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。点击刷新按钮可获取最新的令牌。', 'notion-to-wordpress'); ?></p>
                                             </div>
                                             <div class="notion-wp-field">
-                                                <label for="webhook_url"><?php esc_html_e('Webhook URL', 'notion-to-wordpress'); ?></label>
+                                                <label for="webhook_url"><?php esc_html_e('Webhook 地址', 'notion-to-wordpress'); ?></label>
                                                 <div class="input-with-button">
                                                     <input type="text" id="webhook_url" value="<?php echo esc_url($webhook_url); ?>" class="regular-text" readonly>
                                                     <button type="button" class="button button-secondary copy-to-clipboard" 
@@ -752,6 +752,26 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <span class="info-value">WordPress 5.0+</span>
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="acknowledgments">
+                            <h4><?php esc_html_e('致谢与参考', 'notion-to-wordpress'); ?></h4>
+                            <p><?php esc_html_e('本项目的开发过程中参考了以下优秀的开源项目：', 'notion-to-wordpress'); ?></p>
+                            <div class="reference-projects">
+                                <div class="reference-item">
+                                    <a href="https://github.com/tangly1024/NotionNext" target="_blank">NotionNext</a>
+                                    <p><?php esc_html_e('基于 Notion 的强大静态博客系统', 'notion-to-wordpress'); ?></p>
+                                </div>
+                                <div class="reference-item">
+                                    <a href="https://github.com/LetTTGACO/elog" target="_blank">Elog</a>
+                                    <p><?php esc_html_e('支持多平台的开源博客写作客户端', 'notion-to-wordpress'); ?></p>
+                                </div>
+                                <div class="reference-item">
+                                    <a href="https://github.com/pchang78/notion-content" target="_blank">notion-content</a>
+                                    <p><?php esc_html_e('Notion 内容管理解决方案', 'notion-to-wordpress'); ?></p>
+                                </div>
+                            </div>
+                            <p class="acknowledgments-footer"><em><?php esc_html_e('感谢这些项目及其维护者对开源社区的贡献！', 'notion-to-wordpress'); ?></em></p>
                         </div>
                     </div>
                 </div>

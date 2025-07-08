@@ -178,6 +178,14 @@ class Notion_To_WordPress_Admin {
                 'clear_logs' => __('清除所有日志', 'notion-to-wordpress'),
                 'settings_saved' => __('设置已保存！', 'notion-to-wordpress'),
                 'saving' => __('保存中...', 'notion-to-wordpress'),
+                // 同步相关的国际化字符串
+                'smart_sync' => __('智能同步', 'notion-to-wordpress'),
+                'full_sync' => __('完全同步', 'notion-to-wordpress'),
+                'confirm_smart_sync' => __('确定要执行智能同步吗？（仅同步有变化的内容）', 'notion-to-wordpress'),
+                'confirm_full_sync' => __('确定要执行完全同步吗？（同步所有内容，耗时较长）', 'notion-to-wordpress'),
+                'syncing' => __('中...', 'notion-to-wordpress'),
+                'sync_completed' => __('完成', 'notion-to-wordpress'),
+                'sync_failed' => __('失败，请稍后重试', 'notion-to-wordpress'),
                 'page_refreshing' => __('页面即将刷新以应用设置变更...', 'notion-to-wordpress'),
             ]
         ));

@@ -1,4 +1,4 @@
-**📖 Navigation:** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • **📊 Project Status** • [🔄 Changelog](CHANGELOG.md) • [⚖️ Feature Comparison](FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
+** [🏠 Home](../README.md) • [📚 User Guide](../wiki/README-Wiki.md) • **📊 Project Status** • [🔄 Changelog](CHANGELOG.md) • [⚖️ Feature Comparison](FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
 
 **🌐 Language:** **English** • [中文](PROJECT_STATUS-zh_CN.md)
 
@@ -353,19 +353,19 @@ sequenceDiagram
 
 ## 🗺️ Roadmap
 
-### **Short Term (Next 3 months)**
+### **Short Term (Next 6 months)**
 - [ ] **Enhanced Formula Support**: Better mathematical formula handling
 - [ ] **Performance Dashboard**: Real-time sync monitoring
 - [ ] **Backup Integration**: Automated backup before sync
 - [ ] **Advanced Filtering**: Content filtering options
 
-### **Medium Term (3-6 months)**
+### **Medium Term (6-12 months)**
 - [ ] **Bidirectional Sync**: WordPress to Notion synchronization
 - [ ] **Team Management**: Multi-user collaboration features
 - [ ] **Advanced Analytics**: Detailed sync analytics
 - [ ] **API Extensions**: Third-party integration support
 
-### **Long Term (6+ months)**
+### **Long Term (12+ months)**
 - [ ] **AI-Powered Optimization**: Intelligent sync optimization
 - [ ] **Enterprise Features**: Advanced enterprise tools
 - [ ] **Cloud Service**: Hosted sync service option
