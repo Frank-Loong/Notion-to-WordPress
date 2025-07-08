@@ -46,11 +46,8 @@ Before you start, grab one of our ready-to-use templates:
 
 <div align="center">
 
-| 🎯 Template Type | 📝 Use Case | 🔗 Copy Link |
-|:---:|:---:|:---:|
-| **📝 Blog Template** | Personal blogs, tech articles, journals | [📋 Copy Template](https://notion.so/template/blog-en) |
-| **📚 Knowledge Base** | Team docs, product manuals, FAQs | [📋 Copy Template](https://notion.so/template/docs-en) |
-| **🎓 Course Template** | Online education, training content, tutorials | [📋 Copy Template](https://notion.so/template/course-en) |
+| 📝 **Chinese template** | [Copy the template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
+| 📚 **English template** | [Copy the template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
 </div>
 
@@ -78,13 +75,6 @@ Before you start, grab one of our ready-to-use templates:
   <img src="../docs/images/sync-step3.png" alt="Sync Step 3" width="600">
   <p><em>Click "Smart Sync" to start content synchronization</em></p>
 </div>
-
-### 🎬 Video Tutorials
-<!-- TODO: Add video tutorial links -->
-> 📺 **Coming Soon**:
-> - 🎥 **Complete Setup Video** (5-minute detailed tutorial)
-> - 🎬 **Troubleshooting Guide** (animated problem-solving)
-> - 📱 **Mobile Setup** (phone/tablet configuration guide)
 
 ### Prerequisites
 1. WordPress 6.0 or later (plugin install rights)
@@ -217,8 +207,8 @@ The plugin uses **field mapping** to connect Notion database properties to WordP
 - **Date**: `Date,日期` - Sets post publication date
 - **Excerpt**: `Excerpt,摘要` - Post excerpt content
 - **Featured Image**: `Featured Image,特色图片` - Featured image URL
-- **Categories**: `Categories,分类` - Post categories
-- **Tags**: `Tags,标签` - Post tags
+- **Categories**: `Categories,分类,Category` - Post categories
+- **Tags**: `Tags,标签,Tag` - Post tags
 - **Password**: `Password,密码` - When this field is not empty, the post is automatically set to password-protected, with the field value as the access password
 
 

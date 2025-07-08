@@ -55,11 +55,8 @@
 
 <div align="center">
 
-| 🎯 模板类型 | 📝 适用场景 | 🔗 复制链接 |
-|:---:|:---:|:---:|
-| **📝 博客模板** | 个人博客、技术文章、日记 | [📋 复制模板](https://notion.so/template/blog-zh) |
-| **📚 知识库模板** | 团队文档、产品手册、FAQ | [📋 复制模板](https://notion.so/template/docs-zh) |
-| **🎓 课程模板** | 在线教育、培训内容、教程 | [📋 复制模板](https://notion.so/template/course-zh) |
+| 📝 **中文模板** | [复制模板](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
+| 📚 **English template** | [复制模板](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
 </div>
 
@@ -97,13 +94,6 @@
 </div>
 
 点击"智能同步"，观看你的内容出现在WordPress中！🎉
-
-### 🎬 视频教程
-<!-- TODO: 添加视频教程链接 -->
-> 📺 **即将推出**：
-> - 🎥 **完整设置视频** (5分钟详细教程)
-> - 🎬 **常见问题解决** (故障排查动图)
-> - 📱 **移动端操作** (手机/平板设置指南)
 
 ---
 
@@ -238,8 +228,8 @@
 - **日期**：`Date,日期` - 设置文章发布日期
 - **摘要**：`Excerpt,摘要` - 文章摘要内容
 - **特色图片**：`Featured Image,特色图片` - 文章特色图片 URL
-- **分类**：`Categories,分类` - 文章分类
-- **标签**：`Tags,标签` - 文章标签
+- **分类**：`Categories,分类,Category` - 文章分类
+- **标签**：`Tags,标签,Tag` - 文章标签
 - **密码**：`Password,密码` - 当此字段非空时，文章自动设为密码保护，字段值即为访问密码
 
 

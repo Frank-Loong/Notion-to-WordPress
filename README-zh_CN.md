@@ -52,13 +52,10 @@
 ### 📋 Notion 数据库模板
 我们为你准备了开箱即用的 Notion 数据库模板：
 
-| 模板类型 | 描述 | 链接 |
-|:---:|:---:|:---:|
-| 📝 **博客模板** | 适合个人博客、技术文章 | [复制模板](https://notion.so/template/blog-zh) |
-| 📚 **知识库模板** | 适合团队文档、产品手册 | [复制模板](https://notion.so/template/docs-zh) |
-| 🎓 **课程模板** | 适合在线教育、培训内容 | [复制模板](https://notion.so/template/course-zh) |
+| 📝 **中文模板** | [复制模板](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
+| 📚 **English template** | [复制模板](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
-> 💡 **提示**：复制模板后，记得在 Notion 中邀请你的集成访问数据库！
+> 💡 **提示**：复制模板后，记得在 Notion 中将你的集成添加到数据库中！
 
 ### 🎥 图文教程
 > 详细图文教程请见 [Wiki · 快速上手](./wiki/README-Wiki.zh-CN.md#快速上手) 获取：

@@ -52,11 +52,8 @@
 ### 📋 Notion Database Templates
 We've prepared ready-to-use Notion database templates for you:
 
-| Template Type | Description | Link |
-|:---:|:---:|:---:|
-| 📝 **Blog Template** | Perfect for personal blogs, tech articles | [Copy Template](https://notion.so/template/blog-en) |
-| 📚 **Knowledge Base** | Great for team docs, product manuals | [Copy Template](https://notion.so/template/docs-en) |
-| 🎓 **Course Template** | Ideal for online education, training content | [Copy Template](https://notion.so/template/course-en) |
+| 📝 **Chinese template** | [Copy the template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
+| 📚 **English template** | [Copy the template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
 > 💡 **Tip**: After copying the template, remember to invite your integration to access the database in Notion!
 
