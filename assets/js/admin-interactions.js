@@ -15,7 +15,7 @@ jQuery(document).ready(function($) {
 
     // 验证必要的安全参数
     if (!notionToWp || !notionToWp.ajax_url || typeof notionToWp.ajax_url !== 'string' || !notionToWp.nonce || typeof notionToWp.nonce !== 'string') {
-      console.error('安全验证参数缺失或无效');
+      console.error(notionToWp.i18n.security_missing || '安全验证参数缺失或无效');
       return;
     }
 
@@ -197,7 +197,7 @@ jQuery(document).ready(function($) {
     // 全局复制函数
     window.copyTextToClipboard = function(text, callback) {
         if (!text) {
-            if (callback) callback(false, '要复制的文本为空');
+            if (callback) callback(false, notionToWp.i18n.copy_text_empty);
             return;
         }
         
@@ -208,14 +208,14 @@ jQuery(document).ready(function($) {
                         if (callback) callback(true);
                     })
                     .catch(err => {
-                        console.error('使用 Clipboard API 复制失败:', err);
+                        console.error(notionToWp.i18n.copy_failed || '使用 Clipboard API 复制失败:', err);
                         fallbackCopyToClipboard(text, callback);
                     });
             } else {
                 fallbackCopyToClipboard(text, callback);
             }
         } catch (e) {
-            console.error('复制过程中发生错误:', e);
+            console.error(notionToWp.i18n.copy_failed || '复制过程中发生错误:', e);
             if (callback) callback(false, e.message);
         }
     };
@@ -237,10 +237,10 @@ jQuery(document).ready(function($) {
             if (successful) {
                 if (callback) callback(true);
             } else {
-                if (callback) callback(false, 'execCommand 复制命令失败');
+                if (callback) callback(false, notionToWp.i18n.copy_failed || 'execCommand 复制命令失败');
             }
         } catch (e) {
-            console.error('备用复制方法错误:', e);
+            console.error(notionToWp.i18n.copy_failed || '备用复制方法错误:', e);
             if (callback) callback(false, e.message);
         }
     }
@@ -251,7 +251,7 @@ jQuery(document).ready(function($) {
         const targetSelector = $(this).data('clipboard-target');
         
         if (!targetSelector) {
-            console.error('复制按钮缺少 data-clipboard-target 属性');
+            console.error(notionToWp.i18n.copy_failed_no_target || '复制按钮缺少 data-clipboard-target 属性');
             showModal(notionToWp.i18n.copy_failed_no_target, 'error');
             return;
         }
@@ -259,7 +259,7 @@ jQuery(document).ready(function($) {
         const $target = $(targetSelector);
         
         if ($target.length === 0) {
-            console.error('未找到目标元素:', targetSelector);
+            console.error(notionToWp.i18n.copy_failed_not_found || '未找到目标元素:', targetSelector);
             showModal(notionToWp.i18n.copy_failed_not_found, 'error');
             return;
         }
@@ -488,7 +488,7 @@ jQuery(document).ready(function($) {
           if (status === 'timeout') {
             errorMsg = notionToWp.i18n.timeout_error;
           } else if (xhr.responseJSON && xhr.responseJSON.data) {
-            errorMsg += ' 详细信息: ' + xhr.responseJSON.data.message;
+            errorMsg += ' ' + (notionToWp.i18n.details || '详细信息') + ': ' + xhr.responseJSON.data.message;
           }
           showModal(errorMsg, 'error');
         }
@@ -560,16 +560,16 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     tokenInput.val(response.data.verification_token || '');
                     if (response.data.verification_token) {
-                        showModal(response.data.message || '验证令牌已更新', 'success');
+                        showModal(response.data.message || notionToWp.i18n.verification_token_updated || '验证令牌已更新', 'success');
                     } else {
-                        showModal('暂无新的验证令牌', 'info');
+                        showModal(notionToWp.i18n.no_new_verification_token, 'info');
                     }
                 } else {
-                    showModal(response.data.message || '刷新失败', 'error');
+                    showModal(response.data.message || notionToWp.i18n.refresh_error, 'error');
                 }
             },
             error: function() {
-                showModal('网络错误，请稍后重试', 'error');
+                showModal(notionToWp.i18n.network_error || '网络错误，请稍后重试', 'error');
             },
             complete: function() {
                 button.prop('disabled', false);
@@ -650,14 +650,14 @@ jQuery(document).ready(function($) {
                         // 设置发生变化，显示消息后刷新页面
                         var refreshReasons = [];
                         if (languageChanged) {
-                            refreshReasons.push('语言设置');
+                            refreshReasons.push(notionToWp.i18n.language_settings || '语言设置');
                         }
                         if (webhookChanged) {
-                            refreshReasons.push('Webhook设置');
+                            refreshReasons.push(notionToWp.i18n.webhook_settings || 'Webhook设置');
                         }
 
                         var refreshMessage = notionToWp.i18n.page_refreshing || '页面即将刷新以应用设置变更...';
-                        var fullMessage = notionToWp.i18n.settings_saved + ' ' + refreshMessage.replace('语言设置', refreshReasons.join('和'));
+                        var fullMessage = notionToWp.i18n.settings_saved + ' ' + refreshMessage.replace((notionToWp.i18n.language_settings || '语言设置'), refreshReasons.join(notionToWp.i18n.and || '和'));
                         showModal(fullMessage, 'success');
 
                         console.log('Notion to WordPress: Settings changed (' + refreshReasons.join(', ') + '), refreshing page in 1.5 seconds');

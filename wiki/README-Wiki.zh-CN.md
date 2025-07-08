@@ -44,7 +44,6 @@
 ### 📸 完整图文教程
 
 #### 🎬 动图演示
-<!-- TODO: 添加完整操作动图 -->
 <div align="center">
   <img src="../docs/images/setup-complete.gif" alt="完整设置流程" width="800">
   <p><em>🎯 完整设置流程：从零到同步成功</em></p>
@@ -78,12 +77,11 @@
 
 > 💡 **使用提示**：复制模板后，记得在 Notion 中邀请你的集成访问数据库！
 
-### ⚡ 60秒快速配置
+### ⚡ 5分钟快速配置
 
-#### 📷 第1步：安装插件 (30秒)
-<!-- TODO: 添加安装步骤截图 -->
+#### 📷 第1步：安装插件 (1分钟)
 <div align="center">
-  <img src="../docs/images/install-step1.png" alt="安装步骤1" width="600">
+  <img src="../docs/images/install.png" alt="安装步骤1" width="600">
   <p><em>WordPress 后台 → 插件 → 安装新插件</em></p>
 </div>
 
@@ -91,25 +89,25 @@
 # 下载 → WordPress管理后台 → 插件 → 安装新插件 → 上传ZIP → 激活
 ```
 
-#### 🔑 第2步：获取配置信息 (20秒)
-<!-- TODO: 添加配置步骤截图 -->
-<div align="center">
-  <img src="../docs/images/config-step2.png" alt="配置步骤2" width="600">
-  <p><em>Notion 开发者页面获取 API 密钥</em></p>
-</div>
+#### 🔑 第2步：获取配置信息 (3分钟)
 
-1. 获取你的 [Notion API密钥](https://developers.notion.com/)
-2. 复制你的 Notion 数据库ID
-3. 在 WordPress管理后台 → Notion to WordPress 中粘贴
+  1. **创建集成并获取内部集成秘钥**
+     - 访问 [Notion 集成页面](https://www.notion.so/profile/integrations/)
+     ![Notion 集成页面](../docs/images/notion-integrations.png)
+     - 创建新集成并复制秘钥
+     ![复制内部集成秘钥](../docs/images/notion-internal-integration-key.png)
 
-#### 🚀 第3步：首次同步 (10秒)
-<!-- TODO: 添加同步步骤截图 -->
-<div align="center">
-  <img src="../docs/images/sync-step3.png" alt="同步步骤3" width="600">
-  <p><em>点击"智能同步"开始内容同步</em></p>
-</div>
+  2. **将集成添加到数据库中授予编辑权限，并复制 Notion 数据库 ID**
+     - 从数据库URL中提取ID
+     ![添加集成并复制数据库 ID](../docs/images/notion-database-id.png)
+  
+  3. **在WordPress后台配置**
+     - 进入WordPress管理后台 → Notion to WordPress
+     - 粘贴内部集成秘钥和数据库ID
+     ![WordPress配置](../docs/images/wordpress-config.png)
 
-点击"智能同步"，观看你的内容出现在WordPress中！🎉
+#### 🚀 第3步：首次同步 (1分钟)
+  - 点击"智能同步"开始进行同步，观看你的内容出现在WordPress中！🎉
 
 ---
 
@@ -121,12 +119,10 @@
 |------|----------|----------|
 | **WordPress** | 5.0+ | 6.0+ |
 | **PHP** | 7.4+ | 8.1+ |
-| **内存** | 128MB | 256MB+ |
-| **存储** | 10MB | 50MB+ |
 
 ### 先决条件
-1. WordPress 6.0+，具有插件安装权限
-2. PHP 8.0+ 与 `curl` 扩展
+1. WordPress 5.0+，具有插件安装权限
+2. PHP 7.4+ 与 `curl` 扩展
 3. 拥有 Notion 账号，并能对目标数据库进行编辑
 
 ### 🔑 获取 Notion API 密钥
@@ -363,7 +359,7 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 ### 一、安装/激活问题
 | 错误信息 | 可能原因 | 解决办法 |
 | -------- | -------- | -------- |
-| *插件启用后出现 Fatal error* | PHP 版本过低/缺扩展 | 升级到 PHP 8.0+ 并开启 `curl`、`mbstring` 扩展 |
+| *插件启用后出现 Fatal error* | PHP 版本过低/缺扩展 | 升级到 PHP 7.4+ 并开启 `curl`、`mbstring` 扩展 |
 | *上传失败: exceeds maximum upload size* | WP 限制上传大小 | 在 `php.ini` 中提高 `upload_max_filesize` / `post_max_size` |
 
 ### 二、同步报错
@@ -463,28 +459,41 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 
 ## 🔗 相关链接
 
-- [GitHub 仓库](https://github.com/Frank-Loong/Notion-to-WordPress)
-- [问题反馈](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
-- [Notion API 文档](https://developers.notion.com/)
-- [WordPress 开发文档](https://developer.wordpress.org/)
+### 官方资源
+- **[GitHub 仓库](https://github.com/Frank-Loong/Notion-to-WordPress)** - 源代码和发布版本
+- **[项目状态](../docs/PROJECT_STATUS-zh_CN.md)** - 当前开发状态和路线图
+- **[功能对比](../docs/FEATURES_COMPARISON-zh_CN.md)** - 与其他解决方案的对比
+- **[更新日志](../docs/CHANGELOG-zh_CN.md)** - 版本历史和更新
+
+### 社区与支持
+- **[问题反馈与Bug报告](https://github.com/Frank-Loong/Notion-to-WordPress/issues)** - 报告问题或请求功能
+- **[讨论区](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)** - 社区讨论和问答
+- **[贡献指南](../CONTRIBUTING-zh_CN.md)** - 如何为项目做贡献
+
+### 外部资源
+- **[Notion API 文档](https://developers.notion.com/)** - 官方 Notion API 参考
+- **[WordPress 插件开发](https://developer.wordpress.org/plugins/)** - WordPress 开发资源
+- **[KaTeX 文档](https://katex.org/)** - 数学公式渲染库
+- **[Mermaid 文档](https://mermaid-js.github.io/)** - 图表渲染库
+
+---
 
 ## 📚 其他资源
 
-### 🔗 有用链接
-- [Notion API 文档](https://developers.notion.com/)
-- [WordPress 插件开发](https://developer.wordpress.org/plugins/)
-- [KaTeX 文档](https://katex.org/)
-- [Mermaid 文档](https://mermaid-js.github.io/)
+### 学习材料
+- **[Notion API 基础](https://developers.notion.com/docs/getting-started)** - 理解 Notion 的 API
+- **[WordPress 钩子与过滤器](https://developer.wordpress.org/plugins/hooks/)** - 扩展 WordPress 功能
+- **[REST API 集成](https://developer.wordpress.org/rest-api/)** - WordPress REST API 使用
 
-### 📖 相关指南
-- [Notion 数据库设置](https://www.notion.so/help/guides/creating-a-database)
-- [WordPress 自定义字段](https://wordpress.org/support/article/custom-fields/)
-- [Webhook 最佳实践](https://webhooks.fyi/)
+### 工具与实用程序
+- **[Notion API 测试器](https://developers.notion.com/tools/api-tester)** - 测试你的 Notion API 调用
+- **[WordPress 调试工具](https://wordpress.org/plugins/debug-bar/)** - 调试 WordPress 问题
+- **[JSON 格式化器](https://jsonformatter.org/)** - 格式化和验证 JSON 数据
 
-### 🛠️ 开发工具
-- [Notion API 测试器](https://developers.notion.com/reference/intro)
-- [WordPress 调试工具](https://wordpress.org/plugins/query-monitor/)
-- [REST API 测试器](https://wordpress.org/plugins/rest-api-toolbox/)
+### 最佳实践
+- **[内容迁移策略](../docs/README-zh_CN.md#迁移策略)** - 规划你的内容迁移
+- **[性能优化](../docs/PROJECT_STATUS-zh_CN.md#性能指标)** - 优化同步性能
+- **[安全考虑](../docs/PROJECT_STATUS-zh_CN.md#安全功能)** - 保持集成安全
 
 ---
 

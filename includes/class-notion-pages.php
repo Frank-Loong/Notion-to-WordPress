@@ -811,7 +811,7 @@ class Notion_Pages {
     private function _convert_block_embed(array $block, Notion_API $notion_api): string {
         $url = isset($block['embed']['url']) ? $block['embed']['url'] : '';
         if (empty($url)) {
-            return '<!-- 无效的嵌入URL -->';
+            return '<!-- ' . __('无效的嵌入URL', 'notion-to-wordpress') . ' -->';
         }
         
         // 根据URL类型处理不同的嵌入
@@ -859,7 +859,7 @@ class Notion_Pages {
         }
         
         if (empty($url)) {
-            return '<!-- 无效的视频URL -->';
+            return '<!-- ' . __('无效的视频URL', 'notion-to-wordpress') . ' -->';
         }
         
         // 处理不同的视频平台
@@ -895,11 +895,11 @@ class Notion_Pages {
         // 通用视频
         $extension = pathinfo($url, PATHINFO_EXTENSION);
         if (in_array(strtolower($extension), ['mp4', 'webm', 'ogg'])) {
-            return '<div class="notion-video"><video controls width="100%"><source src="' . esc_url($url) . '" type="video/' . esc_attr($extension) . '">您的浏览器不支持视频标签。</video></div>';
+            return '<div class="notion-video"><video controls width="100%"><source src="' . esc_url($url) . '" type="video/' . esc_attr($extension) . '">' . __('您的浏览器不支持视频标签。', 'notion-to-wordpress') . '</video></div>';
         }
         
         // 无法识别的视频格式，提供链接
-        return '<div class="notion-video-link"><a href="' . esc_url($url) . '" target="_blank">查看视频</a></div>';
+        return '<div class="notion-video-link"><a href="' . esc_url($url) . '" target="_blank">' . __('查看视频', 'notion-to-wordpress') . '</a></div>';
     }
 
     /**
@@ -1172,14 +1172,14 @@ class Notion_Pages {
             if ( trim( $allowed_mime_string ) !== '*' ) {
                 $allowed_mime = array_filter( array_map( 'trim', explode( ',', $allowed_mime_string ) ) );
                 if ( ! in_array( $mime_type, $allowed_mime, true ) ) {
-                    Notion_To_WordPress_Helper::error_log( '不允许的图片类型：' . $mime_type, 'Notion Image' );
+                    Notion_To_WordPress_Helper::error_log( __('不允许的图片类型：', 'notion-to-wordpress') . $mime_type, 'Notion Image' );
                     // 继续，但记录日志
                 }
             }
 
             // 检查大小
             if ( $file_size > 0 && $file_size > $max_size_bytes ) {
-                Notion_To_WordPress_Helper::error_log( sprintf( '图片文件过大（%sMB），超过限制（%sMB）', round( $file_size / ( 1024 * 1024 ), 2 ), $max_size_mb ), 'Notion Image' );
+                Notion_To_WordPress_Helper::error_log( sprintf( __('图片文件过大（%sMB），超过限制（%sMB）', 'notion-to-wordpress'), round( $file_size / ( 1024 * 1024 ), 2 ), $max_size_mb ), 'Notion Image' );
                 // 继续，但记录日志
             }
         } else {
@@ -1442,7 +1442,7 @@ class Notion_Pages {
         $type     = $pdf_data['type'] ?? 'external';
         $url      = ( 'file' === $type ) ? ( $pdf_data['file']['url'] ?? '' ) : ( $pdf_data['external']['url'] ?? '' );
         if ( empty( $url ) ) {
-            return '<!-- 无效的 PDF URL -->';
+            return '<!-- ' . __('无效的 PDF URL', 'notion-to-wordpress') . ' -->';
         }
 
         $caption = $this->extract_rich_text( $pdf_data['caption'] ?? [] );
@@ -1455,7 +1455,7 @@ class Notion_Pages {
             $html .= '<div class="pdf-preview-container">';
             $html .= '<object data="' . esc_url( $src ) . '" type="application/pdf" width="100%" height="600">';
             $html .= '<embed src="' . esc_url( $src ) . '" type="application/pdf" width="100%" height="600" />';
-            $html .= '<p>您的浏览器不支持PDF预览。<a href="' . esc_url( $download ) . '" target="_blank" rel="noopener">点击下载PDF文件</a></p>';
+            $html .= '<p>' . __('您的浏览器不支持PDF预览。', 'notion-to-wordpress') . '<a href="' . esc_url( $download ) . '" target="_blank" rel="noopener">' . __('点击下载PDF文件', 'notion-to-wordpress') . '</a></p>';
             $html .= '</object>';
             $html .= '</div>';
 
@@ -1480,7 +1480,7 @@ class Notion_Pages {
         $attachment_id = $this->download_and_insert_file( $url, $caption, '' );
 
         if ( is_wp_error( $attachment_id ) || ! $attachment_id ) {
-            return '<!-- PDF 下载失败 -->';
+            return '<!-- ' . __('PDF 下载失败', 'notion-to-wordpress') . ' -->';
         }
 
         $local_url = wp_get_attachment_url( $attachment_id );
@@ -1511,7 +1511,7 @@ class Notion_Pages {
         // 下载到临时文件
         $tmp = download_url( $url );
         if ( is_wp_error( $tmp ) ) {
-            Notion_To_WordPress_Helper::error_log( '下载附件失败: ' . $tmp->get_error_message(), 'Notion File' );
+            Notion_To_WordPress_Helper::error_log( __('下载附件失败: ', 'notion-to-wordpress') . $tmp->get_error_message(), 'Notion File' );
             return $tmp;
         }
 
@@ -1525,7 +1525,7 @@ class Notion_Pages {
         if ( strtolower( pathinfo( $file_name, PATHINFO_EXTENSION ) ) === 'pdf' ) {
             if ( ! $this->validate_pdf_file( $tmp ) ) {
                 @unlink( $tmp );
-                return new WP_Error( 'invalid_pdf', '无效的PDF文件或包含不安全内容' );
+                return new WP_Error( 'invalid_pdf', __('无效的PDF文件或包含不安全内容', 'notion-to-wordpress') );
             }
         }
 
@@ -1539,7 +1539,7 @@ class Notion_Pages {
         $attachment_id = media_handle_sideload( $file, 0, $caption );
 
         if ( is_wp_error( $attachment_id ) ) {
-            Notion_To_WordPress_Helper::error_log( 'media_handle_sideload 错误: ' . $attachment_id->get_error_message(), 'Notion File' );
+            Notion_To_WordPress_Helper::error_log( __('media_handle_sideload 错误: ', 'notion-to-wordpress') . $attachment_id->get_error_message(), 'Notion File' );
             @unlink( $tmp );
             return $attachment_id;
         }
