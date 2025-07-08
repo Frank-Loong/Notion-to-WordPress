@@ -93,8 +93,8 @@ Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024
 </div>
 
 ### Prerequisites
-1. WordPress 6.0 or later (plugin install rights)
-2. PHP 8.0+ with `curl` extension
+1. WordPress 5.0 or later (plugin install rights)
+2. PHP 7.4+ with `curl` extension
 3. A Notion account & edit access to the target database
 
 ### Step 1: Create an Integration & Collect IDs
@@ -135,8 +135,8 @@ Stats, logs & errors update in real time inside the admin page.
 ## 💾 Installation Guide
 
 ### System Requirements
-- **WordPress**: 6.0 or later
-- **PHP**: 8.0+ with `curl` extension enabled
+- **WordPress**: 5.0 or later (6.0+ recommended)
+- **PHP**: 7.4+ with `curl` extension enabled (8.1+ recommended)
 - **Server**: Any hosting provider supporting WordPress
 - **Permissions**: Plugin installation and activation rights
 
@@ -380,7 +380,7 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 ### Installation/Activation Issues
 | Error Message | Possible Cause | Solution |
 | ------------- | -------------- | -------- |
-| *Fatal error on plugin activation* | PHP version too low/missing extensions | Upgrade to PHP 8.0+ and enable `curl`, `mbstring` extensions |
+| *Fatal error on plugin activation* | PHP version too low/missing extensions | Upgrade to PHP 7.4+ and enable `curl`, `mbstring` extensions |
 | *Upload failed: exceeds maximum upload size* | WP upload size limit | Increase `upload_max_filesize` / `post_max_size` in `php.ini` |
 
 ### Sync Errors
@@ -477,15 +477,6 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 - Integration with WordPress backup systems
 - Manual override options for edge cases
 - Comprehensive audit trail for compliance
-
----
-
-## 🔗 Related Links
-
-- [GitHub Repository](https://github.com/Frank-Loong/Notion-to-WordPress)
-- [Issue Tracker](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
-- [Notion API Documentation](https://developers.notion.com/)
-- [WordPress Developer Documentation](https://developer.wordpress.org/)
 
 ---
 

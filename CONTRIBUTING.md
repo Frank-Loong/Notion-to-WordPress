@@ -115,6 +115,66 @@ Look for labels:
 - `documentation`: Improve docs and guides
 - `translation`: Help with internationalization
 
+## 📋 Code Examples
+
+### ✅ Good Code Style
+```php
+// WordPress style with modern PHP
+class Notion_To_WordPress_Sync {
+    /**
+     * Process sync operations with error handling
+     *
+     * @since 1.1.0
+     * @param array $pages Array of Notion pages
+     * @return array Sync results
+     */
+    public function process_sync(array $pages): array {
+        $results = [];
+
+        foreach ($pages as $page) {
+            try {
+                $result = $this->sync_single_page($page);
+                $results[] = $result;
+            } catch (Exception $e) {
+                Notion_To_WordPress_Helper::error_log(
+                    'Page sync failed: ' . $e->getMessage()
+                );
+            }
+        }
+
+        return $results;
+    }
+}
+
+// Proper sanitization and escaping
+$user_input = sanitize_text_field($_POST['notion_api_key']);
+echo '<p>' . esc_html($message) . '</p>';
+```
+
+### ❌ Code Style to Avoid
+```php
+// No sanitization
+$api_key = $_POST['notion_api_key'];
+echo '<p>' . $message . '</p>';
+```
+
+## 🎯 Getting Started Contributing
+
+Ready to contribute? Here's how:
+
+1. **🍴 Fork the repository**
+2. **🔧 Set up development environment**
+3. **🎯 Choose an issue** (or create a new one)
+4. **💻 Make your changes**
+5. **🧪 Test thoroughly**
+6. **📝 Submit a pull request**
+
+## 💬 Questions?
+
+- **General Questions**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+- **Feature Ideas**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+
 ## License
 All contributions are licensed under GPL v3 or later, in line with the project.
 
@@ -126,6 +186,6 @@ All contributions are licensed under GPL v3 or later, in line with the project.
 
 *Together, we're building the best Notion-to-WordPress integration possible.*
 
-**[⬆️ Back to Top](#contributing-to-notiontowordpress) • [🏠 Main README](./README.md) • [🇨🇳 中文版](./CONTRIBUTING-zh_CN.md) • [📚 Docs Hub](./docs/README.md)**
+**[⬆️ Back to Top](#contributing-to-notiontowordpress) • [🏠 Main README](./README.md) • [🇨🇳 中文版](./CONTRIBUTING-zh_CN.md) • [📚 Documentation Center](./docs/README.md)**
 
 </div>
