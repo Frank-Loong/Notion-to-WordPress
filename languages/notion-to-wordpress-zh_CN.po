@@ -5,10 +5,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Notion to WordPress 1.0.9\n"
+"Project-Id-Version: Notion to WordPress 1.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
-"POT-Creation-Date: 2025-07-08 08:52+0800\n"
-"PO-Revision-Date: 2025-07-08 17:01+0800\n"
+"POT-Creation-Date: 2025-01-08 17:30+0800\n"
+"PO-Revision-Date: 2025-07-08 21:09+0800\n"
 "Last-Translator: Frank-Loong <frankloong@qq.com>\n"
 "Language-Team: Simplified Chinese (China)\n"
 "Language: zh_CN\n"
@@ -116,7 +116,7 @@ msgstr "页面已刷新完成！"
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "刷新失败: "
-msgstr ""
+msgstr "刷新失败: "
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "网络错误，无法刷新页面。"
@@ -136,7 +136,7 @@ msgstr "正在加载日志..."
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "无法加载日志: "
-msgstr ""
+msgstr "无法加载日志: "
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "请求日志时发生错误。"
@@ -152,7 +152,7 @@ msgstr "复制失败: 未找到目标元素"
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "复制失败: "
-msgstr ""
+msgstr "复制失败: "
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "复制到剪贴板"
@@ -269,7 +269,7 @@ msgstr "导入完成！处理了 %d 个页面，导入了 %d 个页面，更新�
 
 #: admin\class-notion-to-wordpress-admin.php includes\class-notion-pages.php
 msgid "导入失败: "
-msgstr ""
+msgstr "导入失败: "
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "请先配置API密钥和数据库ID"
@@ -891,6 +891,46 @@ msgid "感谢这些项目及其维护者对开源社区的贡献！"
 msgstr "感谢这些项目及其维护者对开源社区的贡献！"
 
 #: admin\partials\notion-to-wordpress-admin-display.php
+msgid "设置日志记录的详细程度。建议在生产环境中设置为\"仅错误\"。"
+msgstr "设置日志记录的详细程度。建议在生产环境中设置为\"仅错误\"。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自动删除超过指定天数的旧日志文件。设置为\"从不\"以禁用。"
+msgstr "自动删除超过指定天数的旧日志文件。设置为\"从不\"以禁用。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击\"测试连接\"确认设置正确"
+msgstr "点击\"测试连接\"确认设置正确"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击\"保存所有设置\"保存您的配置"
+msgstr "点击\"保存所有设置\"保存您的配置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击\"手动同步\"或设置自动同步频率开始导入内容"
+msgstr "点击\"手动同步\"或设置自动同步频率开始导入内容"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "尝试使用\"刷新全部内容\"按钮重新同步"
+msgstr "尝试使用\"刷新全部内容\"按钮重新同步"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "答：当您在Notion中更新内容后，可以点击\"刷新全部内容\"按钮手动更新，或等待自动同步（如果已设置）。"
+msgstr "答：当您在Notion中更新内容后，可以点击\"刷新全部内容\"按钮手动更新，或等待自动同步（如果已设置）。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "选择 \"手动同步\" 以禁用定时任务。"
+msgstr "选择 \"手动同步\" 以禁用定时任务。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "要复制的文本为空"
+msgstr "要复制的文本为空"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "暂无新的验证令牌"
+msgstr "暂无新的验证令牌"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "只同步有变化的页面，速度更快"
 msgstr "只同步有变化的页面，速度更快"
 
@@ -908,7 +948,7 @@ msgstr "处理中，请稍候..."
 
 #: includes\class-notion-api.php
 msgid "API请求失败: "
-msgstr ""
+msgstr "API请求失败: "
 
 #: includes\class-notion-api.php
 msgid "API错误 ("
@@ -916,7 +956,7 @@ msgstr "API错误 ("
 
 #: includes\class-notion-api.php
 msgid "连接测试失败: "
-msgstr ""
+msgstr "连接测试失败: "
 
 #: includes\class-notion-pages.php
 msgid "此为 Notion 临时图片链接，可能会过期。请考虑替换为图床或本地媒体库图片。"
@@ -956,7 +996,7 @@ msgstr "Webhook已接收，正在处理"
 
 #: includes\class-notion-to-wordpress-webhook.php
 msgid "同步过程中出错: "
-msgstr ""
+msgstr "同步过程中出错: "
 
 #: includes\class-notion-to-wordpress-webhook.php
 msgid "已触发%s"

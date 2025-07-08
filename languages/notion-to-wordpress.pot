@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Notion to WordPress 1.0.9\n"
+"Project-Id-Version: Notion to WordPress 1.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
-"POT-Creation-Date: 2025-07-08 08:52+0800\n"
+"POT-Creation-Date: 2025-01-08 17:30+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1016,5 +1016,45 @@ msgstr ""
 
 #: includes\class-notion-to-wordpress-webhook.php
 msgid "数据库已更新，已触发%s%s"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "设置日志记录的详细程度。建议在生产环境中设置为"仅错误"。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自动删除超过指定天数的旧日志文件。设置为"从不"以禁用。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击"测试连接"确认设置正确"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击"保存所有设置"保存您的配置"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击"手动同步"或设置自动同步频率开始导入内容"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "尝试使用"刷新全部内容"按钮重新同步"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "答：当您在Notion中更新内容后，可以点击"刷新全部内容"按钮手动更新，或等待自动同步（如果已设置）。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "选择 "手动同步" 以禁用定时任务。"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "要复制的文本为空"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "暂无新的验证令牌"
 msgstr ""
 

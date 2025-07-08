@@ -187,6 +187,9 @@ class Notion_To_WordPress_Admin {
                 'sync_completed' => __('完成', 'notion-to-wordpress'),
                 'sync_failed' => __('失败，请稍后重试', 'notion-to-wordpress'),
                 'page_refreshing' => __('页面即将刷新以应用设置变更...', 'notion-to-wordpress'),
+                // JavaScript中使用的国际化字符串
+                'copy_text_empty' => __('要复制的文本为空', 'notion-to-wordpress'),
+                'no_new_verification_token' => __('暂无新的验证令牌', 'notion-to-wordpress'),
             ]
         ));
         
