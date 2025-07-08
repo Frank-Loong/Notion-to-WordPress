@@ -1,4 +1,4 @@
-**📖 导航：** [🏠 主页](../README-zh_CN.md) • **📚 使用指南** • [📊 项目状态](../docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](../docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](../docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
+** [🏠 主页](../README-zh_CN.md) • **📚 使用指南** • [📊 项目状态](../docs/PROJECT_STATUS-zh_CN.md) • [🔄 更新日志](../docs/CHANGELOG-zh_CN.md) • [⚖️ 功能对比](../docs/FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
 
 **🌐 语言：** [English](README-Wiki.md) • **中文**
 
@@ -55,10 +55,26 @@
 
 <div align="center">
 
+| 模板类型 | 链接 |
+|---------|------|
 | 📝 **中文模板** | [复制模板](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
 | 📚 **English template** | [复制模板](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
 </div>
+
+##### 🔗 **NotionNext 兼容性**
+本项目已对 Notion 数据库做了完美兼容，**完全适配 [NotionNext](https://github.com/tangly1024/NotionNext)**！你也可以直接使用 NotionNext 提供的数据库模板：
+
+<div align="center">
+
+| 模板类型 | 链接 |
+|---------|------|
+| 🇨🇳 **NotionNext 中文模板** | [NotionNext 博客](https://tanghh.notion.site/02ab3b8678004aa69e9e415905ef32a5?v=b7eb215720224ca5827bfaa5ef82cf2d) |
+| 🇺🇸 **NotionNext English Template** | [NotionNext Blog](https://www.notion.so/tanghh/7c1d570661754c8fbc568e00a01fd70e?v=8c801924de3840b3814aea6f13c8484f&pvs=4) |
+
+</div>
+
+> 🚀 **双平台发布**：通过 NotionNext 兼容性，你可以在 Notion 写作，文章实时同步至 **NotionNext 和 WordPress 两个平台**！
 
 > 💡 **使用提示**：复制模板后，记得在 Notion 中邀请你的集成访问数据库！
 

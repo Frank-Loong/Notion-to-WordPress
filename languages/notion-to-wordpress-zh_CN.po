@@ -1,4 +1,4 @@
-# Chinese (China) translation for Notion to WordPress
+# Simplified Chinese (China) translation for Notion to WordPress
 # Copyright (C) 2025 Frank-Loong
 # This file is distributed under the same license as the Notion to WordPress package.
 # Frank-Loong <frankloong@qq.com>, 2025.
@@ -6,12 +6,11 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Notion to WordPress 1.0.9\n"
-"Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/"
-"issues\n"
-"POT-Creation-Date: 2025-01-06 12:00+0000\n"
-"PO-Revision-Date: 2025-07-07 21:55+0800\n"
+"Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
+"POT-Creation-Date: 2025-07-08 08:52+0800\n"
+"PO-Revision-Date: 2025-07-08 17:01+0800\n"
 "Last-Translator: Frank-Loong <frankloong@qq.com>\n"
-"Language-Team: Chinese (China)\n"
+"Language-Team: Simplified Chinese (China)\n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -19,882 +18,1002 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Poedit 3.6\n"
 
-#: admin/class-notion-to-wordpress-admin.php:134
+#: admin\class-notion-to-wordpress-admin.php
 msgid "导入中..."
 msgstr "导入中..."
 
-#: admin/class-notion-to-wordpress-admin.php:135
+#: admin\class-notion-to-wordpress-admin.php
 msgid "手动导入"
 msgstr "手动导入"
 
-#: admin/class-notion-to-wordpress-admin.php:136
+#: admin\class-notion-to-wordpress-admin.php
 msgid "导入过程中发生错误"
 msgstr "导入过程中发生错误"
 
-#: admin/class-notion-to-wordpress-admin.php:137
+#: admin\class-notion-to-wordpress-admin.php
 msgid "测试中..."
 msgstr "测试中..."
 
-#: admin/class-notion-to-wordpress-admin.php:138
-#: admin/partials/notion-to-wordpress-admin-display.php:214
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "测试连接"
 msgstr "测试连接"
 
-#: admin/class-notion-to-wordpress-admin.php:139
+#: admin\class-notion-to-wordpress-admin.php
 msgid "测试连接时发生错误"
 msgstr "测试连接时发生错误"
 
-#: admin/class-notion-to-wordpress-admin.php:140
+#: admin\class-notion-to-wordpress-admin.php
 msgid "请输入API密钥和数据库ID"
 msgstr "请输入API密钥和数据库ID"
 
-#: admin/class-notion-to-wordpress-admin.php:141
+#: admin\class-notion-to-wordpress-admin.php
 msgid "已复制到剪贴板"
 msgstr "已复制到剪贴板"
 
-#: admin/class-notion-to-wordpress-admin.php:168
-#: admin/partials/notion-to-wordpress-admin-display.php:50
-msgid "Notion to WordPress"
-msgstr "Notion to WordPress"
-
-#: admin/class-notion-to-wordpress-admin.php:388
-#, php-format
-msgid "导入完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
-msgstr "导入完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
-
-#: admin/class-notion-to-wordpress-admin.php:467
-#: admin/partials/notion-to-wordpress-admin-display.php:105
-msgid "未计划"
-msgstr "未计划"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:62
-msgid "🛠️ 主要设置"
-msgstr "🛠️ 主要设置"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:65
-msgid "🔗 字段映射"
-msgstr "🔗 字段映射"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:68
-msgid "⚙️ 其他设置"
-msgstr "⚙️ 其他设置"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:71
-msgid "🐞 调试工具"
-msgstr "🐞 调试工具"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:74
-msgid "📖 帮助与指南"
-msgstr "📖 帮助与指南"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:77
-msgid "👨‍💻 关于作者"
-msgstr "👨‍💻 关于作者"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:89
-msgid "Notion API 设置"
-msgstr "Notion API 设置"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:94
-msgid "已导入页面"
-msgstr "已导入页面"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:98
-msgid "已发布页面"
-msgstr "已发布页面"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:101
-msgid "从未"
-msgstr "从未"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:102
-msgid "最后同步"
-msgstr "最后同步"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:106
-msgid "下次同步"
-msgstr "下次同步"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:111
-msgid "连接到您的Notion数据库所需的设置。"
-msgstr "连接到您的Notion数据库所需的设置。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:112
-msgid "了解如何获取API密钥"
-msgstr "了解如何获取API密钥"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:118
-msgid "API密钥"
-msgstr "API密钥"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:121
-msgid "输入您的Notion API密钥"
-msgstr "输入您的Notion API密钥"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:122
-msgid "显示/隐藏密钥"
-msgstr "显示/隐藏密钥"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:124
-msgid "在Notion的\"我的集成\"页面创建并获取API密钥。"
-msgstr "在Notion的\"我的集成\"页面创建并获取API密钥。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:128
-msgid "数据库ID"
-msgstr "数据库ID"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:130
-msgid "输入您的Notion数据库ID"
-msgstr "输入您的Notion数据库ID"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:131
-msgid ""
-"可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数"
-"据库ID</strong>?v=xxx"
-msgstr ""
-"可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数"
-"据库ID</strong>?v=xxx"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:135
-msgid "自动同步频率"
-msgstr "自动同步频率"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:140
-#: admin/partials/notion-to-wordpress-admin-display.php:688
-msgid "手动同步"
-msgstr "手动同步"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:141
-msgid "每天两次"
-msgstr "每天两次"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:142
-msgid "每天一次"
-msgstr "每天一次"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:143
-msgid "每周一次"
-msgstr "每周一次"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:144
-msgid "每两周一次"
-msgstr "每两周一次"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:145
-msgid "每月一次"
-msgstr "每月一次"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:152
-msgid "选择 \"手动同步\" 以禁用定时任务。"
-msgstr "选择 \"手动同步\" 以禁用定时任务。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:156
-msgid "Webhook 支持"
-msgstr "Webhook 支持"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:166
-msgid "启用 Webhook 支持"
-msgstr "启用 Webhook 支持"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:168
-msgid ""
-"启用后，您可以设置 Notion 集成的 Webhook 以在内容变更时自动触发同步。"
-msgstr ""
-"启用后，您可以设置 Notion 集成的 Webhook 以在内容变更时自动触发同步。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:172
-msgid "Verification Token"
-msgstr "验证令牌"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:174
-msgid "等待 Notion 返回…"
-msgstr "等待 Notion 返回…"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:178
-msgid "复制令牌"
-msgstr "复制令牌"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:182
-msgid ""
-"首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。"
-msgstr ""
-"首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:185
-msgid "Webhook URL"
-msgstr "Webhook URL"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:191
-msgid "复制 URL"
-msgstr "复制 URL"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:195
-msgid "在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。"
-msgstr "在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:222
-msgid "字段映射"
-msgstr "字段映射"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:223
-msgid ""
-"设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英"
-"文逗号隔开。"
-msgstr ""
-"设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英"
-"文逗号隔开。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:227
-msgid "文章标题"
-msgstr "文章标题"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:230
-msgid "用于设置WordPress文章标题的Notion属性名称"
-msgstr "用于设置WordPress文章标题的Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:234
-msgid "状态"
-msgstr "状态"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:237
-msgid ""
-"值为 \"Published\" 或 \"已发布\" 的页面会被设为 \"已发布\" 状态，其他则"
-"为 \"草稿\"。"
-msgstr ""
-"值为 \"Published\" 或 \"已发布\" 的页面会被设为 \"已发布\" 状态，其他则"
-"为 \"草稿\"。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:241
-msgid "文章类型"
-msgstr "文章类型"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:244
-msgid "用于确定WordPress文章类型的Notion属性名称"
-msgstr "用于确定WordPress文章类型的Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:248
-#: admin/partials/notion-to-wordpress-admin-display.php:316
-msgid "日期"
-msgstr "日期"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:251
-msgid "用于设置WordPress文章发布日期的Notion属性名称"
-msgstr "用于设置WordPress文章发布日期的Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:255
-msgid "摘要"
-msgstr "摘要"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:258
-msgid "用于设置WordPress文章摘要的Notion属性名称"
-msgstr "用于设置WordPress文章摘要的Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:262
-msgid "特色图片"
-msgstr "特色图片"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:265
-msgid "用于设置WordPress特色图片的Notion属性名称（应为URL或文件类型）"
-msgstr "用于设置WordPress特色图片的Notion属性名称（应为URL或文件类型）"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:269
-msgid "分类"
-msgstr "分类"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:272
-msgid "用于设置WordPress文章分类的Notion属性名称"
-msgstr "用于设置WordPress文章分类的Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:276
-msgid "标签"
-msgstr "标签"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:279
-msgid "用于设置WordPress文章标签的Notion属性名称"
-msgstr "用于设置WordPress文章标签的Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:293
-msgid "自定义字段映射"
-msgstr "自定义字段映射"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:294
-msgid ""
-"将Notion属性映射到WordPress自定义字段。您可以添加任意数量的自定义字段映"
-"射。"
-msgstr ""
-"将Notion属性映射到WordPress自定义字段。您可以添加任意数量的自定义字段映"
-"射。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:314
-msgid "文本"
-msgstr "文本"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:315
-msgid "数字"
-msgstr "数字"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:317
-msgid "复选框"
-msgstr "复选框"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:318
-msgid "选择"
-msgstr "选择"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:319
-msgid "多选"
-msgstr "多选"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:320
-msgid "URL"
-msgstr "URL"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:321
-msgid "电子邮件"
-msgstr "电子邮件"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:322
-msgid "电话"
-msgstr "电话"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:323
-msgid "富文本"
-msgstr "富文本"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:331
-msgid "Notion属性名称"
-msgstr "Notion属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:334
-msgid "例如：Author,作者"
-msgstr "例如：Author,作者"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:335
-msgid "Notion中的属性名称，多个备选名称请用英文逗号分隔"
-msgstr "Notion中的属性名称，多个备选名称请用英文逗号分隔"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:338
-msgid "WordPress字段名称"
-msgstr "WordPress字段名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:341
-msgid "例如：author"
-msgstr "例如：author"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:342
-msgid "WordPress中的自定义字段名称"
-msgstr "WordPress中的自定义字段名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:345
-msgid "字段类型"
-msgstr "字段类型"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:351
-msgid "Notion属性的数据类型"
-msgstr "Notion属性的数据类型"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:365
-msgid "添加自定义字段"
-msgstr "添加自定义字段"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:485
-msgid "其他设置"
-msgstr "其他设置"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:489
-msgid "卸载设置"
-msgstr "卸载设置"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:492
-msgid "卸载时删除所有同步内容"
-msgstr "卸载时删除所有同步内容"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:495
-msgid "卸载插件时，删除所有从Notion同步的文章和页面"
-msgstr "卸载插件时，删除所有从Notion同步的文章和页面"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:497
-msgid "警告：此操作不可逆！所有通过Notion同步的内容将被永久删除。"
-msgstr "警告：此操作不可逆！所有通过Notion同步的内容将被永久删除。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:503
-msgid "iframe 白名单域名"
-msgstr "iframe 白名单域名"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:509
-msgid ""
-"允许在内容中嵌入的 iframe 域名白名单，多个域名请用英文逗号分隔。输入 * 表"
-"示允许所有域名（不推荐）。"
-msgstr ""
-"允许在内容中嵌入的 iframe 域名白名单，多个域名请用英文逗号分隔。输入 * 表"
-"示允许所有域名（不推荐）。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:513
-msgid "允许的图片格式"
-msgstr "允许的图片格式"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:519
-msgid ""
-"允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许"
-"所有格式。"
-msgstr ""
-"允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许"
-"所有格式。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:523
-msgid "插件界面语言"
-msgstr "插件界面语言"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:528
-msgid "强制使用英文界面（忽略站点语言设置）"
-msgstr "强制使用英文界面（忽略站点语言设置）"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:530
-msgid ""
-"启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多"
-"语言站点或需要英文界面的用户。"
-msgstr ""
-"启用后，插件界面将始终显示英文，无论WordPress站点设置为何种语言。适用于多"
-"语言站点或需要英文界面的用户。"
-
-msgid "自动检测（跟随站点语言）"
-msgstr "自动检测（跟随站点语言）"
-
-msgid "简体中文"
-msgstr "简体中文"
-
-msgid "选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。"
-msgstr "选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:535
-msgid "最大图片大小"
-msgstr "最大图片大小"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:541
-msgid "MB"
-msgstr "MB"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:542
-msgid "允许下载的最大图片大小（以 MB 为单位）。建议不超过 10MB。"
-msgstr "允许下载的最大图片大小（以 MB 为单位）。建议不超过 10MB。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:552
-msgid "调试工具"
-msgstr "调试工具"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:553
-msgid "在这里，您可以管理日志级别、查看和清除日志文件。"
-msgstr "在这里，您可以管理日志级别、查看和清除日志文件。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:557
-msgid "日志记录级别"
-msgstr "日志记录级别"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:560
-msgid "无日志"
-msgstr "无日志"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:561
-msgid "仅错误"
-msgstr "仅错误"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:562
-msgid "信息和错误"
-msgstr "信息和错误"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:563
-msgid "所有日志 (调试)"
-msgstr "所有日志 (调试)"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:565
-msgid "设置日志记录的详细程度。建议在生产环境中设置为\"仅错误\"。"
-msgstr "设置日志记录的详细程度。建议在生产环境中设置为\"仅错误\"。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:569
-msgid "错误日志"
-msgstr "错误日志"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:577
-msgid "查看日志"
-msgstr "查看日志"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:578
-msgid "清除所有日志"
-msgstr "清除所有日志"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:591
-msgid "使用帮助"
-msgstr "使用帮助"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:594
-msgid "快速开始"
-msgstr "快速开始"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:596
-msgid "在Notion创建一个集成并获取API密钥"
-msgstr "在Notion创建一个集成并获取API密钥"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:597
-msgid "在Notion中创建一个数据库，并与您的集成共享"
-msgstr "在Notion中创建一个数据库，并与您的集成共享"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:598
-msgid "复制数据库ID（从URL中获取）"
-msgstr "复制数据库ID（从URL中获取）"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:599
-msgid "在此页面配置API密钥和数据库ID"
-msgstr "在此页面配置API密钥和数据库ID"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:600
-msgid "配置字段映射，确保Notion属性名称与WordPress字段正确对应"
-msgstr "配置字段映射，确保Notion属性名称与WordPress字段正确对应"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:601
-msgid "点击\"测试连接\"确认设置正确"
-msgstr "点击\"测试连接\"确认设置正确"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:602
-msgid "点击\"保存所有设置\"保存您的配置"
-msgstr "点击\"保存所有设置\"保存您的配置"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:603
-msgid "点击\"手动同步\"或设置自动同步频率开始导入内容"
-msgstr "点击\"手动同步\"或设置自动同步频率开始导入内容"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:608
-msgid "常见问题"
-msgstr "常见问题"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:609
-msgid "问：为什么我的Notion页面没有导入？"
-msgstr "问：为什么我的Notion页面没有导入？"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:610
-msgid "答：请检查以下几点："
-msgstr "答：请检查以下几点："
-
-#: admin/partials/notion-to-wordpress-admin-display.php:612
-msgid "确认您的API密钥和数据库ID正确"
-msgstr "确认您的API密钥和数据库ID正确"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:613
-msgid "确认您的Notion集成已与数据库共享"
-msgstr "确认您的Notion集成已与数据库共享"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:614
-msgid "检查字段映射是否正确对应Notion中的属性名称"
-msgstr "检查字段映射是否正确对应Notion中的属性名称"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:615
-msgid "尝试使用\"刷新全部内容\"按钮重新同步"
-msgstr "尝试使用\"刷新全部内容\"按钮重新同步"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:618
-msgid "问：如何自定义导入的内容格式？"
-msgstr "问：如何自定义导入的内容格式？"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:619
-msgid ""
-"答：本插件会尽可能保留Notion中的格式，包括标题、列表、表格、代码块等。对"
-"于特殊内容（如数学公式、图表），插件也提供了支持。"
-msgstr ""
-"答：本插件会尽可能保留Notion中的格式，包括标题、列表、表格、代码块等。对"
-"于特殊内容（如数学公式、图表），插件也提供了支持。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:621
-msgid "问：导入后如何更新内容？"
-msgstr "问：导入后如何更新内容？"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:622
-msgid ""
-"答：当您在Notion中更新内容后，可以点击\"刷新全部内容\"按钮手动更新，或等"
-"待自动同步（如果已设置）。"
-msgstr ""
-"答：当您在Notion中更新内容后，可以点击\"刷新全部内容\"按钮手动更新，或等"
-"待自动同步（如果已设置）。"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:626
-msgid "获取支持"
-msgstr "获取支持"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:627
-msgid "如果您遇到任何问题或需要帮助，请访问我们的GitHub仓库："
-msgstr "如果您遇到任何问题或需要帮助，请访问我们的GitHub仓库："
-
-#: admin/partials/notion-to-wordpress-admin-display.php:635
-msgid "关于作者"
-msgstr "关于作者"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:666
-msgid "插件信息"
-msgstr "插件信息"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:691
-msgid "刷新全部内容"
-msgstr "刷新全部内容"
-
-#: admin/partials/notion-to-wordpress-admin-display.php:694
-msgid "保存所有设置"
-msgstr "保存所有设置"
-
-#: includes/class-notion-api.php:91
-msgid "API请求失败: "
-msgstr "API请求失败: "
-
-#: includes/class-notion-api.php:98
-msgid "API错误 ("
-msgstr "API错误 ("
-
-#: includes/class-notion-api.php:262
-msgid "连接测试失败: "
-msgstr "连接测试失败: "
-
-#: includes/class-notion-pages.php:1208
-msgid "未检索到任何页面。"
-msgstr "未检索到任何页面。"
-
-#: includes/class-notion-pages.php:1238
-msgid "导入失败: "
-msgstr "导入失败: "
-
-# #-#-#-#-#  catalog.po (Notion to WordPress 1.0.9)  #-#-#-#-#
-# JavaScript strings
-msgid "确定要开始同步Notion内容吗？"
-msgstr "确定要开始同步Notion内容吗？"
-
-msgid "确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。"
-msgstr "确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。"
-
-msgid "确定要清除所有日志文件吗？此操作不可恢复。"
-msgstr "确定要清除所有日志文件吗？此操作不可恢复。"
-
-msgid "请填写所有必填字段"
-msgstr "请填写所有必填字段"
-
-msgid "隐藏密钥"
-msgstr "隐藏密钥"
-
-msgid "显示密钥"
-msgstr "显示密钥"
-
-msgid "无法加载统计信息: "
-msgstr "无法加载统计信息: "
-
-msgid "未知错误"
-msgstr "未知错误"
-
-msgid "页面ID无效，无法刷新。"
-msgstr "页面ID无效，无法刷新。"
-
-msgid "安全验证参数缺失，无法继续操作。请刷新页面后重试。"
-msgstr "安全验证参数缺失，无法继续操作。请刷新页面后重试。"
-
-msgid "页面已刷新完成！"
-msgstr "页面已刷新完成！"
-
-msgid "刷新失败: "
-msgstr "刷新失败: "
-
-msgid "网络错误，无法刷新页面。"
-msgstr "网络错误，无法刷新页面。"
-
-msgid "操作超时，请检查该Notion页面内容是否过大。"
-msgstr "操作超时，请检查该Notion页面内容是否过大。"
-
-msgid "请先选择一个日志文件。"
-msgstr "请先选择一个日志文件。"
-
-msgid "正在加载日志..."
-msgstr "正在加载日志..."
-
-msgid "无法加载日志: "
-msgstr "无法加载日志: "
-
-msgid "请求日志时发生错误。"
-msgstr "请求日志时发生错误。"
-
-msgid "复制失败: 未指定目标元素"
-msgstr "复制失败: 未指定目标元素"
-
-msgid "复制失败: 未找到目标元素"
-msgstr "复制失败: 未找到目标元素"
-
-msgid "复制失败: "
-msgstr "复制失败: "
-
-msgid "复制到剪贴板"
-msgstr "复制到剪贴板"
-
-msgid "复制代码"
-msgstr "复制代码"
-
-msgid "已复制!"
-msgstr "已复制!"
-
-msgid "复制失败，请手动复制。"
-msgstr "复制失败，请手动复制。"
-
-# Error messages from PHP files
-msgid "权限不足"
-msgstr "权限不足"
-
-msgid "未指定日志文件"
-msgstr "未指定日志文件"
-
-msgid "Token mismatch"
-msgstr "令牌不匹配"
-
-msgid "无效的请求体"
-msgstr "无效的请求体"
-
-msgid "缺少事件类型"
-msgstr "缺少事件类型"
-
-msgid "已触发同步"
-msgstr "已触发同步"
-
-msgid "Webhook已接收，正在处理"
-msgstr "Webhook已接收，正在处理"
-
-msgid "同步过程中出错: "
-msgstr "同步过程中出错: "
-
-msgid "已触发%s"
-msgstr "已触发%s"
-
-msgid "页面ID为空，无法处理删除事件"
-msgstr "页面ID为空，无法处理删除事件"
-
-msgid "未找到对应的WordPress文章"
-msgstr "未找到对应的WordPress文章"
-
-msgid "已删除对应的WordPress文章 (ID: %d)"
-msgstr "已删除对应的WordPress文章 (ID: %d)"
-
-msgid "删除WordPress文章失败"
-msgstr "删除WordPress文章失败"
-
-msgid "已同步页面: %s"
-msgstr "已同步页面: %s"
-
-msgid "页面同步失败"
-msgstr "页面同步失败"
-
-msgid "单页面同步失败，已执行%s"
-msgstr "单页面同步失败，已执行%s"
-
-msgid "Notion Pages对象不存在"
-msgstr "Notion Pages对象不存在"
-
-msgid "获取页面数据失败"
-msgstr "获取页面数据失败"
-
-msgid "已强制同步页面内容: %s"
-msgstr "已强制同步页面内容: %s"
-
-msgid "页面内容同步失败"
-msgstr "页面内容同步失败"
-
-msgid "页面内容同步失败，已执行%s"
-msgstr "页面内容同步失败，已执行%s"
-
-msgid "页面内容同步发生致命错误"
-msgstr "页面内容同步发生致命错误"
-
-msgid "数据库已更新，已触发%s%s"
-msgstr "数据库已更新，已触发%s%s"
-
-# #-#-#-#-#  catalog.po (Notion to WordPress 1.0.9)  #-#-#-#-#
-# Additional admin interface strings
-# #-#-#-#-#  catalog.po (Notion to WordPress 1.0.9)  #-#-#-#-#
-# New strings added for better internationalization
+#: admin\class-notion-to-wordpress-admin.php
+msgid "刷新中..."
+msgstr "刷新中..."
+
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "刷新验证令牌"
+msgstr "刷新验证令牌"
+
+#: admin\class-notion-to-wordpress-admin.php
 msgid "统计信息错误"
 msgstr "统计信息错误"
 
+#: admin\class-notion-to-wordpress-admin.php
+msgid "确定要开始同步Notion内容吗？"
+msgstr "确定要开始同步Notion内容吗？"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。"
+msgstr "确定要刷新全部内容吗？这将根据Notion的当前状态重新同步所有页面。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "确定要清除所有日志文件吗？此操作不可恢复。"
+msgstr "确定要清除所有日志文件吗？此操作不可恢复。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "请填写所有必填字段"
+msgstr "请填写所有必填字段"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "隐藏密钥"
+msgstr "隐藏密钥"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "显示密钥"
+msgstr "显示密钥"
+
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "从未"
+msgstr "从未"
+
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "未计划"
+msgstr "未计划"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "未知错误"
+msgstr "未知错误"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "页面ID无效，无法刷新。"
+msgstr "页面ID无效，无法刷新。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "安全验证参数缺失，无法继续操作。请刷新页面后重试。"
+msgstr "安全验证参数缺失，无法继续操作。请刷新页面后重试。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "页面已刷新完成！"
+msgstr "页面已刷新完成！"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "刷新失败: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "网络错误，无法刷新页面。"
+msgstr "网络错误，无法刷新页面。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "操作超时，请检查该Notion页面内容是否过大。"
+msgstr "操作超时，请检查该Notion页面内容是否过大。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "请先选择一个日志文件。"
+msgstr "请先选择一个日志文件。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "正在加载日志..."
+msgstr "正在加载日志..."
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "无法加载日志: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "请求日志时发生错误。"
+msgstr "请求日志时发生错误。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "复制失败: 未指定目标元素"
+msgstr "复制失败: 未指定目标元素"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "复制失败: 未找到目标元素"
+msgstr "复制失败: 未找到目标元素"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "复制失败: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "复制到剪贴板"
+msgstr "复制到剪贴板"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "复制代码"
+msgstr "复制代码"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "已复制!"
+msgstr "已复制!"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "复制失败，请手动复制。"
+msgstr "复制失败，请手动复制。"
+
+#: admin\class-notion-to-wordpress-admin.php
 msgid "加载中..."
 msgstr "加载中..."
 
-msgid "保存设置"
-msgstr "保存设置"
+#: admin\class-notion-to-wordpress-admin.php
+msgid "加载统计信息..."
+msgstr "加载统计信息..."
 
-msgid "设置已保存"
-msgstr "设置已保存"
+#: admin\class-notion-to-wordpress-admin.php
+msgid "无法加载统计信息"
+msgstr "无法加载统计信息"
 
-msgid "设置保存失败"
-msgstr "设置保存失败"
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "刷新全部内容"
+msgstr "刷新全部内容"
 
-msgid "连接成功"
-msgstr "连接成功"
-
-msgid "连接失败"
-msgstr "连接失败"
-
-msgid "正在测试连接..."
-msgstr "正在测试连接..."
-
-msgid "正在导入..."
-msgstr "正在导入..."
-
-msgid "导入成功"
-msgstr "导入成功"
-
-msgid "导入失败"
-msgstr "导入失败"
-
-msgid "正在刷新..."
-msgstr "正在刷新..."
-
-msgid "刷新成功"
-msgstr "刷新成功"
-
+#: admin\class-notion-to-wordpress-admin.php
 msgid "刷新失败"
 msgstr "刷新失败"
 
-msgid "正在清除日志..."
-msgstr "正在清除日志..."
+#: admin\class-notion-to-wordpress-admin.php
+msgid "清除中..."
+msgstr "清除中..."
 
-msgid "日志已清除"
-msgstr "日志已清除"
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "清除所有日志"
+msgstr "清除所有日志"
 
-msgid "清除日志失败"
-msgstr "清除日志失败"
+#: admin\class-notion-to-wordpress-admin.php
+msgid "设置已保存！"
+msgstr "设置已保存！"
 
-# Plugin description and author info
-msgid ""
-"从 Notion 数据库同步内容到 WordPress 文章，支持自动同步、手动同步和 "
-"Webhook 触发。"
+#: admin\class-notion-to-wordpress-admin.php
+msgid "保存中..."
+msgstr "保存中..."
+
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "智能同步"
+msgstr "智能同步"
+
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "完全同步"
+msgstr "完全同步"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "确定要执行智能同步吗？（仅同步有变化的内容）"
+msgstr "确定要执行智能同步吗？（仅同步有变化的内容）"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "确定要执行完全同步吗？（同步所有内容，耗时较长）"
+msgstr "确定要执行完全同步吗？（同步所有内容，耗时较长）"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "中..."
+msgstr "中..."
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "完成"
+msgstr "完成"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "失败，请稍后重试"
+msgstr "失败，请稍后重试"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "页面即将刷新以应用设置变更..."
+msgstr "页面即将刷新以应用设置变更..."
+
+#: admin\class-notion-to-wordpress-admin.php
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Notion to WordPress"
+msgstr "Notion to WordPress"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "安全验证失败"
+msgstr "安全验证失败"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "权限不足"
+msgstr "权限不足"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "设置已成功保存。"
+msgstr "设置已成功保存。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "保存设置时发生错误："
+msgstr "保存设置时发生错误："
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "导入完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
+msgstr "导入完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
+
+#: admin\class-notion-to-wordpress-admin.php includes\class-notion-pages.php
+msgid "导入失败: "
 msgstr ""
-"从 Notion 数据库同步内容到 WordPress 文章，支持自动同步、手动同步和 "
-"Webhook 触发。"
 
+#: admin\class-notion-to-wordpress-admin.php
+msgid "请先配置API密钥和数据库ID"
+msgstr "请先配置API密钥和数据库ID"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "刷新完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
+msgstr "刷新完成！处理了 %d 个页面，导入了 %d 个页面，更新了 %d 个页面。"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "未指定日志文件"
+msgstr "未指定日志文件"
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "验证令牌已刷新"
+msgstr "验证令牌已刷新"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "🛠️ 主要设置"
+msgstr "🛠️ 主要设置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "🔗 字段映射"
+msgstr "🔗 字段映射"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "⚙️ 其他设置"
+msgstr "⚙️ 其他设置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "🐞 调试工具"
+msgstr "🐞 调试工具"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "📖 帮助与指南"
+msgstr "📖 帮助与指南"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "👨‍💻 关于作者"
+msgstr "👨‍💻 关于作者"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Notion API 设置"
+msgstr "Notion API 设置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "已导入页面"
+msgstr "已导入页面"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "已发布页面"
+msgstr "已发布页面"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "最后同步"
+msgstr "最后同步"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "下次同步"
+msgstr "下次同步"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "连接到您的Notion数据库所需的设置。"
+msgstr "连接到您的Notion数据库所需的设置。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "了解如何获取API密钥"
+msgstr "了解如何获取API密钥"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "API密钥"
+msgstr "API密钥"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "输入您的Notion API密钥"
+msgstr "输入您的Notion API密钥"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "显示/隐藏密钥"
+msgstr "显示/隐藏密钥"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "数据库ID"
+msgstr "数据库ID"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "输入您的Notion数据库ID"
+msgstr "输入您的Notion数据库ID"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数据库ID</strong>?v=xxx"
+msgstr "可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数据库ID</strong>?v=xxx"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自动同步频率"
+msgstr "自动同步频率"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "手动同步"
+msgstr "手动同步"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "每天两次"
+msgstr "每天两次"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "每天一次"
+msgstr "每天一次"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+#: includes\class-notion-to-wordpress.php
+msgid "每周一次"
+msgstr "每周一次"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+#: includes\class-notion-to-wordpress.php
+msgid "每两周一次"
+msgstr "每两周一次"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+#: includes\class-notion-to-wordpress.php
+msgid "每月一次"
+msgstr "每月一次"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "定时同步选项"
+msgstr "定时同步选项"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "启用增量同步"
+msgstr "启用增量同步"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "仅同步有变化的页面，提高同步速度"
+msgstr "仅同步有变化的页面，提高同步速度"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "检查删除的页面"
+msgstr "检查删除的页面"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自动删除在Notion中已删除但WordPress中仍存在的文章"
+msgstr "自动删除在Notion中已删除但WordPress中仍存在的文章"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Webhook 支持"
+msgstr "Webhook 支持"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "启用 Webhook 支持"
+msgstr "启用 Webhook 支持"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "启用后，您可以设置 Notion 集成的 Webhook 以在内容变更时自动触发同步。"
+msgstr "启用后，您可以设置 Notion 集成的 Webhook 以在内容变更时自动触发同步。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "验证令牌"
+msgstr "验证令牌"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "等待 Notion 返回…"
+msgstr "等待 Notion 返回…"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "复制令牌"
+msgstr "复制令牌"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。点击刷新按钮可获取最新的令牌。"
+msgstr "首次发送 Webhook 时，Notion 将返回 verification_token，此处会自动展示。点击刷新按钮可获取最新的令牌。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Webhook 地址"
+msgstr "Webhook 地址"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "复制 URL"
+msgstr "复制 URL"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。"
+msgstr "在 Notion 开发者平台设置此 URL 作为您集成的 Webhook 终端点。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Webhook 同步选项"
+msgstr "Webhook 同步选项"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Webhook触发时仅同步有变化的页面，提高响应速度"
+msgstr "Webhook触发时仅同步有变化的页面，提高响应速度"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "数据库事件检查删除"
+msgstr "数据库事件检查删除"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "数据库结构变化时检查删除的页面（单页面事件不受影响）"
+msgstr "数据库结构变化时检查删除的页面（单页面事件不受影响）"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "字段映射"
+msgstr "字段映射"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英文逗号隔开。"
+msgstr "设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英文逗号隔开。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "文章标题"
+msgstr "文章标题"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress文章标题的Notion属性名称"
+msgstr "用于设置WordPress文章标题的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "状态"
+msgstr "状态"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "文章类型"
+msgstr "文章类型"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于确定WordPress文章类型的Notion属性名称"
+msgstr "用于确定WordPress文章类型的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "日期"
+msgstr "日期"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress文章发布日期的Notion属性名称"
+msgstr "用于设置WordPress文章发布日期的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "摘要"
+msgstr "摘要"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress文章摘要的Notion属性名称"
+msgstr "用于设置WordPress文章摘要的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "特色图片"
+msgstr "特色图片"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress特色图片的Notion属性名称（应为URL或文件类型）"
+msgstr "用于设置WordPress特色图片的Notion属性名称（应为URL或文件类型）"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "分类"
+msgstr "分类"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress文章分类的Notion属性名称"
+msgstr "用于设置WordPress文章分类的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "标签"
+msgstr "标签"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress文章标签的Notion属性名称"
+msgstr "用于设置WordPress文章标签的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "文章密码"
+msgstr "文章密码"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "用于设置WordPress文章密码的Notion属性名称"
+msgstr "用于设置WordPress文章密码的Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自定义字段映射"
+msgstr "自定义字段映射"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "将Notion属性映射到WordPress自定义字段。您可以添加任意数量的自定义字段映射。"
+msgstr "将Notion属性映射到WordPress自定义字段。您可以添加任意数量的自定义字段映射。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "文本"
+msgstr "文本"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "数字"
+msgstr "数字"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "复选框"
+msgstr "复选框"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "选择"
+msgstr "选择"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "多选"
+msgstr "多选"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "URL"
+msgstr "URL"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "电子邮件"
+msgstr "电子邮件"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "电话"
+msgstr "电话"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "富文本"
+msgstr "富文本"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Notion属性名称"
+msgstr "Notion属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "例如：Author,作者"
+msgstr "例如：Author,作者"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Notion中的属性名称，多个备选名称请用英文逗号分隔"
+msgstr "Notion中的属性名称，多个备选名称请用英文逗号分隔"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "WordPress字段名称"
+msgstr "WordPress字段名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "例如：author"
+msgstr "例如：author"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "WordPress中的自定义字段名称"
+msgstr "WordPress中的自定义字段名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "字段类型"
+msgstr "字段类型"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Notion属性的数据类型"
+msgstr "Notion属性的数据类型"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "添加自定义字段"
+msgstr "添加自定义字段"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "其他设置"
+msgstr "其他设置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "卸载设置"
+msgstr "卸载设置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "卸载时删除所有同步内容"
+msgstr "卸载时删除所有同步内容"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "卸载插件时，删除所有从Notion同步的文章和页面"
+msgstr "卸载插件时，删除所有从Notion同步的文章和页面"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "警告：此操作不可逆！所有通过Notion同步的内容将被永久删除。"
+msgstr "警告：此操作不可逆！所有通过Notion同步的内容将被永久删除。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "iframe 白名单域名"
+msgstr "iframe 白名单域名"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "允许在内容中嵌入的 iframe 域名白名单，多个域名请用英文逗号分隔。输入 * 表示允许所有域名（不推荐）。"
+msgstr "允许在内容中嵌入的 iframe 域名白名单，多个域名请用英文逗号分隔。输入 * 表示允许所有域名（不推荐）。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "允许的图片格式"
+msgstr "允许的图片格式"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许所有格式。"
+msgstr "允许下载和导入的图片 MIME 类型，多个类型请用英文逗号分隔。输入 * 表示允许所有格式。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "插件界面语言"
+msgstr "插件界面语言"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自动检测（跟随站点语言）"
+msgstr "自动检测（跟随站点语言）"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "简体中文"
+msgstr "简体中文"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "English"
+msgstr "English"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。"
+msgstr "选择插件界面显示的语言。自动检测将跟随WordPress站点语言设置。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "最大图片大小"
+msgstr "最大图片大小"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "MB"
+msgstr "MB"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "允许下载的最大图片大小（以 MB 为单位）。建议不超过 10MB。"
+msgstr "允许下载的最大图片大小（以 MB 为单位）。建议不超过 10MB。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "调试工具"
+msgstr "调试工具"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "在这里，您可以管理日志级别、查看和清除日志文件。"
+msgstr "在这里，您可以管理日志级别、查看和清除日志文件。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "日志记录级别"
+msgstr "日志记录级别"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "无日志"
+msgstr "无日志"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "仅错误"
+msgstr "仅错误"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "信息和错误"
+msgstr "信息和错误"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "所有日志 (调试)"
+msgstr "所有日志 (调试)"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "日志保留期限"
+msgstr "日志保留期限"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "从不自动清理"
+msgstr "从不自动清理"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "7 天"
+msgstr "7 天"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "14 天"
+msgstr "14 天"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "30 天"
+msgstr "30 天"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "60 天"
+msgstr "60 天"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "错误日志"
+msgstr "错误日志"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "查看日志"
+msgstr "查看日志"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "使用帮助"
+msgstr "使用帮助"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "快速开始"
+msgstr "快速开始"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "在Notion创建一个集成并获取API密钥"
+msgstr "在Notion创建一个集成并获取API密钥"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "在Notion中创建一个数据库，并与您的集成共享"
+msgstr "在Notion中创建一个数据库，并与您的集成共享"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "复制数据库ID（从URL中获取）"
+msgstr "复制数据库ID（从URL中获取）"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "在此页面配置API密钥和数据库ID"
+msgstr "在此页面配置API密钥和数据库ID"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "配置字段映射，确保Notion属性名称与WordPress字段正确对应"
+msgstr "配置字段映射，确保Notion属性名称与WordPress字段正确对应"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "常见问题"
+msgstr "常见问题"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "问：为什么我的Notion页面没有导入？"
+msgstr "问：为什么我的Notion页面没有导入？"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "答：请检查以下几点："
+msgstr "答：请检查以下几点："
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "确认您的API密钥和数据库ID正确"
+msgstr "确认您的API密钥和数据库ID正确"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "确认您的Notion集成已与数据库共享"
+msgstr "确认您的Notion集成已与数据库共享"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "检查字段映射是否正确对应Notion中的属性名称"
+msgstr "检查字段映射是否正确对应Notion中的属性名称"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "问：如何自定义导入的内容格式？"
+msgstr "问：如何自定义导入的内容格式？"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "答：本插件会尽可能保留Notion中的格式，包括标题、列表、表格、代码块等。对于特殊内容（如数学公式、图表），插件也提供了支持。"
+msgstr "答：本插件会尽可能保留Notion中的格式，包括标题、列表、表格、代码块等。对于特殊内容（如数学公式、图表），插件也提供了支持。"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "问：导入后如何更新内容？"
+msgstr "问：导入后如何更新内容？"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "获取支持"
+msgstr "获取支持"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "如果您遇到任何问题或需要帮助，请访问我们的GitHub仓库："
+msgstr "如果您遇到任何问题或需要帮助，请访问我们的GitHub仓库："
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "关于作者"
+msgstr "关于作者"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "科技爱好者 & AI玩家"
 msgstr "科技爱好者 & AI玩家"
 
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "对互联网、计算机等科技行业充满热情，擅长 AI 工具的使用与调教。"
 msgstr "对互联网、计算机等科技行业充满热情，擅长 AI 工具的使用与调教。"
 
-msgid ""
-"此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣"
-"的项目分享给大家。"
-msgstr ""
-"此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣"
-"的项目分享给大家。"
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣的项目分享给大家。"
+msgstr "此插件在强大的 AI 编程助手 Cursor 和 Augment 的协助下完成，现在将这个有趣的项目分享给大家。"
 
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "个人网站"
 msgstr "个人网站"
 
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "联系邮箱"
 msgstr "联系邮箱"
 
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "插件信息"
+msgstr "插件信息"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "版本："
 msgstr "版本："
 
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "许可证："
 msgstr "许可证："
 
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "兼容性："
 msgstr "兼容性："
 
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "致谢与参考"
+msgstr "致谢与参考"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "本项目的开发过程中参考了以下优秀的开源项目："
+msgstr "本项目的开发过程中参考了以下优秀的开源项目："
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "基于 Notion 的强大静态博客系统"
+msgstr "基于 Notion 的强大静态博客系统"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "支持多平台的开源博客写作客户端"
+msgstr "支持多平台的开源博客写作客户端"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "Notion 内容管理解决方案"
+msgstr "Notion 内容管理解决方案"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "感谢这些项目及其维护者对开源社区的贡献！"
+msgstr "感谢这些项目及其维护者对开源社区的贡献！"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "只同步有变化的页面，速度更快"
+msgstr "只同步有变化的页面，速度更快"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "同步所有页面，确保数据一致性"
+msgstr "同步所有页面，确保数据一致性"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "保存所有设置"
+msgstr "保存所有设置"
+
+#: admin\partials\notion-to-wordpress-admin-display.php
 msgid "处理中，请稍候..."
 msgstr "处理中，请稍候..."
+
+#: includes\class-notion-api.php
+msgid "API请求失败: "
+msgstr ""
+
+#: includes\class-notion-api.php
+msgid "API错误 ("
+msgstr "API错误 ("
+
+#: includes\class-notion-api.php
+msgid "连接测试失败: "
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "此为 Notion 临时图片链接，可能会过期。请考虑替换为图床或本地媒体库图片。"
+msgstr "此为 Notion 临时图片链接，可能会过期。请考虑替换为图床或本地媒体库图片。"
+
+#: includes\class-notion-pages.php
+msgid "未检索到任何页面。"
+msgstr "未检索到任何页面。"
+
+#: includes\class-notion-pages.php
+msgid "下载附件"
+msgstr "下载附件"
+
+#: includes\class-notion-pages.php
+msgid "下载 PDF"
+msgstr "下载 PDF"
+
+#: includes\class-notion-pages.php
+msgid "在新窗口打开"
+msgstr "在新窗口打开"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "Token mismatch"
+msgstr "Token mismatch"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "无效的请求体"
+msgstr "无效的请求体"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "缺少事件类型"
+msgstr "缺少事件类型"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "Webhook已接收，正在处理"
+msgstr "Webhook已接收，正在处理"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "同步过程中出错: "
+msgstr ""
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "已触发%s"
+msgstr "已触发%s"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "页面ID为空，无法处理删除事件"
+msgstr "页面ID为空，无法处理删除事件"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "未找到对应的WordPress文章"
+msgstr "未找到对应的WordPress文章"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "已删除对应的WordPress文章 (ID: %d)"
+msgstr "已删除对应的WordPress文章 (ID: %d)"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "删除WordPress文章失败"
+msgstr "删除WordPress文章失败"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "已同步页面: %s"
+msgstr "已同步页面: %s"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "页面同步失败"
+msgstr "页面同步失败"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "单页面同步失败，已执行%s"
+msgstr "单页面同步失败，已执行%s"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "Notion Pages对象不存在"
+msgstr "Notion Pages对象不存在"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "获取页面数据失败"
+msgstr "获取页面数据失败"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "已强制同步页面内容: %s"
+msgstr "已强制同步页面内容: %s"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "页面内容同步失败"
+msgstr "页面内容同步失败"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "页面内容同步失败，已执行%s"
+msgstr "页面内容同步失败，已执行%s"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "页面内容同步发生致命错误"
+msgstr "页面内容同步发生致命错误"
+
+#: includes\class-notion-to-wordpress-webhook.php
+msgid "数据库已更新，已触发%s%s"
+msgstr "数据库已更新，已触发%s%s"

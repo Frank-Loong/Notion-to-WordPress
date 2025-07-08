@@ -85,28 +85,28 @@ jQuery(document).ready(function($) {
     // 智能同步（增量同步）
     $('#notion-manual-import').on('click', function(e) {
         e.preventDefault();
-        performSync($(this), true, true, '智能同步'); // 增量同步，检查删除
+        performSync($(this), true, true, notionToWp.i18n.smart_sync); // 增量同步，检查删除
     });
 
     // 完全同步（全量同步）
     $('#notion-full-import').on('click', function(e) {
         e.preventDefault();
-        performSync($(this), false, true, '完全同步'); // 全量同步，检查删除
+        performSync($(this), false, true, notionToWp.i18n.full_sync); // 全量同步，检查删除
     });
 
     // 统一的同步处理函数
     function performSync(button, incremental, checkDeletions, syncTypeName) {
         // 确认操作
         var confirmMessage = incremental ?
-            '确定要执行智能同步吗？（仅同步有变化的内容）' :
-            '确定要执行完全同步吗？（同步所有内容，耗时较长）';
+            notionToWp.i18n.confirm_smart_sync :
+            notionToWp.i18n.confirm_full_sync;
 
         if (!confirm(confirmMessage)) {
             return;
         }
 
         var originalHtml = button.html();
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + syncTypeName + '中...');
+        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + syncTypeName + notionToWp.i18n.syncing);
 
         $.ajax({
             url: notionToWp.ajax_url,
@@ -122,7 +122,7 @@ jQuery(document).ready(function($) {
                 var status = response.success ? 'success' : 'error';
 
                 if (response.success) {
-                    message += ' (' + syncTypeName + '完成)';
+                    message += ' (' + syncTypeName + notionToWp.i18n.sync_completed + ')';
                 }
 
                 showModal(message, status);
@@ -133,7 +133,7 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function() {
-                showModal(syncTypeName + '失败，请稍后重试', 'error');
+                showModal(syncTypeName + notionToWp.i18n.sync_failed, 'error');
             },
             complete: function() {
                 button.prop('disabled', false).html(originalHtml);

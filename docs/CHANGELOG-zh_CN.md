@@ -1,4 +1,4 @@
-**📖 导航：** [🏠 主页](../README-zh_CN.md) • [📚 使用指南](../wiki/README-Wiki.zh-CN.md) • [📊 项目状态](PROJECT_STATUS-zh_CN.md) • **🔄 更新日志** • [⚖️ 功能对比](FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
+** [🏠 主页](../README-zh_CN.md) • [📚 使用指南](../wiki/README-Wiki.zh-CN.md) • [📊 项目状态](PROJECT_STATUS-zh_CN.md) • **🔄 更新日志** • [⚖️ 功能对比](FEATURES_COMPARISON-zh_CN.md) • [🤝 贡献指南](../CONTRIBUTING-zh_CN.md)
 
 **🌐 语言：** [English](CHANGELOG.md) • **中文**
 
@@ -16,12 +16,12 @@ Notion to WordPress 插件的所有重要变更都将记录在此文件中。
 ### 🚀 重大性能与可靠性改进
 
 #### 新增功能
-- **智能增量同步**：革命性的80%+性能提升，仅同步变更内容
-- **智能删除检测**：自动识别和清理孤立的WordPress文章
-- **高级Webhook处理**：事件特定处理与异步响应
-- **三重同步架构**：手动、定时和实时webhook同步模式
+- **智能增量同步**：革命性的 80%+ 性能提升，仅同步变更内容
+- **智能删除检测**：自动识别和清理孤立的 WordPress 文章
+- **高级 Webhook 处理**：事件特定处理与异步响应
+- **三重同步架构**：手动、定时和实时 webhook 同步模式
 - **增强错误处理**：全面日志记录与自动恢复机制
-- **时区准确性**：全球团队的正确UTC时间处理
+- **时区准确性**：全球团队的正确 UTC 时间处理
 
 #### 功能增强
 - **Webhook事件处理**：
