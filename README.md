@@ -40,8 +40,8 @@
 ### 📸 Project Demo
 <!-- TODO: Add project demo screenshots/GIFs -->
 <div align="center">
-  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo" width="800">
-  <p><em>🎬 60-second complete demo: seamless sync from Notion to WordPress</em></p>
+  <img src="docs/images/demo-overview-en.gif" alt="Notion to WordPress Demo-Overview" width="800">
+  <p><em>🎬 Notion to WordPress backend interface demonstration</em></p>
 </div>
 
 ### 🚀 3-Step Setup

@@ -44,7 +44,6 @@
 ### 📸 完整图文教程
 
 #### 🎬 动图演示
-<!-- TODO: 添加完整操作动图 -->
 <div align="center">
   <img src="../docs/images/setup-complete.gif" alt="完整设置流程" width="800">
   <p><em>🎯 完整设置流程：从零到同步成功</em></p>
@@ -80,10 +79,9 @@
 
 ### ⚡ 5分钟快速配置
 
-#### 📷 第1步：安装插件 (2分钟)
-<!-- TODO: 添加安装步骤截图 -->
+#### 📷 第1步：安装插件 (1分钟)
 <div align="center">
-  <img src="../docs/images/install-step1.png" alt="安装步骤1" width="600">
+  <img src="../docs/images/install.png" alt="安装步骤1" width="600">
   <p><em>WordPress 后台 → 插件 → 安装新插件</em></p>
 </div>
 
@@ -91,25 +89,25 @@
 # 下载 → WordPress管理后台 → 插件 → 安装新插件 → 上传ZIP → 激活
 ```
 
-#### 🔑 第2步：获取配置信息 (2分钟)
-<!-- TODO: 添加配置步骤截图 -->
-<div align="center">
-  <img src="../docs/images/config-step2.png" alt="配置步骤2" width="600">
-  <p><em>Notion 开发者页面获取 API 密钥</em></p>
-</div>
+#### 🔑 第2步：获取配置信息 (3分钟)
 
-1. 获取你的 [Notion API密钥](https://developers.notion.com/)
-2. 复制你的 Notion 数据库ID
-3. 在 WordPress管理后台 → Notion to WordPress 中粘贴
+  1. **创建集成并获取内部集成秘钥**
+     - 访问 [Notion 集成页面](https://www.notion.so/profile/integrations/)
+     ![Notion 集成页面](../docs/images/notion-integrations.png)
+     - 创建新集成并复制秘钥
+     ![复制内部集成秘钥](../docs/images/notion-internal-integration-key.png)
+
+  2. **将集成添加到数据库中授予编辑权限，并复制 Notion 数据库 ID**
+     - 从数据库URL中提取ID
+     ![添加集成并复制数据库 ID](../docs/images/notion-database-id.png)
+  
+  3. **在WordPress后台配置**
+     - 进入WordPress管理后台 → Notion to WordPress
+     - 粘贴内部集成秘钥和数据库ID
+     ![WordPress配置](../docs/images/wordpress-config.png)
 
 #### 🚀 第3步：首次同步 (1分钟)
-<!-- TODO: 添加同步步骤截图 -->
-<div align="center">
-  <img src="../docs/images/sync-step3.png" alt="同步步骤3" width="600">
-  <p><em>点击"智能同步"开始内容同步</em></p>
-</div>
-
-点击"智能同步"，观看你的内容出现在WordPress中！🎉
+  - 点击"智能同步"开始进行同步，观看你的内容出现在WordPress中！🎉
 
 ---
 
