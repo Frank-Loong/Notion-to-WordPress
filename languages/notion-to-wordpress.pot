@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Notion to WordPress 1.0.9\n"
+"Project-Id-Version: Notion to WordPress 1.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
-"POT-Creation-Date: 2025-07-08 08:52+0800\n"
+"POT-Creation-Date: 2025-01-08 17:30+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -40,10 +40,6 @@ msgstr ""
 
 #: admin\class-notion-to-wordpress-admin.php
 msgid "测试连接时发生错误"
-msgstr ""
-
-#: admin\class-notion-to-wordpress-admin.php
-msgid "请输入API密钥和数据库ID"
 msgstr ""
 
 #: admin\class-notion-to-wordpress-admin.php
@@ -1016,5 +1012,245 @@ msgstr ""
 
 #: includes\class-notion-to-wordpress-webhook.php
 msgid "数据库已更新，已触发%s%s"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "设置日志记录的详细程度。建议在生产环境中设置为"仅错误"。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "自动删除超过指定天数的旧日志文件。设置为"从不"以禁用。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击"测试连接"确认设置正确"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击"保存所有设置"保存您的配置"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "点击"手动同步"或设置自动同步频率开始导入内容"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "尝试使用"刷新全部内容"按钮重新同步"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "答：当您在Notion中更新内容后，可以点击"刷新全部内容"按钮手动更新，或等待自动同步（如果已设置）。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "选择 "手动同步" 以禁用定时任务。"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "要复制的文本为空"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "暂无新的验证令牌"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "请输入API密钥和数据库ID"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "连接成功！数据库可访问。"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "连接失败: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "缺少nonce参数"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "nonce验证失败"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "Nonce验证失败"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "获取统计信息失败: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "获取统计信息错误: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "所有日志文件已清除"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "清除日志时出现错误"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "清除日志失败: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "无效"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "不存在"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "调试测试成功"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "测试失败: "
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "测试错误: "
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "无效的嵌入URL"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "无效的视频URL"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "您的浏览器不支持视频标签。"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "查看视频"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "不允许的图片类型："
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "图片文件过大（%sMB），超过限制（%sMB）"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "无效的 PDF URL"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "您的浏览器不支持PDF预览。"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "点击下载PDF文件"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "PDF 下载失败"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "下载附件失败: "
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "无效的PDF文件或包含不安全内容"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "media_handle_sideload 错误: "
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "调试级别设置为: "
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "内容已截断，完整内容请查看专用日志文件"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "HTML标签已过滤"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "HTML内容已过滤"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "JSON响应已过滤，长度: %d 字符"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "数组内容已过滤，长度: %d 字符"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "无效的文件名。"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "日志文件不存在。"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "日志清理任务跳过：未设置保留期限。"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "日志清理完成，删除了 %d 个旧日志文件。"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "日志清理任务运行，没有需要删除的文件。"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "无效的URL"
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "远程请求失败: "
+msgstr ""
+
+#: includes\class-notion-to-wordpress-helper.php
+msgid "HTTP错误 %d: %s"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "详细信息"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "验证令牌已更新"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "语言设置"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "Webhook设置"
+msgstr ""
+
+#: admin\class-notion-to-wordpress-admin.php
+msgid "和"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "在Notion的"我的集成"页面创建并获取API密钥。"
+msgstr ""
+
+#: admin\partials\notion-to-wordpress-admin-display.php
+msgid "值为 "Published" 或 "已发布" 的页面会被设为 "已发布" 状态，其他则为 "草稿"。"
 msgstr ""
 

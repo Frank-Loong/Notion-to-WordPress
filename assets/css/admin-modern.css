@@ -1146,6 +1146,18 @@ code {
 .info-item{display:flex;gap:6px;font-size:13px;color:var(--notion-gray-700);}
 .info-label{font-weight:600;color:var(--notion-gray-800);}
 
+/* =============== Acknowledgments & References =============== */
+.acknowledgments{margin-bottom:32px;padding:24px;background:var(--notion-gray-100);border-radius:var(--notion-border-radius);border:1px solid var(--notion-gray-200);}
+.acknowledgments h4{margin:0 0 16px 0;font-size:16px;font-weight:600;color:var(--notion-gray-900);}
+.acknowledgments p{margin:0 0 16px 0;color:var(--notion-gray-600);font-size:14px;line-height:1.6;}
+.reference-projects{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:16px 0;}
+.reference-item{padding:16px;background:#fff;border:1px solid var(--notion-gray-200);border-radius:var(--notion-border-radius);transition:var(--notion-transition);}
+.reference-item:hover{border-color:var(--notion-primary);transform:translateY(-2px);box-shadow:0 4px 12px rgba(37,99,235,0.1);}
+.reference-item a{display:block;font-size:15px;font-weight:600;color:var(--notion-primary);text-decoration:none;margin-bottom:8px;transition:var(--notion-transition);}
+.reference-item a:hover{color:var(--notion-primary-dark);}
+.reference-item p{margin:0;color:var(--notion-gray-600);font-size:13px;line-height:1.5;}
+.acknowledgments-footer{margin:16px 0 0 0;padding:16px 0 0 0;border-top:1px solid var(--notion-gray-200);color:var(--notion-gray-500);font-size:13px;font-style:italic;text-align:center;}
+
 /* =============== 同步选项样式 =============== */
 .sync-options-group {
     display: flex;
@@ -1183,5 +1195,15 @@ code {
     .sync-options-group .button {
         width: 100%;
         justify-content: center;
+    }
+
+    /* 致谢与参考部分响应式调整 */
+    .reference-projects {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .reference-item {
+        padding: 12px;
     }
 }
