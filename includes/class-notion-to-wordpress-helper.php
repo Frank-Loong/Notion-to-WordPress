@@ -48,7 +48,7 @@ class Notion_To_WordPress_Helper {
         }
 
         // 使用Helper类的方法记录日志，避免直接使用error_log
-        self::debug_log('调试级别设置为: ' . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
+        self::debug_log(__('调试级别设置为: ', 'notion-to-wordpress') . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
     }
 
     /**
@@ -110,15 +110,15 @@ class Notion_To_WordPress_Helper {
 
         // 检查内容长度，超过500字符进行截断
         if (strlen($content) > 500) {
-            $content = substr($content, 0, 500) . '... [内容已截断，完整内容请查看专用日志文件]';
+            $content = substr($content, 0, 500) . '... [' . __('内容已截断，完整内容请查看专用日志文件', 'notion-to-wordpress') . ']';
         }
 
         // 检测并过滤HTML内容（可能包含文章内容）
         if (preg_match('/<[^>]+>/', $content)) {
             // 如果包含HTML标签，进行脱敏处理
-            $content = preg_replace('/<[^>]+>/', '[HTML标签已过滤]', $content);
+            $content = preg_replace('/<[^>]+>/', '[' . __('HTML标签已过滤', 'notion-to-wordpress') . ']', $content);
             if (strlen($content) > 200) {
-                $content = substr($content, 0, 200) . '... [HTML内容已过滤]';
+                $content = substr($content, 0, 200) . '... [' . __('HTML内容已过滤', 'notion-to-wordpress') . ']';
             }
         }
 
@@ -126,13 +126,13 @@ class Notion_To_WordPress_Helper {
         if (preg_match('/^\s*[\{\[]/', $content) && strlen($content) > 300) {
             $decoded = json_decode($content, true);
             if (json_last_error() === JSON_ERROR_NONE) {
-                $content = '[JSON响应已过滤，长度: ' . strlen($content) . ' 字符]';
+                $content = '[' . sprintf(__('JSON响应已过滤，长度: %d 字符', 'notion-to-wordpress'), strlen($content)) . ']';
             }
         }
 
         // 过滤包含大量文本的数组输出
         if (strpos($content, 'Array') === 0 && strlen($content) > 400) {
-            $content = '[数组内容已过滤，长度: ' . strlen($content) . ' 字符]';
+            $content = '[' . sprintf(__('数组内容已过滤，长度: %d 字符', 'notion-to-wordpress'), strlen($content)) . ']';
         }
 
         return $content;
@@ -409,7 +409,7 @@ class Notion_To_WordPress_Helper {
     public static function get_log_content(string $filename): string {
         // 安全性检查：确保文件名不包含路径遍历字符
         if (strpos($filename, '..') !== false || strpos($filename, '/') !== false || strpos($filename, '\\') !== false) {
-            return '无效的文件名。';
+            return __('无效的文件名。', 'notion-to-wordpress');
         }
         
         $upload_dir = wp_upload_dir();
@@ -422,7 +422,7 @@ class Notion_To_WordPress_Helper {
             return file_get_contents($log_file, false, null, $offset);
         }
 
-        return '日志文件不存在。';
+        return __('日志文件不存在。', 'notion-to-wordpress');
     }
 
     /**
@@ -459,7 +459,7 @@ class Notion_To_WordPress_Helper {
         $retention_days = isset($options['log_retention_days']) ? (int)$options['log_retention_days'] : 0;
 
         if ($retention_days <= 0) {
-            self::info_log('日志清理任务跳过：未设置保留期限。', 'LogCleanup');
+            self::info_log(__('日志清理任务跳过：未设置保留期限。', 'notion-to-wordpress'), 'LogCleanup');
             return;
         }
 
@@ -483,9 +483,9 @@ class Notion_To_WordPress_Helper {
         }
         
         if ($deleted_count > 0) {
-            self::info_log("日志清理完成，删除了 {$deleted_count} 个旧日志文件。", 'LogCleanup');
+            self::info_log(sprintf(__('日志清理完成，删除了 %d 个旧日志文件。', 'notion-to-wordpress'), $deleted_count), 'LogCleanup');
         } else {
-            self::debug_log('日志清理任务运行，没有需要删除的文件。', 'LogCleanup');
+            self::debug_log(__('日志清理任务运行，没有需要删除的文件。', 'notion-to-wordpress'), 'LogCleanup');
         }
     }
 
@@ -579,7 +579,7 @@ class Notion_To_WordPress_Helper {
 
         // 验证URL
         if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            return new WP_Error('invalid_url', '无效的URL');
+            return new WP_Error('invalid_url', __('无效的URL', 'notion-to-wordpress'));
         }
 
         // 执行请求
@@ -587,14 +587,14 @@ class Notion_To_WordPress_Helper {
 
         // 检查错误
         if (is_wp_error($response)) {
-            self::error_log('远程请求失败: ' . $response->get_error_message(), 'HTTP');
+            self::error_log(__('远程请求失败: ', 'notion-to-wordpress') . $response->get_error_message(), 'HTTP');
             return $response;
         }
 
         // 检查HTTP状态码
         $status_code = wp_remote_retrieve_response_code($response);
         if ($status_code >= 400) {
-            $error_msg = sprintf('HTTP错误 %d: %s', $status_code, wp_remote_retrieve_response_message($response));
+            $error_msg = sprintf(__('HTTP错误 %d: %s', 'notion-to-wordpress'), $status_code, wp_remote_retrieve_response_message($response));
             self::error_log($error_msg, 'HTTP');
             return new WP_Error('http_error', $error_msg);
         }

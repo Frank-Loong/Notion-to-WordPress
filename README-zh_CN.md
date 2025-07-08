@@ -38,10 +38,9 @@
 ## 快速上手
 
 ### 📸 项目演示
-<!-- TODO: 添加项目演示截图/动图 -->
 <div align="center">
-  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress 演示" width="800">
-  <p><em>🎬 60秒完整演示：从 Notion 到 WordPress 的无缝同步</em></p>
+  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo-Overview" width="800">
+  <p><em>🎬 Notion to WordPress 后台界面演示</em></p>
 </div>
 
 ### 🚀 三步上手

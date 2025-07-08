@@ -71,26 +71,35 @@ Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024
 
 ### ⚡ 5-Minute Setup Guide
 
-#### 📷 Step 1: Install Plugin (2 minutes)
-<!-- TODO: Add installation screenshots -->
+#### 📷 Step 1: Install Plugin (1 minute)
 <div align="center">
-  <img src="../docs/images/install-step1.png" alt="Installation Step 1" width="600">
+  <img src="../docs/images/install-en.png" alt="Installation Step 1" width="600">
   <p><em>WordPress Admin → Plugins → Add New Plugin</em></p>
 </div>
 
-#### 🔑 Step 2: Get Configuration Info (2 minutes)
-<!-- TODO: Add configuration screenshots -->
-<div align="center">
-  <img src="../docs/images/config-step2.png" alt="Configuration Step 2" width="600">
-  <p><em>Notion Developer Page to get API key</em></p>
-</div>
+```bash
+# Download → WordPress Admin Dashboard → Plugins → Add New Plugin → Upload ZIP → Activate
+```
+
+#### 🔑 Step 2: Get Configuration Information (3 minutes)
+
+  1. **Create Integration and Get Internal Integration Token**
+     - Visit [Notion Integrations Page](https://www.notion.so/profile/integrations/)
+     ![Notion Integrations Page](../docs/images/notion-integrations-en.png)
+     - Create new integration and copy the token
+     ![Copy Internal Integration Token](../docs/images/notion-internal-integration-key-en.png)
+
+  2. **Add Integration to Database to Grant Edit Permission and Copy Notion Database ID**
+     - Extract ID from database URL
+     ![Add Integration and Copy Database ID](../docs/images/notion-database-id-en.png)
+
+  3. **Configure in WordPress Admin**
+     - Go to WordPress Admin Dashboard → Notion to WordPress
+     - Paste the internal integration token and database ID
+     ![WordPress Configuration](../docs/images/wordpress-config-en.png)
 
 #### 🚀 Step 3: First Sync (1 minute)
-<!-- TODO: Add sync screenshots -->
-<div align="center">
-  <img src="../docs/images/sync-step3.png" alt="Sync Step 3" width="600">
-  <p><em>Click "Smart Sync" to start content synchronization</em></p>
-</div>
+  - Click "Smart Sync" to start synchronization and watch your content appear in WordPress! 🎉
 
 ### Prerequisites
 1. WordPress 5.0 or later (plugin install rights)
