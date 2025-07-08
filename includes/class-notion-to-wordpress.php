@@ -376,8 +376,8 @@ class Notion_To_WordPress {
 				'date'           => 'Date,日期',
 				'excerpt'        => 'Excerpt,摘要',
 				'featured_image' => 'Featured Image,特色图片',
-				'categories'     => 'Categories,分类',
-				'tags'           => 'Tags,标签',
+				'categories'     => 'Categories,分类,Category',
+				'tags'           => 'Tags,标签,Tag',
 
 			),
 			'custom_field_mappings' => array(),

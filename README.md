@@ -1,7 +1,7 @@
----
 **📖 Navigation:** **🏠 Home** • [📚 User Guide](wiki/README-Wiki.md) • [📊 Project Status](docs/PROJECT_STATUS.md) • [🔄 Changelog](docs/CHANGELOG.md) • [⚖️ Feature Comparison](docs/FEATURES_COMPARISON.md) • [🤝 Contributing](CONTRIBUTING.md)
 
 **🌐 Language:** **English** • [中文](README-zh_CN.md)
+
 ---
 
 # Notion-to-WordPress
@@ -36,11 +36,32 @@
 ---
 
 ## Quick Start
+
+### 📸 Project Demo
+<!-- TODO: Add project demo screenshots/GIFs -->
+<div align="center">
+  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo" width="800">
+  <p><em>🎬 60-second complete demo: seamless sync from Notion to WordPress</em></p>
+</div>
+
+### 🚀 3-Step Setup
 1. **Install** – upload the ZIP in `Plugins → Add New` and activate.
 2. **Configure** – paste your *Internal Integration Token* & *Database ID* under "Notion to WordPress".
 3. **Sync** – click "Manual Sync" or wait for Cron/Webhook; your Notion content appears in WordPress.
 
-Need screenshots? See the [Getting Started guide](./wiki/README-Wiki.md#getting-started).
+### 📋 Notion Database Templates
+We've prepared ready-to-use Notion database templates for you:
+
+| 📝 **Chinese template** | [Copy the template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
+| 📚 **English template** | [Copy the template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
+
+> 💡 **Tip**: After copying the template, remember to invite your integration to access the database in Notion!
+
+### 🎥 Visual Tutorials
+> See the [Getting Started guide](./wiki/README-Wiki.md#getting-started) for:
+> - 📷 **Step-by-step screenshots**
+> - 🎬 **Animated tutorials**
+> - 🔧 **Common issue solutions**
 
 ---
 
