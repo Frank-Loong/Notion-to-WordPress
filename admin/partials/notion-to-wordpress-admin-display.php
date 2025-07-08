@@ -30,8 +30,8 @@ $field_mapping         = $options['field_mapping'] ?? [
     'date'           => 'Date,日期',
     'excerpt'        => 'Excerpt,摘要',
     'featured_image' => 'Featured Image,特色图片',
-    'categories'     => 'Categories,分类',
-    'tags'           => 'Tags,标签',
+    'categories'     => 'Categories,分类,Category',
+    'tags'           => 'Tags,标签,Tag',
     'password'       => 'Password,密码',
 ];
 $debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR;
