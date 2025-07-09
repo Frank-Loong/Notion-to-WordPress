@@ -32,15 +32,6 @@ Welcome to the official documentation hub for **Notion to WordPress**! From onbo
 
 ## 🚀 Getting Started
 
-### 📸 Complete Visual Tutorial
-
-#### 🎬 Animated Demo
-<!-- TODO: Add complete setup animation -->
-<div align="center">
-  <img src="../docs/images/setup-complete.gif" alt="Complete Setup Flow" width="800">
-  <p><em>🎯 Complete setup flow: from zero to sync success</em></p>
-</div>
-
 #### 📋 Notion Database Templates
 Before you start, grab one of our ready-to-use templates:
 
@@ -222,19 +213,17 @@ The plugin supports various Notion content types and converts them to WordPress 
 The plugin uses **field mapping** to connect Notion database properties to WordPress fields.
 
 #### Core Field Mappings
-- **Post Title**: `Title,标题` - Maps to WordPress post_title
-- **Status**: `Status,状态` - Controls post publication status:
-  - `Published/已发布/publish/public/公开/live/上线` → Publish post
-  - `Private/私密/private_post` → Private post
-  - `Draft/草稿/unpublished/未发布` → Draft status
-  - Works with password field for password-protected posts
-- **Post Type**: `Type,类型` - Specifies WordPress post type (post, page, etc.)
-- **Date**: `Date,日期` - Sets post publication date
-- **Excerpt**: `Excerpt,摘要` - Post excerpt content
-- **Featured Image**: `Featured Image,特色图片` - Featured image URL
-- **Categories**: `Categories,分类,Category` - Post categories
-- **Tags**: `Tags,标签,Tag` - Post tags
-- **Password**: `Password,密码` - When this field is not empty, the post is automatically set to password-protected, with the field value as the access password
+| Field Name | Notion Property Names | WordPress Field | Description |
+|------------|----------------------|-----------------|-------------|
+| **Post Title** | `Title` | post_title | Maps to WordPress post title |
+| **Status** | `Status` | post_status | `Published/publish/public/live` → Publish post<br>`Private/private_post` → Private post<br>`Draft/unpublished` → Draft status<br>Works with password field for password-protected posts |
+| **Post Type** | `Type` | post_type | Specifies WordPress post type (post, page, etc.) |
+| **Date** | `Date` | post_date | Sets post publication date |
+| **Excerpt** | `Summary,Excerpt` | post_excerpt | Post excerpt content |
+| **Featured Image** | `Featured Image` | _thumbnail_id | Featured image URL |
+| **Categories** | `Categories,Category` | post_category | Post categories |
+| **Tags** | `Tags,Tag` | post_tag | Post tags |
+| **Password** | `Password` | post_password | When this field is not empty, the post is automatically set to password-protected, with the field value as the access password |
 
 
 #### Custom Field Mapping
@@ -526,18 +515,17 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 - **[REST API Integration](https://developer.wordpress.org/rest-api/)** - WordPress REST API usage
 
 ### Tools & Utilities
-- **[Notion API Tester](https://developers.notion.com/tools/api-tester)** - Test your Notion API calls
+- **[Notion API Explorer](https://developers.notion.com/reference/intro)** - Explore and test Notion API endpoints
 - **[WordPress Debug Tools](https://wordpress.org/plugins/debug-bar/)** - Debug WordPress issues
 - **[JSON Formatter](https://jsonformatter.org/)** - Format and validate JSON data
-
-### Best Practices
-- **[Content Migration Strategy](../docs/README.md#migration-strategy)** - Planning your content migration
-- **[Performance Optimization](../docs/PROJECT_STATUS.md#performance-metrics)** - Optimizing sync performance
-- **[Security Considerations](../docs/PROJECT_STATUS.md#security-features)** - Keeping your integration secure
 
 ---
 
 <div align="center">
+
+**📚 Wiki Complete**
+
+*This documentation is continuously updated. For the latest information, visit our [GitHub repository](https://github.com/Frank-Loong/Notion-to-WordPress).*
 
 **[⬆️ Back to Top](#notion-to-wordpress---complete-user-guide) • [🏠 Main README](../README.md) • [🇨🇳 中文版](./README-Wiki.zh-CN.md) • [📚 Docs Hub](../docs/README.md)**
 

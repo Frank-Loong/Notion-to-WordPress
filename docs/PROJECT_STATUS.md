@@ -79,7 +79,7 @@
 
 ## 🔧 Technical Architecture
 
-### **Core Components**
+### **Project Structure**
 ```
 notion-to-wordpress/
 ├── includes/                          # Core functionality
@@ -339,12 +339,12 @@ sequenceDiagram
 
 ### **Current Constraints**
 1. **Notion API Limits**: Subject to Notion's rate limiting
-2. **Large File Handling**: Files >10MB require manual handling
-3. **Complex Formulas**: Some advanced Notion formulas may not render
+2. **Large File Handling**: Files >10MB may affect performance
+3. **Complex Blocks**: Some complex blocks may not render
 4. **Real-time Bidirectional**: WordPress→Notion sync not supported
 
 ### **Planned Improvements**
-- Enhanced formula support
+- Enhanced block support
 - Bidirectional sync capabilities
 - Advanced caching mechanisms
 - Performance monitoring dashboard
@@ -354,7 +354,7 @@ sequenceDiagram
 ## 🗺️ Roadmap
 
 ### **Short Term (Next 6 months)**
-- [ ] **Enhanced Formula Support**: Better mathematical formula handling
+- [ ] **Enhanced Block Support**: Better block handling
 - [ ] **Performance Dashboard**: Real-time sync monitoring
 - [ ] **Backup Integration**: Automated backup before sync
 - [ ] **Advanced Filtering**: Content filtering options

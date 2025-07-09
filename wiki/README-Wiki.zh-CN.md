@@ -41,15 +41,7 @@
 
 ## 🎯 快速上手
 
-### 📸 完整图文教程
-
-#### 🎬 动图演示
-<div align="center">
-  <img src="../docs/images/setup-complete.gif" alt="完整设置流程" width="800">
-  <p><em>🎯 完整设置流程：从零到同步成功</em></p>
-</div>
-
-#### 📋 Notion 数据库模板
+### 📋 Notion 数据库模板
 在开始之前，你可以直接复制我们的模板：
 
 <div align="center">
@@ -159,8 +151,29 @@
    - 授予"编辑"权限
 
 ### 步骤 2：安装插件
-1. 前往 GitHub Release 或打包 ZIP，上传到 `wp-admin → 插件 → 安装插件 → 上传`
-2. 激活 **Notion to WordPress**
+
+#### 方法一：WordPress 管理后台（推荐）
+1. **下载插件**：从 [GitHub Releases](https://github.com/Frank-Loong/Notion-to-WordPress/releases) 获取最新的 `.zip` 文件
+2. **上传插件**：
+   - 进入 `插件` → `添加新插件` → `上传插件`
+   - 选择已下载的 `.zip` 文件
+   - 点击 `现在安装`
+3. **激活**：安装完成后点击 `激活插件`
+
+#### 方法二：FTP 上传
+1. **解压文件**：将插件解压到 `notion-to-wordpress/` 文件夹
+2. **通过 FTP 上传**：将文件夹上传到 `/wp-content/plugins/`
+3. **激活**：进入 WordPress 管理后台 → `插件` → 激活 "Notion to WordPress"
+
+#### 方法三：WP-CLI（高级用户）
+```bash
+# 下载并安装
+wp plugin install https://github.com/Frank-Loong/Notion-to-WordPress/releases/latest/download/notion-to-wordpress.zip
+
+# 激活
+wp plugin activate notion-to-wordpress
+```
+
 
 ### 步骤 3：配置插件
 1. 进入侧边栏 *Notion to WordPress*
@@ -230,19 +243,17 @@
 插件通过 **字段映射** 将 Notion 数据库的属性对应到 WordPress 字段。
 
 #### 核心字段映射
-- **文章标题**：`Title,标题` - 对应 WordPress 的 post_title
-- **状态**：`Status,状态` - 控制文章发布状态：
-  - `Published/已发布/publish/public/公开/live/上线` → 发布文章
-  - `Private/私密/private_post` → 私密文章
-  - `Draft/草稿/unpublished/未发布` → 草稿状态
-  - 配合密码字段可实现密码保护文章
-- **文章类型**：`Type,类型` - 指定 WordPress 文章类型（post, page 等）
-- **日期**：`Date,日期` - 设置文章发布日期
-- **摘要**：`Excerpt,摘要` - 文章摘要内容
-- **特色图片**：`Featured Image,特色图片` - 文章特色图片 URL
-- **分类**：`Categories,分类,Category` - 文章分类
-- **标签**：`Tags,标签,Tag` - 文章标签
-- **密码**：`Password,密码` - 当此字段非空时，文章自动设为密码保护，字段值即为访问密码
+| 字段名称 | Notion 属性名称 | WordPress 对应字段 | 说明 |
+|---------|--------------|-----------------|------|
+| **文章标题** | `Title,标题` | post_title | 对应 WordPress 的文章标题 |
+| **状态** | `Status,状态` | post_status | `Published/已发布/publish/public/公开/live/上线` → 发布文章<br>`Private/私密/private_post` → 私密文章<br>`Draft/草稿/unpublished/未发布` → 草稿状态<br>配合密码字段可实现密码保护文章 |
+| **文章类型** | `Type,类型` | post_type | 指定 WordPress 文章类型（post, page 等） |
+| **日期** | `Date,日期` | post_date | 设置文章发布日期 |
+| **摘要** | `Summary,摘要,Excerpt` | post_excerpt | 文章摘要内容 |
+| **特色图片** | `Featured Image,特色图片` | _thumbnail_id | 文章特色图片 URL |
+| **分类** | `Categories,分类,Category` | post_category | 文章分类 |
+| **标签** | `Tags,标签,Tag` | post_tag | 文章标签 |
+| **密码** | `Password,密码` | post_password | 当此字段非空时，文章自动设为密码保护，字段值即为访问密码 |
 
 
 #### 自定义字段映射
@@ -486,14 +497,9 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 - **[REST API 集成](https://developer.wordpress.org/rest-api/)** - WordPress REST API 使用
 
 ### 工具与实用程序
-- **[Notion API 测试器](https://developers.notion.com/tools/api-tester)** - 测试你的 Notion API 调用
+- **[Notion API 测试](https://developers.notion.com/reference/intro)** - 测试 Notion API 调用
 - **[WordPress 调试工具](https://wordpress.org/plugins/debug-bar/)** - 调试 WordPress 问题
 - **[JSON 格式化器](https://jsonformatter.org/)** - 格式化和验证 JSON 数据
-
-### 最佳实践
-- **[内容迁移策略](../docs/README-zh_CN.md#迁移策略)** - 规划你的内容迁移
-- **[性能优化](../docs/PROJECT_STATUS-zh_CN.md#性能指标)** - 优化同步性能
-- **[安全考虑](../docs/PROJECT_STATUS-zh_CN.md#安全功能)** - 保持集成安全
 
 ---
 
