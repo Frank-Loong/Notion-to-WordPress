@@ -686,6 +686,86 @@ class Notion_To_WordPress_Helper {
         return date_i18n($format, $timestamp);
     }
 
+    /**
+     * 记录性能指标
+     *
+     * @since 1.1.1
+     * @param string $operation 操作名称
+     * @param float $start_time 开始时间
+     * @param array $additional_data 额外数据
+     */
+    public static function log_performance(string $operation, float $start_time, array $additional_data = []): void {
+        if (self::$debug_level < self::DEBUG_LEVEL_DEBUG) {
+            return;
+        }
+
+        $execution_time = microtime(true) - $start_time;
+        $memory_usage = memory_get_usage(true);
+        $peak_memory = memory_get_peak_usage(true);
+
+        $performance_data = [
+            'operation' => $operation,
+            'execution_time' => round($execution_time * 1000, 2) . 'ms',
+            'memory_usage' => self::format_bytes($memory_usage),
+            'peak_memory' => self::format_bytes($peak_memory),
+            'timestamp' => current_time('mysql')
+        ];
+
+        if (!empty($additional_data)) {
+            $performance_data = array_merge($performance_data, $additional_data);
+        }
+
+        self::debug_log(
+            '性能监控 - ' . $operation . ': ' . json_encode($performance_data, JSON_UNESCAPED_UNICODE),
+            'Performance'
+        );
+    }
+
+    /**
+     * 格式化字节数
+     *
+     * @since 1.1.1
+     * @param int $bytes 字节数
+     * @return string 格式化后的字符串
+     */
+    public static function format_bytes(int $bytes): string {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $factor = floor((strlen((string)$bytes) - 1) / 3);
+        return sprintf("%.2f %s", $bytes / pow(1024, $factor), $units[$factor]);
+    }
+
+    /**
+     * 开始性能计时
+     *
+     * @since 1.1.1
+     * @param string $operation 操作名称
+     * @return float 开始时间
+     */
+    public static function start_performance_timer(string $operation): float {
+        $start_time = microtime(true);
+
+        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG) {
+            self::debug_log(
+                '开始性能计时: ' . $operation,
+                'Performance Timer'
+            );
+        }
+
+        return $start_time;
+    }
+
+    /**
+     * 结束性能计时并记录
+     *
+     * @since 1.1.1
+     * @param string $operation 操作名称
+     * @param float $start_time 开始时间
+     * @param array $additional_data 额外数据
+     */
+    public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): void {
+        self::log_performance($operation, $start_time, $additional_data);
+    }
+
 
 }
 

@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Notion to WordPress 1.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-08 17:30+0800\n"
-"PO-Revision-Date: 2025-07-08 22:13+0800\n"
+"PO-Revision-Date: 2025-07-09 20:15+0800\n"
 "Last-Translator: Frank-Loong <frankloong@qq.com>\n"
 "Language-Team: English (United States)\n"
 "Language: en_US\n"
@@ -1253,3 +1253,47 @@ msgstr "Create and get API key in Notion's \"My integrations\" page."
 #: admin\partials\notion-to-wordpress-admin-display.php
 msgid "值为 \"Published\" 或 \"已发布\" 的页面会被设为 \"已发布\" 状态，其他则为 \"草稿\"。"
 msgstr "Pages with value \"Published\" or \"已发布\" will be set to \"Published\" status, others will be \"Draft\"."
+
+#: includes\class-notion-pages.php
+msgid "暂无记录"
+msgstr "No records"
+
+#: includes\class-notion-pages.php
+msgid "无标题"
+msgstr "Untitled"
+
+#: includes\class-notion-pages.php
+msgid "封面图片"
+msgstr "Cover image"
+
+#: includes\class-notion-pages.php
+msgid "图标"
+msgstr "Icon"
+
+#: includes\class-notion-pages.php
+msgid "数据库记录封面"
+msgstr "Database record cover"
+
+#: includes\class-notion-pages.php
+msgid "数据库记录图标"
+msgstr "Database record icon"
+
+#: includes\class-notion-pages.php
+msgid "加载更多记录 (%d)"
+msgstr "Load more records (%d)"
+
+#: includes\class-notion-pages.php
+msgid "标题"
+msgstr "Title"
+
+#: includes\class-notion-pages.php
+msgid "记录ID不能为空"
+msgstr "Record ID cannot be empty"
+
+#: includes\class-notion-pages.php
+msgid "无法获取记录详情"
+msgstr "Unable to get record details"
+
+#: includes\class-notion-pages.php
+msgid "获取记录详情失败: %s"
+msgstr "Failed to get record details: %s"

@@ -36,6 +36,51 @@ class Notion_API {
     private string $api_base = 'https://api.notion.com/v1/';
 
     /**
+     * 页面详细信息缓存
+     *
+     * @since    1.1.1
+     * @access   private
+     * @var      array<string, array>
+     */
+    private static array $page_cache = [];
+
+    /**
+     * 数据库页面缓存
+     *
+     * @since    1.1.1
+     * @access   private
+     * @var      array<string, array>
+     */
+    private static array $database_pages_cache = [];
+
+    /**
+     * 数据库信息缓存
+     *
+     * @since    1.1.1
+     * @access   private
+     * @var      array<string, array>
+     */
+    private static array $database_info_cache = [];
+
+    /**
+     * 缓存过期时间（秒）
+     *
+     * @since    1.1.1
+     * @access   private
+     * @var      int
+     */
+    private static int $cache_ttl = 300; // 5分钟
+
+    /**
+     * 缓存时间戳
+     *
+     * @since    1.1.1
+     * @access   private
+     * @var      array<string, int>
+     */
+    private static array $cache_timestamps = [];
+
+    /**
      * 构造函数，初始化 API 客户端。
      *
      * @since    1.0.8
@@ -120,11 +165,33 @@ class Notion_API {
      * @since    1.0.8
      * @param    string    $database_id    Notion 数据库的 ID。
      * @param    array<string, mixed>     $filter         应用于查询的筛选条件。
+     * @param    bool      $with_details   是否获取页面详细信息（包括cover、icon等）。
      * @return   array<string, mixed>                     页面对象数组。
      * @throws   Exception             如果 API 请求失败。
      */
-    public function get_database_pages(string $database_id, array $filter = []): array {
+    public function get_database_pages(string $database_id, array $filter = [], bool $with_details = false): array {
+        $start_time = Notion_To_WordPress_Helper::start_performance_timer('get_database_pages');
+
         error_log('Notion to WordPress: get_database_pages() 开始，Database ID: ' . $database_id);
+
+        // 生成缓存键
+        $cache_key = $database_id . '_' . md5(serialize($filter)) . '_' . ($with_details ? 'detailed' : 'basic');
+
+        // 检查缓存
+        if (isset(self::$database_pages_cache[$cache_key])) {
+            Notion_To_WordPress_Helper::debug_log(
+                '从缓存获取数据库页面: ' . $database_id,
+                'Database Pages Cache'
+            );
+
+            Notion_To_WordPress_Helper::end_performance_timer('get_database_pages', $start_time, [
+                'cache_hit' => true,
+                'database_id' => $database_id,
+                'with_details' => $with_details
+            ]);
+
+            return self::$database_pages_cache[$cache_key];
+        }
 
         $all_results = [];
         $has_more = true;
@@ -156,6 +223,27 @@ class Notion_API {
             $has_more = $response['has_more'] ?? false;
             $start_cursor = $response['next_cursor'] ?? null;
         }
+
+        // 如果需要详细信息，批量获取页面详情
+        if ($with_details && !empty($all_results)) {
+            $all_results = $this->enrich_pages_with_details($all_results);
+        }
+
+        // 存储到缓存
+        self::$database_pages_cache[$cache_key] = $all_results;
+
+        Notion_To_WordPress_Helper::debug_log(
+            '数据库页面获取完成，总数: ' . count($all_results) . ', 详细信息: ' . ($with_details ? '是' : '否'),
+            'Database Pages'
+        );
+
+        Notion_To_WordPress_Helper::end_performance_timer('get_database_pages', $start_time, [
+            'cache_hit' => false,
+            'database_id' => $database_id,
+            'with_details' => $with_details,
+            'records_count' => count($all_results),
+            'api_calls' => $with_details ? count($all_results) + 1 : 1
+        ]);
 
         return $all_results;
     }
@@ -372,8 +460,28 @@ class Notion_API {
      * @return array<string, mixed> 数据库信息数组，失败时返回空数组
      */
     public function get_database_info(string $database_id): array {
+        // 检查缓存
+        if ($this->is_cache_valid('database_info_' . $database_id)) {
+            Notion_To_WordPress_Helper::debug_log(
+                '从缓存获取数据库信息: ' . $database_id,
+                'Database Info Cache'
+            );
+            return self::$database_info_cache[$database_id];
+        }
+
         try {
-            return $this->get_database($database_id);
+            $database_info = $this->get_database($database_id);
+
+            // 存储到缓存
+            self::$database_info_cache[$database_id] = $database_info;
+            self::$cache_timestamps['database_info_' . $database_id] = time();
+
+            Notion_To_WordPress_Helper::debug_log(
+                '数据库信息获取成功并缓存: ' . $database_id,
+                'Database Info'
+            );
+
+            return $database_info;
         } catch (Exception $e) {
             Notion_To_WordPress_Helper::debug_log(
                 '数据库信息获取失败: ' . $e->getMessage(),
@@ -381,5 +489,177 @@ class Notion_API {
             );
             return [];
         }
+    }
+
+    /**
+     * 获取页面详细信息，包括cover、icon等完整属性
+     *
+     * @since 1.1.1
+     * @param string $page_id 页面ID
+     * @return array<string, mixed> 页面详细信息数组，失败时返回空数组
+     */
+    public function get_page_details(string $page_id): array {
+        // 检查缓存
+        if (isset(self::$page_cache[$page_id])) {
+            Notion_To_WordPress_Helper::debug_log(
+                '从缓存获取页面详情: ' . $page_id,
+                'Page Details Cache'
+            );
+            return self::$page_cache[$page_id];
+        }
+
+        try {
+            $page_data = $this->get_page($page_id);
+
+            // 存储到缓存
+            self::$page_cache[$page_id] = $page_data;
+
+            Notion_To_WordPress_Helper::debug_log(
+                '页面详情获取成功: ' . $page_id . ', 包含cover: ' . (isset($page_data['cover']) ? '是' : '否') . ', 包含icon: ' . (isset($page_data['icon']) ? '是' : '否'),
+                'Page Details'
+            );
+
+            return $page_data;
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '页面详情获取失败: ' . $page_id . ', 错误: ' . $e->getMessage(),
+                'Page Details'
+            );
+            return [];
+        }
+    }
+
+    /**
+     * 批量为页面添加详细信息
+     *
+     * @since 1.1.1
+     * @param array<string, mixed> $pages 页面数组
+     * @return array<string, mixed> 包含详细信息的页面数组
+     */
+    private function enrich_pages_with_details(array $pages): array {
+        $enriched_pages = [];
+
+        foreach ($pages as $page) {
+            $page_id = $page['id'] ?? '';
+            if (empty($page_id)) {
+                $enriched_pages[] = $page;
+                continue;
+            }
+
+            // 获取页面详细信息
+            $page_details = $this->get_page_details($page_id);
+
+            if (!empty($page_details)) {
+                // 合并基本信息和详细信息
+                $enriched_page = array_merge($page, [
+                    'cover' => $page_details['cover'] ?? null,
+                    'icon' => $page_details['icon'] ?? null,
+                    'url' => $page_details['url'] ?? $page['url'] ?? null,
+                ]);
+                $enriched_pages[] = $enriched_page;
+            } else {
+                $enriched_pages[] = $page;
+            }
+        }
+
+        return $enriched_pages;
+    }
+
+    /**
+     * 清除页面缓存
+     *
+     * @since 1.1.1
+     * @param string|null $page_id 特定页面ID，为null时清除所有缓存
+     */
+    public static function clear_page_cache(?string $page_id = null): void {
+        if ($page_id !== null) {
+            unset(self::$page_cache[$page_id]);
+            unset(self::$cache_timestamps['page_' . $page_id]);
+            Notion_To_WordPress_Helper::debug_log(
+                '清除页面缓存: ' . $page_id,
+                'Page Cache'
+            );
+        } else {
+            self::$page_cache = [];
+            self::$database_pages_cache = [];
+            self::$database_info_cache = [];
+            self::$cache_timestamps = [];
+            Notion_To_WordPress_Helper::debug_log(
+                '清除所有缓存',
+                'Page Cache'
+            );
+        }
+    }
+
+    /**
+     * 检查缓存是否有效
+     *
+     * @since 1.1.1
+     * @param string $cache_key 缓存键
+     * @return bool
+     */
+    private function is_cache_valid(string $cache_key): bool {
+        if (!isset(self::$cache_timestamps[$cache_key])) {
+            return false;
+        }
+
+        $cache_time = self::$cache_timestamps[$cache_key];
+        $current_time = time();
+
+        return ($current_time - $cache_time) < self::$cache_ttl;
+    }
+
+    /**
+     * 清理过期缓存
+     *
+     * @since 1.1.1
+     */
+    public static function cleanup_expired_cache(): void {
+        $current_time = time();
+        $expired_keys = [];
+
+        foreach (self::$cache_timestamps as $cache_key => $timestamp) {
+            if (($current_time - $timestamp) >= self::$cache_ttl) {
+                $expired_keys[] = $cache_key;
+            }
+        }
+
+        foreach ($expired_keys as $key) {
+            unset(self::$cache_timestamps[$key]);
+
+            // 根据键名清理对应的缓存
+            if (strpos($key, 'page_') === 0) {
+                $page_id = substr($key, 5);
+                unset(self::$page_cache[$page_id]);
+            } elseif (strpos($key, 'database_info_') === 0) {
+                $db_id = substr($key, 14);
+                unset(self::$database_info_cache[$db_id]);
+            } elseif (strpos($key, 'database_pages_') === 0) {
+                unset(self::$database_pages_cache[$key]);
+            }
+        }
+
+        if (!empty($expired_keys)) {
+            Notion_To_WordPress_Helper::debug_log(
+                '清理过期缓存: ' . count($expired_keys) . ' 个项目',
+                'Cache Cleanup'
+            );
+        }
+    }
+
+    /**
+     * 获取缓存统计信息
+     *
+     * @since 1.1.1
+     * @return array
+     */
+    public static function get_cache_stats(): array {
+        return [
+            'page_cache_count' => count(self::$page_cache),
+            'database_pages_cache_count' => count(self::$database_pages_cache),
+            'database_info_cache_count' => count(self::$database_info_cache),
+            'total_cache_items' => count(self::$cache_timestamps),
+            'cache_ttl' => self::$cache_ttl
+        ];
     }
 }

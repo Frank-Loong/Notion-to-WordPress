@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: Notion to WordPress 1.1.0\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-08 17:30+0800\n"
-"PO-Revision-Date: 2025-07-08 22:13+0800\n"
+"PO-Revision-Date: 2025-07-09 20:15+0800\n"
 "Last-Translator: Frank-Loong <frankloong@qq.com>\n"
 "Language-Team: Simplified Chinese (China)\n"
 "Language: zh_CN\n"
@@ -1253,3 +1253,47 @@ msgstr "页面内容同步发生致命错误"
 #: includes\class-notion-to-wordpress-webhook.php
 msgid "数据库已更新，已触发%s%s"
 msgstr "数据库已更新，已触发%s%s"
+
+#: includes\class-notion-pages.php
+msgid "暂无记录"
+msgstr "暂无记录"
+
+#: includes\class-notion-pages.php
+msgid "无标题"
+msgstr "无标题"
+
+#: includes\class-notion-pages.php
+msgid "封面图片"
+msgstr "封面图片"
+
+#: includes\class-notion-pages.php
+msgid "图标"
+msgstr "图标"
+
+#: includes\class-notion-pages.php
+msgid "数据库记录封面"
+msgstr "数据库记录封面"
+
+#: includes\class-notion-pages.php
+msgid "数据库记录图标"
+msgstr "数据库记录图标"
+
+#: includes\class-notion-pages.php
+msgid "加载更多记录 (%d)"
+msgstr "加载更多记录 (%d)"
+
+#: includes\class-notion-pages.php
+msgid "标题"
+msgstr "标题"
+
+#: includes\class-notion-pages.php
+msgid "记录ID不能为空"
+msgstr "记录ID不能为空"
+
+#: includes\class-notion-pages.php
+msgid "无法获取记录详情"
+msgstr "无法获取记录详情"
+
+#: includes\class-notion-pages.php
+msgid "获取记录详情失败: %s"
+msgstr "获取记录详情失败: %s"

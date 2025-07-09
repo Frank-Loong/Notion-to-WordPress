@@ -135,7 +135,7 @@ Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024
 
 ## 🌟 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
 
 ## 🚀 Automated Release System
 

@@ -2159,14 +2159,15 @@ class Notion_Pages {
     private function render_database_preview_records(string $database_id, array $database_info, Notion_API $notion_api): string {
         try {
             // 获取数据库中的前几条记录（限制数量以提高性能）
-            $records = $notion_api->get_database_pages($database_id);
+            // 使用with_details=true获取包含封面图片和图标的完整信息
+            $records = $notion_api->get_database_pages($database_id, [], true);
 
             if (empty($records)) {
                 Notion_To_WordPress_Helper::debug_log(
                     '数据库无记录或无权限访问: ' . $database_id,
                     'Database Block'
                 );
-                return '<div class="notion-database-empty">暂无记录</div>';
+                return '<div class="notion-database-empty">' . __('暂无记录', 'notion-to-wordpress') . '</div>';
             }
 
             // 显示所有记录的预览
@@ -2175,15 +2176,26 @@ class Notion_Pages {
                 'Database Block'
             );
 
-            $html = '<div class="notion-database-preview">';
-            $html .= '<div class="notion-database-records">';
+            // 智能选择视图类型
+            $view_type = $this->detect_optimal_view_type($records, $database_info);
 
-            foreach ($records as $record) {
-                $html .= $this->render_single_database_record($record, $database_info);
+            Notion_To_WordPress_Helper::debug_log(
+                '选择视图类型: ' . $view_type . ' for database: ' . $database_id,
+                'Database View'
+            );
+
+            // 实现渐进式加载：先显示基本信息，后续加载详细内容
+            $initial_load_count = min(6, count($records)); // 首次加载最多6条记录
+            $initial_records = array_slice($records, 0, $initial_load_count);
+            $remaining_records = array_slice($records, $initial_load_count);
+
+            // 渲染初始内容
+            $html = $this->render_database_with_view($initial_records, $database_info, $view_type);
+
+            // 如果有剩余记录，添加懒加载容器
+            if (!empty($remaining_records)) {
+                $html .= $this->render_progressive_loading_container($remaining_records, $database_info, $view_type, $database_id);
             }
-
-            $html .= '</div>'; // 关闭 notion-database-records
-            $html .= '</div>'; // 关闭 notion-database-preview
 
             return $html;
 
@@ -2207,13 +2219,27 @@ class Notion_Pages {
     private function render_single_database_record(array $record, array $database_info): string {
         $properties = $record['properties'] ?? [];
         $record_id = $record['id'] ?? '';
+        $created_time = $record['created_time'] ?? '';
 
-        $html = '<div class="notion-database-record">';
+        $html = '<div class="notion-database-record" data-record-id="' . esc_attr($record_id) . '" data-created="' . esc_attr($created_time) . '">';
 
-        // 获取记录标题
+        // 渲染封面图片（如果存在）
+        $cover_html = $this->render_record_cover($record);
+        if (!empty($cover_html)) {
+            $html .= $cover_html;
+        }
+
+        // 获取记录标题和图标
         $title = $this->extract_record_title($properties);
+        $icon_html = $this->render_record_icon($record);
+
         if (!empty($title)) {
-            $html .= '<div class="notion-record-title">' . esc_html($title) . '</div>';
+            $html .= '<div class="notion-record-title">';
+            if (!empty($icon_html)) {
+                $html .= $icon_html;
+            }
+            $html .= esc_html($title);
+            $html .= '</div>';
         }
 
         // 获取并显示关键属性
@@ -2274,7 +2300,7 @@ class Notion_Pages {
             }
         }
 
-        return '无标题';
+        return __('无标题', 'notion-to-wordpress');
     }
 
     /**
@@ -2290,7 +2316,7 @@ class Notion_Pages {
         $db_properties = $database_info['properties'] ?? [];
 
         // 优先显示的属性类型
-        $priority_types = ['select', 'status', 'date', 'number', 'checkbox'];
+        $priority_types = ['select', 'status', 'date', 'number', 'checkbox', 'files', 'url', 'email', 'phone_number', 'multi_select', 'people'];
 
         foreach ($priority_types as $type) {
             foreach ($db_properties as $prop_name => $prop_config) {
@@ -2340,8 +2366,697 @@ class Notion_Pages {
                 }
                 return '';
 
+            case 'files':
+                return $this->render_record_files($property);
+
+            case 'url':
+                $url = $property['url'] ?? '';
+                if (!empty($url)) {
+                    $display_url = mb_strlen($url) > 30 ? mb_substr($url, 0, 30) . '...' : $url;
+                    return '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">' . esc_html($display_url) . '</a>';
+                }
+                return '';
+
+            case 'email':
+                $email = $property['email'] ?? '';
+                if (!empty($email)) {
+                    return '<a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a>';
+                }
+                return '';
+
+            case 'phone_number':
+                $phone = $property['phone_number'] ?? '';
+                if (!empty($phone)) {
+                    return '<a href="tel:' . esc_attr($phone) . '">' . esc_html($phone) . '</a>';
+                }
+                return '';
+
+            case 'multi_select':
+                if (!empty($property['multi_select'])) {
+                    $options = array_map(function($option) {
+                        return $option['name'] ?? '';
+                    }, $property['multi_select']);
+                    return implode(', ', array_filter($options));
+                }
+                return '';
+
+            case 'people':
+                if (!empty($property['people'])) {
+                    $names = array_map(function($person) {
+                        return $person['name'] ?? '';
+                    }, $property['people']);
+                    return implode(', ', array_filter($names));
+                }
+                return '';
+
             default:
                 return '';
         }
+    }
+
+    /**
+     * 渲染数据库记录的封面图片
+     *
+     * @since 1.1.1
+     * @param array $record 记录数据
+     * @return string HTML内容
+     */
+    private function render_record_cover(array $record): string {
+        $cover = $record['cover'] ?? null;
+        if (empty($cover)) {
+            return '';
+        }
+
+        $cover_type = $cover['type'] ?? '';
+        $cover_url = '';
+
+        // 处理不同类型的封面
+        switch ($cover_type) {
+            case 'file':
+                $cover_url = $cover['file']['url'] ?? '';
+                break;
+            case 'external':
+                $cover_url = $cover['external']['url'] ?? '';
+                break;
+            default:
+                Notion_To_WordPress_Helper::debug_log(
+                    '未知的封面类型: ' . $cover_type,
+                    'Record Cover'
+                );
+                return '';
+        }
+
+        if (empty($cover_url)) {
+            return '';
+        }
+
+        // 处理Notion临时URL
+        if ($this->is_notion_temp_url($cover_url)) {
+            $attachment_id = $this->download_and_insert_image($cover_url, __('数据库记录封面', 'notion-to-wordpress'));
+
+            if (is_numeric($attachment_id) && $attachment_id > 0) {
+                $local_url = wp_get_attachment_url($attachment_id);
+                if ($local_url) {
+                    $cover_url = $local_url;
+                    Notion_To_WordPress_Helper::debug_log(
+                        '封面图片下载成功，本地URL: ' . $local_url,
+                        'Record Cover'
+                    );
+                } else {
+                    Notion_To_WordPress_Helper::error_log(
+                        '封面图片下载后获取本地URL失败',
+                        'Record Cover'
+                    );
+                    return '';
+                }
+            } else {
+                Notion_To_WordPress_Helper::error_log(
+                    '封面图片下载失败: ' . $cover_url,
+                    'Record Cover'
+                );
+                return '';
+            }
+        }
+
+        return '<div class="notion-record-cover">' .
+               '<img data-src="' . esc_url($cover_url) . '" alt="' . esc_attr__('封面图片', 'notion-to-wordpress') . '" class="notion-lazy-image" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PC9zdmc+">' .
+               '</div>';
+    }
+
+    /**
+     * 渲染数据库记录的图标
+     *
+     * @since 1.1.1
+     * @param array $record 记录数据
+     * @return string HTML内容
+     */
+    private function render_record_icon(array $record): string {
+        $icon = $record['icon'] ?? null;
+        if (empty($icon)) {
+            return '';
+        }
+
+        $icon_type = $icon['type'] ?? '';
+
+        switch ($icon_type) {
+            case 'emoji':
+                $emoji = $icon['emoji'] ?? '';
+                if (!empty($emoji)) {
+                    return '<span class="notion-record-icon notion-record-icon-emoji">' . esc_html($emoji) . '</span>';
+                }
+                break;
+
+            case 'file':
+                $icon_url = $icon['file']['url'] ?? '';
+                if (!empty($icon_url)) {
+                    return $this->render_icon_image($icon_url);
+                }
+                break;
+
+            case 'external':
+                $icon_url = $icon['external']['url'] ?? '';
+                if (!empty($icon_url)) {
+                    return $this->render_icon_image($icon_url);
+                }
+                break;
+
+            default:
+                Notion_To_WordPress_Helper::debug_log(
+                    '未知的图标类型: ' . $icon_type,
+                    'Record Icon'
+                );
+                break;
+        }
+
+        return '';
+    }
+
+    /**
+     * 渲染图标图片
+     *
+     * @since 1.1.1
+     * @param string $icon_url 图标URL
+     * @return string HTML内容
+     */
+    private function render_icon_image(string $icon_url): string {
+        if (empty($icon_url)) {
+            return '';
+        }
+
+        // 处理Notion临时URL
+        if ($this->is_notion_temp_url($icon_url)) {
+            $attachment_id = $this->download_and_insert_image($icon_url, __('数据库记录图标', 'notion-to-wordpress'));
+
+            if (is_numeric($attachment_id) && $attachment_id > 0) {
+                $local_url = wp_get_attachment_url($attachment_id);
+                if ($local_url) {
+                    $icon_url = $local_url;
+                    Notion_To_WordPress_Helper::debug_log(
+                        '图标图片下载成功，本地URL: ' . $local_url,
+                        'Record Icon'
+                    );
+                } else {
+                    Notion_To_WordPress_Helper::error_log(
+                        '图标图片下载后获取本地URL失败',
+                        'Record Icon'
+                    );
+                    return '';
+                }
+            } else {
+                Notion_To_WordPress_Helper::error_log(
+                    '图标图片下载失败: ' . $icon_url,
+                    'Record Icon'
+                );
+                return '';
+            }
+        }
+
+        return '<img class="notion-record-icon notion-record-icon-image notion-lazy-image" data-src="' . esc_url($icon_url) . '" alt="' . esc_attr__('图标', 'notion-to-wordpress') . '" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg==">';
+    }
+
+    /**
+     * 渲染文件属性
+     *
+     * @since 1.1.1
+     * @param array $property 文件属性数据
+     * @return string HTML内容
+     */
+    private function render_record_files(array $property): string {
+        $files = $property['files'] ?? [];
+        if (empty($files)) {
+            return '';
+        }
+
+        $html = '<div class="notion-record-files">';
+        $file_count = 0;
+        $max_files = 3; // 最多显示3个文件
+
+        foreach ($files as $file) {
+            if ($file_count >= $max_files) {
+                $remaining = count($files) - $max_files;
+                if ($remaining > 0) {
+                    $html .= '<span class="notion-files-more">+' . $remaining . ' 个文件</span>';
+                }
+                break;
+            }
+
+            $file_html = $this->render_single_file($file);
+            if (!empty($file_html)) {
+                $html .= $file_html;
+                $file_count++;
+            }
+        }
+
+        $html .= '</div>';
+        return $html;
+    }
+
+    /**
+     * 渲染单个文件
+     *
+     * @since 1.1.1
+     * @param array $file 文件数据
+     * @return string HTML内容
+     */
+    private function render_single_file(array $file): string {
+        $file_type = $file['type'] ?? '';
+        $file_name = '';
+        $file_url = '';
+
+        // 处理不同类型的文件
+        switch ($file_type) {
+            case 'file':
+                $file_data = $file['file'] ?? [];
+                $file_url = $file_data['url'] ?? '';
+                $file_name = $file['name'] ?? basename($file_url);
+                break;
+            case 'external':
+                $file_data = $file['external'] ?? [];
+                $file_url = $file_data['url'] ?? '';
+                $file_name = $file['name'] ?? basename($file_url);
+                break;
+            default:
+                Notion_To_WordPress_Helper::debug_log(
+                    '未知的文件类型: ' . $file_type,
+                    'Record Files'
+                );
+                return '';
+        }
+
+        if (empty($file_url) || empty($file_name)) {
+            return '';
+        }
+
+        // 检查是否为图片文件
+        if ($this->is_image_file($file_name)) {
+            return $this->render_file_thumbnail($file_url, $file_name);
+        } else {
+            return $this->render_file_link($file_url, $file_name);
+        }
+    }
+
+    /**
+     * 检查是否为图片文件
+     *
+     * @since 1.1.1
+     * @param string $filename 文件名
+     * @return bool
+     */
+    private function is_image_file(string $filename): bool {
+        $image_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        return in_array($extension, $image_extensions);
+    }
+
+    /**
+     * 渲染文件缩略图（用于图片文件）
+     *
+     * @since 1.1.1
+     * @param string $file_url 文件URL
+     * @param string $file_name 文件名
+     * @return string HTML内容
+     */
+    private function render_file_thumbnail(string $file_url, string $file_name): string {
+        $display_url = $file_url;
+
+        // 处理Notion临时URL
+        if ($this->is_notion_temp_url($file_url)) {
+            $attachment_id = $this->download_and_insert_image($file_url, $file_name);
+
+            if (is_numeric($attachment_id) && $attachment_id > 0) {
+                $local_url = wp_get_attachment_url($attachment_id);
+                if ($local_url) {
+                    $display_url = $local_url;
+                    Notion_To_WordPress_Helper::debug_log(
+                        '文件缩略图下载成功: ' . $file_name,
+                        'Record Files'
+                    );
+                } else {
+                    Notion_To_WordPress_Helper::error_log(
+                        '文件缩略图下载后获取本地URL失败: ' . $file_name,
+                        'Record Files'
+                    );
+                    return $this->render_file_link($file_url, $file_name);
+                }
+            } else {
+                Notion_To_WordPress_Helper::error_log(
+                    '文件缩略图下载失败: ' . $file_name,
+                    'Record Files'
+                );
+                return $this->render_file_link($file_url, $file_name);
+            }
+        }
+
+        return '<div class="notion-file-thumbnail">' .
+               '<img class="notion-lazy-image" data-src="' . esc_url($display_url) . '" alt="' . esc_attr($file_name) . '" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2YwZjBmMCIvPjwvc3ZnPg==">' .
+               '<span class="notion-file-name">' . esc_html($file_name) . '</span>' .
+               '</div>';
+    }
+
+    /**
+     * 渲染文件链接（用于非图片文件）
+     *
+     * @since 1.1.1
+     * @param string $file_url 文件URL
+     * @param string $file_name 文件名
+     * @return string HTML内容
+     */
+    private function render_file_link(string $file_url, string $file_name): string {
+        return '<div class="notion-file-link">' .
+               '<a href="' . esc_url($file_url) . '" target="_blank" rel="noopener noreferrer" download>' .
+               '<span class="notion-file-icon">📎</span>' .
+               '<span class="notion-file-name">' . esc_html($file_name) . '</span>' .
+               '</a>' .
+               '</div>';
+    }
+
+    /**
+     * 智能检测最适合的视图类型
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string 视图类型
+     */
+    private function detect_optimal_view_type(array $records, array $database_info): string {
+        // 检查是否有封面图片
+        $has_covers = false;
+        $cover_count = 0;
+
+        foreach ($records as $record) {
+            if (!empty($record['cover'])) {
+                $cover_count++;
+            }
+        }
+
+        // 如果超过50%的记录有封面图片，使用画廊视图
+        if ($cover_count > 0 && ($cover_count / count($records)) >= 0.5) {
+            $has_covers = true;
+        }
+
+        // 检查数据库属性数量
+        $properties = $database_info['properties'] ?? [];
+        $property_count = count($properties);
+
+        // 视图选择逻辑
+        if ($has_covers) {
+            Notion_To_WordPress_Helper::debug_log(
+                '检测到封面图片，选择画廊视图。封面数量: ' . $cover_count . '/' . count($records),
+                'Database View'
+            );
+            return 'gallery';
+        } elseif ($property_count > 5) {
+            Notion_To_WordPress_Helper::debug_log(
+                '检测到多属性，选择表格视图。属性数量: ' . $property_count,
+                'Database View'
+            );
+            return 'table';
+        } else {
+            Notion_To_WordPress_Helper::debug_log(
+                '使用默认列表视图。属性数量: ' . $property_count,
+                'Database View'
+            );
+            return 'list';
+        }
+    }
+
+    /**
+     * 使用指定视图类型渲染数据库
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @param string $view_type 视图类型
+     * @return string HTML内容
+     */
+    private function render_database_with_view(array $records, array $database_info, string $view_type): string {
+        switch ($view_type) {
+            case 'gallery':
+                return $this->render_gallery_view($records, $database_info);
+            case 'table':
+                return $this->render_table_view($records, $database_info);
+            case 'list':
+            default:
+                return $this->render_list_view($records, $database_info);
+        }
+    }
+
+    /**
+     * 渲染列表视图（默认视图）
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_list_view(array $records, array $database_info): string {
+        $html = '<div class="notion-database-preview notion-database-list">';
+        $html .= '<div class="notion-database-records">';
+
+        foreach ($records as $record) {
+            $html .= $this->render_single_database_record($record, $database_info);
+        }
+
+        $html .= '</div>'; // 关闭 notion-database-records
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 渲染画廊视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_gallery_view(array $records, array $database_info): string {
+        $html = '<div class="notion-database-preview notion-database-gallery">';
+        $html .= '<div class="notion-database-records notion-gallery-grid">';
+
+        foreach ($records as $record) {
+            $html .= $this->render_single_database_record($record, $database_info);
+        }
+
+        $html .= '</div>'; // 关闭 notion-database-records
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 渲染表格视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_table_view(array $records, array $database_info): string {
+        $html = '<div class="notion-database-preview notion-database-table">';
+
+        // 渲染表格头部
+        $html .= $this->render_table_header($database_info);
+
+        // 渲染表格内容
+        $html .= '<div class="notion-table-body">';
+        foreach ($records as $record) {
+            $html .= $this->render_table_row($record, $database_info);
+        }
+        $html .= '</div>'; // 关闭 notion-table-body
+
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 渲染表格头部
+     *
+     * @since 1.1.1
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_table_header(array $database_info): string {
+        $properties = $database_info['properties'] ?? [];
+
+        $html = '<div class="notion-table-header">';
+        $html .= '<div class="notion-table-row notion-table-header-row">';
+
+        // 标题列
+        $html .= '<div class="notion-table-cell notion-table-header-cell">' . __('标题', 'notion-to-wordpress') . '</div>';
+
+        // 属性列（最多显示5个主要属性）
+        $displayed_props = 0;
+        $max_props = 5;
+
+        foreach ($properties as $prop_name => $prop_config) {
+            if ($displayed_props >= $max_props) break;
+
+            $prop_type = $prop_config['type'] ?? '';
+            // 跳过title类型（已经有标题列了）
+            if ($prop_type === 'title') continue;
+
+            $html .= '<div class="notion-table-cell notion-table-header-cell">' . esc_html($prop_name) . '</div>';
+            $displayed_props++;
+        }
+
+        $html .= '</div>'; // 关闭 notion-table-header-row
+        $html .= '</div>'; // 关闭 notion-table-header
+
+        return $html;
+    }
+
+    /**
+     * 渲染表格行
+     *
+     * @since 1.1.1
+     * @param array $record 记录数据
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_table_row(array $record, array $database_info): string {
+        $properties = $record['properties'] ?? [];
+        $db_properties = $database_info['properties'] ?? [];
+
+        $html = '<div class="notion-table-row">';
+
+        // 标题单元格（包含图标）
+        $title = $this->extract_record_title($properties);
+        $icon_html = $this->render_record_icon($record);
+
+        $html .= '<div class="notion-table-cell notion-table-title-cell">';
+        if (!empty($icon_html)) {
+            $html .= $icon_html;
+        }
+        $html .= esc_html($title);
+        $html .= '</div>';
+
+        // 属性单元格
+        $displayed_props = 0;
+        $max_props = 5;
+
+        foreach ($db_properties as $prop_name => $prop_config) {
+            if ($displayed_props >= $max_props) break;
+
+            $prop_type = $prop_config['type'] ?? '';
+            // 跳过title类型
+            if ($prop_type === 'title') continue;
+
+            $prop_value = '';
+            if (isset($properties[$prop_name])) {
+                $prop_value = $this->format_property_for_preview($properties[$prop_name], $prop_type);
+            }
+
+            $html .= '<div class="notion-table-cell">' . $prop_value . '</div>';
+            $displayed_props++;
+        }
+
+        $html .= '</div>'; // 关闭 notion-table-row
+
+        return $html;
+    }
+
+    /**
+     * 渲染渐进式加载容器
+     *
+     * @since 1.1.1
+     * @param array $records 剩余记录
+     * @param array $database_info 数据库信息
+     * @param string $view_type 视图类型
+     * @param string $database_id 数据库ID
+     * @return string HTML内容
+     */
+    private function render_progressive_loading_container(array $records, array $database_info, string $view_type, string $database_id): string {
+        $records_json = base64_encode(json_encode([
+            'records' => $records,
+            'database_info' => $database_info,
+            'view_type' => $view_type,
+            'database_id' => $database_id
+        ]));
+
+        $html = '<div class="notion-progressive-loading" data-records="' . esc_attr($records_json) . '">';
+        $html .= '<div class="notion-loading-trigger">';
+        $html .= '<button class="notion-load-more-btn" onclick="NotionProgressiveLoader.loadMore(this)">';
+        $html .= '<span class="notion-loading-text">' . sprintf(__('加载更多记录 (%d)', 'notion-to-wordpress'), count($records)) . '</span>';
+        $html .= '<span class="notion-loading-spinner" style="display: none;">⏳ ' . __('加载中...', 'notion-to-wordpress') . '</span>';
+        $html .= '</button>';
+        $html .= '</div>';
+        $html .= '<div class="notion-progressive-content"></div>';
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    /**
+     * 获取缓存统计信息
+     *
+     * @since 1.1.1
+     * @return array
+     */
+    public function get_performance_stats(): array {
+        $api_stats = Notion_API::get_cache_stats();
+
+        return [
+            'api_cache' => $api_stats,
+            'memory_usage' => memory_get_usage(true),
+            'peak_memory' => memory_get_peak_usage(true),
+            'execution_time' => microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']
+        ];
+    }
+
+    /**
+     * 处理AJAX请求获取记录详情
+     *
+     * @since 1.1.1
+     */
+    public function ajax_get_record_details(): void {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'notion_record_details')) {
+            wp_die(__('安全验证失败', 'notion-to-wordpress'));
+        }
+
+        $record_id = sanitize_text_field($_POST['record_id'] ?? '');
+        if (empty($record_id)) {
+            wp_send_json_error(__('记录ID不能为空', 'notion-to-wordpress'));
+        }
+
+        try {
+            $notion_api = new Notion_API(get_option('notion_to_wordpress_options')['api_key'] ?? '');
+            $record_details = $notion_api->get_page_details($record_id);
+
+            if (empty($record_details)) {
+                wp_send_json_error(__('无法获取记录详情', 'notion-to-wordpress'));
+            }
+
+            // 格式化返回数据
+            $formatted_details = [
+                'id' => $record_details['id'] ?? '',
+                'created_time' => $record_details['created_time'] ?? '',
+                'last_edited_time' => $record_details['last_edited_time'] ?? '',
+                'url' => $record_details['url'] ?? '',
+                'properties_count' => count($record_details['properties'] ?? [])
+            ];
+
+            wp_send_json_success($formatted_details);
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                'AJAX获取记录详情失败: ' . $e->getMessage(),
+                'AJAX Record Details'
+            );
+            wp_send_json_error(sprintf(__('获取记录详情失败: %s', 'notion-to-wordpress'), $e->getMessage()));
+        }
+    }
+
+    /**
+     * 注册AJAX处理器
+     *
+     * @since 1.1.1
+     */
+    public function register_ajax_handlers(): void {
+        add_action('wp_ajax_notion_get_record_details', [$this, 'ajax_get_record_details']);
+        add_action('wp_ajax_nopriv_notion_get_record_details', [$this, 'ajax_get_record_details']);
     }
 }

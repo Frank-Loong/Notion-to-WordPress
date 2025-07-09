@@ -134,7 +134,7 @@
 
 ## 🌟 Star 历史
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
 
 ## 🚀 自动化发布系统
 

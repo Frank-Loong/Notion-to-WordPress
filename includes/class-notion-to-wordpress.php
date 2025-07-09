@@ -505,6 +505,24 @@ class Notion_To_WordPress {
 			$this->version,
 			true
 		);
+
+		// 懒加载和性能优化脚本
+		wp_enqueue_script(
+			$this->plugin_name . '-lazy-loading',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/lazy-loading.js'),
+			array(),
+			$this->version,
+			true
+		);
+
+		// 数据库交互功能脚本
+		wp_enqueue_script(
+			$this->plugin_name . '-database-interactions',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/database-interactions.js'),
+			array('jquery'),
+			$this->version,
+			true
+		);
 	}
 
 	/**
