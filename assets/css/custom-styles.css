@@ -185,6 +185,33 @@
     margin-top: 0.5em;
 }
 
+/* ================ 分栏布局样式 ================ */
+
+/* 分栏容器 */
+.notion-column-list {
+    display: flex;
+    gap: 16px;
+    margin: 1em 0;
+    align-items: flex-start;
+}
+
+/* 分栏列 */
+.notion-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* 分栏内容样式优化 */
+.notion-column > * {
+    margin-top: 0;
+}
+
+.notion-column > *:last-child {
+    margin-bottom: 0;
+}
+
 /* 表格样式 */
 .notion-page-content table {
     border-collapse: collapse;
@@ -504,13 +531,27 @@ blockquote {
     .notion-page-content iframe[src$=".pdf"] {
         height: 400px;
     }
-    
+
     .notion-page-content table {
         font-size: 0.9em;
     }
-    
+
     .notion-callout {
         padding: 12px;
+    }
+
+    /* 分栏响应式：移动端变为单列 */
+    .notion-column-list {
+        flex-direction: column;
+        gap: 0;
+    }
+
+    .notion-column {
+        margin-bottom: 1em;
+    }
+
+    .notion-column:last-child {
+        margin-bottom: 0;
     }
 }
 
