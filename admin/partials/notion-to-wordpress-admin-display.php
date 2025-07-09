@@ -28,7 +28,7 @@ $field_mapping         = $options['field_mapping'] ?? [
     'status'         => 'Status,状态',
     'post_type'      => 'Type,类型',
     'date'           => 'Date,日期',
-    'excerpt'        => 'Excerpt,摘要',
+    'excerpt'        => 'Summary,摘要,Excerpt',
     'featured_image' => 'Featured Image,特色图片',
     'categories'     => 'Categories,分类,Category',
     'tags'           => 'Tags,标签,Tag',
@@ -46,7 +46,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
     <div class="notion-wp-header">
         <div class="notion-wp-header-content">
             <h1 class="wp-heading-inline">
-                <span class="dashicons dashicons-database-import notion-wp-logo"></span>
+                <span class="notion-wp-logo"></span>
                 <?php _e('Notion to WordPress', 'notion-to-wordpress'); ?>
             </h1>
             <div class="notion-wp-version"><?php echo esc_html( NOTION_TO_WORDPRESS_VERSION ); ?></div>
@@ -780,13 +780,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                     <div class="left-actions">
                         <div class="sync-options-group">
                             <button type="button" id="notion-manual-import" class="button button-secondary">
-                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
+                                <span class="dashicons dashicons-update"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
                             </button>
                             <button type="button" id="notion-full-import" class="button button-secondary">
                                 <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
                             </button>
                             <button type="button" class="button button-secondary refresh-all-content">
-                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
+                                <span class="dashicons dashicons-update-alt"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
                             </button>
                         </div>
                         <div class="sync-options-info">

@@ -163,7 +163,7 @@ This document compares our plugin with other Notion-to-WordPress solutions, high
 ### **Reliability Metrics**
 | Metric | **Our Plugin** | Industry Average | Our Achievement |
 |--------|----------------|------------------|-----------------|
-| **Uptime** | 99.9% | 95% | **5x better** |
+| **Uptime** | 99.9% | 95% | **5% better** |
 | **Error Recovery** | 99.9% | 80% | **25% better** |
 | **Sync Success Rate** | 99.8% | 90% | **11% better** |
 
