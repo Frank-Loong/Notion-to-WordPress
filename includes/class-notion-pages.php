@@ -496,6 +496,12 @@ class Notion_Pages {
                 try {
                     // 尝试转换块
                     $block_html = $this->{$converter_method}($block, $notion_api);
+
+                    // 为非列表项的区块添加 ID 包装，支持锚点跳转
+                    if (!$is_list_item) {
+                        $block_html = $this->wrap_block_with_id($block_html, $block['id'], $block_type);
+                    }
+
                     $html .= $block_html;
 
                     // 特别记录数据库区块的成功转换
@@ -569,6 +575,24 @@ class Notion_Pages {
         }
 
         return ! empty( $child_blocks ) ? $this->convert_blocks_to_html( $child_blocks, $notion_api ) : '';
+    }
+
+    /**
+     * 为区块添加唯一 ID 包装，支持锚点跳转
+     *
+     * @since    1.1.1
+     * @param    string    $block_html    区块的 HTML 内容
+     * @param    string    $block_id      区块的唯一 ID
+     * @param    string    $block_type    区块类型
+     * @return   string                   包装后的 HTML
+     */
+    private function wrap_block_with_id(string $block_html, string $block_id, string $block_type): string {
+        // 确保 ID 和类名安全
+        $safe_id = esc_attr('notion-block-' . $block_id);
+        $safe_type = esc_attr($block_type);
+
+        // 返回包装后的 HTML
+        return '<div id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '">' . $block_html . '</div>';
     }
 
     // --- Block Converters ---
@@ -995,6 +1019,36 @@ class Notion_Pages {
     }
 
     /**
+     * 检测是否为 Notion 页面内锚点链接
+     *
+     * @since    1.1.1
+     * @param    string    $href    链接地址
+     * @return   bool              是否为 Notion 锚点链接
+     */
+    private function is_notion_anchor_link(string $href): bool {
+        // 检测是否为 Notion 页面内链接，支持多种格式：
+        // 1. https://www.notion.so/page-title-123abc#456def
+        // 2. https://notion.so/123abc#456def
+        // 3. #456def (相对锚点)
+        return preg_match('/(?:notion\.so.*)?#[a-f0-9-]{8,}/', $href);
+    }
+
+    /**
+     * 将 Notion 锚点链接转换为本地锚点
+     *
+     * @since    1.1.1
+     * @param    string    $href    原始链接地址
+     * @return   string             转换后的本地锚点链接
+     */
+    private function convert_notion_anchor_to_local(string $href): string {
+        // 提取区块 ID 并转换为本地锚点
+        if (preg_match('/#([a-f0-9-]{8,})/', $href, $matches)) {
+            return '#notion-block-' . $matches[1];
+        }
+        return $href;
+    }
+
+    /**
      * 从富文本数组中提取文本内容
      *
      * @since    1.0.5
@@ -1063,7 +1117,15 @@ class Notion_Pages {
             
             // 处理链接
             if (!empty($href)) {
-                $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
+                // 检测是否为 Notion 锚点链接
+                if ($this->is_notion_anchor_link($href)) {
+                    // 转换为本地锚点链接，不添加 target="_blank"
+                    $local_href = $this->convert_notion_anchor_to_local($href);
+                    $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
+                } else {
+                    // 外部链接保持原有处理方式
+                    $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
+                }
             }
             
             $result .= $content;
