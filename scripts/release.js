@@ -40,10 +40,12 @@ class ReleaseController {
     parseArguments(args) {
         const parsed = minimist(args, {
             boolean: ['dry-run', 'help', 'force'],
+            string: ['version'],
             alias: {
                 'h': 'help',
                 'd': 'dry-run',
-                'f': 'force'
+                'f': 'force',
+                'v': 'version'
             }
         });
 
@@ -54,10 +56,20 @@ class ReleaseController {
 
         this.isDryRun = parsed['dry-run'] || false;
         this.forceRelease = parsed.force || false;
+        this.customVersion = parsed.version;
         this.releaseType = parsed._[0];
 
-        if (!this.releaseType || !['patch', 'minor', 'major', 'beta'].includes(this.releaseType)) {
-            this.error('Invalid or missing release type');
+        // Validate arguments
+        if (this.customVersion) {
+            // Custom version provided, validate format
+            if (!this.isValidVersion(this.customVersion)) {
+                this.error(`Invalid version format: ${this.customVersion}`);
+                this.showHelp();
+                process.exit(1);
+            }
+            this.releaseType = 'custom';
+        } else if (!this.releaseType || !['patch', 'minor', 'major', 'beta'].includes(this.releaseType)) {
+            this.error('Invalid or missing release type. Use patch/minor/major/beta or --version=X.Y.Z');
             this.showHelp();
             process.exit(1);
         }
@@ -65,8 +77,18 @@ class ReleaseController {
         return {
             releaseType: this.releaseType,
             isDryRun: this.isDryRun,
-            forceRelease: this.forceRelease
+            forceRelease: this.forceRelease,
+            customVersion: this.customVersion
         };
+    }
+
+    /**
+     * Validate version format
+     */
+    isValidVersion(version) {
+        // Basic semver validation
+        const semverRegex = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
+        return semverRegex.test(version);
     }
 
     /**
@@ -74,20 +96,24 @@ class ReleaseController {
      */
     showHelp() {
         console.log(chalk.bold('\n🚀 Notion-to-WordPress Release Controller\n'));
-        console.log('Usage: node release.js <release-type> [options]\n');
+        console.log('Usage: node release.js <release-type> [options]');
+        console.log('       node release.js --version=X.Y.Z [options]\n');
         console.log('Release Types:');
         console.log('  patch     Patch release (1.1.0 → 1.1.1)');
         console.log('  minor     Minor release (1.1.0 → 1.2.0)');
         console.log('  major     Major release (1.1.0 → 2.0.0)');
         console.log('  beta      Beta release (1.1.0 → 1.1.1-beta.1)\n');
         console.log('Options:');
-        console.log('  -d, --dry-run    Preview changes without executing');
-        console.log('  -f, --force      Skip confirmation prompts');
-        console.log('  -h, --help       Show this help message\n');
+        console.log('  -v, --version=X.Y.Z  Use custom version number');
+        console.log('  -d, --dry-run        Preview changes without executing');
+        console.log('  -f, --force          Skip confirmation prompts');
+        console.log('  -h, --help           Show this help message\n');
         console.log('Examples:');
         console.log('  node release.js patch');
         console.log('  node release.js minor --dry-run');
         console.log('  node release.js major --force');
+        console.log('  node release.js --version=1.2.0-rc.1');
+        console.log('  node release.js --version=1.2.0-hotfix.1 --dry-run');
     }
 
     /**
@@ -153,17 +179,23 @@ class ReleaseController {
         this.log('📋 Preparing version information...');
 
         const versionBumper = new VersionBumper();
-        
+
         // Get current version
         this.currentVersion = versionBumper.getCurrentVersion();
         versionBumper.validateVersion();
-        
+
         // Calculate new version
-        this.newVersion = versionBumper.bumpVersion(this.currentVersion, this.releaseType);
-        
+        if (this.customVersion) {
+            // Use custom version
+            this.newVersion = this.customVersion;
+        } else {
+            // Calculate version based on release type
+            this.newVersion = versionBumper.bumpVersion(this.currentVersion, this.releaseType);
+        }
+
         this.log(`Current version: ${chalk.yellow(this.currentVersion)}`);
         this.log(`New version: ${chalk.green(this.newVersion)}`);
-        
+
         return {
             currentVersion: this.currentVersion,
             newVersion: this.newVersion
@@ -211,7 +243,16 @@ class ReleaseController {
 
         try {
             const versionBumper = new VersionBumper();
-            versionBumper.run(this.releaseType);
+
+            if (this.customVersion) {
+                // Use custom version
+                versionBumper.updateToCustomVersion(this.customVersion);
+                this.newVersion = this.customVersion;
+            } else {
+                // Use standard release type
+                versionBumper.run(this.releaseType);
+                this.newVersion = versionBumper.getNewVersion();
+            }
             
             this.completedSteps.push('version-bump');
             this.rollbackActions.push(() => {

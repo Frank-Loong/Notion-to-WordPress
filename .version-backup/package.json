@@ -1,6 +1,6 @@
 {
   "name": "notion-to-wordpress",
-  "version": "1.2.0-beta.1",
+  "version": "1.1.1-beta.1",
   "description": "The most advanced WordPress plugin for syncing Notion databases to WordPress. Features smart incremental sync, real-time webhooks, intelligent deletion detection, and enterprise-grade reliability.",
   "main": "notion-to-wordpress.php",
   "scripts": {
@@ -8,7 +8,6 @@
     "release:minor": "node scripts/release.js minor",
     "release:major": "node scripts/release.js major",
     "release:beta": "node scripts/release.js beta",
-    "release:custom": "node scripts/release.js",
     "build": "node scripts/build.js",
     "version:bump": "node scripts/version-bump.js",
     "package:local": "node scripts/local-package.js",
