@@ -232,16 +232,28 @@ body.wp-admin {
     margin-right: 8px !important;
 }
 
+/* WordPress 菜单图标样式 - 放大一倍 */
+#adminmenu .wp-menu-image img,
+#adminmenu .wp-menu-image svg {
+    width: 64px !important;
+    height: 64px !important;
+}
+
+/* 针对我们插件的菜单项 */
+#adminmenu #toplevel_page_notion-to-wordpress .wp-menu-image {
+    background-size: 64px 64px !important;
+}
+
 .notion-wp-logo:before {
     content: '' !important;
     display: none !important;
 }
 
-/* 头部标题中的图标样式 */
+/* 头部标题中的图标样式 - 放大两倍 */
 .wp-heading-inline .notion-wp-logo {
-    width: 24px !important;
-    height: 24px !important;
-    margin-right: 10px !important;
+    width: 80px !important;
+    height: 80px !important;
+    margin-right: 12px !important;
     vertical-align: text-bottom !important;
 }
 
