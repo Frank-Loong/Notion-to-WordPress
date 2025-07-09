@@ -1254,3 +1254,47 @@ msgstr ""
 msgid "值为 "Published" 或 "已发布" 的页面会被设为 "已发布" 状态，其他则为 "草稿"。"
 msgstr ""
 
+#: includes\class-notion-pages.php
+msgid "暂无记录"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "无标题"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "封面图片"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "图标"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "数据库记录封面"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "数据库记录图标"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "加载更多记录 (%d)"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "标题"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "记录ID不能为空"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "无法获取记录详情"
+msgstr ""
+
+#: includes\class-notion-pages.php
+msgid "获取记录详情失败: %s"
+msgstr ""
+
