@@ -39,7 +39,7 @@
 
 ### 📸 项目演示
 <div align="center">
-  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo-Overview" width="800">
+  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo-Overview" width="850">
   <p><em>🎬 Notion to WordPress 后台界面演示</em></p>
 </div>
 
@@ -135,6 +135,57 @@
 ## 🌟 Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+
+## 🚀 自动化发布系统
+
+本项目配备了专业的自动化发布系统，将从版本更新到 GitHub 发布的整个流程简化为一键操作。
+
+### ✨ 核心特性
+
+- **🔄 一键发布** - 使用单个 npm 命令执行完整发布流程
+- **📦 WordPress 标准打包** - 自动生成优化的 ZIP 包
+- **🏷️ 智能版本管理** - 在所有项目文件中更新版本号
+- **🚀 GitHub 集成** - 创建带有下载链接和发布说明的发布
+- **🔐 安全校验和** - 生成 SHA256/MD5 校验和用于包验证
+- **🛡️ 安全特性** - 完整的回滚功能和环境验证
+
+### 🎯 快速发布命令
+
+```bash
+# 补丁发布 (1.1.0 → 1.1.1) - 错误修复
+npm run release:patch
+
+# 小版本发布 (1.1.0 → 1.2.0) - 新功能
+npm run release:minor
+
+# 大版本发布 (1.1.0 → 2.0.0) - 重大变更
+npm run release:major
+
+# 测试版发布 (1.1.0 → 1.1.1-beta.1) - 测试版本
+npm run release:beta
+
+# 预览模式（干运行）
+npm run test:release patch
+```
+
+### 📚 文档资源
+
+- **[📖 完整发布指南](docs/RELEASE_GUIDE-zh_CN.md)** - 详细文档
+- **[📖 English Release Guide](docs/RELEASE_GUIDE.md)** - 英文版本
+- **[⚙️ 配置指南](release.config.js)** - 自定义选项
+- **[🔧 GitHub Actions](.github/workflows/release.yml)** - CI/CD 工作流
+
+### 🛠️ 开发者功能
+
+自动化发布系统包括：
+- **版本管理** - 在 6+ 个文件中一致更新
+- **构建系统** - WordPress 兼容包生成
+- **CI/CD 流水线** - GitHub Actions 集成
+- **质量保证** - 验证工具和安全检查
+
+为想要专业级发布自动化的维护者而设计！
+
+---
 
 ## 贡献 & Star
 如果这个项目帮助到了你，请 **点个 ⭐Star 支持一下**！同时欢迎 PR、Issue、翻译与任何形式的贡献。

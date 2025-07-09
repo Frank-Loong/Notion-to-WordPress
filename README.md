@@ -40,7 +40,7 @@
 ### 📸 Project Demo
 <!-- TODO: Add project demo screenshots/GIFs -->
 <div align="center">
-  <img src="docs/images/demo-overview-en.gif" alt="Notion to WordPress Demo-Overview" width="800">
+  <img src="docs/images/demo-overview-en.gif" alt="Notion to WordPress Demo-Overview" width="850">
   <p><em>🎬 Notion to WordPress backend interface demonstration</em></p>
 </div>
 
@@ -136,6 +136,57 @@ Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024
 ## 🌟 Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+
+## 🚀 Automated Release System
+
+This project features a professional automated release system that streamlines the entire release process from version updates to GitHub releases.
+
+### ✨ Key Features
+
+- **🔄 One-Command Releases** - Execute complete releases with a single npm command
+- **📦 WordPress-Standard Packaging** - Automatically generates optimized ZIP packages
+- **🏷️ Smart Version Management** - Updates version numbers across all project files
+- **🚀 GitHub Integration** - Creates releases with download links and release notes
+- **🔐 Security Checksums** - Generates SHA256/MD5 checksums for package verification
+- **🛡️ Safety Features** - Complete rollback capabilities and environment validation
+
+### 🎯 Quick Release Commands
+
+```bash
+# Patch release (1.1.0 → 1.1.1) - Bug fixes
+npm run release:patch
+
+# Minor release (1.1.0 → 1.2.0) - New features
+npm run release:minor
+
+# Major release (1.1.0 → 2.0.0) - Breaking changes
+npm run release:major
+
+# Beta release (1.1.0 → 1.1.1-beta.1) - Testing versions
+npm run release:beta
+
+# Preview mode (dry-run)
+npm run test:release patch
+```
+
+### 📚 Documentation
+
+- **[📖 Complete Release Guide](docs/RELEASE_GUIDE.md)** - Comprehensive documentation
+- **[📖 中文发布指南](docs/RELEASE_GUIDE-zh_CN.md)** - Chinese version
+- **[⚙️ Configuration Guide](release.config.js)** - Customization options
+- **[🔧 GitHub Actions](.github/workflows/release.yml)** - CI/CD workflow
+
+### 🛠️ For Developers
+
+The automated release system includes:
+- **Version Management** - Consistent updates across 6+ files
+- **Build System** - WordPress-compliant package generation
+- **CI/CD Pipeline** - GitHub Actions integration
+- **Quality Assurance** - Validation tools and safety checks
+
+Perfect for maintainers who want professional-grade release automation!
+
+---
 
 ## Contributing ⭐
 If this project helps you, please smash that **Star**! PRs, issues, translations and ideas are warmly welcome.
