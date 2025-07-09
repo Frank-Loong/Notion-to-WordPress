@@ -4,7 +4,7 @@
 
 ---
 
-# <img src="assets/icon.svg" width="64" height="64" align="top"> Notion-to-WordPress
+# <img src="assets/icon.svg" width="80" height="80" align="center"> Notion-to-WordPress
 
 > 🚀 Transform Notion into WordPress with one click — Say goodbye to copy-pasting and achieve fully automated content publishing and synchronization
 

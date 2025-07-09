@@ -4,7 +4,7 @@
 
 ---
 
-# <img src="assets/icon.svg" width="64" height="64" align="top"> Notion·to·WordPress
+# <img src="assets/icon.svg" width="80" height="80" align="center"> Notion·to·WordPress
 
 > 🚀 一键将 Notion 变身 WordPress — 告别复制粘贴，实现全自动内容发布与同步
 
