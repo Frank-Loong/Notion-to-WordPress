@@ -523,6 +523,15 @@ class Notion_To_WordPress {
 			$this->version,
 			true
 		);
+
+		// 注册锚点导航脚本，支持区块锚点跳转
+		wp_enqueue_script(
+			$this->plugin_name . '-anchor-navigation',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/anchor-navigation.js'),
+			array('jquery'),
+			$this->version,
+			true
+		);
 	}
 
 	/**

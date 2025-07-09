@@ -1896,3 +1896,86 @@ blockquote {
         transform: translateY(0);
     }
 }
+
+/* ============================================
+   锚点跳转相关样式
+   ============================================ */
+
+/* 平滑滚动行为 */
+html {
+    scroll-behavior: smooth;
+}
+
+/* 区块容器基础样式 */
+.notion-block {
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+/* 锚点跳转高亮动画效果 */
+.notion-block-highlight {
+    background-color: rgba(255, 235, 59, 0.3) !important;
+    border-radius: 4px;
+    animation: notion-anchor-highlight 2s ease-out;
+}
+
+@keyframes notion-anchor-highlight {
+    0% {
+        background-color: rgba(255, 235, 59, 0.6);
+        box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.3);
+    }
+    50% {
+        background-color: rgba(255, 235, 59, 0.4);
+        box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.2);
+    }
+    100% {
+        background-color: rgba(255, 235, 59, 0.1);
+        box-shadow: none;
+    }
+}
+
+/* 响应式支持 */
+@media (max-width: 768px) {
+    .notion-block-highlight {
+        background-color: rgba(255, 235, 59, 0.4) !important;
+    }
+
+    @keyframes notion-anchor-highlight {
+        0% {
+            background-color: rgba(255, 235, 59, 0.7);
+            box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.4);
+        }
+        100% {
+            background-color: rgba(255, 235, 59, 0.2);
+            box-shadow: none;
+        }
+    }
+}
+
+/* 确保高亮效果不影响现有布局 */
+.notion-block-highlight * {
+    position: relative;
+    z-index: 1;
+}
+
+/* 针对深色主题的适配 */
+@media (prefers-color-scheme: dark) {
+    .notion-block-highlight {
+        background-color: rgba(255, 193, 7, 0.2) !important;
+    }
+
+    @keyframes notion-anchor-highlight {
+        0% {
+            background-color: rgba(255, 193, 7, 0.4);
+            box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.2);
+        }
+        50% {
+            background-color: rgba(255, 193, 7, 0.3);
+            box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.1);
+        }
+        100% {
+            background-color: rgba(255, 193, 7, 0.1);
+            box-shadow: none;
+        }
+    }
+}
