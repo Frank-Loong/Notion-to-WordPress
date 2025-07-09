@@ -2247,10 +2247,10 @@ class Notion_Pages {
         if (!empty($key_properties)) {
             $html .= '<div class="notion-record-properties">';
             foreach ($key_properties as $prop_name => $prop_value) {
-                if (!empty($prop_value)) {
+                if (!empty($prop_value) && $prop_value !== '未知' && $prop_value !== 'unknown') {
                     $html .= '<div class="notion-record-property">';
                     $html .= '<span class="notion-property-name">' . esc_html($prop_name) . ':</span> ';
-                    $html .= '<span class="notion-property-value">' . esc_html($prop_value) . '</span>';
+                    $html .= '<span class="notion-property-value">' . wp_kses_post($prop_value) . '</span>';
                     $html .= '</div>';
                 }
             }
@@ -2258,9 +2258,15 @@ class Notion_Pages {
         }
 
         // 如果记录有URL，添加链接
-        if (!empty($record['url'])) {
+        if (!empty($record['url']) && filter_var($record['url'], FILTER_VALIDATE_URL)) {
             $html .= '<div class="notion-record-link">';
             $html .= '<a href="' . esc_url($record['url']) . '" target="_blank" rel="noopener noreferrer">查看详情</a>';
+            $html .= '</div>';
+        } elseif (!empty($record_id)) {
+            // 如果没有URL但有记录ID，生成Notion链接
+            $notion_url = 'https://www.notion.so/' . str_replace('-', '', $record_id);
+            $html .= '<div class="notion-record-link">';
+            $html .= '<a href="' . esc_url($notion_url) . '" target="_blank" rel="noopener noreferrer">在Notion中查看</a>';
             $html .= '</div>';
         }
 
