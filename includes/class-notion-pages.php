@@ -1486,10 +1486,9 @@ class Notion_Pages {
     }
 
     private function _convert_block_column(array $block, Notion_API $notion_api): string {
-        // 计算列宽（Notion API 提供 ratio，可选）
+        // 计算列宽（Notion API 提供 width_ratio，直接用作 flex-grow 值）
         $ratio = $block['column']['width_ratio'] ?? 1;
-        $width_percent = 100 / max(1, $ratio); // 简化处理
-        $html = '<div class="notion-column" style="flex:1 1 ' . esc_attr($width_percent) . '%;">';
+        $html = '<div class="notion-column" style="flex:' . esc_attr($ratio) . ' 1 0;">';
         $html .= $this->_convert_child_blocks($block, $notion_api);
         $html .= '</div>';
         return $html;
