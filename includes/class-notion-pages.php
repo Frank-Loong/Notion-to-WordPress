@@ -174,7 +174,7 @@ class Notion_Pages {
             'status'         => 'Status,状态',
             'post_type'      => 'Type,类型',
             'date'           => 'Date,日期',
-            'excerpt'        => 'Excerpt,摘要',
+            'excerpt'        => 'Summary,摘要,Excerpt',
             'featured_image' => 'Featured Image,特色图片',
             'categories'     => 'Categories,分类,Category',
             'tags'           => 'Tags,标签,Tag',
