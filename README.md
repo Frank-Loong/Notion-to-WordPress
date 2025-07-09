@@ -40,7 +40,7 @@
 ### 📸 Project Demo
 <!-- TODO: Add project demo screenshots/GIFs -->
 <div align="center">
-  <img src="docs/images/demo-overview-en.gif" alt="Notion to WordPress Demo-Overview" width="800">
+  <img src="docs/images/demo-overview-en.gif" alt="Notion to WordPress Demo-Overview" width="850">
   <p><em>🎬 Notion to WordPress backend interface demonstration</em></p>
 </div>
 
