@@ -1232,11 +1232,83 @@ code {
     transition: all 0.2s ease;
 }
 
-/* 响应式调整 */
-@media (max-width: 768px) {
+/* =============== 平板设备适配 (481px-768px) =============== */
+@media (max-width: 768px) and (min-width: 481px) {
+    /* 同步按钮组优化 - 平板设备 */
     .sync-options-group {
         flex-direction: column;
         gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .sync-options-group .button {
+        width: 100%;
+        justify-content: center;
+        min-height: 44px; /* 符合触摸标准 */
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 1.2;
+        border-radius: 6px;
+    }
+
+    /* 按钮图标优化 - 平板设备 */
+    .sync-options-group .button .dashicons {
+        font-size: 16px;
+        line-height: 16px;
+        margin-right: 6px;
+    }
+
+    /* 说明文字优化 - 平板设备 */
+    .sync-options-info {
+        margin-top: 6px;
+        padding: 0 2px;
+    }
+
+    .sync-options-info .description {
+        font-size: 12px;
+        line-height: 1.4;
+        color: #666;
+    }
+
+    /* 操作按钮栏优化 - 平板设备 */
+    .notion-wp-actions-bar {
+        flex-direction: column;
+        gap: 15px;
+        padding: 18px 0;
+    }
+
+    .notion-wp-actions-bar .left-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* 保存按钮优化 - 平板设备 */
+    .notion-wp-actions-bar .button-primary {
+        width: 100%;
+        min-height: 44px;
+        padding: 10px 24px;
+        font-size: 14px;
+        justify-content: center;
+    }
+
+    /* 致谢与参考部分响应式调整 */
+    .reference-projects {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .reference-item {
+        padding: 12px;
+    }
+}
+
+/* =============== 中小屏设备通用适配 (≤768px) =============== */
+@media (max-width: 768px) {
+    /* 同步按钮组基础适配 */
+    .sync-options-group {
+        flex-direction: column;
     }
 
     .sync-options-group .button {
@@ -1252,5 +1324,67 @@ code {
 
     .reference-item {
         padding: 12px;
+    }
+}
+
+/* =============== 小屏手机适配 (320px-480px) =============== */
+@media (max-width: 480px) {
+    /* 同步按钮组优化 - 小屏手机 */
+    .sync-options-group {
+        flex-direction: column;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .sync-options-group .button {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px; /* 超过iOS 44px标准，确保触摸友好 */
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 500;
+        line-height: 1.2;
+        border-radius: 8px;
+    }
+
+    /* 按钮图标优化 */
+    .sync-options-group .button .dashicons {
+        font-size: 16px;
+        line-height: 16px;
+        margin-right: 6px;
+    }
+
+    /* 说明文字优化 - 小屏手机 */
+    .sync-options-info {
+        margin-top: 8px;
+        padding: 0 4px; /* 避免文字贴边 */
+    }
+
+    .sync-options-info .description {
+        font-size: 13px;
+        line-height: 1.5;
+        color: #666;
+    }
+
+    /* 操作按钮栏整体优化 - 小屏手机 */
+    .notion-wp-actions-bar {
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px 0;
+    }
+
+    .notion-wp-actions-bar .left-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 0;
+    }
+
+    /* 保存按钮优化 - 小屏手机 */
+    .notion-wp-actions-bar .button-primary {
+        width: 100%;
+        min-height: 48px;
+        padding: 12px 24px;
+        font-size: 15px;
+        justify-content: center;
     }
 }
