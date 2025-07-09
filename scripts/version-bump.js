@@ -334,6 +334,7 @@ class VersionBumper {
                 
                 if (success) {
                     this.success(`✅ Version successfully updated from ${currentVersion} to ${newVersion}`);
+                    this.setNewVersion(newVersion);
                     this.cleanupBackup();
                 } else {
                     throw new Error('No files were updated');
@@ -366,6 +367,66 @@ class VersionBumper {
 
     error(message) {
         console.log(chalk.red('❌ ' + message));
+    }
+
+    /**
+     * Update to a custom version (for local packaging)
+     *
+     * @since 1.1.1
+     * @param {string} customVersion - The custom version to set
+     */
+    updateToCustomVersion(customVersion) {
+        try {
+            // Validate version format
+            if (!semver.valid(customVersion)) {
+                throw new Error(`Invalid version format: ${customVersion}`);
+            }
+
+            this.log(`Updating to custom version: ${customVersion}`);
+
+            // Get current version for backup
+            const currentVersion = this.getCurrentVersion();
+            this.log(`Current version: ${currentVersion}`);
+
+            // Create backup
+            this.createBackup();
+
+            // Update all files
+            const success = this.updateAllFiles(customVersion);
+
+            if (success) {
+                this.success(`✅ Version successfully updated from ${currentVersion} to ${customVersion}`);
+                this.newVersion = customVersion;
+                return customVersion;
+            } else {
+                throw new Error('No files were updated');
+            }
+
+        } catch (error) {
+            this.error(`Custom version update failed: ${error.message}`);
+            this.restoreFromBackup();
+            throw error;
+        }
+    }
+
+    /**
+     * Get the new version after bump/update
+     *
+     * @since 1.1.1
+     * @returns {string} The new version
+     */
+    getNewVersion() {
+        return this.newVersion || this.getCurrentVersion();
+    }
+
+    /**
+     * Set the new version (used internally)
+     *
+     * @since 1.1.1
+     * @param {string} version - The new version
+     */
+    setNewVersion(version) {
+        this.newVersion = version;
     }
 }
 
