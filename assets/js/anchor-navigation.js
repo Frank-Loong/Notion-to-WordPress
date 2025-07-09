@@ -15,29 +15,46 @@
  * @param {string} targetId 目标区块的 ID
  */
 function smoothScrollToAnchor(targetId) {
-    // 移除 # 前缀（如果存在）
-    const cleanId = targetId.replace(/^#/, '');
-    const target = document.getElementById(cleanId);
-    
-    if (target) {
-        console.log('🎯 [Notion to WordPress] 跳转到区块:', cleanId);
-        
-        // 使用现代浏览器的平滑滚动
-        target.scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'start',
-            inline: 'nearest'
-        });
-        
-        // 添加高亮效果
-        highlightBlock(target);
-        
-        // 更新 URL hash（不触发滚动）
-        if (window.history && window.history.replaceState) {
-            window.history.replaceState(null, null, '#' + cleanId);
+    try {
+        // 输入验证
+        if (!targetId || typeof targetId !== 'string') {
+            console.warn('⚠️ [Notion to WordPress] 无效的目标 ID:', targetId);
+            return;
         }
-    } else {
-        console.warn('⚠️ [Notion to WordPress] 未找到目标区块:', cleanId);
+
+        // 移除 # 前缀（如果存在）
+        const cleanId = targetId.replace(/^#/, '');
+
+        // 验证 ID 格式
+        if (!cleanId || cleanId.length < 8) {
+            console.warn('⚠️ [Notion to WordPress] ID 格式无效:', cleanId);
+            return;
+        }
+
+        const target = document.getElementById(cleanId);
+
+        if (target) {
+            console.log('🎯 [Notion to WordPress] 跳转到区块:', cleanId);
+
+            // 使用现代浏览器的平滑滚动
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'nearest'
+            });
+
+            // 添加高亮效果
+            highlightBlock(target);
+
+            // 更新 URL hash（不触发滚动）
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, null, '#' + cleanId);
+            }
+        } else {
+            console.warn('⚠️ [Notion to WordPress] 未找到目标区块:', cleanId);
+        }
+    } catch (error) {
+        console.error('❌ [Notion to WordPress] 锚点跳转出错:', error);
     }
 }
 
@@ -46,19 +63,31 @@ function smoothScrollToAnchor(targetId) {
  * @param {Element} element 目标元素
  */
 function highlightBlock(element) {
-    // 移除可能存在的高亮类
-    element.classList.remove('notion-block-highlight');
-    
-    // 强制重绘，确保动画能正确触发
-    element.offsetHeight;
-    
-    // 添加高亮类
-    element.classList.add('notion-block-highlight');
-    
-    // 2秒后移除高亮效果
-    setTimeout(() => {
+    try {
+        // 验证元素是否有效
+        if (!element || !element.classList) {
+            console.warn('⚠️ [Notion to WordPress] 无效的元素，无法添加高亮效果');
+            return;
+        }
+
+        // 移除可能存在的高亮类
         element.classList.remove('notion-block-highlight');
-    }, 2000);
+
+        // 强制重绘，确保动画能正确触发
+        element.offsetHeight;
+
+        // 添加高亮类
+        element.classList.add('notion-block-highlight');
+
+        // 2秒后移除高亮效果
+        setTimeout(() => {
+            if (element && element.classList) {
+                element.classList.remove('notion-block-highlight');
+            }
+        }, 2000);
+    } catch (error) {
+        console.error('❌ [Notion to WordPress] 高亮效果出错:', error);
+    }
 }
 
 /**

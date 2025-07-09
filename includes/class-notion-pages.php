@@ -1045,6 +1045,8 @@ class Notion_Pages {
         if (preg_match('/#([a-f0-9-]{8,})/', $href, $matches)) {
             return '#notion-block-' . $matches[1];
         }
+        // 如果无法提取有效的区块 ID，记录警告并返回原始链接
+        Notion_To_WordPress_Helper::warning_log('无法从锚点链接中提取有效的区块 ID: ' . $href);
         return $href;
     }
 
