@@ -23,6 +23,7 @@ The automated release system transforms the complex process of releasing WordPre
 | **Minor** | 1.1.0 → 1.2.0 | New features, enhancements | `npm run release:minor` |
 | **Major** | 1.1.0 → 2.0.0 | Breaking changes, major updates | `npm run release:major` |
 | **Beta** | 1.1.0 → 1.1.1-beta.1 | Testing, pre-release versions | `npm run release:beta` |
+| **Custom** | Any valid semver | Hotfixes, release candidates | `npm run release:custom --version=X.Y.Z` |
 
 ## 🛠️ Installation & Setup
 
@@ -61,6 +62,79 @@ For automatic GitHub releases, you'll need:
 2. **GitHub Token**: The system uses `GITHUB_TOKEN` automatically in GitHub Actions
 3. **Branch Protection**: Configure branch protection rules if needed
 
+## 📦 Local Packaging for Testing
+
+Before making official releases, you can create local test packages to verify your changes work correctly.
+
+### 🎯 Local Package Features
+
+- ✅ Update version numbers without Git operations
+- ✅ Create ZIP packages for WordPress testing
+- ✅ Support custom version numbers (e.g., `1.2.0-test.1`)
+- ✅ Preview mode to see changes before applying
+- ✅ Automatic backup and rollback on errors
+
+### 🚀 Quick Local Packaging
+
+```bash
+# Create test version with custom number
+npm run package:local --version=1.2.0-test.1
+
+# Update patch version and package
+npm run package:local patch
+
+# Preview changes without applying
+npm run package:local --version=1.2.0-test.1 --dry-run
+
+# Only create package (no version update)
+npm run package:local --build-only
+```
+
+### 📋 Available Local Commands
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `npm run package:local:patch` | Patch version update | 1.2.0 → 1.2.1 |
+| `npm run package:local:minor` | Minor version update | 1.2.0 → 1.3.0 |
+| `npm run package:local:major` | Major version update | 1.2.0 → 2.0.0 |
+| `npm run package:local:beta` | Beta version update | 1.2.0 → 1.2.1-beta.1 |
+| `npm run package:local --version=X.Y.Z` | Custom version | Any valid semver |
+| `npm run package:local --build-only` | Package only | No version change |
+| `npm run package:local --version-only` | Version only | No package creation |
+
+### 🧪 Testing Workflow
+
+1. **Create test package**
+   ```bash
+   npm run package:local --version=1.2.0-test.1
+   ```
+
+2. **Test in WordPress**
+   - Upload `build/notion-to-wordpress-1.2.0-test.1.zip` to WordPress
+   - Verify all features work correctly
+
+3. **Commit when satisfied**
+   ```bash
+   git add .
+   git commit -m "feat: add new features"
+   ```
+
+4. **Make official release**
+   ```bash
+   # Standard release
+   npm run release:minor
+
+   # Or custom version release
+   npm run release:custom --version=1.2.0-rc.1
+   ```
+
+### ⚠️ Local Packaging Notes
+
+- **Safe Testing**: No Git operations, won't affect repository
+- **Auto Backup**: Creates backup before changes, auto-rollback on errors
+- **File Updates**: Updates version in all relevant files automatically
+- **Clean Output**: Generated ZIP ready for WordPress installation
+
 ## 🚀 Quick Start Guide
 
 ### Your First Release
@@ -74,12 +148,20 @@ For automatic GitHub releases, you'll need:
    ```bash
    # For a bug fix release
    npm run release:patch
-   
+
    # For a feature release
    npm run release:minor
-   
+
    # For a major update
    npm run release:major
+
+   # For a beta release
+   npm run release:beta
+
+   # For custom version (hotfix, release candidate, etc.)
+   npm run release:custom --version=1.2.0-hotfix.1
+   npm run release:custom --version=1.3.0-rc.1
+   npm run release:custom --version=2.0.0-alpha.1
    ```
 
 3. **Monitor the Process**
