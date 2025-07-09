@@ -39,7 +39,7 @@
 
 ### 📸 项目演示
 <div align="center">
-  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo-Overview" width="800">
+  <img src="docs/images/demo-overview.gif" alt="Notion to WordPress Demo-Overview" width="850">
   <p><em>🎬 Notion to WordPress 后台界面演示</em></p>
 </div>
 
