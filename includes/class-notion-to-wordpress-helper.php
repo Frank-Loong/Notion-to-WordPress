@@ -629,6 +629,63 @@ class Notion_To_WordPress_Helper {
         return in_array($extension, $allowed_extensions);
     }
 
+    /**
+     * 根据插件语言设置格式化日期时间
+     *
+     * @since    1.1.0
+     * @param    int|string    $timestamp 时间戳或时间字符串
+     * @return   string                   格式化后的日期时间字符串
+     */
+    public static function format_datetime_by_plugin_language($timestamp) {
+        // 如果传入的是空值，返回空字符串
+        if (empty($timestamp)) {
+            return '';
+        }
+
+        // 确保时间戳是整数格式
+        if (!is_numeric($timestamp)) {
+            $timestamp = strtotime($timestamp);
+        }
+
+        // 如果时间戳无效，返回空字符串
+        if ($timestamp === false || $timestamp <= 0) {
+            return '';
+        }
+
+        // 获取插件选项
+        $options = get_option('notion_to_wordpress_options', []);
+        $plugin_language = $options['plugin_language'] ?? 'auto';
+
+        // 向后兼容：如果没有新设置但有旧设置
+        if ($plugin_language === 'auto' && !empty($options['force_english_ui'])) {
+            $plugin_language = 'en_US';
+        }
+
+        // 根据语言设置选择时间格式
+        $format = '';
+        switch ($plugin_language) {
+            case 'zh_CN':
+                $format = 'Y年n月j日 A g:i';
+                break;
+            case 'en_US':
+                $format = 'M j, Y g:i A';
+                break;
+            case 'auto':
+            default:
+                // 根据WordPress的locale自动选择格式
+                $locale = get_locale();
+                if (strpos($locale, 'zh') === 0) {
+                    $format = 'Y年n月j日 A g:i';
+                } else {
+                    $format = 'M j, Y g:i A';
+                }
+                break;
+        }
+
+        // 使用WordPress的国际化日期函数
+        return date_i18n($format, $timestamp);
+    }
+
 
 }
 

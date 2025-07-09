@@ -652,7 +652,7 @@ class Notion_To_WordPress_Admin {
             // 获取最后同步时间
             $last_update = get_option('notion_to_wordpress_last_sync', '');
             if ($last_update) {
-                $last_update = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($last_update));
+                $last_update = Notion_To_WordPress_Helper::format_datetime_by_plugin_language(strtotime($last_update));
             } else {
                 $last_update = __('从未', 'notion-to-wordpress');
             }
@@ -660,7 +660,7 @@ class Notion_To_WordPress_Admin {
             // 获取下次计划运行时间
             $next_run = wp_next_scheduled('notion_cron_import');
             if ($next_run) {
-                $next_run = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_run);
+                $next_run = Notion_To_WordPress_Helper::format_datetime_by_plugin_language($next_run);
             } else {
                 $next_run = __('未计划', 'notion-to-wordpress');
             }

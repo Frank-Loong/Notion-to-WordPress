@@ -226,7 +226,7 @@ const releaseConfig = {
         // Branch settings
         branch: {
             main: 'main',
-            allowedBranches: ['main', 'master', 'develop'],
+            allowedBranches: ['main', 'master', 'develop', 'dev'],
             requireCleanWorkingDirectory: true
         },
 
