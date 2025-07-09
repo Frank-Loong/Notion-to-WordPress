@@ -235,13 +235,13 @@ body.wp-admin {
 /* WordPress 菜单图标样式 - 放大一倍 */
 #adminmenu .wp-menu-image img,
 #adminmenu .wp-menu-image svg {
-    width: 64px !important;
-    height: 64px !important;
+    width: 40px !important;
+    height: 40px !important;
 }
 
 /* 针对我们插件的菜单项 */
 #adminmenu #toplevel_page_notion-to-wordpress .wp-menu-image {
-    background-size: 64px 64px !important;
+    background-size: 40px 40px !important;
 }
 
 .notion-wp-logo:before {
