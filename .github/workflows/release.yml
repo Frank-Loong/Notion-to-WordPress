@@ -1,0 +1,188 @@
+name: 🚀 Release WordPress Plugin
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.1.0, v1.2.0-beta.1, etc.
+
+permissions:
+  contents: write  # Required for creating releases and uploading assets
+  actions: read    # Required for downloading artifacts
+
+jobs:
+  release:
+    name: 📦 Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Checkout the repository
+      - name: 🔄 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for proper release notes
+      
+      # Step 2: Setup Node.js environment
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      # Step 3: Install dependencies
+      - name: 📥 Install Dependencies
+        run: npm ci
+      
+      # Step 4: Verify environment and version consistency
+      - name: 🔍 Verify Environment
+        run: |
+          echo "Node.js version: $(node --version)"
+          echo "NPM version: $(npm --version)"
+          echo "Git tag: ${{ github.ref_name }}"
+          
+          # Extract version from tag (remove 'v' prefix)
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "Tag version: $TAG_VERSION"
+          
+          # Verify version consistency
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "Package.json version: $PACKAGE_VERSION"
+          
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "❌ Version mismatch: tag=$TAG_VERSION, package.json=$PACKAGE_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ Version consistency verified"
+      
+      # Step 5: Build WordPress plugin package
+      - name: 📦 Build Plugin Package
+        run: |
+          echo "🚀 Building WordPress plugin package..."
+          npm run build
+          
+          # Verify build output
+          if [ ! -d "build" ]; then
+            echo "❌ Build directory not found"
+            exit 1
+          fi
+          
+          # Find the generated ZIP file
+          ZIP_FILE=$(find build -name "*.zip" -type f | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "❌ No ZIP file found in build directory"
+            exit 1
+          fi
+          
+          echo "✅ Plugin package built: $ZIP_FILE"
+          echo "ZIP_FILE=$ZIP_FILE" >> $GITHUB_ENV
+          
+          # Get file size
+          FILE_SIZE=$(stat -c%s "$ZIP_FILE")
+          FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1024 / 1024" | bc)
+          echo "📊 Package size: ${FILE_SIZE_MB}MB"
+          echo "PACKAGE_SIZE=${FILE_SIZE_MB}MB" >> $GITHUB_ENV
+      
+      # Step 6: Generate checksums for security
+      - name: 🔐 Generate Checksums
+        run: |
+          echo "🔐 Generating checksums..."
+          cd build
+          
+          # Generate SHA256 checksum
+          sha256sum *.zip > checksums.txt
+          
+          # Generate MD5 checksum
+          md5sum *.zip >> checksums.txt
+          
+          echo "✅ Checksums generated:"
+          cat checksums.txt
+      
+      # Step 7: Extract release information
+      - name: 📋 Extract Release Information
+        run: |
+          # Extract version from tag
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "RELEASE_VERSION=$TAG_VERSION" >> $GITHUB_ENV
+          
+          # Determine if this is a pre-release
+          if [[ "$TAG_VERSION" == *"beta"* ]] || [[ "$TAG_VERSION" == *"alpha"* ]] || [[ "$TAG_VERSION" == *"rc"* ]]; then
+            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+            echo "📋 This is a pre-release version"
+          else
+            echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+            echo "📋 This is a stable release"
+          fi
+          
+          # Set release name
+          echo "RELEASE_NAME=Notion-to-WordPress v$TAG_VERSION" >> $GITHUB_ENV
+      
+      # Step 8: Create GitHub Release
+      - name: 🎉 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ env.RELEASE_NAME }}
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ env.IS_PRERELEASE }}
+          generate_release_notes: true
+          body: |
+            ## 🚀 Notion-to-WordPress Plugin Release v${{ env.RELEASE_VERSION }}
+            
+            ### 📦 Package Information
+            - **Version**: ${{ env.RELEASE_VERSION }}
+            - **Package Size**: ${{ env.PACKAGE_SIZE }}
+            - **Release Type**: ${{ env.IS_PRERELEASE == 'true' && 'Pre-release' || 'Stable Release' }}
+            
+            ### 📥 Installation
+            1. Download the `notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip` file below
+            2. Go to your WordPress admin dashboard
+            3. Navigate to **Plugins** → **Add New** → **Upload Plugin**
+            4. Choose the downloaded ZIP file and click **Install Now**
+            5. Activate the plugin after installation
+            
+            ### 🔐 Security
+            Please verify the package integrity using the provided checksums:
+            - Download `checksums.txt` to verify file integrity
+            - Use `sha256sum` or `md5sum` to verify the ZIP file
+            
+            ### 📚 Documentation
+            - [Installation Guide](https://github.com/Frank-Loong/Notion-to-WordPress#installation)
+            - [Configuration Guide](https://github.com/Frank-Loong/Notion-to-WordPress#configuration)
+            - [Troubleshooting](https://github.com/Frank-Loong/Notion-to-WordPress#troubleshooting)
+            
+            ### 🐛 Issues & Support
+            If you encounter any issues, please [create an issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues) with detailed information.
+            
+            ---
+            
+            **Full Changelog**: https://github.com/Frank-Loong/Notion-to-WordPress/compare/v${{ env.RELEASE_VERSION }}...HEAD
+          files: |
+            build/*.zip
+            build/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Step 9: Post-release notifications and cleanup
+      - name: 📢 Post-Release Actions
+        run: |
+          echo "🎉 Release v${{ env.RELEASE_VERSION }} created successfully!"
+          echo "📦 Package: notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          
+          # Optional: Clean up build artifacts (keep for debugging)
+          # rm -rf build
+          
+          echo "✅ Release process completed!"
+
+  # Optional: Notify on failure
+  notify-failure:
+    name: 📧 Notify on Failure
+    runs-on: ubuntu-latest
+    needs: release
+    if: failure()
+    
+    steps:
+      - name: 📧 Failure Notification
+        run: |
+          echo "❌ Release process failed for tag ${{ github.ref_name }}"
+          echo "🔍 Please check the workflow logs for details"
+          echo "🔗 Workflow URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
