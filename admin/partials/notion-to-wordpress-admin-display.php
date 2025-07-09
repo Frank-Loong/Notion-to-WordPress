@@ -258,7 +258,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </table>
                         <div class="notion-wp-button-row">
                             <button type="button" id="notion-test-connection" class="button button-secondary">
-                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('测试连接', 'notion-to-wordpress'); ?>
+                                <span class="dashicons dashicons-admin-network"></span> <?php esc_html_e('测试连接', 'notion-to-wordpress'); ?>
                             </button>
                         </div>
                     </div>
@@ -780,7 +780,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                     <div class="left-actions">
                         <div class="sync-options-group">
                             <button type="button" id="notion-manual-import" class="button button-secondary">
-                                <span class="dashicons dashicons-update"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
+                                <span class="dashicons dashicons-migrate"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
                             </button>
                             <button type="button" id="notion-full-import" class="button button-secondary">
                                 <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
