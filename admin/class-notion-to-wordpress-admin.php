@@ -213,13 +213,16 @@ class Notion_To_WordPress_Admin {
      * @since    1.0.5
      */
     public function add_plugin_admin_menu() {
+        // 使用自定义SVG图标
+        $icon_svg = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents(Notion_To_WordPress_Helper::plugin_path('assets/icon.svg')));
+
         add_menu_page(
             __('Notion to WordPress', 'notion-to-wordpress'),
             __('Notion to WordPress', 'notion-to-wordpress'),
             'manage_options',
             $this->plugin_name,
             array($this, 'display_plugin_setup_page'),
-            'dashicons-database-import', // 统一使用database-import图标
+            $icon_svg, // 使用自定义SVG图标
             99
         );
     }

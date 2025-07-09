@@ -219,6 +219,41 @@ body.wp-admin {
     background: transparent;
 }
 
+/* 自定义品牌图标样式 */
+.notion-wp-logo {
+    width: 20px !important;
+    height: 20px !important;
+    background-image: url('../icon.svg') !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    margin-right: 8px !important;
+}
+
+.notion-wp-logo:before {
+    content: '' !important;
+    display: none !important;
+}
+
+/* 头部标题中的图标样式 */
+.wp-heading-inline .notion-wp-logo {
+    width: 24px !important;
+    height: 24px !important;
+    margin-right: 10px !important;
+    vertical-align: text-bottom !important;
+}
+
+/* 按钮中的图标样式 */
+.button .notion-wp-logo {
+    width: 16px !important;
+    height: 16px !important;
+    margin-right: 6px !important;
+    vertical-align: middle !important;
+    display: inline-block !important;
+}
+
 /* 菜单项样式优化 */
 .notion-wp-menu-item {
     display: flex;
