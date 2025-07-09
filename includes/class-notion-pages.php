@@ -1030,7 +1030,7 @@ class Notion_Pages {
         // 1. https://www.notion.so/page-title-123abc#456def
         // 2. https://notion.so/123abc#456def
         // 3. #456def (相对锚点)
-        return preg_match('/(?:notion\.so.*)?#[a-f0-9-]{8,}/', $href);
+        return (bool) preg_match('/(?:notion\.so.*)?#[a-f0-9-]{8,}/', $href);
     }
 
     /**
