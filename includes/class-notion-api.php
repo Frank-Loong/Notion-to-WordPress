@@ -70,7 +70,19 @@ class Notion_API {
      */
     private function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
         $url = $this->api_base . $endpoint;
-        
+
+        // 特别记录数据库区块相关的API调用
+        if (strpos($endpoint, 'blocks/') !== false && strpos($endpoint, 'children') !== false) {
+            $block_id = str_replace(['blocks/', '/children'], '', explode('?', $endpoint)[0]);
+            if ($block_id === '22a75443-76be-819a-8e2b-d82f3a78dc47') {
+                error_log('Notion to WordPress: 检测到问题区块API调用: ' . $endpoint);
+                Notion_To_WordPress_Helper::error_log(
+                    '检测到问题区块API调用: ' . $endpoint . ', 调用栈: ' . wp_debug_backtrace_summary(),
+                    'Database Block'
+                );
+            }
+        }
+
         $args = [
             'method'  => $method,
             'headers' => [
@@ -80,24 +92,24 @@ class Notion_API {
             ],
             'timeout' => 30
         ];
-        
+
         if (!empty($data) && $method !== 'GET') {
             $args['body'] = json_encode($data);
         }
-        
+
         $response = wp_remote_request($url, $args);
-        
+
         if (is_wp_error($response)) {
             throw new Exception(__('API请求失败: ', 'notion-to-wordpress') . $response->get_error_message());
         }
-        
+
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code < 200 || $response_code >= 300) {
             $error_body = json_decode(wp_remote_retrieve_body($response), true);
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);
             throw new Exception(__('API错误 (', 'notion-to-wordpress') . $response_code . '): ' . $error_message);
         }
-        
+
         $body = wp_remote_retrieve_body($response);
         return json_decode($body, true) ?: [];
     }
@@ -164,8 +176,36 @@ class Notion_API {
 
         foreach ($blocks as $i => $block) {
             if ($block['has_children']) {
+                // 特殊处理：数据库区块不尝试获取子内容，避免API 404错误
+                if (isset($block['type']) && $block['type'] === 'child_database') {
+                    error_log('Notion to WordPress: 跳过数据库区块子内容获取: ' . $block['id']);
+                    Notion_To_WordPress_Helper::debug_log(
+                        '在API层跳过数据库区块子内容获取: ' . $block['id'],
+                        'Database Block'
+                    );
+                    // 不设置children，保持has_children为true但不尝试获取子内容
+                    continue;
+                }
+
                 error_log('Notion to WordPress: 处理子块，Block ID: ' . $block['id']);
-                $blocks[$i]['children'] = $this->get_page_content($block['id']);
+                try {
+                    $blocks[$i]['children'] = $this->get_page_content($block['id']);
+                } catch (Exception $e) {
+                    // 特殊处理：如果是数据库权限相关的404错误，跳过这个子块但不影响整个页面
+                    if (strpos($e->getMessage(), '404') !== false &&
+                        strpos($e->getMessage(), 'Make sure the relevant pages and databases are shared') !== false) {
+
+                        error_log('Notion to WordPress: 子块获取失败(数据库权限问题)，跳过: ' . $block['id']);
+                        Notion_To_WordPress_Helper::debug_log(
+                            '子块获取失败(数据库权限问题)，跳过: ' . $block['id'] . ', 错误: ' . $e->getMessage(),
+                            'Database Block'
+                        );
+                        // 不设置children，但继续处理其他子块
+                        continue;
+                    }
+                    // 对于其他类型的错误，重新抛出
+                    throw $e;
+                }
             }
         }
 
@@ -196,15 +236,49 @@ class Notion_API {
             }
 
             error_log('Notion to WordPress: 请求子块，endpoint: ' . $endpoint);
-            $response = $this->send_request($endpoint, 'GET');
 
-            if (isset($response['results'])) {
-                $all_results = array_merge($all_results, $response['results']);
-                error_log('Notion to WordPress: 获取到子块数量: ' . count($response['results']) . ', 总计: ' . count($all_results));
+            try {
+                $response = $this->send_request($endpoint, 'GET');
+
+                if (isset($response['results'])) {
+                    $all_results = array_merge($all_results, $response['results']);
+                    error_log('Notion to WordPress: 获取到子块数量: ' . count($response['results']) . ', 总计: ' . count($all_results));
+
+                    // 记录每个子块的类型，特别关注数据库区块
+                    foreach ($response['results'] as $block) {
+                        if (isset($block['type']) && $block['type'] === 'child_database') {
+                            error_log('Notion to WordPress: 发现数据库区块: ' . $block['id'] . ', 父块: ' . $block_id);
+                            Notion_To_WordPress_Helper::debug_log(
+                                '在get_block_children中发现数据库区块: ' . $block['id'] . ', 父块: ' . $block_id,
+                                'Database Block'
+                            );
+                        }
+                    }
+                }
+
+                $has_more = $response['has_more'] ?? false;
+                $start_cursor = $response['next_cursor'] ?? null;
+
+            } catch (Exception $e) {
+                error_log('Notion to WordPress: get_block_children() 异常: ' . $e->getMessage() . ', Block ID: ' . $block_id);
+                Notion_To_WordPress_Helper::error_log(
+                    'get_block_children异常: ' . $e->getMessage() . ', Block ID: ' . $block_id,
+                    'Database Block'
+                );
+
+                // 特殊处理：只对数据库区块相关的404错误进行优雅处理
+                if (strpos($e->getMessage(), '404') !== false &&
+                    strpos($e->getMessage(), 'Make sure the relevant pages and databases are shared') !== false) {
+
+                    Notion_To_WordPress_Helper::debug_log(
+                        '检测到数据库权限相关的404错误，跳过并继续处理: ' . $block_id,
+                        'Database Block'
+                    );
+                    break; // 跳出循环，返回已获取的结果
+                }
+
+                throw $e; // 对于其他错误，重新抛出异常
             }
-
-            $has_more = $response['has_more'] ?? false;
-            $start_cursor = $response['next_cursor'] ?? null;
         }
 
         error_log('Notion to WordPress: get_block_children() 完成，返回总块数: ' . count($all_results));
@@ -289,4 +363,23 @@ class Notion_API {
         $endpoint = 'pages/' . $page_id;
         return $this->send_request($endpoint);
     }
-} 
+
+    /**
+     * 安全获取数据库信息，支持优雅降级
+     *
+     * @since 1.0.9
+     * @param string $database_id 数据库ID
+     * @return array<string, mixed> 数据库信息数组，失败时返回空数组
+     */
+    public function get_database_info(string $database_id): array {
+        try {
+            return $this->get_database($database_id);
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::debug_log(
+                '数据库信息获取失败: ' . $e->getMessage(),
+                'Database Info'
+            );
+            return [];
+        }
+    }
+}
