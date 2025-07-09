@@ -11,6 +11,7 @@
     "build": "node scripts/build.js",
     "version:bump": "node scripts/version-bump.js",
     "test:release": "node scripts/release.js --dry-run",
+    "test:integration": "node scripts/integration-test.js",
     "validate:github-actions": "node scripts/validate-github-actions.js",
     "validate:config": "node scripts/validate-config.js"
   },
