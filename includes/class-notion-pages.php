@@ -497,10 +497,9 @@ class Notion_Pages {
                     // 尝试转换块
                     $block_html = $this->{$converter_method}($block, $notion_api);
 
-                    // 为非列表项的区块添加 ID 包装，支持锚点跳转
-                    if (!$is_list_item) {
-                        $block_html = $this->wrap_block_with_id($block_html, $block['id'], $block_type);
-                    }
+                    // 为所有区块添加 ID 包装，支持锚点跳转
+                    // 注意：列表项也需要 ID 以支持锚点跳转
+                    $block_html = $this->wrap_block_with_id($block_html, $block['id'], $block_type);
 
                     $html .= $block_html;
 
@@ -587,12 +586,60 @@ class Notion_Pages {
      * @return   string                   包装后的 HTML
      */
     private function wrap_block_with_id(string $block_html, string $block_id, string $block_type): string {
+        // 调试日志：记录函数调用
+        Notion_To_WordPress_Helper::info_log("包装区块 ID: $block_id, 类型: $block_type");
+
         // 确保 ID 和类名安全
         $safe_id = esc_attr('notion-block-' . $block_id);
         $safe_type = esc_attr($block_type);
 
-        // 返回包装后的 HTML
-        return '<div id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '">' . $block_html . '</div>';
+        // 对于列表项，直接在 <li> 元素上添加 ID，避免破坏列表结构
+        if (in_array($block_type, ['bulleted_list_item', 'numbered_list_item', 'to_do'])) {
+            // 检查是否已有 class 属性
+            if (preg_match('/^<li\s+class="([^"]*)"([^>]*)>/', $block_html, $matches)) {
+                // 已有 class，合并类名
+                $existing_class = $matches[1];
+                $other_attrs = $matches[2];
+                $new_class = 'notion-block notion-' . $safe_type . ' ' . $existing_class;
+                return '<li id="' . $safe_id . '" class="' . $new_class . '"' . $other_attrs . '>' .
+                       substr($block_html, strlen($matches[0]));
+            } else {
+                // 没有 class，直接添加
+                $pattern = '/^<li(\s[^>]*)?>/';
+                $replacement = '<li id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '"$1>';
+                return preg_replace($pattern, $replacement, $block_html);
+            }
+        }
+
+        // 对于已有合适容器的区块，直接在现有 div 上添加 ID，避免双层嵌套
+        if (in_array($block_type, ['callout', 'bookmark', 'toggle', 'equation', 'child_database', 'child_page', 'column', 'column_list'])) {
+            // 查找第一个 <div> 标签并添加 ID
+            if (preg_match('/^<div\s+class="([^"]*)"([^>]*)>/', $block_html, $matches)) {
+                // 已有 class 属性
+                $existing_class = $matches[1];
+                $other_attrs = $matches[2];
+
+                // 构建新的类名，避免重复
+                $classes = array_filter(array_unique(array_merge(
+                    ['notion-block', 'notion-' . $safe_type],
+                    explode(' ', $existing_class)
+                )));
+                $new_class = implode(' ', $classes);
+
+                $replacement = '<div id="' . $safe_id . '" class="' . $new_class . '"' . $other_attrs . '>';
+                return preg_replace('/^<div\s+class="[^"]*"[^>]*>/', $replacement, $block_html);
+            } elseif (preg_match('/^<div([^>]*)>/', $block_html, $matches)) {
+                // 没有 class 属性
+                $other_attrs = $matches[1];
+                $replacement = '<div id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '"' . $other_attrs . '>';
+                return preg_replace('/^<div[^>]*>/', $replacement, $block_html);
+            }
+        }
+
+        // 对于其他区块，使用 div 包装
+        $wrapped_html = '<div id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '">' . $block_html . '</div>';
+        Notion_To_WordPress_Helper::info_log("区块包装完成: $block_id -> " . substr($wrapped_html, 0, 100) . "...");
+        return $wrapped_html;
     }
 
     // --- Block Converters ---
@@ -1552,6 +1599,10 @@ class Notion_Pages {
     private function _convert_block_column(array $block, Notion_API $notion_api): string {
         // 计算列宽（Notion API 提供 width_ratio，直接用作 flex-grow 值）
         $ratio = $block['column']['width_ratio'] ?? 1;
+
+        // 调试日志：记录列宽比例
+        Notion_To_WordPress_Helper::debug_log("分栏列宽比例: $ratio", 'Column Layout');
+
         $html = '<div class="notion-column" style="flex:' . esc_attr($ratio) . ' 1 0;">';
         $html .= $this->_convert_child_blocks($block, $notion_api);
         $html .= '</div>';
