@@ -36,27 +36,8 @@ function smoothScrollToAnchor(targetId) {
         if (target) {
             console.log('🎯 [Notion to WordPress] 跳转到区块:', cleanId);
 
-            // 尝试使用现代浏览器的居中滚动
-            try {
-                target.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                    inline: 'nearest'
-                });
-            } catch (error) {
-                // 备用方案：手动计算居中位置
-                console.info('🔄 [Notion to WordPress] 使用备用滚动方案');
-                const targetRect = target.getBoundingClientRect();
-                const windowHeight = window.innerHeight;
-                const targetTop = targetRect.top + window.pageYOffset;
-                const centerOffset = windowHeight / 2 - targetRect.height / 2;
-                const scrollTo = targetTop - centerOffset;
-
-                window.scrollTo({
-                    top: Math.max(0, scrollTo),
-                    behavior: 'smooth'
-                });
-            }
+            // 使用更可靠的居中滚动方案
+            scrollToCenter(target);
 
             // 添加高亮效果
             highlightBlock(target);
@@ -70,6 +51,108 @@ function smoothScrollToAnchor(targetId) {
         }
     } catch (error) {
         console.error('❌ [Notion to WordPress] 锚点跳转出错:', error);
+    }
+}
+
+/**
+ * 检测页面固定头部的高度偏移
+ * @returns {number} 头部偏移高度（像素）
+ */
+function detectHeaderOffset() {
+    try {
+        // 常见的固定头部选择器
+        const headerSelectors = [
+            'header[style*="position: fixed"]',
+            'header[style*="position:fixed"]',
+            '.fixed-header',
+            '.sticky-header',
+            '#masthead',
+            '.site-header',
+            'nav[style*="position: fixed"]',
+            'nav[style*="position:fixed"]',
+            '.navbar-fixed-top',
+            '.fixed-top'
+        ];
+
+        let maxOffset = 0;
+
+        headerSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(element => {
+                const computedStyle = window.getComputedStyle(element);
+                if (computedStyle.position === 'fixed' || computedStyle.position === 'sticky') {
+                    const rect = element.getBoundingClientRect();
+                    if (rect.top <= 0 && rect.bottom > 0) {
+                        maxOffset = Math.max(maxOffset, rect.height);
+                    }
+                }
+            });
+        });
+
+        // 如果没有检测到固定头部，返回一个小的默认偏移
+        return maxOffset > 0 ? maxOffset : 20;
+    } catch (error) {
+        console.warn('⚠️ [Notion to WordPress] 检测头部偏移失败:', error);
+        return 20; // 默认偏移
+    }
+}
+
+/**
+ * 将目标元素滚动到屏幕中央
+ * @param {Element} target 目标元素
+ */
+function scrollToCenter(target) {
+    try {
+        // 获取目标元素的位置信息
+        const targetRect = target.getBoundingClientRect();
+        const windowHeight = window.innerHeight;
+
+        // 计算目标元素相对于文档的绝对位置
+        const targetTop = targetRect.top + window.pageYOffset;
+
+        // 检测是否有固定头部导航栏
+        const headerOffset = detectHeaderOffset();
+
+        // 计算滚动位置，使目标元素的中心显示在屏幕中央
+        // 目标元素中心位置 = 目标元素顶部 + (元素高度 / 2)
+        // 滚动位置 = 目标元素中心位置 - (可视区域高度 / 2) - 头部偏移
+        const targetCenter = targetTop + (targetRect.height / 2);
+        const availableHeight = windowHeight - headerOffset;
+        const scrollPosition = targetCenter - (availableHeight / 2) - headerOffset;
+
+        // 确保滚动位置不会超出文档范围
+        const maxScroll = Math.max(0, document.documentElement.scrollHeight - windowHeight);
+        const finalScrollPosition = Math.max(0, Math.min(scrollPosition, maxScroll));
+
+        console.log('📍 [Notion to WordPress] 滚动计算:', {
+            targetTop: targetTop,
+            targetCenter: targetCenter,
+            windowHeight: windowHeight,
+            headerOffset: headerOffset,
+            availableHeight: availableHeight,
+            targetHeight: targetRect.height,
+            scrollPosition: scrollPosition,
+            finalScrollPosition: finalScrollPosition,
+            currentScroll: window.pageYOffset
+        });
+
+        // 执行平滑滚动
+        window.scrollTo({
+            top: finalScrollPosition,
+            behavior: 'smooth'
+        });
+
+    } catch (error) {
+        console.error('❌ [Notion to WordPress] 居中滚动出错:', error);
+        // 备用方案：使用简单的 scrollIntoView
+        try {
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        } catch (fallbackError) {
+            console.error('❌ [Notion to WordPress] 备用滚动方案也失败:', fallbackError);
+        }
     }
 }
 
@@ -215,6 +298,8 @@ $(function() {
 // 暴露核心函数到全局作用域，供调试和扩展使用
 window.NotionToWordPressAnchor = {
     smoothScrollToAnchor: smoothScrollToAnchor,
+    scrollToCenter: scrollToCenter,
+    detectHeaderOffset: detectHeaderOffset,
     highlightBlock: highlightBlock,
     isNotionBlockAnchor: isNotionBlockAnchor
 };
