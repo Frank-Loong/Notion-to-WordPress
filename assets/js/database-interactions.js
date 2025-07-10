@@ -1,7 +1,7 @@
 /**
- * 数据库交互功能 - 简化版本，专注于Notion原生体验
- * 移除了全屏、视图切换、排序等功能，只保留基本的记录展开和搜索
- * 
+ * 数据库交互功能 - 增强版本，包含排序功能
+ * 专注于Notion原生体验，包含记录展开、搜索和排序功能
+ *
  * @since 1.1.1
  */
 
@@ -13,11 +13,18 @@
         expandedClass: 'notion-record-expanded',
         collapsedClass: 'notion-record-collapsed',
         searchDelay: 300,
-        animationDuration: 300
+        animationDuration: 300,
+        sortOptions: {
+            'created': '创建时间',
+            'title': '标题',
+            'properties': '属性值'
+        }
     };
 
     // 全局状态
     let searchTimeout = null;
+    let currentSortBy = 'created';
+    let currentSortOrder = 'desc';
 
     /**
      * 初始化数据库交互功能
@@ -25,8 +32,9 @@
     function initDatabaseInteractions() {
         initRecordExpansion();
         initSearchFilter();
-        
-        console.log('数据库交互功能已初始化（简化版本）');
+        initSortControls();
+
+        console.log('数据库交互功能已初始化（包含排序功能）');
     }
 
     /**
@@ -118,6 +126,24 @@
     }
 
     /**
+     * 初始化排序控件
+     */
+    function initSortControls() {
+        const databasePreviews = document.querySelectorAll('.notion-database-preview');
+        databasePreviews.forEach(preview => {
+            if (!preview.querySelector('.notion-sort-controls')) {
+                const sortControls = createSortControls();
+                const searchFilter = preview.querySelector('.notion-search-filter');
+                if (searchFilter) {
+                    searchFilter.appendChild(sortControls);
+                } else {
+                    preview.insertBefore(sortControls, preview.firstChild);
+                }
+            }
+        });
+    }
+
+    /**
      * 创建搜索过滤器
      */
     function createSearchFilter() {
@@ -169,6 +195,40 @@
     }
 
     /**
+     * 创建排序控件
+     */
+    function createSortControls() {
+        const controls = document.createElement('div');
+        controls.className = 'notion-sort-controls';
+
+        controls.innerHTML = `
+            <div class="notion-sort-box">
+                <label class="notion-sort-label">排序:</label>
+                <select class="notion-sort-select" aria-label="选择排序方式">
+                    <option value="created-desc">创建时间 ↓</option>
+                    <option value="created-asc">创建时间 ↑</option>
+                    <option value="title-asc">标题 A-Z</option>
+                    <option value="title-desc">标题 Z-A</option>
+                </select>
+            </div>
+        `;
+
+        const select = controls.querySelector('.notion-sort-select');
+
+        // 排序选择事件
+        select.addEventListener('change', function() {
+            const [sortBy, sortOrder] = this.value.split('-');
+            currentSortBy = sortBy;
+            currentSortOrder = sortOrder;
+
+            const preview = this.closest('.notion-database-preview');
+            performSort(preview, sortBy, sortOrder);
+        });
+
+        return controls;
+    }
+
+    /**
      * 执行搜索
      */
     function performSearch(preview, query) {
@@ -197,11 +257,148 @@
     }
 
     /**
+     * 执行排序
+     */
+    function performSort(preview, sortBy, sortOrder) {
+        // 检测视图类型
+        const isBoard = preview.classList.contains('notion-database-board');
+        const isFeed = preview.classList.contains('notion-database-feed');
+        const isCalendar = preview.classList.contains('notion-database-calendar');
+        const isTimeline = preview.classList.contains('notion-database-timeline');
+        const isChart = preview.classList.contains('notion-database-chart');
+
+        if (isBoard) {
+            performBoardSort(preview, sortBy, sortOrder);
+        } else if (isFeed) {
+            performFeedSort(preview, sortBy, sortOrder);
+        } else if (isCalendar) {
+            // 日历视图不支持排序，因为按日期自然排序
+            console.log('日历视图按日期自然排序，无需手动排序');
+        } else if (isTimeline) {
+            // 时间轴视图按时间自然排序
+            console.log('时间轴视图按时间自然排序，无需手动排序');
+        } else if (isChart) {
+            // 图表视图不支持排序
+            console.log('图表视图不支持排序');
+        } else {
+            performStandardSort(preview, sortBy, sortOrder);
+        }
+    }
+
+    /**
+     * 标准视图排序（列表、表格、画廊）
+     */
+    function performStandardSort(preview, sortBy, sortOrder) {
+        const recordsContainer = preview.querySelector('.notion-database-records');
+        if (!recordsContainer) return;
+
+        const records = Array.from(recordsContainer.querySelectorAll('.notion-database-record'));
+
+        records.sort((a, b) => {
+            return compareRecords(a, b, sortBy, sortOrder);
+        });
+
+        // 重新排列DOM元素
+        records.forEach(record => {
+            recordsContainer.appendChild(record);
+        });
+
+        console.log(`标准排序完成: ${sortBy} ${sortOrder}, ${records.length} 条记录`);
+    }
+
+    /**
+     * 看板视图排序
+     */
+    function performBoardSort(preview, sortBy, sortOrder) {
+        const columns = preview.querySelectorAll('.notion-board-column-content');
+
+        columns.forEach(column => {
+            const cards = Array.from(column.querySelectorAll('.notion-board-card'));
+
+            cards.sort((a, b) => {
+                return compareRecords(a, b, sortBy, sortOrder);
+            });
+
+            cards.forEach(card => {
+                column.appendChild(card);
+            });
+        });
+
+        console.log(`看板排序完成: ${sortBy} ${sortOrder}`);
+    }
+
+    /**
+     * Feed视图排序
+     */
+    function performFeedSort(preview, sortBy, sortOrder) {
+        const feedContainer = preview.querySelector('.notion-feed-container');
+        if (!feedContainer) return;
+
+        const items = Array.from(feedContainer.querySelectorAll('.notion-feed-item'));
+
+        items.sort((a, b) => {
+            return compareRecords(a, b, sortBy, sortOrder);
+        });
+
+        items.forEach(item => {
+            feedContainer.appendChild(item);
+        });
+
+        console.log(`Feed排序完成: ${sortBy} ${sortOrder}, ${items.length} 条记录`);
+    }
+
+    /**
+     * 比较记录
+     */
+    function compareRecords(a, b, sortBy, sortOrder) {
+        let valueA, valueB;
+
+        switch (sortBy) {
+            case 'created':
+                valueA = a.getAttribute('data-created') || '';
+                valueB = b.getAttribute('data-created') || '';
+                break;
+            case 'title':
+                // 支持不同视图的标题选择器
+                const titleSelectors = [
+                    '.notion-record-title',
+                    '.notion-board-card-title',
+                    '.notion-feed-title'
+                ];
+
+                for (const selector of titleSelectors) {
+                    const titleA = a.querySelector(selector);
+                    const titleB = b.querySelector(selector);
+                    if (titleA && titleB) {
+                        valueA = titleA.textContent.trim();
+                        valueB = titleB.textContent.trim();
+                        break;
+                    }
+                }
+
+                if (!valueA || !valueB) {
+                    valueA = valueA || '';
+                    valueB = valueB || '';
+                }
+                break;
+            default:
+                return 0;
+        }
+
+        // 字符串比较
+        if (sortOrder === 'asc') {
+            return valueA.localeCompare(valueB, 'zh-CN');
+        } else {
+            return valueB.localeCompare(valueA, 'zh-CN');
+        }
+    }
+
+    /**
      * 更新搜索结果提示
      */
     function updateSearchResults(preview, query, visibleCount, totalCount) {
         let resultInfo = preview.querySelector('.notion-search-results');
-        
+
         if (query) {
             if (!resultInfo) {
                 resultInfo = document.createElement('div');
@@ -209,7 +406,7 @@
                 const searchFilter = preview.querySelector('.notion-search-filter');
                 searchFilter.appendChild(resultInfo);
             }
-            
+
             resultInfo.textContent = `找到 ${visibleCount} / ${totalCount} 条记录`;
             resultInfo.style.display = 'block';
         } else if (resultInfo) {
