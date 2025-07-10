@@ -260,18 +260,28 @@ class Notion_To_WordPress_Helper {
      * @return   string                清理和过滤后的安全 HTML。
      */
     public static function custom_kses($content) {
+        // 获取 WordPress 默认允许的 HTML 标签
+        $default_allowed = wp_kses_allowed_html('post');
+
+        // 为所有默认标签添加 id 属性支持（用于锚点跳转）
+        foreach ($default_allowed as $tag => $attributes) {
+            $default_allowed[$tag]['id'] = true;
+        }
+
         $allowed_html = array_merge(
-            wp_kses_allowed_html('post'),
+            $default_allowed,
             [
                 'pre'  => [
                     'class' => true,
                 ],
                 'div'  => [
+                    'id' => true, // 允许 id 属性，用于锚点跳转
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于 equation
                     'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
                 ],
                 'span' => [
+                    'id' => true, // 允许 id 属性，用于锚点跳转
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于颜色
                     'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
