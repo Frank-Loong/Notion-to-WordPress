@@ -6,7 +6,7 @@
 
 # 🚀 Notion to WordPress - Project Status Report
 
-> **Current Version**: 1.2.5-beta.4
+> **Current Version**: 1.2.5-beta.5
 > **Status**: Production Ready ✅
 > **Last Updated**: 2025-07-07
 
