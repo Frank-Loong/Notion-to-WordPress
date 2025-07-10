@@ -1,6 +1,6 @@
 {
   "name": "notion-to-wordpress",
-  "version": "1.2.3-beta.3",
+  "version": "1.2.3-beta.4",
   "description": "The most advanced WordPress plugin for syncing Notion databases to WordPress. Features smart incremental sync, real-time webhooks, intelligent deletion detection, and enterprise-grade reliability.",
   "main": "notion-to-wordpress.php",
   "scripts": {
