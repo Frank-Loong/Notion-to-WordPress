@@ -8,7 +8,7 @@
 
 > 🚀 一键将 Notion 变身 WordPress — 告别复制粘贴，实现全自动内容发布与同步
 
-![GitHub stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![GitHub release (latest by tag)](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/Frank-Loong/Notion-to-WordPress)
+![GitHub Stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![Release](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/frank-loong/notion-to-wordpress)
 
 ---
 
@@ -134,7 +134,7 @@
 
 ## 🌟 Star 历史
 
-[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+[![Star History Chart](https://star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
 
 ## 🚀 自动化发布系统
 

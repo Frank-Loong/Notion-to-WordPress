@@ -706,6 +706,12 @@ class Notion_Pages {
         $database_title = $block['child_database']['title'] ?? '未命名数据库';
         $database_id = $block['id'];
 
+        // 调试：输出完整的child_database块结构
+        Notion_To_WordPress_Helper::debug_log(
+            'child_database块完整结构: ' . json_encode($block, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            'Child Database Block Debug'
+        );
+
         // 记录数据库区块处理开始
         Notion_To_WordPress_Helper::debug_log(
             '开始处理数据库区块: ' . $database_id . ', 标题: ' . $database_title,
@@ -724,6 +730,13 @@ class Notion_Pages {
                     '数据库信息获取成功: ' . $database_id . ', 属性数量: ' . count($database_info['properties'] ?? []),
                     'Database Block'
                 );
+
+                // 调试：输出完整的数据库信息结构
+                Notion_To_WordPress_Helper::debug_log(
+                    '数据库完整信息结构: ' . json_encode($database_info, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                    'Database Structure Debug'
+                );
+
                 $html .= $this->render_database_properties($database_info);
 
                 // 尝试获取并显示数据库记录预览
@@ -2309,11 +2322,40 @@ class Notion_Pages {
                 'Database Block'
             );
 
-            // 智能选择视图类型
-            $view_type = $this->detect_optimal_view_type($records, $database_info);
+            // 检查数据库标题，强制匹配视图类型
+            $database_title = $database_info['title'] ?? '';
+            $view_type = '';
+
+            if (!empty($database_title)) {
+                $title_lower = strtolower($database_title);
+
+                // 根据标题强制匹配视图类型
+                if (strpos($title_lower, '画廊') !== false || strpos($title_lower, 'gallery') !== false) {
+                    $view_type = 'gallery';
+                } elseif (strpos($title_lower, '表格') !== false || strpos($title_lower, 'table') !== false) {
+                    $view_type = 'table';
+                } elseif (strpos($title_lower, '看板') !== false || strpos($title_lower, 'board') !== false || strpos($title_lower, 'kanban') !== false) {
+                    $view_type = 'board';
+                } elseif (strpos($title_lower, '列表') !== false || strpos($title_lower, 'list') !== false) {
+                    $view_type = 'list';
+                } elseif (strpos($title_lower, 'feed') !== false || strpos($title_lower, '流') !== false) {
+                    $view_type = 'feed';
+                } elseif (strpos($title_lower, '日历') !== false || strpos($title_lower, 'calendar') !== false) {
+                    $view_type = 'calendar';
+                } elseif (strpos($title_lower, '时间轴') !== false || strpos($title_lower, 'timeline') !== false) {
+                    $view_type = 'timeline';
+                } elseif (strpos($title_lower, '图表') !== false || strpos($title_lower, 'chart') !== false) {
+                    $view_type = 'chart';
+                }
+            }
+
+            // 如果标题没有明确指定视图类型，则使用智能检测
+            if (empty($view_type)) {
+                $view_type = $this->detect_optimal_view_type($records, $database_info);
+            }
 
             Notion_To_WordPress_Helper::debug_log(
-                '选择视图类型: ' . $view_type . ' for database: ' . $database_id,
+                '选择视图类型: ' . $view_type . ' for database: ' . $database_id . ', 标题: ' . $database_title,
                 'Database View'
             );
 
@@ -2882,57 +2924,7 @@ class Notion_Pages {
         $properties = $database_info['properties'] ?? [];
         $property_count = count($properties);
 
-        // 检查时间轴视图（最特殊，需要开始和结束日期）
-        $timeline_dates = $this->find_timeline_date_properties($properties);
-        if ($timeline_dates['start'] && $timeline_dates['end']) {
-            $date_coverage = $this->analyze_date_coverage($records, $timeline_dates);
-            if ($date_coverage >= 0.7) {
-                Notion_To_WordPress_Helper::debug_log(
-                    '检测到时间轴日期属性，选择时间轴视图。覆盖率: ' . ($date_coverage * 100) . '%',
-                    'Database View'
-                );
-                return 'timeline';
-            }
-        }
-
-        // 检查日历视图（需要日期属性）
-        $date_property = $this->find_date_property($properties);
-        if ($date_property) {
-            $date_coverage = $this->analyze_single_date_coverage($records, $date_property);
-            if ($date_coverage >= 0.6) {
-                Notion_To_WordPress_Helper::debug_log(
-                    '检测到日期属性，选择日历视图。覆盖率: ' . ($date_coverage * 100) . '%',
-                    'Database View'
-                );
-                return 'calendar';
-            }
-        }
-
-        // 检查图表视图（需要数值属性）
-        $number_properties = $this->find_number_properties($properties);
-        if (count($number_properties) >= 1) {
-            $number_coverage = $this->analyze_number_coverage($records, $number_properties);
-            if ($number_coverage >= 0.5 && count($records) >= 3) {
-                Notion_To_WordPress_Helper::debug_log(
-                    '检测到数值属性，选择图表视图。数值属性: ' . count($number_properties),
-                    'Database View'
-                );
-                return 'chart';
-            }
-        }
-
-        // 检查是否有状态/选择属性（看板视图）
-        $status_property = $this->find_status_property($properties);
-        if ($status_property) {
-            $status_values = $this->analyze_status_distribution($records, $status_property);
-            if (count($status_values) >= 2 && count($status_values) <= 6) {
-                Notion_To_WordPress_Helper::debug_log(
-                    '检测到状态属性，选择看板视图。状态数量: ' . count($status_values),
-                    'Database View'
-                );
-                return 'board';
-            }
-        }
+        // 智能检测视图类型（标题检测已在调用处处理）
 
         // 检查是否有封面图片（画廊视图）
         $cover_count = 0;
@@ -2950,6 +2942,45 @@ class Notion_Pages {
             return 'gallery';
         }
 
+        // 检查是否有状态/选择属性（看板视图）
+        $status_property = $this->find_status_property($properties);
+        if ($status_property) {
+            $status_values = $this->analyze_status_distribution($records, $status_property);
+            if (count($status_values) >= 2 && count($status_values) <= 6) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到状态属性，选择看板视图。状态数量: ' . count($status_values),
+                    'Database View'
+                );
+                return 'board';
+            }
+        }
+
+        // 检查时间轴视图（需要开始和结束日期）
+        $timeline_dates = $this->find_timeline_date_properties($properties);
+        if ($timeline_dates['start'] && $timeline_dates['end']) {
+            $date_coverage = $this->analyze_date_coverage($records, $timeline_dates);
+            if ($date_coverage >= 0.7) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到时间轴日期属性，选择时间轴视图。覆盖率: ' . ($date_coverage * 100) . '%',
+                    'Database View'
+                );
+                return 'timeline';
+            }
+        }
+
+        // 检查图表视图（需要数值属性）
+        $number_properties = $this->find_number_properties($properties);
+        if (count($number_properties) >= 1) {
+            $number_coverage = $this->analyze_number_coverage($records, $number_properties);
+            if ($number_coverage >= 0.5 && count($records) >= 3) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到数值属性，选择图表视图。数值属性: ' . count($number_properties),
+                    'Database View'
+                );
+                return 'chart';
+            }
+        }
+
         // 检查是否适合Feed视图（内容丰富）
         $rich_content_count = $this->count_rich_content_records($records);
         if ($rich_content_count > 0 && ($rich_content_count / count($records)) >= 0.6) {
@@ -2958,6 +2989,19 @@ class Notion_Pages {
                 'Database View'
             );
             return 'feed';
+        }
+
+        // 检查日历视图（需要日期属性）- 降低优先级
+        $date_property = $this->find_date_property($properties);
+        if ($date_property) {
+            $date_coverage = $this->analyze_single_date_coverage($records, $date_property);
+            if ($date_coverage >= 0.8) { // 提高阈值，降低误判
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到日期属性，选择日历视图。覆盖率: ' . ($date_coverage * 100) . '%',
+                    'Database View'
+                );
+                return 'calendar';
+            }
         }
 
         // 多属性使用表格视图
@@ -3222,6 +3266,22 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_database_with_view(array $records, array $database_info, string $view_type): string {
+        // 记录视图类型
+        Notion_To_WordPress_Helper::debug_log(
+            '渲染数据库视图: ' . $view_type . ', 标题: ' . ($database_info['title'] ?? '未知'),
+            'Database View Rendering'
+        );
+
+        // 确保视图类型有效
+        $valid_view_types = ['timeline', 'calendar', 'chart', 'board', 'gallery', 'table', 'feed', 'list'];
+        if (!in_array($view_type, $valid_view_types)) {
+            Notion_To_WordPress_Helper::debug_log(
+                '无效的视图类型: ' . $view_type . ', 使用默认列表视图',
+                'Database View Rendering'
+            );
+            $view_type = 'list';
+        }
+
         switch ($view_type) {
             case 'timeline':
                 return $this->render_timeline_view($records, $database_info);
@@ -3275,6 +3335,7 @@ class Notion_Pages {
      */
     private function render_gallery_view(array $records, array $database_info): string {
         $html = '<div class="notion-database-preview notion-database-gallery">';
+        $html .= '<div class="notion-gallery-header"><h4 class="notion-gallery-title">画廊视图</h4></div>';
         $html .= '<div class="notion-database-records notion-gallery-grid">';
 
         foreach ($records as $record) {
@@ -3924,6 +3985,7 @@ class Notion_Pages {
      */
     private function render_table_view(array $records, array $database_info): string {
         $html = '<div class="notion-database-preview notion-database-table">';
+        $html .= '<div class="notion-table-header"><h4 class="notion-table-title">表格视图</h4></div>';
 
         // 渲染表格头部
         $html .= $this->render_table_header($database_info);
