@@ -2448,9 +2448,10 @@ class Notion_Pages {
      * @since 1.0.9
      * @param array $properties 记录属性
      * @param array $database_info 数据库信息
+     * @param int $max_count 最大属性数量，默认3个
      * @return array 关键属性数组
      */
-    private function extract_key_properties(array $properties, array $database_info): array {
+    private function extract_key_properties(array $properties, array $database_info, int $max_count = 3): array {
         $key_props = [];
         $db_properties = $database_info['properties'] ?? [];
 
@@ -2461,7 +2462,7 @@ class Notion_Pages {
             foreach ($db_properties as $prop_name => $prop_config) {
                 if (($prop_config['type'] ?? '') === $type && isset($properties[$prop_name])) {
                     $value = $this->format_property_for_preview($properties[$prop_name], $type);
-                    if (!empty($value) && count($key_props) < 3) { // 最多显示3个关键属性
+                    if (!empty($value) && count($key_props) < $max_count) {
                         $key_props[$prop_name] = $value;
                     }
                 }
@@ -2878,45 +2879,337 @@ class Notion_Pages {
      * @return string 视图类型
      */
     private function detect_optimal_view_type(array $records, array $database_info): string {
-        // 检查是否有封面图片
-        $has_covers = false;
-        $cover_count = 0;
+        $properties = $database_info['properties'] ?? [];
+        $property_count = count($properties);
 
+        // 检查时间轴视图（最特殊，需要开始和结束日期）
+        $timeline_dates = $this->find_timeline_date_properties($properties);
+        if ($timeline_dates['start'] && $timeline_dates['end']) {
+            $date_coverage = $this->analyze_date_coverage($records, $timeline_dates);
+            if ($date_coverage >= 0.7) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到时间轴日期属性，选择时间轴视图。覆盖率: ' . ($date_coverage * 100) . '%',
+                    'Database View'
+                );
+                return 'timeline';
+            }
+        }
+
+        // 检查日历视图（需要日期属性）
+        $date_property = $this->find_date_property($properties);
+        if ($date_property) {
+            $date_coverage = $this->analyze_single_date_coverage($records, $date_property);
+            if ($date_coverage >= 0.6) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到日期属性，选择日历视图。覆盖率: ' . ($date_coverage * 100) . '%',
+                    'Database View'
+                );
+                return 'calendar';
+            }
+        }
+
+        // 检查图表视图（需要数值属性）
+        $number_properties = $this->find_number_properties($properties);
+        if (count($number_properties) >= 1) {
+            $number_coverage = $this->analyze_number_coverage($records, $number_properties);
+            if ($number_coverage >= 0.5 && count($records) >= 3) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到数值属性，选择图表视图。数值属性: ' . count($number_properties),
+                    'Database View'
+                );
+                return 'chart';
+            }
+        }
+
+        // 检查是否有状态/选择属性（看板视图）
+        $status_property = $this->find_status_property($properties);
+        if ($status_property) {
+            $status_values = $this->analyze_status_distribution($records, $status_property);
+            if (count($status_values) >= 2 && count($status_values) <= 6) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '检测到状态属性，选择看板视图。状态数量: ' . count($status_values),
+                    'Database View'
+                );
+                return 'board';
+            }
+        }
+
+        // 检查是否有封面图片（画廊视图）
+        $cover_count = 0;
         foreach ($records as $record) {
             if (!empty($record['cover'])) {
                 $cover_count++;
             }
         }
 
-        // 如果超过50%的记录有封面图片，使用画廊视图
         if ($cover_count > 0 && ($cover_count / count($records)) >= 0.5) {
-            $has_covers = true;
-        }
-
-        // 检查数据库属性数量
-        $properties = $database_info['properties'] ?? [];
-        $property_count = count($properties);
-
-        // 视图选择逻辑
-        if ($has_covers) {
             Notion_To_WordPress_Helper::debug_log(
                 '检测到封面图片，选择画廊视图。封面数量: ' . $cover_count . '/' . count($records),
                 'Database View'
             );
             return 'gallery';
-        } elseif ($property_count > 5) {
+        }
+
+        // 检查是否适合Feed视图（内容丰富）
+        $rich_content_count = $this->count_rich_content_records($records);
+        if ($rich_content_count > 0 && ($rich_content_count / count($records)) >= 0.6) {
+            Notion_To_WordPress_Helper::debug_log(
+                '检测到丰富内容，选择Feed视图。内容记录: ' . $rich_content_count . '/' . count($records),
+                'Database View'
+            );
+            return 'feed';
+        }
+
+        // 多属性使用表格视图
+        if ($property_count > 5) {
             Notion_To_WordPress_Helper::debug_log(
                 '检测到多属性，选择表格视图。属性数量: ' . $property_count,
                 'Database View'
             );
             return 'table';
-        } else {
-            Notion_To_WordPress_Helper::debug_log(
-                '使用默认列表视图。属性数量: ' . $property_count,
-                'Database View'
-            );
-            return 'list';
         }
+
+        // 默认列表视图
+        Notion_To_WordPress_Helper::debug_log(
+            '使用默认列表视图。属性数量: ' . $property_count,
+            'Database View'
+        );
+        return 'list';
+    }
+
+    /**
+     * 查找状态或选择属性
+     *
+     * @since 1.1.1
+     * @param array $properties 数据库属性
+     * @return string|null 状态属性名称
+     */
+    private function find_status_property(array $properties): ?string {
+        // 优先查找status类型
+        foreach ($properties as $prop_name => $prop_config) {
+            if (($prop_config['type'] ?? '') === 'status') {
+                return $prop_name;
+            }
+        }
+
+        // 其次查找select类型
+        foreach ($properties as $prop_name => $prop_config) {
+            if (($prop_config['type'] ?? '') === 'select') {
+                return $prop_name;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 分析状态分布
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param string $status_property 状态属性名
+     * @return array 状态值分布
+     */
+    private function analyze_status_distribution(array $records, string $status_property): array {
+        $status_values = [];
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+            if (isset($properties[$status_property])) {
+                $prop = $properties[$status_property];
+                $value = $prop['status']['name'] ?? $prop['select']['name'] ?? '';
+                if (!empty($value)) {
+                    $status_values[$value] = ($status_values[$value] ?? 0) + 1;
+                }
+            }
+        }
+
+        return $status_values;
+    }
+
+    /**
+     * 统计富内容记录数量
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @return int 富内容记录数量
+     */
+    private function count_rich_content_records(array $records): int {
+        $rich_count = 0;
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+
+            // 检查是否有rich_text属性且内容较长
+            foreach ($properties as $prop) {
+                if (isset($prop['rich_text']) && is_array($prop['rich_text'])) {
+                    $text_length = 0;
+                    foreach ($prop['rich_text'] as $text_block) {
+                        $text_length += strlen($text_block['plain_text'] ?? '');
+                    }
+                    if ($text_length > 100) { // 内容超过100字符认为是富内容
+                        $rich_count++;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $rich_count;
+    }
+
+    /**
+     * 查找时间轴日期属性（开始和结束日期）
+     *
+     * @since 1.1.1
+     * @param array $properties 数据库属性
+     * @return array 包含start和end的日期属性
+     */
+    private function find_timeline_date_properties(array $properties): array {
+        $result = ['start' => null, 'end' => null];
+        $date_props = [];
+
+        // 收集所有日期属性
+        foreach ($properties as $prop_name => $prop_config) {
+            if (($prop_config['type'] ?? '') === 'date') {
+                $date_props[] = $prop_name;
+            }
+        }
+
+        // 如果只有一个日期属性，不适合时间轴
+        if (count($date_props) < 2) {
+            return $result;
+        }
+
+        // 尝试匹配开始和结束日期
+        foreach ($date_props as $prop_name) {
+            $lower_name = strtolower($prop_name);
+            if (strpos($lower_name, '开始') !== false || strpos($lower_name, 'start') !== false || strpos($lower_name, '起始') !== false) {
+                $result['start'] = $prop_name;
+            } elseif (strpos($lower_name, '结束') !== false || strpos($lower_name, 'end') !== false || strpos($lower_name, '完成') !== false) {
+                $result['end'] = $prop_name;
+            }
+        }
+
+        // 如果没有明确的开始结束，使用前两个日期属性
+        if (!$result['start'] && !$result['end'] && count($date_props) >= 2) {
+            $result['start'] = $date_props[0];
+            $result['end'] = $date_props[1];
+        }
+
+        return $result;
+    }
+
+    /**
+     * 查找日期属性
+     *
+     * @since 1.1.1
+     * @param array $properties 数据库属性
+     * @return string|null 日期属性名称
+     */
+    private function find_date_property(array $properties): ?string {
+        foreach ($properties as $prop_name => $prop_config) {
+            if (($prop_config['type'] ?? '') === 'date') {
+                return $prop_name;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 查找数值属性
+     *
+     * @since 1.1.1
+     * @param array $properties 数据库属性
+     * @return array 数值属性名称数组
+     */
+    private function find_number_properties(array $properties): array {
+        $number_props = [];
+        foreach ($properties as $prop_name => $prop_config) {
+            if (($prop_config['type'] ?? '') === 'number') {
+                $number_props[] = $prop_name;
+            }
+        }
+        return $number_props;
+    }
+
+    /**
+     * 分析日期覆盖率（时间轴）
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $timeline_dates 时间轴日期属性
+     * @return float 覆盖率
+     */
+    private function analyze_date_coverage(array $records, array $timeline_dates): float {
+        $valid_count = 0;
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+            $has_start = isset($properties[$timeline_dates['start']]) &&
+                        !empty($properties[$timeline_dates['start']]['date']['start'] ?? '');
+            $has_end = isset($properties[$timeline_dates['end']]) &&
+                      !empty($properties[$timeline_dates['end']]['date']['start'] ?? '');
+
+            if ($has_start && $has_end) {
+                $valid_count++;
+            }
+        }
+
+        return count($records) > 0 ? $valid_count / count($records) : 0;
+    }
+
+    /**
+     * 分析单个日期覆盖率
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param string $date_property 日期属性名
+     * @return float 覆盖率
+     */
+    private function analyze_single_date_coverage(array $records, string $date_property): float {
+        $valid_count = 0;
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+            if (isset($properties[$date_property]) &&
+                !empty($properties[$date_property]['date']['start'] ?? '')) {
+                $valid_count++;
+            }
+        }
+
+        return count($records) > 0 ? $valid_count / count($records) : 0;
+    }
+
+    /**
+     * 分析数值覆盖率
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $number_properties 数值属性数组
+     * @return float 覆盖率
+     */
+    private function analyze_number_coverage(array $records, array $number_properties): float {
+        $valid_count = 0;
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+            $has_number = false;
+
+            foreach ($number_properties as $prop_name) {
+                if (isset($properties[$prop_name]) &&
+                    is_numeric($properties[$prop_name]['number'] ?? '')) {
+                    $has_number = true;
+                    break;
+                }
+            }
+
+            if ($has_number) {
+                $valid_count++;
+            }
+        }
+
+        return count($records) > 0 ? $valid_count / count($records) : 0;
     }
 
     /**
@@ -2930,10 +3223,20 @@ class Notion_Pages {
      */
     private function render_database_with_view(array $records, array $database_info, string $view_type): string {
         switch ($view_type) {
+            case 'timeline':
+                return $this->render_timeline_view($records, $database_info);
+            case 'calendar':
+                return $this->render_calendar_view($records, $database_info);
+            case 'chart':
+                return $this->render_chart_view($records, $database_info);
+            case 'board':
+                return $this->render_board_view($records, $database_info);
             case 'gallery':
                 return $this->render_gallery_view($records, $database_info);
             case 'table':
                 return $this->render_table_view($records, $database_info);
+            case 'feed':
+                return $this->render_feed_view($records, $database_info);
             case 'list':
             default:
                 return $this->render_list_view($records, $database_info);
@@ -2975,11 +3278,638 @@ class Notion_Pages {
         $html .= '<div class="notion-database-records notion-gallery-grid">';
 
         foreach ($records as $record) {
-            $html .= $this->render_single_database_record($record, $database_info);
+            $html .= $this->render_gallery_record($record, $database_info);
         }
 
         $html .= '</div>'; // 关闭 notion-database-records
         $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 渲染看板视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_board_view(array $records, array $database_info): string {
+        $properties = $database_info['properties'] ?? [];
+        $status_property = $this->find_status_property($properties);
+
+        if (!$status_property) {
+            // 如果没有状态属性，降级为列表视图
+            return $this->render_list_view($records, $database_info);
+        }
+
+        // 按状态分组记录
+        $grouped_records = $this->group_records_by_status($records, $status_property);
+
+        $html = '<div class="notion-database-preview notion-database-board">';
+        $html .= '<div class="notion-board-container">';
+
+        foreach ($grouped_records as $status => $status_records) {
+            $html .= '<div class="notion-board-column">';
+            $html .= '<div class="notion-board-column-header">';
+            $html .= '<h4 class="notion-board-column-title">' . esc_html($status) . '</h4>';
+            $html .= '<span class="notion-board-column-count">' . count($status_records) . '</span>';
+            $html .= '</div>';
+
+            $html .= '<div class="notion-board-column-content">';
+            foreach ($status_records as $record) {
+                $html .= $this->render_board_card($record, $database_info);
+            }
+            $html .= '</div>'; // 关闭 notion-board-column-content
+            $html .= '</div>'; // 关闭 notion-board-column
+        }
+
+        $html .= '</div>'; // 关闭 notion-board-container
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 按状态分组记录
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param string $status_property 状态属性名
+     * @return array 分组后的记录
+     */
+    private function group_records_by_status(array $records, string $status_property): array {
+        $grouped = [];
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+            $status = '未分类';
+
+            if (isset($properties[$status_property])) {
+                $prop = $properties[$status_property];
+                $status = $prop['status']['name'] ?? $prop['select']['name'] ?? '未分类';
+            }
+
+            if (!isset($grouped[$status])) {
+                $grouped[$status] = [];
+            }
+            $grouped[$status][] = $record;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * 渲染看板卡片
+     *
+     * @since 1.1.1
+     * @param array $record 记录数据
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_board_card(array $record, array $database_info): string {
+        $properties = $record['properties'] ?? [];
+        $record_id = $record['id'] ?? '';
+
+        $html = '<div class="notion-board-card" data-record-id="' . esc_attr($record_id) . '">';
+
+        // 渲染封面图片（如果存在）
+        $cover_html = $this->render_record_cover($record);
+        if (!empty($cover_html)) {
+            $html .= $cover_html;
+        }
+
+        // 卡片内容
+        $html .= '<div class="notion-board-card-content">';
+
+        // 标题和图标
+        $title = $this->extract_record_title($properties);
+        $icon_html = $this->render_record_icon($record);
+
+        if (!empty($title)) {
+            $html .= '<div class="notion-board-card-title">';
+            if (!empty($icon_html)) {
+                $html .= $icon_html;
+            }
+            $html .= esc_html($title);
+            $html .= '</div>';
+        }
+
+        // 关键属性（看板卡片只显示1-2个最重要的属性）
+        $key_properties = $this->extract_key_properties($properties, $database_info, 2);
+        if (!empty($key_properties)) {
+            $html .= '<div class="notion-board-card-properties">';
+            foreach ($key_properties as $prop_name => $prop_value) {
+                if (!empty($prop_value) && $prop_value !== '未知' && $prop_value !== 'unknown') {
+                    $html .= '<div class="notion-board-card-property">';
+                    $html .= '<span class="notion-property-value">' . wp_kses_post($prop_value) . '</span>';
+                    $html .= '</div>';
+                }
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div>'; // 关闭 notion-board-card-content
+        $html .= '</div>'; // 关闭 notion-board-card
+
+        return $html;
+    }
+
+    /**
+     * 渲染Feed视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_feed_view(array $records, array $database_info): string {
+        // 按创建时间倒序排列
+        usort($records, function($a, $b) {
+            $time_a = $a['created_time'] ?? '';
+            $time_b = $b['created_time'] ?? '';
+            return strcmp($time_b, $time_a); // 倒序
+        });
+
+        $html = '<div class="notion-database-preview notion-database-feed">';
+        $html .= '<div class="notion-feed-container">';
+
+        foreach ($records as $record) {
+            $html .= $this->render_feed_item($record, $database_info);
+        }
+
+        $html .= '</div>'; // 关闭 notion-feed-container
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 渲染Feed项目
+     *
+     * @since 1.1.1
+     * @param array $record 记录数据
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_feed_item(array $record, array $database_info): string {
+        $properties = $record['properties'] ?? [];
+        $record_id = $record['id'] ?? '';
+        $created_time = $record['created_time'] ?? '';
+
+        $html = '<article class="notion-feed-item" data-record-id="' . esc_attr($record_id) . '">';
+
+        // Feed头部
+        $html .= '<div class="notion-feed-header">';
+
+        // 图标和标题
+        $title = $this->extract_record_title($properties);
+        $icon_html = $this->render_record_icon($record);
+
+        $html .= '<div class="notion-feed-title-section">';
+        if (!empty($icon_html)) {
+            $html .= $icon_html;
+        }
+        $html .= '<h3 class="notion-feed-title">' . esc_html($title) . '</h3>';
+        $html .= '</div>';
+
+        // 时间戳
+        if (!empty($created_time)) {
+            $formatted_time = date('Y-m-d H:i', strtotime($created_time));
+            $html .= '<time class="notion-feed-time" datetime="' . esc_attr($created_time) . '">' . esc_html($formatted_time) . '</time>';
+        }
+
+        $html .= '</div>'; // 关闭 notion-feed-header
+
+        // 封面图片
+        $cover_html = $this->render_record_cover($record);
+        if (!empty($cover_html)) {
+            $html .= $cover_html;
+        }
+
+        // Feed内容
+        $html .= '<div class="notion-feed-content">';
+
+        // 显示所有属性（Feed视图显示更多信息）
+        $all_properties = $this->extract_key_properties($properties, $database_info, 10);
+        if (!empty($all_properties)) {
+            $html .= '<div class="notion-feed-properties">';
+            foreach ($all_properties as $prop_name => $prop_value) {
+                if (!empty($prop_value) && $prop_value !== '未知' && $prop_value !== 'unknown') {
+                    $html .= '<div class="notion-feed-property">';
+                    $html .= '<span class="notion-property-name">' . esc_html($prop_name) . ':</span> ';
+                    $html .= '<span class="notion-property-value">' . wp_kses_post($prop_value) . '</span>';
+                    $html .= '</div>';
+                }
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div>'; // 关闭 notion-feed-content
+        $html .= '</article>'; // 关闭 notion-feed-item
+
+        return $html;
+    }
+
+    /**
+     * 渲染日历视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_calendar_view(array $records, array $database_info): string {
+        $properties = $database_info['properties'] ?? [];
+        $date_property = $this->find_date_property($properties);
+
+        if (!$date_property) {
+            return $this->render_list_view($records, $database_info);
+        }
+
+        // 按日期分组记录
+        $events_by_date = $this->group_records_by_date($records, $date_property);
+
+        $html = '<div class="notion-database-preview notion-database-calendar">';
+        $html .= '<div class="notion-calendar-container">';
+
+        // 日历头部
+        $html .= '<div class="notion-calendar-header">';
+        $html .= '<h4 class="notion-calendar-title">日历视图</h4>';
+        $html .= '</div>';
+
+        // 简化的月视图
+        $html .= $this->render_simple_calendar($events_by_date);
+
+        $html .= '</div>'; // 关闭 notion-calendar-container
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 按日期分组记录
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param string $date_property 日期属性名
+     * @return array 按日期分组的记录
+     */
+    private function group_records_by_date(array $records, string $date_property): array {
+        $grouped = [];
+
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+            if (isset($properties[$date_property])) {
+                $date_value = $properties[$date_property]['date']['start'] ?? '';
+                if (!empty($date_value)) {
+                    $date_key = date('Y-m-d', strtotime($date_value));
+                    if (!isset($grouped[$date_key])) {
+                        $grouped[$date_key] = [];
+                    }
+                    $grouped[$date_key][] = $record;
+                }
+            }
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * 渲染简化日历
+     *
+     * @since 1.1.1
+     * @param array $events_by_date 按日期分组的事件
+     * @return string HTML内容
+     */
+    private function render_simple_calendar(array $events_by_date): string {
+        $html = '<div class="notion-calendar-grid">';
+
+        // 日历头部（星期）
+        $weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        $html .= '<div class="notion-calendar-weekdays">';
+        foreach ($weekdays as $day) {
+            $html .= '<div class="notion-calendar-weekday">' . $day . '</div>';
+        }
+        $html .= '</div>';
+
+        // 获取当前月份的日期范围
+        $current_month = date('Y-m');
+        $start_date = $current_month . '-01';
+        $end_date = date('Y-m-t', strtotime($start_date));
+
+        // 渲染日期网格
+        $html .= '<div class="notion-calendar-days">';
+
+        $current_date = $start_date;
+        while ($current_date <= $end_date) {
+            $day_number = date('j', strtotime($current_date));
+            $has_events = isset($events_by_date[$current_date]);
+            $event_count = $has_events ? count($events_by_date[$current_date]) : 0;
+
+            $html .= '<div class="notion-calendar-day' . ($has_events ? ' has-events' : '') . '">';
+            $html .= '<div class="notion-calendar-day-number">' . $day_number . '</div>';
+
+            if ($has_events) {
+                $html .= '<div class="notion-calendar-events">';
+                foreach ($events_by_date[$current_date] as $index => $event) {
+                    if ($index >= 3) { // 最多显示3个事件
+                        $remaining = $event_count - 3;
+                        $html .= '<div class="notion-calendar-event-more">+' . $remaining . ' 更多</div>';
+                        break;
+                    }
+
+                    $title = $this->extract_record_title($event['properties'] ?? []);
+                    $html .= '<div class="notion-calendar-event" title="' . esc_attr($title) . '">';
+                    $html .= esc_html(mb_substr($title, 0, 10) . (mb_strlen($title) > 10 ? '...' : ''));
+                    $html .= '</div>';
+                }
+                $html .= '</div>';
+            }
+
+            $html .= '</div>';
+
+            // 移动到下一天
+            $current_date = date('Y-m-d', strtotime($current_date . ' +1 day'));
+        }
+
+        $html .= '</div>'; // 关闭 notion-calendar-days
+        $html .= '</div>'; // 关闭 notion-calendar-grid
+
+        return $html;
+    }
+
+    /**
+     * 渲染图表视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_chart_view(array $records, array $database_info): string {
+        $properties = $database_info['properties'] ?? [];
+        $number_properties = $this->find_number_properties($properties);
+
+        if (empty($number_properties)) {
+            return $this->render_table_view($records, $database_info);
+        }
+
+        // 准备图表数据
+        $chart_data = $this->prepare_chart_data($records, $number_properties, $properties);
+
+        $html = '<div class="notion-database-preview notion-database-chart">';
+        $html .= '<div class="notion-chart-container">';
+
+        // 图表头部
+        $html .= '<div class="notion-chart-header">';
+        $html .= '<h4 class="notion-chart-title">数据图表</h4>';
+        $html .= '</div>';
+
+        // 图表内容
+        $html .= '<div class="notion-chart-content">';
+        $html .= '<canvas id="notion-chart-' . uniqid() . '" class="notion-chart-canvas"></canvas>';
+        $html .= '</div>';
+
+        // 图表数据（隐藏，供JavaScript使用）
+        $html .= '<script type="application/json" class="notion-chart-data">' . json_encode($chart_data) . '</script>';
+
+        $html .= '</div>'; // 关闭 notion-chart-container
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 准备图表数据
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $number_properties 数值属性
+     * @param array $all_properties 所有属性
+     * @return array 图表数据
+     */
+    private function prepare_chart_data(array $records, array $number_properties, array $all_properties): array {
+        $chart_data = [
+            'type' => 'bar',
+            'labels' => [],
+            'datasets' => []
+        ];
+
+        // 使用第一个数值属性作为主要数据
+        $primary_property = $number_properties[0];
+        $values = [];
+        $labels = [];
+
+        foreach ($records as $index => $record) {
+            $properties = $record['properties'] ?? [];
+
+            // 获取标题作为标签
+            $title = $this->extract_record_title($properties);
+            $labels[] = !empty($title) ? $title : "记录 " . ($index + 1);
+
+            // 获取数值
+            $value = $properties[$primary_property]['number'] ?? 0;
+            $values[] = is_numeric($value) ? floatval($value) : 0;
+        }
+
+        $chart_data['labels'] = $labels;
+        $chart_data['datasets'][] = [
+            'label' => $primary_property,
+            'data' => $values,
+            'backgroundColor' => 'rgba(59, 130, 246, 0.6)',
+            'borderColor' => 'rgba(59, 130, 246, 1)',
+            'borderWidth' => 1
+        ];
+
+        return $chart_data;
+    }
+
+    /**
+     * 渲染时间轴视图
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_timeline_view(array $records, array $database_info): string {
+        $properties = $database_info['properties'] ?? [];
+        $timeline_dates = $this->find_timeline_date_properties($properties);
+
+        if (!$timeline_dates['start'] || !$timeline_dates['end']) {
+            return $this->render_table_view($records, $database_info);
+        }
+
+        // 准备时间轴数据
+        $timeline_items = $this->prepare_timeline_data($records, $timeline_dates);
+
+        $html = '<div class="notion-database-preview notion-database-timeline">';
+        $html .= '<div class="notion-timeline-container">';
+
+        // 时间轴头部
+        $html .= '<div class="notion-timeline-header">';
+        $html .= '<h4 class="notion-timeline-title">项目时间轴</h4>';
+        $html .= '</div>';
+
+        // 时间轴内容
+        $html .= '<div class="notion-timeline-content">';
+
+        foreach ($timeline_items as $item) {
+            $html .= '<div class="notion-timeline-item">';
+
+            // 时间信息
+            $html .= '<div class="notion-timeline-dates">';
+            $html .= '<div class="notion-timeline-start">' . esc_html($item['start_formatted']) . '</div>';
+            $html .= '<div class="notion-timeline-duration">' . esc_html($item['duration']) . '</div>';
+            $html .= '<div class="notion-timeline-end">' . esc_html($item['end_formatted']) . '</div>';
+            $html .= '</div>';
+
+            // 项目信息
+            $html .= '<div class="notion-timeline-info">';
+            $html .= '<div class="notion-timeline-bar" style="width: ' . $item['bar_width'] . '%;"></div>';
+            $html .= '<div class="notion-timeline-title">' . esc_html($item['title']) . '</div>';
+            if (!empty($item['properties'])) {
+                $html .= '<div class="notion-timeline-properties">' . $item['properties'] . '</div>';
+            }
+            $html .= '</div>';
+
+            $html .= '</div>'; // 关闭 notion-timeline-item
+        }
+
+        $html .= '</div>'; // 关闭 notion-timeline-content
+        $html .= '</div>'; // 关闭 notion-timeline-container
+        $html .= '</div>'; // 关闭 notion-database-preview
+
+        return $html;
+    }
+
+    /**
+     * 准备时间轴数据
+     *
+     * @since 1.1.1
+     * @param array $records 记录数组
+     * @param array $timeline_dates 时间轴日期属性
+     * @return array 时间轴数据
+     */
+    private function prepare_timeline_data(array $records, array $timeline_dates): array {
+        $timeline_items = [];
+        $all_dates = [];
+
+        // 收集所有有效的记录和日期
+        foreach ($records as $record) {
+            $properties = $record['properties'] ?? [];
+
+            $start_date = $properties[$timeline_dates['start']]['date']['start'] ?? '';
+            $end_date = $properties[$timeline_dates['end']]['date']['start'] ?? '';
+
+            if (!empty($start_date) && !empty($end_date)) {
+                $start_timestamp = strtotime($start_date);
+                $end_timestamp = strtotime($end_date);
+
+                if ($start_timestamp && $end_timestamp && $end_timestamp >= $start_timestamp) {
+                    $title = $this->extract_record_title($properties);
+                    $duration_days = ceil(($end_timestamp - $start_timestamp) / (24 * 60 * 60));
+
+                    $timeline_items[] = [
+                        'title' => $title,
+                        'start_date' => $start_date,
+                        'end_date' => $end_date,
+                        'start_timestamp' => $start_timestamp,
+                        'end_timestamp' => $end_timestamp,
+                        'start_formatted' => date('m/d', $start_timestamp),
+                        'end_formatted' => date('m/d', $end_timestamp),
+                        'duration' => $duration_days . '天',
+                        'properties' => '',
+                        'bar_width' => 0 // 将在后面计算
+                    ];
+
+                    $all_dates[] = $start_timestamp;
+                    $all_dates[] = $end_timestamp;
+                }
+            }
+        }
+
+        // 计算时间轴的总范围
+        if (!empty($all_dates)) {
+            $min_date = min($all_dates);
+            $max_date = max($all_dates);
+            $total_range = $max_date - $min_date;
+
+            // 计算每个项目的条形宽度
+            foreach ($timeline_items as &$item) {
+                if ($total_range > 0) {
+                    $item_duration = $item['end_timestamp'] - $item['start_timestamp'];
+                    $item['bar_width'] = min(100, max(10, ($item_duration / $total_range) * 100));
+                } else {
+                    $item['bar_width'] = 50;
+                }
+            }
+        }
+
+        // 按开始时间排序
+        usort($timeline_items, function($a, $b) {
+            return $a['start_timestamp'] - $b['start_timestamp'];
+        });
+
+        return $timeline_items;
+    }
+
+    /**
+     * 渲染画廊视图的单个记录
+     *
+     * @since 1.1.1
+     * @param array $record 记录数据
+     * @param array $database_info 数据库信息
+     * @return string HTML内容
+     */
+    private function render_gallery_record(array $record, array $database_info): string {
+        $properties = $record['properties'] ?? [];
+        $record_id = $record['id'] ?? '';
+        $created_time = $record['created_time'] ?? '';
+
+        $html = '<div class="notion-database-record" data-record-id="' . esc_attr($record_id) . '" data-created="' . esc_attr($created_time) . '">';
+
+        // 渲染封面图片（如果存在）
+        $cover_html = $this->render_record_cover($record);
+        if (!empty($cover_html)) {
+            $html .= $cover_html;
+        }
+
+        // 内容容器
+        $html .= '<div class="notion-record-content">';
+
+        // 获取记录标题和图标
+        $title = $this->extract_record_title($properties);
+        $icon_html = $this->render_record_icon($record);
+
+        if (!empty($title)) {
+            $html .= '<div class="notion-record-title">';
+            if (!empty($icon_html)) {
+                $html .= $icon_html;
+            }
+            $html .= esc_html($title);
+            $html .= '</div>';
+        }
+
+        // 获取并显示关键属性（画廊视图只显示最重要的2-3个属性）
+        $key_properties = $this->extract_key_properties($properties, $database_info, 3);
+        if (!empty($key_properties)) {
+            $html .= '<div class="notion-record-properties">';
+            foreach ($key_properties as $prop_name => $prop_value) {
+                if (!empty($prop_value) && $prop_value !== '未知' && $prop_value !== 'unknown') {
+                    $html .= '<div class="notion-record-property">';
+                    $html .= '<span class="notion-property-name">' . esc_html($prop_name) . ':</span> ';
+                    $html .= '<span class="notion-property-value">' . wp_kses_post($prop_value) . '</span>';
+                    $html .= '</div>';
+                }
+            }
+            $html .= '</div>';
+        }
+
+        $html .= '</div>'; // 关闭 notion-record-content
+        $html .= '</div>'; // 关闭 notion-database-record
 
         return $html;
     }
