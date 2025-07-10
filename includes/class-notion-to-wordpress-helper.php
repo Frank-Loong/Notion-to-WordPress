@@ -108,31 +108,18 @@ class Notion_To_WordPress_Helper {
             return $content;
         }
 
-        // 检查内容长度，超过500字符进行截断
-        if (strlen($content) > 500) {
-            $content = substr($content, 0, 500) . '... [' . __('内容已截断，完整内容请查看专用日志文件', 'notion-to-wordpress') . ']';
-        }
-
         // 检测并过滤HTML内容（可能包含文章内容）
-        if (preg_match('/<[^>]+>/', $content)) {
-            // 如果包含HTML标签，进行脱敏处理
-            $content = preg_replace('/<[^>]+>/', '[' . __('HTML标签已过滤', 'notion-to-wordpress') . ']', $content);
-            if (strlen($content) > 200) {
-                $content = substr($content, 0, 200) . '... [' . __('HTML内容已过滤', 'notion-to-wordpress') . ']';
+        if (preg_match('/<[^>]+>/', $content) && strlen($content) > 1000) {
+            // 如果包含HTML标签且内容很长，可能是文章内容，进行脱敏处理
+            $content = preg_replace('/<[^>]+>/', '[HTML标签已过滤]', $content);
+            if (strlen($content) > 500) {
+                $content = substr($content, 0, 500) . '... [HTML内容已过滤]';
             }
         }
 
-        // 过滤可能的JSON响应内容（API响应）
-        if (preg_match('/^\s*[\{\[]/', $content) && strlen($content) > 300) {
-            $decoded = json_decode($content, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $content = '[' . sprintf(__('JSON响应已过滤，长度: %d 字符', 'notion-to-wordpress'), strlen($content)) . ']';
-            }
-        }
-
-        // 过滤包含大量文本的数组输出
-        if (strpos($content, 'Array') === 0 && strlen($content) > 400) {
-            $content = '[' . sprintf(__('数组内容已过滤，长度: %d 字符', 'notion-to-wordpress'), strlen($content)) . ']';
+        // 过滤包含大量文本的数组输出（可能是文章内容）
+        if (strpos($content, 'Array') === 0 && strlen($content) > 2000) {
+            $content = '[数组内容已过滤，长度: ' . strlen($content) . ' 字符]';
         }
 
         return $content;
