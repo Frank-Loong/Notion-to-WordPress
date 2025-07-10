@@ -1090,7 +1090,26 @@ class Notion_Pages {
     private function convert_notion_anchor_to_local(string $href): string {
         // 提取区块 ID 并转换为本地锚点
         if (preg_match('/#([a-f0-9-]{8,})/', $href, $matches)) {
-            return '#notion-block-' . $matches[1];
+            $block_id = $matches[1];
+
+            // 调试日志：记录原始 ID
+            Notion_To_WordPress_Helper::debug_log("锚点链接原始 ID: $block_id", 'Anchor Link');
+
+            // 如果是32位无连字符格式，转换为36位带连字符格式
+            if (strlen($block_id) === 32 && strpos($block_id, '-') === false) {
+                // 将32位 ID 转换为标准的36位 UUID 格式
+                $formatted_id = substr($block_id, 0, 8) . '-' .
+                               substr($block_id, 8, 4) . '-' .
+                               substr($block_id, 12, 4) . '-' .
+                               substr($block_id, 16, 4) . '-' .
+                               substr($block_id, 20, 12);
+
+                Notion_To_WordPress_Helper::debug_log("锚点链接转换后 ID: $formatted_id", 'Anchor Link');
+                return '#notion-block-' . $formatted_id;
+            }
+
+            // 如果已经是正确格式，直接使用
+            return '#notion-block-' . $block_id;
         }
         // 如果无法提取有效的区块 ID，记录警告并返回原始链接
         Notion_To_WordPress_Helper::warning_log('无法从锚点链接中提取有效的区块 ID: ' . $href);
