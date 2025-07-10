@@ -36,12 +36,27 @@ function smoothScrollToAnchor(targetId) {
         if (target) {
             console.log('🎯 [Notion to WordPress] 跳转到区块:', cleanId);
 
-            // 使用现代浏览器的平滑滚动
-            target.scrollIntoView({
-                behavior: 'smooth',
-                block: 'start',
-                inline: 'nearest'
-            });
+            // 尝试使用现代浏览器的居中滚动
+            try {
+                target.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                });
+            } catch (error) {
+                // 备用方案：手动计算居中位置
+                console.info('🔄 [Notion to WordPress] 使用备用滚动方案');
+                const targetRect = target.getBoundingClientRect();
+                const windowHeight = window.innerHeight;
+                const targetTop = targetRect.top + window.pageYOffset;
+                const centerOffset = windowHeight / 2 - targetRect.height / 2;
+                const scrollTo = targetTop - centerOffset;
+
+                window.scrollTo({
+                    top: Math.max(0, scrollTo),
+                    behavior: 'smooth'
+                });
+            }
 
             // 添加高亮效果
             highlightBlock(target);
