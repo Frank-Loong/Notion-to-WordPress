@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * GitHub Actions Configuration Validator
+ * GitHub Actions 配置校验工具
  * 
- * This script validates the GitHub Actions workflow configuration
- * to ensure it's properly structured and contains all required elements.
+ * 本脚本用于校验 GitHub Actions 工作流配置，
+ * 确保结构正确且包含所有必需元素。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -22,112 +22,112 @@ class GitHubActionsValidator {
     }
 
     /**
-     * Validate the GitHub Actions workflow file
+     * 校验 GitHub Actions 工作流文件
      */
     validate() {
-        console.log(chalk.bold('🔍 GitHub Actions Workflow Validator\n'));
+        console.log(chalk.bold('🔍 GitHub Actions 工作流校验器\n'));
 
         try {
-            // Check if workflow file exists
+            // 检查工作流文件是否存在
             if (!fs.existsSync(this.workflowPath)) {
-                throw new Error('Workflow file not found: .github/workflows/release.yml');
+                throw new Error('未找到工作流文件: .github/workflows/release.yml');
             }
 
-            // Read and parse YAML
+            // 读取并解析 YAML
             const content = fs.readFileSync(this.workflowPath, 'utf8');
             const workflow = yaml.load(content);
 
-            // Validate workflow structure
+            // 校验工作流结构
             this.validateWorkflowStructure(workflow);
             this.validateTriggers(workflow);
             this.validatePermissions(workflow);
             this.validateJobs(workflow);
             this.validateSteps(workflow);
 
-            console.log(chalk.green('\n✅ GitHub Actions workflow validation passed!'));
-            console.log(chalk.blue('📋 Workflow Summary:'));
-            console.log(`  • Name: ${workflow.name}`);
-            console.log(`  • Triggers: ${Object.keys(workflow.on).join(', ')}`);
-            console.log(`  • Jobs: ${Object.keys(workflow.jobs).length}`);
-            console.log(`  • Steps: ${this.countSteps(workflow)}`);
+            console.log(chalk.green('\n✅ GitHub Actions 工作流校验通过！'));
+            console.log(chalk.blue('📋 工作流摘要:'));
+            console.log(`  • 名称: ${workflow.name}`);
+            console.log(`  • 触发器: ${Object.keys(workflow.on).join(', ')}`);
+            console.log(`  • 任务数: ${Object.keys(workflow.jobs).length}`);
+            console.log(`  • 步骤数: ${this.countSteps(workflow)}`);
 
             return true;
 
         } catch (error) {
-            console.log(chalk.red(`❌ Validation failed: ${error.message}`));
+            console.log(chalk.red(`❌ 校验失败: ${error.message}`));
             return false;
         }
     }
 
     /**
-     * Validate basic workflow structure
+     * 校验工作流基础结构
      */
     validateWorkflowStructure(workflow) {
         const requiredFields = ['name', 'on', 'jobs'];
         
         for (const field of requiredFields) {
             if (!workflow[field]) {
-                throw new Error(`Missing required field: ${field}`);
+                throw new Error(`缺少必需字段: ${field}`);
             }
         }
 
-        console.log(chalk.green('✅ Basic workflow structure is valid'));
+        console.log(chalk.green('✅ 工作流基础结构有效'));
     }
 
     /**
-     * Validate trigger configuration
+     * 校验触发器配置
      */
     validateTriggers(workflow) {
         if (!workflow.on.push || !workflow.on.push.tags) {
-            throw new Error('Missing push trigger for tags');
+            throw new Error('缺少 tag 推送触发器');
         }
 
         const tagPatterns = workflow.on.push.tags;
         if (!Array.isArray(tagPatterns) || !tagPatterns.includes('v*')) {
-            throw new Error('Missing or invalid tag pattern for version tags');
+            throw new Error('缺少或无效的 tag 模式（应包含 v*）');
         }
 
-        console.log(chalk.green('✅ Trigger configuration is valid'));
+        console.log(chalk.green('✅ 触发器配置有效'));
     }
 
     /**
-     * Validate permissions
+     * 校验权限配置
      */
     validatePermissions(workflow) {
         if (!workflow.permissions) {
-            throw new Error('Missing permissions configuration');
+            throw new Error('缺少权限配置');
         }
 
         if (workflow.permissions.contents !== 'write') {
-            throw new Error('Missing or invalid contents permission (should be "write")');
+            throw new Error('contents 权限缺失或无效（应为 "write"）');
         }
 
-        console.log(chalk.green('✅ Permissions configuration is valid'));
+        console.log(chalk.green('✅ 权限配置有效'));
     }
 
     /**
-     * Validate jobs configuration
+     * 校验 jobs 配置
      */
     validateJobs(workflow) {
         if (!workflow.jobs.release) {
-            throw new Error('Missing release job');
+            throw new Error('缺少 release 任务');
         }
 
         const releaseJob = workflow.jobs.release;
         
         if (releaseJob['runs-on'] !== 'ubuntu-latest') {
-            throw new Error('Release job should run on ubuntu-latest');
+            throw new Error('release 任务应运行在 ubuntu-latest');
         }
 
         if (!releaseJob.steps || !Array.isArray(releaseJob.steps)) {
-            throw new Error('Release job missing steps');
+            throw new Error('release 任务缺少 steps');
         }
 
-        console.log(chalk.green('✅ Jobs configuration is valid'));
+        console.log(chalk.green('✅ jobs 配置有效'));
     }
 
     /**
-     * Validate workflow steps
+     * 校验工作流步骤
      */
     validateSteps(workflow) {
         const releaseSteps = workflow.jobs.release.steps;
@@ -145,26 +145,26 @@ class GitHubActionsValidator {
             );
             
             if (!stepExists) {
-                throw new Error(`Missing required step: ${requiredStep}`);
+                throw new Error(`缺少步骤: ${requiredStep}`);
             }
         }
 
-        // Validate specific step configurations
+        // 校验特定步骤配置
         const checkoutStep = releaseSteps.find(step => step.uses && step.uses.includes('checkout'));
         if (!checkoutStep) {
-            throw new Error('Missing checkout step');
+            throw new Error('缺少 checkout 步骤');
         }
 
         const nodeStep = releaseSteps.find(step => step.uses && step.uses.includes('setup-node'));
         if (!nodeStep) {
-            throw new Error('Missing Node.js setup step');
+            throw new Error('缺少 Node.js 环境设置步骤');
         }
 
-        console.log(chalk.green('✅ Workflow steps are valid'));
+        console.log(chalk.green('✅ 工作流步骤有效'));
     }
 
     /**
-     * Count total steps in workflow
+     * 统计工作流总步骤数
      */
     countSteps(workflow) {
         let totalSteps = 0;
@@ -180,7 +180,7 @@ class GitHubActionsValidator {
     }
 }
 
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const validator = new GitHubActionsValidator();
     const isValid = validator.validate();

@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Utility Functions Library for Notion-to-WordPress Release System
+ * Notion-to-WordPress 发布系统通用工具函数库
  * 
- * This module provides common utility functions used across the release system,
- * including file operations, command execution, logging, path handling,
- * string processing, and validation functions.
+ * 本模块提供发布系统常用的工具函数，包括文件操作、命令执行、日志、路径处理、
+ * 字符串处理和校验等。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -18,68 +17,68 @@ const chalk = require('chalk');
 const semver = require('semver');
 
 /**
- * File Operations
+ * 文件操作
  */
 
 /**
- * Read file content safely
- * @param {string} filePath - Path to the file
- * @param {string} encoding - File encoding (default: utf8)
- * @returns {string} File content
+ * 安全读取文件内容
+ * @param {string} filePath - 文件路径
+ * @param {string} encoding - 文件编码（默认 utf8）
+ * @returns {string} 文件内容
  */
 function readFile(filePath, encoding = 'utf8') {
     try {
         if (!fs.existsSync(filePath)) {
-            throw new Error(`File not found: ${filePath}`);
+            throw new Error(`文件未找到: ${filePath}`);
         }
         return fs.readFileSync(filePath, encoding);
     } catch (error) {
-        throw new Error(`Failed to read file ${filePath}: ${error.message}`);
+        throw new Error(`读取文件 ${filePath} 失败: ${error.message}`);
     }
 }
 
 /**
- * Write file content safely
- * @param {string} filePath - Path to the file
- * @param {string} content - Content to write
- * @param {string} encoding - File encoding (default: utf8)
+ * 安全写入文件内容
+ * @param {string} filePath - 文件路径
+ * @param {string} content - 写入内容
+ * @param {string} encoding - 文件编码（默认 utf8）
  */
 function writeFile(filePath, content, encoding = 'utf8') {
     try {
-        // Ensure directory exists
+        // 确保目录存在
         const dir = path.dirname(filePath);
         ensureDir(dir);
         
         fs.writeFileSync(filePath, content, encoding);
     } catch (error) {
-        throw new Error(`Failed to write file ${filePath}: ${error.message}`);
+        throw new Error(`写入文件 ${filePath} 失败: ${error.message}`);
     }
 }
 
 /**
- * Copy file safely
- * @param {string} sourcePath - Source file path
- * @param {string} targetPath - Target file path
+ * 安全复制文件
+ * @param {string} sourcePath - 源文件路径
+ * @param {string} targetPath - 目标文件路径
  */
 function copyFile(sourcePath, targetPath) {
     try {
         if (!fs.existsSync(sourcePath)) {
-            throw new Error(`Source file not found: ${sourcePath}`);
+            throw new Error(`源文件未找到: ${sourcePath}`);
         }
         
-        // Ensure target directory exists
+        // 确保目标目录存在
         const targetDir = path.dirname(targetPath);
         ensureDir(targetDir);
         
         fs.copyFileSync(sourcePath, targetPath);
     } catch (error) {
-        throw new Error(`Failed to copy file from ${sourcePath} to ${targetPath}: ${error.message}`);
+        throw new Error(`复制文件从 ${sourcePath} 到 ${targetPath} 失败: ${error.message}`);
     }
 }
 
 /**
- * Delete file safely
- * @param {string} filePath - Path to the file
+ * 安全删除文件
+ * @param {string} filePath - 文件路径
  */
 function deleteFile(filePath) {
     try {
@@ -87,19 +86,19 @@ function deleteFile(filePath) {
             fs.unlinkSync(filePath);
         }
     } catch (error) {
-        throw new Error(`Failed to delete file ${filePath}: ${error.message}`);
+        throw new Error(`删除文件 ${filePath} 失败: ${error.message}`);
     }
 }
 
 /**
- * Command Execution
+ * 命令执行
  */
 
 /**
- * Execute command synchronously
- * @param {string} command - Command to execute
- * @param {object} options - Execution options
- * @returns {string} Command output
+ * 同步执行命令
+ * @param {string} command - 要执行的命令
+ * @param {object} options - 执行选项
+ * @returns {string} 命令输出
  */
 function execCommand(command, options = {}) {
     try {
@@ -111,15 +110,15 @@ function execCommand(command, options = {}) {
         
         return execSync(command, defaultOptions);
     } catch (error) {
-        throw new Error(`Command failed: ${command}\nError: ${error.message}`);
+        throw new Error(`命令执行失败: ${command}\n错误: ${error.message}`);
     }
 }
 
 /**
- * Execute command asynchronously
- * @param {string} command - Command to execute
- * @param {object} options - Execution options
- * @returns {Promise} Promise that resolves with command output
+ * 异步执行命令
+ * @param {string} command - 要执行的命令
+ * @param {object} options - 执行选项
+ * @returns {Promise} 返回命令输出的 Promise
  */
 function execCommandAsync(command, options = {}) {
     return new Promise((resolve, reject) => {
@@ -144,68 +143,68 @@ function execCommandAsync(command, options = {}) {
             if (code === 0) {
                 resolve(stdout);
             } else {
-                reject(new Error(`Command failed with code ${code}: ${stderr}`));
+                reject(new Error(`命令执行失败，错误代码 ${code}: ${stderr}`));
             }
         });
         
         child.on('error', (error) => {
-            reject(new Error(`Failed to execute command: ${error.message}`));
+            reject(new Error(`命令执行失败: ${error.message}`));
         });
     });
 }
 
 /**
- * Logging Functions
+ * 日志函数
  */
 
 /**
- * Log regular message
- * @param {string} message - Message to log
+ * 普通日志
+ * @param {string} message - 日志内容
  */
 function log(message) {
     console.log(message);
 }
 
 /**
- * Log success message
- * @param {string} message - Success message
+ * 成功日志
+ * @param {string} message - 成功信息
  */
 function success(message) {
     console.log(chalk.green('✅ ' + message));
 }
 
 /**
- * Log warning message
- * @param {string} message - Warning message
+ * 警告日志
+ * @param {string} message - 警告信息
  */
 function warn(message) {
     console.log(chalk.yellow('⚠️  ' + message));
 }
 
 /**
- * Log error message
- * @param {string} message - Error message
+ * 错误日志
+ * @param {string} message - 错误信息
  */
 function error(message) {
     console.log(chalk.red('❌ ' + message));
 }
 
 /**
- * Log info message
- * @param {string} message - Info message
+ * 信息日志
+ * @param {string} message - 信息内容
  */
 function info(message) {
     console.log(chalk.blue('ℹ️  ' + message));
 }
 
 /**
- * Path Handling Functions
+ * 路径处理函数
  */
 
 /**
- * Resolve path relative to project root
- * @param {...string} pathSegments - Path segments to resolve
- * @returns {string} Resolved absolute path
+ * 相对项目根目录解析路径
+ * @param {...string} pathSegments - 路径片段
+ * @returns {string} 绝对路径
  */
 function resolvePath(...pathSegments) {
     const projectRoot = path.resolve(__dirname, '..');
@@ -213,8 +212,8 @@ function resolvePath(...pathSegments) {
 }
 
 /**
- * Ensure directory exists
- * @param {string} dirPath - Directory path
+ * 确保目录存在
+ * @param {string} dirPath - 目录路径
  */
 function ensureDir(dirPath) {
     try {
@@ -222,14 +221,14 @@ function ensureDir(dirPath) {
             fs.mkdirSync(dirPath, { recursive: true });
         }
     } catch (error) {
-        throw new Error(`Failed to create directory ${dirPath}: ${error.message}`);
+        throw new Error(`创建目录 ${dirPath} 失败: ${error.message}`);
     }
 }
 
 /**
- * Check if path is a directory
- * @param {string} dirPath - Path to check
- * @returns {boolean} True if path is a directory
+ * 判断路径是否为目录
+ * @param {string} dirPath - 待检测路径
+ * @returns {boolean} 是否为目录
  */
 function isDirectory(dirPath) {
     try {
@@ -240,9 +239,9 @@ function isDirectory(dirPath) {
 }
 
 /**
- * Check if path is a file
- * @param {string} filePath - Path to check
- * @returns {boolean} True if path is a file
+ * 判断路径是否为文件
+ * @param {string} filePath - 待检测路径
+ * @returns {boolean} 是否为文件
  */
 function isFile(filePath) {
     try {
@@ -253,30 +252,30 @@ function isFile(filePath) {
 }
 
 /**
- * String Processing Functions
+ * 字符串处理函数
  */
 
 /**
- * Replace version in text using pattern
- * @param {string} text - Text to process
- * @param {string} newVersion - New version to insert
- * @param {RegExp} pattern - Pattern to match
- * @param {string} replacement - Replacement template
- * @returns {string} Text with version replaced
+ * 用正则替换文本中的版本号
+ * @param {string} text - 待处理文本
+ * @param {string} newVersion - 新版本号
+ * @param {RegExp} pattern - 匹配正则
+ * @param {string} replacement - 替换模板
+ * @returns {string} 替换后的文本
  */
 function replaceVersion(text, newVersion, pattern, replacement) {
     try {
         const replacementText = replacement.replace('{VERSION}', newVersion);
         return text.replace(pattern, replacementText);
     } catch (error) {
-        throw new Error(`Failed to replace version: ${error.message}`);
+        throw new Error(`替换版本号失败: ${error.message}`);
     }
 }
 
 /**
- * Format current date
- * @param {string} format - Date format (default: YYYY-MM-DD)
- * @returns {string} Formatted date
+ * 格式化当前日期
+ * @param {string} format - 日期格式（默认 YYYY-MM-DD）
+ * @returns {string} 格式化后的日期
  */
 function formatDate(format = 'YYYY-MM-DD') {
     const now = new Date();
@@ -297,9 +296,9 @@ function formatDate(format = 'YYYY-MM-DD') {
 }
 
 /**
- * Capitalize first letter of string
- * @param {string} str - String to capitalize
- * @returns {string} Capitalized string
+ * 首字母大写
+ * @param {string} str - 待处理字符串
+ * @returns {string} 首字母大写后的字符串
  */
 function capitalize(str) {
     if (!str || typeof str !== 'string') return str;
@@ -307,13 +306,13 @@ function capitalize(str) {
 }
 
 /**
- * Validation Functions
+ * 校验函数
  */
 
 /**
- * Check if version string is valid
- * @param {string} version - Version string to validate
- * @returns {boolean} True if version is valid
+ * 校验版本号字符串是否合法
+ * @param {string} version - 待校验版本号
+ * @returns {boolean} 是否合法
  */
 function isValidVersion(version) {
     try {
@@ -324,9 +323,9 @@ function isValidVersion(version) {
 }
 
 /**
- * Check if Git working directory is clean
- * @param {string} cwd - Working directory (default: project root)
- * @returns {boolean} True if Git working directory is clean
+ * 检查 Git 工作区是否干净
+ * @param {string} cwd - 工作目录（默认项目根目录）
+ * @returns {boolean} 是否干净
  */
 function isGitClean(cwd = null) {
     try {
@@ -339,9 +338,9 @@ function isGitClean(cwd = null) {
 }
 
 /**
- * Check if current directory is a Git repository
- * @param {string} cwd - Working directory (default: project root)
- * @returns {boolean} True if directory is a Git repository
+ * 检查当前目录是否为 Git 仓库
+ * @param {string} cwd - 工作目录（默认项目根目录）
+ * @returns {boolean} 是否为 Git 仓库
  */
 function isGitRepository(cwd = null) {
     try {
@@ -354,13 +353,13 @@ function isGitRepository(cwd = null) {
 }
 
 /**
- * Check if Node.js version meets requirement
- * @param {string} requiredVersion - Required Node.js version (default: 16.0.0)
- * @returns {boolean} True if Node.js version is sufficient
+ * 检查 Node.js 版本是否满足要求
+ * @param {string} requiredVersion - 要求的 Node.js 版本（默认 16.0.0）
+ * @returns {boolean} 是否满足
  */
 function isNodeVersionValid(requiredVersion = '16.0.0') {
     try {
-        const currentVersion = process.version.slice(1); // Remove 'v' prefix
+        const currentVersion = process.version.slice(1); // 去掉 'v' 前缀
         return semver.gte(currentVersion, requiredVersion);
     } catch (error) {
         return false;
@@ -368,31 +367,31 @@ function isNodeVersionValid(requiredVersion = '16.0.0') {
 }
 
 /**
- * Error Handling Utilities
+ * 错误处理工具
  */
 
 /**
- * Wrap function with error handling
- * @param {Function} fn - Function to wrap
- * @param {string} context - Context for error messages
- * @returns {Function} Wrapped function
+ * 包裹函数，自动处理异常
+ * @param {Function} fn - 需要包裹的函数
+ * @param {string} context - 错误上下文
+ * @returns {Function} 包裹后的函数
  */
-function withErrorHandling(fn, context = 'Operation') {
+function withErrorHandling(fn, context = '操作') {
     return function(...args) {
         try {
             return fn.apply(this, args);
         } catch (error) {
-            throw new Error(`${context} failed: ${error.message}`);
+            throw new Error(`${context}失败: ${error.message}`);
         }
     };
 }
 
 /**
- * Retry function with exponential backoff
- * @param {Function} fn - Function to retry
- * @param {number} maxRetries - Maximum number of retries (default: 3)
- * @param {number} baseDelay - Base delay in milliseconds (default: 1000)
- * @returns {Promise} Promise that resolves with function result
+ * 带重试的函数调用（指数退避）
+ * @param {Function} fn - 需要重试的函数
+ * @param {number} maxRetries - 最大重试次数（默认 3）
+ * @param {number} baseDelay - 基础延迟毫秒（默认 1000）
+ * @returns {Promise} 返回函数结果
  */
 async function retry(fn, maxRetries = 3, baseDelay = 1000) {
     let lastError;
@@ -413,43 +412,43 @@ async function retry(fn, maxRetries = 3, baseDelay = 1000) {
     throw lastError;
 }
 
-// Export all utility functions
+// 导出所有工具函数
 module.exports = {
-    // File operations
+    // 文件操作
     readFile,
     writeFile,
     copyFile,
     deleteFile,
     
-    // Command execution
+    // 命令执行
     execCommand,
     execCommandAsync,
     
-    // Logging
+    // 日志
     log,
     success,
     warn,
     error,
     info,
     
-    // Path handling
+    // 路径处理
     resolvePath,
     ensureDir,
     isDirectory,
     isFile,
     
-    // String processing
+    // 字符串处理
     replaceVersion,
     formatDate,
     capitalize,
     
-    // Validation
+    // 校验
     isValidVersion,
     isGitClean,
     isGitRepository,
     isNodeVersionValid,
     
-    // Error handling
+    // 错误处理
     withErrorHandling,
     retry
 };
