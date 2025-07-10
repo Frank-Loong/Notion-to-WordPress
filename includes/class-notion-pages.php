@@ -2304,7 +2304,7 @@ class Notion_Pages {
      */
     private function render_database_preview_records(string $database_id, array $database_info, Notion_API $notion_api): string {
         try {
-            // 获取数据库中的前几条记录（限制数量以提高性能）
+            // 获取数据库中的记录
             // 使用with_details=true获取包含封面图片和图标的完整信息
             $records = $notion_api->get_database_pages($database_id, [], true);
 
@@ -2323,35 +2323,58 @@ class Notion_Pages {
             );
 
             // 检查数据库标题，强制匹配视图类型
-            $database_title = $database_info['title'] ?? '';
+            $database_title = '';
+            if (isset($database_info['title']) && is_array($database_info['title'])) {
+                // title是rich text数组，提取plain_text
+                foreach ($database_info['title'] as $title_part) {
+                    if (isset($title_part['plain_text'])) {
+                        $database_title .= $title_part['plain_text'];
+                    }
+                }
+            }
+
             $view_type = '';
 
             if (!empty($database_title)) {
                 $title_lower = strtolower($database_title);
 
-                // 根据标题强制匹配视图类型
+                Notion_To_WordPress_Helper::debug_log(
+                    '数据库标题解析: "' . $database_title . '" -> "' . $title_lower . '"',
+                    'Database Title Parse'
+                );
+
+                // 根据标题强制匹配视图类型（大小写不敏感）
                 if (strpos($title_lower, '画廊') !== false || strpos($title_lower, 'gallery') !== false) {
                     $view_type = 'gallery';
                 } elseif (strpos($title_lower, '表格') !== false || strpos($title_lower, 'table') !== false) {
                     $view_type = 'table';
-                } elseif (strpos($title_lower, '看板') !== false || strpos($title_lower, 'board') !== false || strpos($title_lower, 'kanban') !== false) {
-                    $view_type = 'board';
                 } elseif (strpos($title_lower, '列表') !== false || strpos($title_lower, 'list') !== false) {
                     $view_type = 'list';
-                } elseif (strpos($title_lower, 'feed') !== false || strpos($title_lower, '流') !== false) {
-                    $view_type = 'feed';
-                } elseif (strpos($title_lower, '日历') !== false || strpos($title_lower, 'calendar') !== false) {
-                    $view_type = 'calendar';
+                } elseif (strpos($title_lower, '看板') !== false || strpos($title_lower, 'board') !== false) {
+                    $view_type = 'board';
                 } elseif (strpos($title_lower, '时间轴') !== false || strpos($title_lower, 'timeline') !== false) {
                     $view_type = 'timeline';
+                } elseif (strpos($title_lower, '日历') !== false || strpos($title_lower, 'calendar') !== false) {
+                    $view_type = 'calendar';
                 } elseif (strpos($title_lower, '图表') !== false || strpos($title_lower, 'chart') !== false) {
                     $view_type = 'chart';
+                } elseif (strpos($title_lower, 'feed') !== false || strpos($title_lower, '动态') !== false) {
+                    $view_type = 'feed';
                 }
             }
 
-            // 如果标题没有明确指定视图类型，则使用智能检测
+            // 如果标题没有明确指定视图类型，则使用特征匹配
             if (empty($view_type)) {
                 $view_type = $this->detect_optimal_view_type($records, $database_info);
+
+                // 如果特征匹配也失败，默认使用表格视图作为兜底
+                if (empty($view_type)) {
+                    $view_type = 'table';
+                    Notion_To_WordPress_Helper::debug_log(
+                        '标题和特征匹配都失败，使用表格视图作为兜底',
+                        'Database View Fallback'
+                    );
+                }
             }
 
             Notion_To_WordPress_Helper::debug_log(
@@ -3013,12 +3036,12 @@ class Notion_Pages {
             return 'table';
         }
 
-        // 默认列表视图
+        // 如果没有明确的特征匹配，返回空字符串让上层处理
         Notion_To_WordPress_Helper::debug_log(
-            '使用默认列表视图。属性数量: ' . $property_count,
+            '特征检测未找到明确匹配，返回空值。属性数量: ' . $property_count,
             'Database View'
         );
-        return 'list';
+        return '';
     }
 
     /**
