@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Release Controller for Notion-to-WordPress Plugin
+ * Notion-to-WordPress 插件发布控制器
  * 
- * This is the main release orchestrator that coordinates the entire
- * automated release process including version updates, building,
- * Git operations, and error handling with rollback capabilities.
+ * 这是主发布编排器，负责协调整个自动化发布流程，包括版本号更新、构建、
+ * Git 操作和带回滚能力的错误处理。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -35,7 +34,7 @@ class ReleaseController {
     }
 
     /**
-     * Parse command line arguments
+     * 解析命令行参数
      */
     parseArguments(args) {
         const parsed = minimist(args, {
@@ -63,13 +62,13 @@ class ReleaseController {
         if (this.customVersion) {
             // Custom version provided, validate format
             if (!this.isValidVersion(this.customVersion)) {
-                this.error(`Invalid version format: ${this.customVersion}`);
+                this.error(`无效的版本格式: ${this.customVersion}`);
                 this.showHelp();
                 process.exit(1);
             }
             this.releaseType = 'custom';
         } else if (!this.releaseType || !['patch', 'minor', 'major', 'beta'].includes(this.releaseType)) {
-            this.error('Invalid or missing release type. Use patch/minor/major/beta or --version=X.Y.Z');
+            this.error('无效或缺失的发布类型。使用 patch/minor/major/beta 或 --version=X.Y.Z');
             this.showHelp();
             process.exit(1);
         }
@@ -83,7 +82,7 @@ class ReleaseController {
     }
 
     /**
-     * Validate version format
+     * 校验版本号格式
      */
     isValidVersion(version) {
         // Basic semver validation
@@ -92,23 +91,23 @@ class ReleaseController {
     }
 
     /**
-     * Show help information
+     * 显示帮助信息
      */
     showHelp() {
-        console.log(chalk.bold('\n🚀 Notion-to-WordPress Release Controller\n'));
-        console.log('Usage: node release.js <release-type> [options]');
-        console.log('       node release.js --version=X.Y.Z [options]\n');
-        console.log('Release Types:');
-        console.log('  patch     Patch release (1.1.0 → 1.1.1)');
-        console.log('  minor     Minor release (1.1.0 → 1.2.0)');
-        console.log('  major     Major release (1.1.0 → 2.0.0)');
-        console.log('  beta      Beta release (1.1.0 → 1.1.1-beta.1)\n');
-        console.log('Options:');
-        console.log('  -v, --version=X.Y.Z  Use custom version number');
-        console.log('  -d, --dry-run        Preview changes without executing');
-        console.log('  -f, --force          Skip confirmation prompts');
-        console.log('  -h, --help           Show this help message\n');
-        console.log('Examples:');
+        console.log(chalk.bold('\n🚀 Notion-to-WordPress 发布控制器\n'));
+        console.log('用法: node release.js <release-type> [options]');
+        console.log('      node release.js --version=X.Y.Z [options]\n');
+        console.log('发布类型:');
+        console.log('  patch     补丁发布 (1.1.0 → 1.1.1)');
+        console.log('  minor     小版本发布 (1.1.0 → 1.2.0)');
+        console.log('  major     主版本发布 (1.1.0 → 2.0.0)');
+        console.log('  beta      测试版发布 (1.1.0 → 1.1.1-beta.1)\n');
+        console.log('选项:');
+        console.log('  -v, --version=X.Y.Z  使用自定义版本号');
+        console.log('  -d, --dry-run        仅预览不执行');
+        console.log('  -f, --force          跳过确认提示');
+        console.log('  -h, --help           显示帮助信息\n');
+        console.log('示例:');
         console.log('  node release.js patch');
         console.log('  node release.js minor --dry-run');
         console.log('  node release.js major --force');
@@ -117,10 +116,10 @@ class ReleaseController {
     }
 
     /**
-     * Validate environment and prerequisites
+     * 校验环境和前置条件
      */
     validateEnvironment() {
-        this.log('🔍 Validating environment...');
+        this.log('🔍 正在验证环境...');
 
         // Check if we're in a git repository
         try {
@@ -129,7 +128,7 @@ class ReleaseController {
                 stdio: 'pipe' 
             });
         } catch (error) {
-            throw new Error('Not in a Git repository');
+            throw new Error('不在 Git 仓库中');
         }
 
         // Check for uncommitted changes
@@ -140,14 +139,14 @@ class ReleaseController {
             });
             
             if (status.trim() && !this.forceRelease) {
-                throw new Error('Working directory has uncommitted changes. Use --force to override.');
+                throw new Error('工作目录有未提交的更改。使用 --force 来覆盖。');
             }
         } catch (error) {
             if (error.message.includes('uncommitted changes')) {
                 throw error;
             }
             // Git status command failed for other reasons
-            this.warn('Could not check Git status');
+            this.warn('无法检查 Git 状态');
         }
 
         // Check if required tools are available
@@ -158,7 +157,7 @@ class ReleaseController {
 
         for (const file of requiredFiles) {
             if (!fs.existsSync(file)) {
-                throw new Error(`Required tool not found: ${path.basename(file)}`);
+                throw new Error(`未找到必需的工具: ${path.basename(file)}`);
             }
         }
 
@@ -166,17 +165,17 @@ class ReleaseController {
         const nodeVersion = process.version;
         const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
         if (majorVersion < 16) {
-            throw new Error(`Node.js 16+ required, current: ${nodeVersion}`);
+            throw new Error(`需要 Node.js 16 以上版本，当前版本: ${nodeVersion}`);
         }
 
-        this.success('Environment validation passed');
+        this.success('环境验证通过');
     }
 
     /**
-     * Get current version and calculate new version
+     * 获取当前版本并计算新版本
      */
     prepareVersions() {
-        this.log('📋 Preparing version information...');
+        this.log('📋 正在准备版本信息...');
 
         const versionBumper = new VersionBumper();
 
@@ -193,8 +192,8 @@ class ReleaseController {
             this.newVersion = versionBumper.bumpVersion(this.currentVersion, this.releaseType);
         }
 
-        this.log(`Current version: ${chalk.yellow(this.currentVersion)}`);
-        this.log(`New version: ${chalk.green(this.newVersion)}`);
+        this.log(`当前版本: ${chalk.yellow(this.currentVersion)}`);
+        this.log(`新版本: ${chalk.green(this.newVersion)}`);
 
         return {
             currentVersion: this.currentVersion,
@@ -203,18 +202,18 @@ class ReleaseController {
     }
 
     /**
-     * Ask for user confirmation
+     * 用户确认
      */
     async askConfirmation() {
         if (this.isDryRun || this.forceRelease) {
             return true;
         }
 
-        console.log(chalk.bold('\n📋 Release Summary:'));
-        console.log(`  Release Type: ${chalk.cyan(this.releaseType)}`);
-        console.log(`  Current Version: ${chalk.yellow(this.currentVersion)}`);
-        console.log(`  New Version: ${chalk.green(this.newVersion)}`);
-        console.log(`  Dry Run: ${this.isDryRun ? chalk.green('Yes') : chalk.red('No')}`);
+        console.log(chalk.bold('\n📋 发布摘要:'));
+        console.log(`  发布类型: ${chalk.cyan(this.releaseType)}`);
+        console.log(`  当前版本: ${chalk.yellow(this.currentVersion)}`);
+        console.log(`  新版本: ${chalk.green(this.newVersion)}`);
+        console.log(`  干运行: ${this.isDryRun ? chalk.green('是') : chalk.red('否')}`);
 
         return new Promise((resolve) => {
             const readline = require('readline');
@@ -223,7 +222,7 @@ class ReleaseController {
                 output: process.stdout
             });
 
-            rl.question(chalk.bold('\n❓ Proceed with release? (y/N): '), (answer) => {
+            rl.question(chalk.bold('\n❓ 是否继续发布? (y/N): '), (answer) => {
                 rl.close();
                 resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
             });
@@ -231,13 +230,13 @@ class ReleaseController {
     }
 
     /**
-     * Execute version bump
+     * 执行版本号升级
      */
     async executeVersionBump() {
-        this.log('🔄 Updating version numbers...');
+        this.log('🔄 正在更新版本号...');
 
         if (this.isDryRun) {
-            this.log('  [DRY RUN] Would update version to ' + this.newVersion);
+            this.log('  [干运行] 将更新版本为 ' + this.newVersion);
             return;
         }
 
@@ -256,28 +255,28 @@ class ReleaseController {
             
             this.completedSteps.push('version-bump');
             this.rollbackActions.push(() => {
-                this.log('Rolling back version changes...');
+                this.log('回滚版本更改...');
                 try {
                     versionBumper.restoreFromBackup();
                 } catch (error) {
-                    this.warn('Could not restore version backup: ' + error.message);
+                    this.warn('无法恢复版本备份: ' + error.message);
                 }
             });
             
-            this.success('Version updated successfully');
+            this.success('版本更新成功');
         } catch (error) {
-            throw new Error(`Version bump failed: ${error.message}`);
+            throw new Error(`版本升级失败: ${error.message}`);
         }
     }
 
     /**
-     * Execute build process
+     * 执行构建流程
      */
     async executeBuild() {
-        this.log('📦 Building WordPress plugin package...');
+        this.log('📦 正在构建 WordPress 插件包...');
 
         if (this.isDryRun) {
-            this.log('  [DRY RUN] Would build plugin package');
+            this.log('  [干运行] 将构建插件包');
             return;
         }
 
@@ -286,20 +285,20 @@ class ReleaseController {
             await buildTool.build();
             
             this.completedSteps.push('build');
-            this.success('Plugin package built successfully');
+            this.success('插件包构建成功');
         } catch (error) {
-            throw new Error(`Build failed: ${error.message}`);
+            throw new Error(`构建失败: ${error.message}`);
         }
     }
 
     /**
-     * Execute Git operations
+     * 执行 Git 操作
      */
     async executeGitOperations() {
-        this.log('📝 Performing Git operations...');
+        this.log('📝 正在执行 Git 操作...');
 
         if (this.isDryRun) {
-            this.log('  [DRY RUN] Would commit changes and create tag');
+            this.log('  [干运行] 将提交更改并创建标签');
             return;
         }
 
@@ -308,38 +307,38 @@ class ReleaseController {
             execSync('git add .', { cwd: this.projectRoot });
             
             // Commit changes
-            const commitMessage = `Release version ${this.newVersion}`;
+            const commitMessage = `发布版本 ${this.newVersion}`;
             execSync(`git commit -m "${commitMessage}"`, { cwd: this.projectRoot });
             
             // Create tag
-            const tagMessage = `Version ${this.newVersion}`;
+            const tagMessage = `版本 ${this.newVersion}`;
             execSync(`git tag -a v${this.newVersion} -m "${tagMessage}"`, { cwd: this.projectRoot });
             
             this.completedSteps.push('git-operations');
             this.rollbackActions.push(() => {
-                this.log('Rolling back Git operations...');
+                this.log('回滚 Git 操作...');
                 try {
                     execSync(`git tag -d v${this.newVersion}`, { cwd: this.projectRoot });
                     execSync('git reset --hard HEAD~1', { cwd: this.projectRoot });
                 } catch (error) {
-                    this.warn('Could not rollback Git operations: ' + error.message);
+                    this.warn('无法回滚 Git 操作: ' + error.message);
                 }
             });
             
-            this.success('Git operations completed');
+            this.success('Git 操作完成');
         } catch (error) {
-            throw new Error(`Git operations failed: ${error.message}`);
+            throw new Error(`Git 操作失败: ${error.message}`);
         }
     }
 
     /**
-     * Push to remote repository
+     * 推送到远程仓库
      */
     async pushToRemote() {
-        this.log('🚀 Pushing to remote repository...');
+        this.log('🚀 正在推送到远程仓库...');
 
         if (this.isDryRun) {
-            this.log('  [DRY RUN] Would push commits and tags to remote');
+            this.log('  [干运行] 将推送提交和标签到远程');
             return;
         }
 
@@ -351,34 +350,34 @@ class ReleaseController {
             execSync(`git push origin v${this.newVersion}`, { cwd: this.projectRoot });
             
             this.completedSteps.push('push');
-            this.success('Pushed to remote repository');
+            this.success('推送到远程仓库成功');
         } catch (error) {
-            throw new Error(`Push failed: ${error.message}`);
+            throw new Error(`推送失败: ${error.message}`);
         }
     }
 
     /**
-     * Execute rollback actions
+     * 执行回滚操作
      */
     async executeRollback() {
-        this.warn('🔄 Executing rollback...');
+        this.warn('🔄 正在执行回滚...');
         
         // Execute rollback actions in reverse order
         for (let i = this.rollbackActions.length - 1; i >= 0; i--) {
             try {
                 await this.rollbackActions[i]();
             } catch (error) {
-                this.error(`Rollback action failed: ${error.message}`);
+                this.error(`回滚操作失败: ${error.message}`);
             }
         }
     }
 
     /**
-     * Main release execution
+     * 主发布流程
      */
     async executeRelease() {
         try {
-            this.log(chalk.bold('🚀 Starting Release Process'));
+            this.log(chalk.bold('🚀 开始发布流程'));
             
             // Step 1: Validate environment
             this.validateEnvironment();
@@ -389,7 +388,7 @@ class ReleaseController {
             // Step 3: Ask for confirmation
             const confirmed = await this.askConfirmation();
             if (!confirmed) {
-                this.log('Release cancelled by user');
+                this.log('发布已被用户取消');
                 return;
             }
             
@@ -406,17 +405,17 @@ class ReleaseController {
             await this.pushToRemote();
             
             // Success!
-            this.success(`✅ Release ${this.newVersion} completed successfully!`);
+            this.success(`✅ 发布 ${this.newVersion} 成功!`);
             
             if (!this.isDryRun) {
-                console.log(chalk.bold('\n📦 Next Steps:'));
-                console.log('  • GitHub Actions will automatically create a release');
-                console.log('  • Check the Actions tab for build status');
-                console.log(`  • Download the plugin from: build/notion-to-wordpress-${this.newVersion}.zip`);
+                console.log(chalk.bold('\n📦 下一步:'));
+                console.log('  • GitHub Actions 将自动创建发布');
+                console.log('  • 在 Actions 标签页查看构建状态');
+                console.log(`  • 从以下地址下载插件: build/notion-to-wordpress-${this.newVersion}.zip`);
             }
             
         } catch (error) {
-            this.error(`Release failed: ${error.message}`);
+            this.error(`发布失败: ${error.message}`);
             
             if (!this.isDryRun && this.completedSteps.length > 0) {
                 await this.executeRollback();
@@ -426,25 +425,24 @@ class ReleaseController {
         }
     }
 
-    // Utility logging methods
+    // 工具方法：日志输出
     log(message) {
         console.log(message);
     }
 
     success(message) {
-        console.log(chalk.green('✅ ' + message));
+        console.log(chalk.green('\u2705 ' + message));
     }
 
     warn(message) {
-        console.log(chalk.yellow('⚠️  ' + message));
+        console.log(chalk.yellow('\u26a0\ufe0f  ' + message));
     }
 
     error(message) {
-        console.log(chalk.red('❌ ' + message));
+        console.log(chalk.red('\u274c ' + message));
     }
 }
-
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const controller = new ReleaseController();
     const args = process.argv.slice(2);

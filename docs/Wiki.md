@@ -1,119 +1,155 @@
-** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Status](../docs/PROJECT_STATUS.md) • [🔄 Changelog](../docs/CHANGELOG.md) • [⚖️ Feature Comparison](../docs/FEATURES_COMPARISON.md) • [🤝 Contributing](../CONTRIBUTING.md)
+** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
-**🌐 Language:** **English** • [中文](README-Wiki.zh-CN.md)
+**🌐 Language:** **English** • [中文](Wiki.zh_CN.md)
 
 ---
 
-# Notion to WordPress - Complete User Guide
+# Notion-to-WordPress - Complete User Guide
 
-Welcome to the official documentation hub for **Notion to WordPress**! From onboarding to power-user tricks, everything you need is here.
+> **The most advanced and reliable complete guide for Notion-to-WordPress integration**
 
-<div align="center">
-
-**[🚀 Getting Started](#-getting-started) • [🚀 Advanced Features](#-advanced-features) • [🔗 Webhook Auto-Sync](#-webhook-auto-sync) • [🐞 Troubleshooting](#-troubleshooting)**
-
-</div>
+Welcome to the official documentation hub for **Notion-to-WordPress**! From onboarding to power-user tricks, everything you need is here.
 
 ---
 
 ## 📋 Table of Contents
 
-- [🚀 Getting Started](#-getting-started)
+### 🚀 Quick Start
+- [🎯 Prerequisites](#-prerequisites)
 - [💾 Installation Guide](#-installation-guide)
+
+### 🔧 Core Features
 - [🚀 Advanced Features](#-advanced-features)
 - [⚙️ Field Mapping Configuration](#️-field-mapping-configuration)
 - [🔗 Webhook Auto-Sync](#-webhook-auto-sync)
+
+### 🆘 Support & Help
 - [🐞 Troubleshooting](#-troubleshooting)
 - [❓ Frequently Asked Questions](#-frequently-asked-questions)
+
+### 📚 Resource Links
 - [🔗 Related Links](#-related-links)
 - [📚 Additional Resources](#-additional-resources)
 
 ---
 
-## 🚀 Getting Started
-
-#### 📋 Notion Database Templates
-Before you start, grab one of our ready-to-use templates:
-
+## 🎯 Prerequisites
+1. WordPress 5.0+ with plugin installation permissions
+2. PHP 7.4+ and `curl` extension
+3. A Notion account with edit access to the target database
+4. Properly configured Notion database that meets field mapping requirements  
+   You can directly copy our templates:
 <div align="center">
 
-| Template Type | Link |
-|---------|------|
-| 📝 **Chinese template** | [Copy the template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
-| 📚 **English template** | [Copy the template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
+<table>
+  <thead>
+    <tr>
+      <th>Template Type</th>
+      <th>Link</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>📝 <strong>Chinese Template</strong></td>
+      <td><a href="https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link">Copy Template</a></td>
+    </tr>
+    <tr>
+      <td>📚 <strong>English Template</strong></td>
+      <td><a href="https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link">Copy Template</a></td>
+    </tr>
+  </tbody>
+</table>
 
 </div>
 
-##### 🔗 **NotionNext Compatibility**
-Our plugin is **fully compatible with [NotionNext](https://github.com/tangly1024/NotionNext)** database schemas! You can also use NotionNext's official templates:
+#### 🔗 NotionNext Compatibility
+
+This project is deeply adapted for Notion databases and is **fully compatible with [NotionNext](https://github.com/tangly1024/NotionNext)**. You can also use the official NotionNext database templates:
 
 <div align="center">
 
-| Template Type | Link |
-|---------|------|
-| 🇨🇳 **NotionNext 中文模板** | [NotionNext 博客](https://tanghh.notion.site/02ab3b8678004aa69e9e415905ef32a5?v=b7eb215720224ca5827bfaa5ef82cf2d) |
-| 🇺🇸 **NotionNext English Template** | [NotionNext Blog](https://www.notion.so/tanghh/7c1d570661754c8fbc568e00a01fd70e?v=8c801924de3840b3814aea6f13c8484f&pvs=4) |
+<table>
+  <thead>
+    <tr>
+      <th>Template Type</th>
+      <th>Link</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>🇨🇳 <strong>NotionNext Chinese Template</strong></td>
+      <td><a href="https://tanghh.notion.site/02ab3b8678004aa69e9e415905ef32a5?v=b7eb215720224ca5827bfaa5ef82cf2d">NotionNext Template</a></td>
+    </tr>
+    <tr>
+      <td>🇺🇸 <strong>NotionNext English Template</strong></td>
+      <td><a href="https://www.notion.so/tanghh/7c1d570661754c8fbc568e00a01fd70e?v=8c801924de3840b3814aea6f13c8484f&pvs=4">NotionNext Template</a></td>
+    </tr>
+  </tbody>
+</table>
 
 </div>
 
-> 🚀 **Dual Platform Publishing**: With NotionNext compatibility, you can write in Notion and automatically sync to **both NotionNext and WordPress** simultaneously!
+> 🚀 <strong>Dual-platform publishing:</strong> With NotionNext compatibility, you can write in Notion and have your articles synced in real time to <strong>both NotionNext and WordPress platforms</strong>!
 
-> 💡 **Usage Tip**: After copying the template, remember to invite your integration to access the database in Notion!
+---
 
-### ⚡ 5-Minute Setup Guide
-
-#### 📷 Step 1: Install Plugin (1 minute)
-<div align="center">
-  <img src="../docs/images/install-en.png" alt="Installation Step 1" width="600">
-  <p><em>WordPress Admin → Plugins → Add New Plugin</em></p>
-</div>
-
-```bash
-# Download → WordPress Admin Dashboard → Plugins → Add New Plugin → Upload ZIP → Activate
-```
-
-#### 🔑 Step 2: Get Configuration Information (3 minutes)
-
-  1. **Create Integration and Get Internal Integration Token**
-     - Visit [Notion Integrations Page](https://www.notion.so/profile/integrations/)
-     ![Notion Integrations Page](../docs/images/notion-integrations-en.png)
-     - Create new integration and copy the token
-     ![Copy Internal Integration Token](../docs/images/notion-internal-integration-key-en.png)
-
-  2. **Add Integration to Database to Grant Edit Permission and Copy Notion Database ID**
-     - Extract ID from database URL
-     ![Add Integration and Copy Database ID](../docs/images/notion-database-id-en.png)
-
-  3. **Configure in WordPress Admin**
-     - Go to WordPress Admin Dashboard → Notion to WordPress
-     - Paste the internal integration token and database ID
-     ![WordPress Configuration](../docs/images/wordpress-config-en.png)
-
-#### 🚀 Step 3: First Sync (1 minute)
-  - Click "Smart Sync" to start synchronization and watch your content appear in WordPress! 🎉
-
-### Prerequisites
-1. WordPress 5.0 or later (plugin install rights)
-2. PHP 7.4+ with `curl` extension
-3. A Notion account & edit access to the target database
+## 📦 Installation Guide
 
 ### Step 1: Create an Integration & Collect IDs
-1. Open [Notion Integrations](https://www.notion.so/my-integrations) → **New integration**
-2. Name it e.g. **WordPress Sync**, enable **Read content** & **Read user information**
-3. Copy the **Internal Integration Token**
-4. Go to your database → *Share* → invite the integration
-5. Copy the **Database ID** from the URL (`https://www.notion.so/**DATABASE_ID**?v=...` – 32 chars)
+
+#### 🔑 Get Your Notion API Token
+1. Visit [Notion Integrations Page](https://www.notion.so/profile/integrations/)
+
+<div align="center">
+  <img src="../docs/images/notion-integrations-en.png" alt="Notion Integrations Page" width="800">
+  <p><em>Create a new integration for WordPress sync</em></p>
+</div>
+
+2. Create new integration, name it e.g. **WordPress Sync**
+3. Enable **Read content** & **Read user information**
+4. Copy the **Internal Integration Token**
+
+<div align="center">
+  <img src="../docs/images/notion-internal-integration-key-en.png" alt="Copy Internal Integration Token" width="800">
+  <p><em>Copy your Internal Integration Token</em></p>
+</div>
+
+#### 📊 Get Your Database ID
+1. Go to your database → *Share* → invite the integration
+2. Copy the **Database ID** from the URL (`https://www.notion.so/**DATABASE_ID**?v=...` – 32 chars)
+
+<div align="center">
+  <img src="../docs/images/notion-database-id-en.png" alt="Add Integration and Copy Database ID" width="800">
+  <p><em>Add integration to database and copy the Database ID</em></p>
+</div>
 
 > **Tip**: You can also use *Copy link* in the DB menu – the ID is before `?v=`.
 
 ### Step 2: Install the Plugin
+
+#### 📦 Download and Install
 1. Grab the latest ZIP from GitHub Releases
-2. `WP-Admin → Plugins → Add New → Upload`, then activate **Notion to WordPress**
+2. Go to `WP-Admin → Plugins → Add New → Upload`
+
+<div align="center">
+  <img src="../docs/images/install-en.png" alt="WordPress Plugin Installation" width="800">
+  <p><em>WordPress Admin → Plugins → Add New Plugin</em></p>
+</div>
+
+3. Upload the ZIP file and activate **Notion-to-WordPress**
 
 ### Step 3: Configure
-1. Sidebar → **Notion to WordPress**
-2. Paste your *API Token* & *Database ID*
+
+#### ⚙️ WordPress Configuration
+1. Go to WordPress Admin Dashboard → **Notion to WordPress**
+2. Paste your *Internal Integration Token* and *Database ID*
 3. Pick a **Sync schedule** (start with *manual*)
+
+<div align="center">
+  <img src="../docs/images/wordpress-config-en.png" alt="WordPress Configuration" width="600">
+  <p><em>Configure your Notion integration in WordPress</em></p>
+</div>
+
 4. Save settings
 
 > For a quick test you can keep the default field mapping.
@@ -132,30 +168,14 @@ Stats, logs & errors update in real time inside the admin page.
 
 ---
 
-## 💾 Installation Guide
+## � Alternative Installation Methods
 
-### System Requirements
-- **WordPress**: 5.0 or later (6.0+ recommended)
-- **PHP**: 7.4+ with `curl` extension enabled (8.1+ recommended)
-- **Server**: Any hosting provider supporting WordPress
-- **Permissions**: Plugin installation and activation rights
-
-### Installation Methods
-
-#### Method 1: WordPress Admin Dashboard (Recommended)
-1. **Download Plugin**: Get the latest `.zip` file from [GitHub Releases](https://github.com/Frank-Loong/Notion-to-WordPress/releases)
-2. **Upload Plugin**:
-   - Go to `Plugins` → `Add New` → `Upload Plugin`
-   - Choose the downloaded `.zip` file
-   - Click `Install Now`
-3. **Activate**: Click `Activate Plugin` after installation
-
-#### Method 2: FTP Upload
+### Method 2: FTP Upload (Advanced)
 1. **Extract Files**: Unzip the plugin to `notion-to-wordpress/` folder
 2. **Upload via FTP**: Upload the folder to `/wp-content/plugins/`
-3. **Activate**: Go to WordPress admin → `Plugins` → Activate "Notion to WordPress"
+3. **Activate**: Go to WordPress admin → `Plugins` → Activate "Notion-to-WordPress"
 
-#### Method 3: WP-CLI (Advanced Users)
+### Method 3: WP-CLI (Command Line)
 ```bash
 # Download and install
 wp plugin install https://github.com/Frank-Loong/Notion-to-WordPress/releases/latest/download/notion-to-wordpress.zip
@@ -490,14 +510,13 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 
 ### Official Resources
 - **[GitHub Repository](https://github.com/Frank-Loong/Notion-to-WordPress)** - Source code and releases
-- **[Project Status](../docs/PROJECT_STATUS.md)** - Current development status and roadmap
-- **[Feature Comparison](../docs/FEATURES_COMPARISON.md)** - Comparison with other solutions
-- **[Changelog](../docs/CHANGELOG.md)** - Version history and updates
+- **[Project Overview](PROJECT_OVERVIEW.md)** - Current development status and feature comparison
+- **[Developer Guide](DEVELOPER_GUIDE.md)** - Complete development and contributing guide
 
 ### Community & Support
 - **[Issues & Bug Reports](https://github.com/Frank-Loong/Notion-to-WordPress/issues)** - Report problems or request features
 - **[Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)** - Community discussions and Q&A
-- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to the project
+- **[Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)** - Version history and updates
 
 ### External Resources
 - **[Notion API Documentation](https://developers.notion.com/)** - Official Notion API reference
@@ -527,6 +546,6 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 
 *This documentation is continuously updated. For the latest information, visit our [GitHub repository](https://github.com/Frank-Loong/Notion-to-WordPress).*
 
-**[⬆️ Back to Top](#notion-to-wordpress---complete-user-guide) • [🏠 Main README](../README.md) • [🇨🇳 中文版](./README-Wiki.zh-CN.md) • [📚 Docs Hub](../docs/README.md)**
+**[⬆️ Back to Top](#notion-to-wordpress---complete-user-guide) • [🏠 Home](../README.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版](Wiki.zh_CN.md)**
 
 </div>

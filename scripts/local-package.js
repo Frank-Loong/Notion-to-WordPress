@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Local Package Tool for Notion-to-WordPress Plugin
+ * Notion-to-WordPress 插件本地打包工具
  * 
- * This tool allows you to update version numbers and create local packages
- * for testing without publishing or committing to Git.
+ * 本工具用于本地测试时批量更新版本号并生成本地包，
+ * 不会进行 Git 操作，支持备份/恢复和 dry-run 预览。
  * 
- * Features:
- * - Update version numbers in all relevant files
- * - Create local ZIP package for testing
- * - No Git operations (safe for testing)
- * - Backup and restore capabilities
- * - Dry-run mode for preview
+ * 功能：
+ * - 批量更新所有相关文件的版本号
+ * - 生成本地 ZIP 包用于测试
+ * - 不涉及 Git 操作（安全测试）
+ * - 支持备份与恢复
+ * - dry-run 预览模式
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -40,7 +40,7 @@ class LocalPackager {
     }
 
     /**
-     * Parse command line arguments
+     * 解析命令行参数
      */
     parseArguments(args) {
         const parsed = minimist(args, {
@@ -80,30 +80,30 @@ class LocalPackager {
     }
 
     /**
-     * Show help information
+     * 显示帮助信息
      */
     showHelp() {
-        console.log(chalk.bold('\n📦 Local Package Tool for Notion-to-WordPress Plugin\n'));
-        console.log('Usage:');
-        console.log('  npm run package:local <version-type>     # Update version and build');
-        console.log('  npm run package:local --version=X.Y.Z   # Use custom version');
-        console.log('  npm run package:local --build-only      # Only build, no version update');
-        console.log('  npm run package:local --version-only    # Only update version, no build');
+        console.log(chalk.bold('\n📦 Notion-to-WordPress 插件本地打包工具\n'));
+        console.log('用法:');
+        console.log('  npm run package:local <version-type>     # 更新版本并打包');
+        console.log('  npm run package:local --version=X.Y.Z   # 使用自定义版本号');
+        console.log('  npm run package:local --build-only      # 仅打包不更新版本');
+        console.log('  npm run package:local --version-only    # 仅更新版本不打包');
         console.log('');
-        console.log('Version types:');
+        console.log('版本类型:');
         console.log('  patch    # 1.0.0 → 1.0.1');
         console.log('  minor    # 1.0.0 → 1.1.0');
         console.log('  major    # 1.0.0 → 2.0.0');
         console.log('  beta     # 1.0.0 → 1.0.1-beta.1');
         console.log('');
-        console.log('Options:');
-        console.log('  -d, --dry-run        Preview changes without applying');
-        console.log('  -v, --version=X.Y.Z  Use custom version number');
-        console.log('  -b, --build-only     Only create package, skip version update');
-        console.log('  --version-only       Only update version, skip package creation');
-        console.log('  -h, --help           Show this help');
+        console.log('选项:');
+        console.log('  -d, --dry-run        仅预览不实际更改');
+        console.log('  -v, --version=X.Y.Z  使用自定义版本号');
+        console.log('  -b, --build-only     仅打包不更新版本');
+        console.log('  --version-only       仅更新版本不打包');
+        console.log('  -h, --help           显示帮助');
         console.log('');
-        console.log('Examples:');
+        console.log('示例:');
         console.log('  npm run package:local patch');
         console.log('  npm run package:local --version=1.2.0-test.1');
         console.log('  npm run package:local beta --dry-run');
@@ -111,10 +111,10 @@ class LocalPackager {
     }
 
     /**
-     * Logging utilities
+     * 日志工具
      */
     log(message) {
-        console.log(chalk.blue('ℹ'), message);
+        console.log(chalk.blue('ℹ️'), message);
     }
 
     success(message) {
@@ -130,7 +130,7 @@ class LocalPackager {
     }
 
     /**
-     * Get current version from main plugin file
+     * 从主插件文件获取当前版本号
      */
     getCurrentVersion() {
         try {
@@ -149,7 +149,7 @@ class LocalPackager {
     }
 
     /**
-     * Update version numbers
+     * 批量更新版本号
      */
     async updateVersion() {
         if (this.buildOnly) {
@@ -184,7 +184,7 @@ class LocalPackager {
     }
 
     /**
-     * Create local package
+     * 生成本地包
      */
     async createPackage() {
         if (this.versionOnly) {
@@ -211,7 +211,7 @@ class LocalPackager {
     }
 
     /**
-     * Main execution
+     * 主执行入口
      */
     async run() {
         try {
@@ -250,7 +250,7 @@ class LocalPackager {
     }
 }
 
-// Main execution
+// CLI 执行入口
 if (require.main === module) {
     const args = process.argv.slice(2);
     
