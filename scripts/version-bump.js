@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Version Bump Tool for Notion-to-WordPress Plugin
+ * Notion-to-WordPress 插件版本号自动升级工具
  * 
- * This tool automatically updates version numbers across all relevant files
- * in the WordPress plugin project, ensuring consistency and supporting
- * semantic versioning (patch, minor, major, beta).
+ * 本工具会自动在 WordPress 插件项目的所有相关文件中更新版本号，
+ * 保证版本号一致，并支持语义化版本（patch、minor、major、beta）。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -22,7 +21,7 @@ class VersionBumper {
         this.backupDir = path.join(this.projectRoot, '.version-backup');
         this.currentVersion = null;
         
-        // Define files that need version updates
+        // 需要更新版本号的文件列表
         this.versionFiles = [
             {
                 path: 'notion-to-wordpress.php',
@@ -55,24 +54,7 @@ class VersionBumper {
                     }
                 ]
             },
-            {
-                path: 'docs/PROJECT_STATUS.md',
-                patterns: [
-                    {
-                        regex: /(>\s*\*\*Current Version\*\*:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    }
-                ]
-            },
-            {
-                path: 'docs/PROJECT_STATUS-zh_CN.md',
-                patterns: [
-                    {
-                        regex: /(>\s*\*\*当前版本\*\*:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    }
-                ]
-            },
+
             {
                 path: 'package.json',
                 patterns: [
@@ -81,12 +63,48 @@ class VersionBumper {
                         replacement: '$1{VERSION}$3'
                     }
                 ]
+            },
+            {
+                path: 'README.md',
+                patterns: [
+                    {
+                        regex: /(>\s*©\s*2025\s+Frank-Loong\s*·\s*Notion-to-WordPress\s+v?)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    }
+                ]
+            },
+            {
+                path: 'README-zh_CN.md',
+                patterns: [
+                    {
+                        regex: /(>\s*©\s*2025\s+Frank-Loong\s*·\s*Notion·to·WordPress\s+v?)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    }
+                ]
+            },
+            {
+                path: 'docs/PROJECT_OVERVIEW.md',
+                patterns: [
+                    {
+                        regex: /(>\s*\*\*Current Version\*\*:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    }
+                ]
+            },
+            {
+                path: 'docs/PROJECT_OVERVIEW-zh_CN.md',
+                patterns: [
+                    {
+                        regex: /(>\s*\*\*当前版本\*\*:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    }
+                ]
             }
         ];
     }
 
     /**
-     * Get current version from the main plugin file
+     * 从主插件文件获取当前版本号
      */
     getCurrentVersion() {
         try {
@@ -101,16 +119,16 @@ class VersionBumper {
             this.currentVersion = versionMatch[1];
             return this.currentVersion;
         } catch (error) {
-            this.error(`Failed to get current version: ${error.message}`);
+            this.error(`获取当前版本失败: ${error.message}`);
             process.exit(1);
         }
     }
 
     /**
-     * Validate version format and consistency across files
+     * 校验所有文件的版本号格式和一致性
      */
     validateVersion() {
-        this.log('Validating version consistency across files...');
+        this.log('正在校验文件版本号的一致性...');
         
         const versions = [];
         
@@ -118,7 +136,7 @@ class VersionBumper {
             const filePath = path.join(this.projectRoot, fileConfig.path);
             
             if (!fs.existsSync(filePath)) {
-                this.warn(`File not found: ${fileConfig.path}`);
+                this.warn(`未找到文件: ${fileConfig.path}`);
                 continue;
             }
             
@@ -135,11 +153,11 @@ class VersionBumper {
             }
         }
         
-        // Check if all versions are consistent
+        // 检查所有版本号是否一致
         const uniqueVersions = [...new Set(versions.map(v => v.version))];
         
         if (uniqueVersions.length > 1) {
-            this.error('Version inconsistency detected:');
+            this.error('检测到版本不一致:');
             versions.forEach(v => {
                 console.log(`  ${v.file}: ${v.version}`);
             });
@@ -147,16 +165,16 @@ class VersionBumper {
         }
         
         if (uniqueVersions.length === 0) {
-            this.error('No version found in any file');
+            this.error('在任何文件中未找到版本号');
             process.exit(1);
         }
         
-        this.success(`All files have consistent version: ${uniqueVersions[0]}`);
+        this.success(`所有文件的版本号一致: ${uniqueVersions[0]}`);
         return uniqueVersions[0];
     }
 
     /**
-     * Calculate new version based on bump type
+     * 根据升级类型计算新版本号
      */
     bumpVersion(currentVersion, bumpType) {
         try {
@@ -180,25 +198,25 @@ class VersionBumper {
                     }
                     break;
                 default:
-                    throw new Error(`Invalid bump type: ${bumpType}`);
+                    throw new Error(`无效的升级类型: ${bumpType}`);
             }
             
             if (!newVersion) {
-                throw new Error(`Failed to calculate new version from ${currentVersion}`);
+                throw new Error(`从 ${currentVersion} 计算新版本号失败`);
             }
             
             return newVersion;
         } catch (error) {
-            this.error(`Failed to bump version: ${error.message}`);
+            this.error(`版本号升级失败: ${error.message}`);
             process.exit(1);
         }
     }
 
     /**
-     * Create backup of all files before modification
+     * 修改前备份所有相关文件
      */
     createBackup() {
-        this.log('Creating backup of files...');
+        this.log('正在备份文件...');
         
         if (fs.existsSync(this.backupDir)) {
             fs.rmSync(this.backupDir, { recursive: true, force: true });
@@ -220,17 +238,17 @@ class VersionBumper {
             }
         }
         
-        this.success('Backup created successfully');
+        this.success('备份成功');
     }
 
     /**
-     * Update version in a specific file
+     * 更新指定文件的版本号
      */
     updateFileVersion(fileConfig, newVersion) {
         const filePath = path.join(this.projectRoot, fileConfig.path);
         
         if (!fs.existsSync(filePath)) {
-            this.warn(`File not found: ${fileConfig.path}`);
+            this.warn(`未找到文件: ${fileConfig.path}`);
             return false;
         }
         
@@ -248,19 +266,19 @@ class VersionBumper {
         
         if (updated) {
             fs.writeFileSync(filePath, content, 'utf8');
-            this.success(`Updated ${fileConfig.path}`);
+            this.success(`已更新 ${fileConfig.path}`);
             return true;
         } else {
-            this.warn(`No version pattern found in ${fileConfig.path}`);
+            this.warn(`在 ${fileConfig.path} 中未找到版本号模式`);
             return false;
         }
     }
 
     /**
-     * Update all files with new version
+     * 批量更新所有文件的版本号
      */
     updateAllFiles(newVersion) {
-        this.log(`Updating all files to version ${newVersion}...`);
+        this.log(`正在将所有文件更新为版本 ${newVersion}...`);
         
         let updatedCount = 0;
         
@@ -270,18 +288,18 @@ class VersionBumper {
             }
         }
         
-        this.success(`Updated ${updatedCount} files successfully`);
+        this.success(`成功更新 ${updatedCount} 个文件`);
         return updatedCount > 0;
     }
 
     /**
-     * Restore files from backup
+     * 从备份恢复文件
      */
     restoreFromBackup() {
-        this.log('Restoring files from backup...');
+        this.log('正在从备份恢复文件...');
         
         if (!fs.existsSync(this.backupDir)) {
-            this.error('No backup found to restore from');
+            this.error('没有找到备份文件');
             return false;
         }
         
@@ -294,12 +312,12 @@ class VersionBumper {
             }
         }
         
-        this.success('Files restored from backup');
+        this.success('文件已从备份恢复');
         return true;
     }
 
     /**
-     * Clean up backup directory
+     * 清理备份目录
      */
     cleanupBackup() {
         if (fs.existsSync(this.backupDir)) {
@@ -308,68 +326,129 @@ class VersionBumper {
     }
 
     /**
-     * Main execution function
+     * 主执行函数
      */
     run(bumpType) {
         try {
-            this.log(chalk.bold('🚀 Notion-to-WordPress Version Bump Tool'));
-            this.log(`Bump type: ${chalk.cyan(bumpType)}`);
+            this.log(chalk.bold('🚀 Notion-to-WordPress 版本号升级工具'));
+            this.log(`升级类型: ${chalk.cyan(bumpType)}`);
             
-            // Get and validate current version
+            // 获取并校验当前版本
             const currentVersion = this.getCurrentVersion();
             this.validateVersion();
             
-            // Calculate new version
+            // 计算新版本号
             const newVersion = this.bumpVersion(currentVersion, bumpType);
             
-            this.log(`Current version: ${chalk.yellow(currentVersion)}`);
-            this.log(`New version: ${chalk.green(newVersion)}`);
+            this.log(`当前版本: ${chalk.yellow(currentVersion)}`);
+            this.log(`新版本: ${chalk.green(newVersion)}`);
             
-            // Create backup before making changes
+            // 修改前备份文件
             this.createBackup();
             
             try {
-                // Update all files
+                // 更新所有文件
                 const success = this.updateAllFiles(newVersion);
                 
                 if (success) {
-                    this.success(`✅ Version successfully updated from ${currentVersion} to ${newVersion}`);
+                    this.success(`✅ 版本成功从 ${currentVersion} 升级到 ${newVersion}`);
+                    this.setNewVersion(newVersion);
                     this.cleanupBackup();
                 } else {
-                    throw new Error('No files were updated');
+                    throw new Error('没有文件被更新');
                 }
                 
             } catch (updateError) {
-                this.error(`Update failed: ${updateError.message}`);
+                this.error(`更新失败: ${updateError.message}`);
                 this.restoreFromBackup();
                 process.exit(1);
             }
             
         } catch (error) {
-            this.error(`Version bump failed: ${error.message}`);
+            this.error(`版本升级失败: ${error.message}`);
             process.exit(1);
         }
     }
 
-    // Utility logging methods
+    // 工具方法：日志输出
     log(message) {
         console.log(message);
     }
 
     success(message) {
-        console.log(chalk.green('✅ ' + message));
+        console.log(chalk.green('\u2705 ' + message));
     }
 
     warn(message) {
-        console.log(chalk.yellow('⚠️  ' + message));
+        console.log(chalk.yellow('\u26a0\ufe0f  ' + message));
     }
 
     error(message) {
-        console.log(chalk.red('❌ ' + message));
+        console.log(chalk.red('\u274c ' + message));
+    }
+
+    /**
+     * 设置自定义版本号（本地打包用）
+     *
+     * @since 1.1.1
+     * @param {string} customVersion - 要设置的自定义版本号
+     */
+    updateToCustomVersion(customVersion) {
+        try {
+            // 校验版本号格式
+            if (!semver.valid(customVersion)) {
+                throw new Error(`无效的版本号格式: ${customVersion}`);
+            }
+
+            this.log(`正在更新为自定义版本号: ${customVersion}`);
+
+            // 获取当前版本以便备份
+            const currentVersion = this.getCurrentVersion();
+            this.log(`当前版本: ${currentVersion}`);
+
+            // 备份文件
+            this.createBackup();
+
+            // 更新所有文件
+            const success = this.updateAllFiles(customVersion);
+
+            if (success) {
+                this.success(`✅ 版本成功从 ${currentVersion} 升级到 ${customVersion}`);
+                this.newVersion = customVersion;
+                return customVersion;
+            } else {
+                throw new Error('没有文件被更新');
+            }
+
+        } catch (error) {
+            this.error(`自定义版本更新失败: ${error.message}`);
+            this.restoreFromBackup();
+            throw error;
+        }
+    }
+
+    /**
+     * 获取升级/更新后的新版本号
+     *
+     * @since 1.1.1
+     * @returns {string} 新版本号
+     */
+    getNewVersion() {
+        return this.newVersion || this.getCurrentVersion();
+    }
+
+    /**
+     * 设置新版本号（内部使用）
+     *
+     * @since 1.1.1
+     * @param {string} version - 新版本号
+     */
+    setNewVersion(version) {
+        this.newVersion = version;
     }
 }
 
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const args = process.argv.slice(2);
     const command = args[0];
@@ -377,9 +456,9 @@ if (require.main === module) {
     if (command === 'rollback') {
         const bumper = new VersionBumper();
         if (bumper.restoreFromBackup()) {
-            bumper.success('✅ Successfully rolled back to previous version');
+            bumper.success('\u2705 成功回滚到上一个版本');
         } else {
-            bumper.error('❌ Rollback failed');
+            bumper.error('\u274c 回滚失败');
             process.exit(1);
         }
         return;
@@ -388,15 +467,15 @@ if (require.main === module) {
     const bumpType = command;
 
     if (!bumpType || !['patch', 'minor', 'major', 'beta'].includes(bumpType)) {
-        console.log(chalk.red('❌ Invalid or missing bump type'));
-        console.log('Usage: node version-bump.js <patch|minor|major|beta|rollback>');
+        console.log(chalk.red('\u274c 未指定或无效的升级类型'));
+        console.log('用法: node version-bump.js <patch|minor|major|beta|rollback>');
         console.log('');
-        console.log('Examples:');
+        console.log('示例:');
         console.log('  node version-bump.js patch     # 1.1.0 → 1.1.1');
         console.log('  node version-bump.js minor     # 1.1.0 → 1.2.0');
         console.log('  node version-bump.js major     # 1.1.0 → 2.0.0');
         console.log('  node version-bump.js beta      # 1.1.0 → 1.1.1-beta.1');
-        console.log('  node version-bump.js rollback  # Restore from backup');
+        console.log('  node version-bump.js rollback  # 从备份恢复');
         process.exit(1);
     }
 

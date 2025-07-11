@@ -1,10 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Integration Test Suite for Automated Release System
+ * 自动化发布系统集成测试套件
  * 
- * This comprehensive test suite validates all components of the automated
- * release system to ensure stability, reliability, and proper integration.
+ * 本套件全面校验自动化发布系统的所有组件，确保其稳定性、可靠性和集成正确。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -22,10 +21,10 @@ class IntegrationTestSuite {
         this.errors = [];
         this.warnings = [];
         
-        // Test configuration
+        // 测试配置
         this.testConfig = {
-            skipGitOperations: true,  // Skip actual Git operations for safety
-            skipGitHubActions: true,  // Skip GitHub Actions tests
+            skipGitOperations: true,  // 安全起见，跳过实际的 Git 操作
+            skipGitHubActions: true,  // 跳过 GitHub Actions 测试
             testVersionTypes: ['patch', 'minor', 'major', 'beta'],
             validatePackages: true,
             checkDocumentation: true
@@ -33,221 +32,221 @@ class IntegrationTestSuite {
     }
 
     /**
-     * Run the complete integration test suite
+     * 运行完整的集成测试套件
      */
     async runTests() {
-        console.log(chalk.bold('🧪 Automated Release System Integration Test Suite\n'));
+        console.log(chalk.bold('🧪 自动化发布系统集成测试套件\n'));
         
         try {
-            // Test 1: Environment and Dependencies
+            // 测试 1: 环境与依赖
             await this.testEnvironment();
             
-            // Test 2: Configuration Validation
+            // 测试 2: 配置校验
             await this.testConfiguration();
             
-            // Test 3: Version Management
+            // 测试 3: 版本管理
             await this.testVersionManagement();
             
-            // Test 4: Build System
+            // 测试 4: 构建系统
             await this.testBuildSystem();
             
-            // Test 5: Release Controller
+            // 测试 5: 发布控制器
             await this.testReleaseController();
             
-            // Test 6: GitHub Actions Configuration
+            // 测试 6: GitHub Actions 配置
             await this.testGitHubActions();
             
-            // Test 7: Documentation Completeness
+            // 测试 7: 文档完整性
             await this.testDocumentation();
             
-            // Test 8: Error Handling and Recovery
+            // 测试 8: 错误处理与恢复
             await this.testErrorHandling();
             
-            // Generate test report
+            // 生成测试报告
             this.generateTestReport();
             
         } catch (error) {
-            this.addError('Test suite execution failed', error.message);
+            this.addError('测试套件执行失败', error.message);
             this.generateTestReport();
             process.exit(1);
         }
     }
 
     /**
-     * Test 1: Environment and Dependencies
+     * 测试 1：环境与依赖
      */
     async testEnvironment() {
-        this.logTestStart('Environment and Dependencies');
+        this.logTestStart('环境与依赖');
         
         try {
-            // Check Node.js version
+            // 检查 Node.js 版本
             const nodeVersion = process.version;
             const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
             if (majorVersion >= 16) {
-                this.addResult('Node.js version check', 'PASS', `${nodeVersion} (>= 16.0.0)`);
+                this.addResult('Node.js 版本检查', 'PASS', `${nodeVersion} (>= 16.0.0)`);
             } else {
-                this.addResult('Node.js version check', 'FAIL', `${nodeVersion} (< 16.0.0)`);
+                this.addResult('Node.js 版本检查', 'FAIL', `${nodeVersion} (< 16.0.0)`);
             }
             
-            // Check npm availability
+            // 检查 npm 可用性
             try {
                 const npmVersion = execSync('npm --version', { encoding: 'utf8' }).trim();
-                this.addResult('npm availability', 'PASS', `v${npmVersion}`);
+                this.addResult('npm 可用性', 'PASS', `v${npmVersion}`);
             } catch (error) {
-                this.addResult('npm availability', 'FAIL', 'npm not found');
+                this.addResult('npm 可用性', 'FAIL', '未找到 npm');
             }
             
-            // Check Git availability
+            // 检查 Git 可用性
             try {
                 const gitVersion = execSync('git --version', { encoding: 'utf8' }).trim();
-                this.addResult('Git availability', 'PASS', gitVersion);
+                this.addResult('Git 可用性', 'PASS', gitVersion);
             } catch (error) {
-                this.addResult('Git availability', 'FAIL', 'Git not found');
+                this.addResult('Git 可用性', 'FAIL', '未找到 Git');
             }
             
-            // Check required dependencies
+            // 检查必需的依赖
             const packageJson = JSON.parse(fs.readFileSync(path.join(this.projectRoot, 'package.json'), 'utf8'));
             const requiredDeps = ['semver', 'archiver', 'chalk', 'fs-extra', 'glob', 'minimist', 'js-yaml'];
             
             for (const dep of requiredDeps) {
                 if (packageJson.devDependencies && packageJson.devDependencies[dep]) {
-                    this.addResult(`Dependency: ${dep}`, 'PASS', packageJson.devDependencies[dep]);
+                    this.addResult(`依赖: ${dep}`, 'PASS', packageJson.devDependencies[dep]);
                 } else {
-                    this.addResult(`Dependency: ${dep}`, 'FAIL', 'Not found in package.json');
+                    this.addResult(`依赖: ${dep}`, 'FAIL', '未在 package.json 中找到');
                 }
             }
             
-            // Check if node_modules exists
+            // 检查 node_modules 是否存在
             const nodeModulesPath = path.join(this.projectRoot, 'node_modules');
             if (fs.existsSync(nodeModulesPath)) {
-                this.addResult('node_modules directory', 'PASS', 'Dependencies installed');
+                this.addResult('node_modules 目录', 'PASS', '依赖已安装');
             } else {
-                this.addResult('node_modules directory', 'FAIL', 'Dependencies not installed');
+                this.addResult('node_modules 目录', 'FAIL', '未安装依赖');
             }
             
         } catch (error) {
-            this.addError('Environment test failed', error.message);
+            this.addError('环境测试失败', error.message);
         }
     }
 
     /**
-     * Test 2: Configuration Validation
+     * 测试 2：配置校验
      */
     async testConfiguration() {
-        this.logTestStart('Configuration Validation');
+        this.logTestStart('配置校验');
         
         try {
-            // Test release configuration
+            // 测试发布配置
             try {
                 const configPath = path.join(this.projectRoot, 'release.config.js');
                 if (fs.existsSync(configPath)) {
                     delete require.cache[require.resolve(configPath)];
                     const config = require(configPath);
                     const cfg = config.getConfig();
-                    this.addResult('Release configuration', 'PASS', `${cfg.version.files.length} version files configured`);
+                    this.addResult('发布配置', 'PASS', `${cfg.version.files.length} 个版本文件已配置`);
                 } else {
-                    this.addResult('Release configuration', 'FAIL', 'release.config.js not found');
+                    this.addResult('发布配置', 'FAIL', '未找到 release.config.js');
                 }
             } catch (error) {
-                this.addResult('Release configuration', 'FAIL', error.message);
+                this.addResult('发布配置', 'FAIL', error.message);
             }
             
-            // Test GitHub Actions configuration
+            // 测试 GitHub Actions 配置
             const workflowPath = path.join(this.projectRoot, '.github/workflows/release.yml');
             if (fs.existsSync(workflowPath)) {
                 try {
                     const yaml = require('js-yaml');
                     const content = fs.readFileSync(workflowPath, 'utf8');
                     const workflow = yaml.load(content);
-                    this.addResult('GitHub Actions workflow', 'PASS', `${Object.keys(workflow.jobs).length} jobs configured`);
+                    this.addResult('GitHub Actions 工作流', 'PASS', `${Object.keys(workflow.jobs).length} 个作业已配置`);
                 } catch (error) {
-                    this.addResult('GitHub Actions workflow', 'FAIL', error.message);
+                    this.addResult('GitHub Actions 工作流', 'FAIL', error.message);
                 }
             } else {
-                this.addResult('GitHub Actions workflow', 'FAIL', 'release.yml not found');
+                this.addResult('GitHub Actions 工作流', 'FAIL', '未找到 release.yml');
             }
             
-            // Test package.json scripts
+            // 测试 package.json 脚本
             const packageJson = JSON.parse(fs.readFileSync(path.join(this.projectRoot, 'package.json'), 'utf8'));
             const requiredScripts = ['release:patch', 'release:minor', 'release:major', 'release:beta', 'build'];
             
             for (const script of requiredScripts) {
                 if (packageJson.scripts && packageJson.scripts[script]) {
-                    this.addResult(`npm script: ${script}`, 'PASS', packageJson.scripts[script]);
+                    this.addResult(`npm 脚本: ${script}`, 'PASS', packageJson.scripts[script]);
                 } else {
-                    this.addResult(`npm script: ${script}`, 'FAIL', 'Script not found');
+                    this.addResult(`npm 脚本: ${script}`, 'FAIL', '未找到脚本');
                 }
             }
             
         } catch (error) {
-            this.addError('Configuration test failed', error.message);
+            this.addError('配置测试失败', error.message);
         }
     }
 
     /**
-     * Test 3: Version Management
+     * 测试 3：版本管理
      */
     async testVersionManagement() {
-        this.logTestStart('Version Management');
+        this.logTestStart('版本管理');
         
         try {
-            // Test version-bump.js
+            // 测试 version-bump.js
             const versionBumpPath = path.join(this.projectRoot, 'scripts/version-bump.js');
             if (fs.existsSync(versionBumpPath)) {
                 try {
                     const VersionBumper = require(versionBumpPath);
                     const bumper = new VersionBumper();
                     
-                    // Test current version detection
+                    // 测试当前版本检测
                     const currentVersion = bumper.getCurrentVersion();
-                    this.addResult('Current version detection', 'PASS', currentVersion);
+                    this.addResult('当前版本检测', 'PASS', currentVersion);
                     
-                    // Test version validation
+                    // 测试版本一致性
                     bumper.validateVersion();
-                    this.addResult('Version consistency validation', 'PASS', 'All files consistent');
+                    this.addResult('版本一致性校验', 'PASS', '所有文件一致');
                     
-                    // Test version calculation (without actually updating)
+                    // 测试版本计算（不实际更新）
                     for (const type of this.testConfig.testVersionTypes) {
                         try {
                             const newVersion = bumper.bumpVersion(currentVersion, type);
-                            this.addResult(`Version calculation: ${type}`, 'PASS', `${currentVersion} → ${newVersion}`);
+                            this.addResult(`版本计算: ${type}`, 'PASS', `${currentVersion} → ${newVersion}`);
                         } catch (error) {
-                            this.addResult(`Version calculation: ${type}`, 'FAIL', error.message);
+                            this.addResult(`版本计算: ${type}`, 'FAIL', error.message);
                         }
                     }
                     
                 } catch (error) {
-                    this.addResult('Version management functionality', 'FAIL', error.message);
+                    this.addResult('版本管理功能', 'FAIL', error.message);
                 }
             } else {
-                this.addResult('Version management script', 'FAIL', 'version-bump.js not found');
+                this.addResult('版本管理脚本', 'FAIL', '未找到 version-bump.js');
             }
             
         } catch (error) {
-            this.addError('Version management test failed', error.message);
+            this.addError('版本管理测试失败', error.message);
         }
     }
 
     /**
-     * Test 4: Build System
+     * 测试 4：构建系统
      */
     async testBuildSystem() {
-        this.logTestStart('Build System');
+        this.logTestStart('构建系统');
         
         try {
-            // Test build.js
+            // 测试 build.js
             const buildPath = path.join(this.projectRoot, 'scripts/build.js');
             if (fs.existsSync(buildPath)) {
                 try {
-                    // Test build script loading
+                    // 测试构建脚本加载
                     const BuildTool = require(buildPath);
                     const builder = new BuildTool();
-                    this.addResult('Build script loading', 'PASS', 'BuildTool class loaded');
+                    this.addResult('构建脚本加载', 'PASS', 'BuildTool 类已加载');
                     
-                    // Test actual build (this will create a real package)
+                    // 测试实际构建（这将创建一个真实的包）
                     await builder.build();
                     
-                    // Verify build output
+                    // 验证构建输出
                     const buildDir = path.join(this.projectRoot, 'build');
                     if (fs.existsSync(buildDir)) {
                         const files = fs.readdirSync(buildDir);
@@ -259,38 +258,38 @@ class IntegrationTestSuite {
                             const stats = fs.statSync(zipPath);
                             const sizeInMB = (stats.size / 1024 / 1024).toFixed(2);
                             
-                            this.addResult('Build package generation', 'PASS', `${zipFile} (${sizeInMB}MB)`);
+                            this.addResult('构建包生成', 'PASS', `${zipFile} (${sizeInMB}MB)`);
                             
-                            // Validate package size
+                            // 验证包大小
                             if (stats.size > 100 * 1024 && stats.size < 50 * 1024 * 1024) {
-                                this.addResult('Package size validation', 'PASS', `${sizeInMB}MB (within limits)`);
+                                this.addResult('包大小验证', 'PASS', `${sizeInMB}MB (在限制范围内)`);
                             } else {
-                                this.addResult('Package size validation', 'WARN', `${sizeInMB}MB (check if appropriate)`);
+                                this.addResult('包大小验证', 'WARN', `${sizeInMB}MB (请检查是否合适)`);
                             }
                         } else {
-                            this.addResult('Build package generation', 'FAIL', 'No ZIP file generated');
+                            this.addResult('构建包生成', 'FAIL', '未生成 ZIP 文件');
                         }
                     } else {
-                        this.addResult('Build output directory', 'FAIL', 'Build directory not created');
+                        this.addResult('构建输出目录', 'FAIL', '未创建构建目录');
                     }
                     
                 } catch (error) {
-                    this.addResult('Build system functionality', 'FAIL', error.message);
+                    this.addResult('构建系统功能', 'FAIL', error.message);
                 }
             } else {
-                this.addResult('Build script', 'FAIL', 'build.js not found');
+                this.addResult('构建脚本', 'FAIL', '未找到 build.js');
             }
             
         } catch (error) {
-            this.addError('Build system test failed', error.message);
+            this.addError('构建系统测试失败', error.message);
         }
     }
 
     /**
-     * Test 5: Release Controller
+     * 测试 5：发布控制器
      */
     async testReleaseController() {
-        this.logTestStart('Release Controller');
+        this.logTestStart('发布控制器');
         
         try {
             const releasePath = path.join(this.projectRoot, 'scripts/release.js');
@@ -298,49 +297,49 @@ class IntegrationTestSuite {
                 try {
                     const ReleaseController = require(releasePath);
                     const controller = new ReleaseController();
-                    this.addResult('Release controller loading', 'PASS', 'ReleaseController class loaded');
+                    this.addResult('发布控制器加载', 'PASS', 'ReleaseController 类已加载');
                     
-                    // Test argument parsing
+                    // 测试参数解析
                     try {
                         controller.parseArguments(['patch', '--dry-run']);
-                        this.addResult('Argument parsing', 'PASS', 'patch --dry-run parsed correctly');
+                        this.addResult('参数解析', 'PASS', 'patch --dry-run 解析正确');
                     } catch (error) {
-                        this.addResult('Argument parsing', 'FAIL', error.message);
+                        this.addResult('参数解析', 'FAIL', error.message);
                     }
                     
-                    // Test environment validation (should pass in most cases)
+                    // 测试环境验证（大多数情况下应通过）
                     try {
                         controller.validateEnvironment();
-                        this.addResult('Environment validation', 'PASS', 'Environment checks passed');
+                        this.addResult('环境验证', 'PASS', '环境检查通过');
                     } catch (error) {
-                        // This might fail due to uncommitted changes, which is expected
+                        // 这可能由于未提交的更改而失败，这是预期的
                         if (error.message.includes('uncommitted changes')) {
-                            this.addResult('Environment validation', 'PASS', 'Correctly detected uncommitted changes');
+                            this.addResult('环境验证', 'PASS', '正确检测到未提交的更改');
                         } else {
-                            this.addResult('Environment validation', 'FAIL', error.message);
+                            this.addResult('环境验证', 'FAIL', error.message);
                         }
                     }
                     
                 } catch (error) {
-                    this.addResult('Release controller functionality', 'FAIL', error.message);
+                    this.addResult('发布控制器功能', 'FAIL', error.message);
                 }
             } else {
-                this.addResult('Release controller script', 'FAIL', 'release.js not found');
+                this.addResult('发布控制器脚本', 'FAIL', '未找到 release.js');
             }
             
         } catch (error) {
-            this.addError('Release controller test failed', error.message);
+            this.addError('发布控制器测试失败', error.message);
         }
     }
 
     /**
-     * Test 6: GitHub Actions Configuration
+     * 测试 6：GitHub Actions 配置
      */
     async testGitHubActions() {
-        this.logTestStart('GitHub Actions Configuration');
+        this.logTestStart('GitHub Actions 配置');
         
         try {
-            // Test workflow file existence and syntax
+            // 测试工作流文件存在性和语法
             const workflowPath = path.join(this.projectRoot, '.github/workflows/release.yml');
             if (fs.existsSync(workflowPath)) {
                 try {
@@ -348,59 +347,59 @@ class IntegrationTestSuite {
                     const content = fs.readFileSync(workflowPath, 'utf8');
                     const workflow = yaml.load(content);
                     
-                    // Validate workflow structure
+                    // 验证工作流结构
                     const requiredFields = ['name', 'on', 'jobs'];
                     for (const field of requiredFields) {
                         if (workflow[field]) {
-                            this.addResult(`Workflow field: ${field}`, 'PASS', 'Present');
+                            this.addResult(`工作流字段: ${field}`, 'PASS', '存在');
                         } else {
-                            this.addResult(`Workflow field: ${field}`, 'FAIL', 'Missing');
+                            this.addResult(`工作流字段: ${field}`, 'FAIL', '缺失');
                         }
                     }
                     
-                    // Check trigger configuration
+                    // 检查触发器配置
                     if (workflow.on && workflow.on.push && workflow.on.push.tags) {
-                        this.addResult('Trigger configuration', 'PASS', 'Tag push trigger configured');
+                        this.addResult('触发器配置', 'PASS', '标签推送触发器已配置');
                     } else {
-                        this.addResult('Trigger configuration', 'FAIL', 'Tag push trigger missing');
+                        this.addResult('触发器配置', 'FAIL', '缺少标签推送触发器');
                     }
                     
-                    // Check permissions
+                    // 检查权限
                     if (workflow.permissions && workflow.permissions.contents === 'write') {
-                        this.addResult('Permissions configuration', 'PASS', 'Contents write permission set');
+                        this.addResult('权限配置', 'PASS', '已设置内容写入权限');
                     } else {
-                        this.addResult('Permissions configuration', 'FAIL', 'Contents write permission missing');
+                        this.addResult('权限配置', 'FAIL', '缺少内容写入权限');
                     }
                     
-                    // Check jobs
+                    // 检查作业
                     if (workflow.jobs && workflow.jobs.release) {
                         const releaseJob = workflow.jobs.release;
                         if (releaseJob.steps && Array.isArray(releaseJob.steps)) {
-                            this.addResult('Release job configuration', 'PASS', `${releaseJob.steps.length} steps configured`);
+                            this.addResult('发布作业配置', 'PASS', `${releaseJob.steps.length} 个步骤已配置`);
                         } else {
-                            this.addResult('Release job configuration', 'FAIL', 'No steps configured');
+                            this.addResult('发布作业配置', 'FAIL', '未配置步骤');
                         }
                     } else {
-                        this.addResult('Release job', 'FAIL', 'Release job missing');
+                        this.addResult('发布作业', 'FAIL', '缺少发布作业');
                     }
                     
                 } catch (error) {
-                    this.addResult('GitHub Actions workflow syntax', 'FAIL', error.message);
+                    this.addResult('GitHub Actions 工作流语法', 'FAIL', error.message);
                 }
             } else {
-                this.addResult('GitHub Actions workflow file', 'FAIL', 'release.yml not found');
+                this.addResult('GitHub Actions 工作流文件', 'FAIL', '未找到 release.yml');
             }
             
         } catch (error) {
-            this.addError('GitHub Actions test failed', error.message);
+            this.addError('GitHub Actions 测试失败', error.message);
         }
     }
 
     /**
-     * Test 7: Documentation Completeness
+     * 测试 7：文档完整性
      */
     async testDocumentation() {
-        this.logTestStart('Documentation Completeness');
+        this.logTestStart('文档完整性');
         
         try {
             const requiredDocs = [
@@ -415,32 +414,32 @@ class IntegrationTestSuite {
                 if (fs.existsSync(fullPath)) {
                     const content = fs.readFileSync(fullPath, 'utf8');
                     const lineCount = content.split('\n').length;
-                    this.addResult(`Documentation: ${docPath}`, 'PASS', `${lineCount} lines`);
+                    this.addResult(`文档: ${docPath}`, 'PASS', `${lineCount} 行`);
                     
-                    // Check for release system mentions in README files
+                    // 检查 README 文件中是否提及发布系统
                     if (docPath.includes('README') && (content.includes('Automated Release System') || content.includes('自动化发布系统'))) {
-                        this.addResult(`Release system mention: ${docPath}`, 'PASS', 'Release system documented');
+                        this.addResult(`发布系统提及: ${docPath}`, 'PASS', '已记录发布系统');
                     } else if (docPath.includes('README')) {
-                        this.addResult(`Release system mention: ${docPath}`, 'WARN', 'Release system not mentioned');
+                        this.addResult(`发布系统提及: ${docPath}`, 'WARN', '未记录发布系统');
                     }
                 } else {
-                    this.addResult(`Documentation: ${docPath}`, 'FAIL', 'File not found');
+                    this.addResult(`文档: ${docPath}`, 'FAIL', '未找到文件');
                 }
             }
             
         } catch (error) {
-            this.addError('Documentation test failed', error.message);
+            this.addError('文档测试失败', error.message);
         }
     }
 
     /**
-     * Test 8: Error Handling and Recovery
+     * 测试 8：错误处理与恢复
      */
     async testErrorHandling() {
-        this.logTestStart('Error Handling and Recovery');
+        this.logTestStart('错误处理与恢复');
         
         try {
-            // Test invalid version type handling
+            // 测试无效版本类型处理
             try {
                 const releasePath = path.join(this.projectRoot, 'scripts/release.js');
                 if (fs.existsSync(releasePath)) {
@@ -449,42 +448,42 @@ class IntegrationTestSuite {
                     
                     try {
                         controller.parseArguments(['invalid-type']);
-                        this.addResult('Invalid version type handling', 'FAIL', 'Should have thrown error');
+                        this.addResult('无效版本类型处理', 'FAIL', '应当抛出错误');
                     } catch (error) {
                         if (error.message.includes('Invalid or missing release type')) {
-                            this.addResult('Invalid version type handling', 'PASS', 'Correctly rejected invalid type');
+                            this.addResult('无效版本类型处理', 'PASS', '正确拒绝无效类型');
                         } else {
-                            this.addResult('Invalid version type handling', 'FAIL', `Unexpected error: ${error.message}`);
+                            this.addResult('无效版本类型处理', 'FAIL', `意外错误: ${error.message}`);
                         }
                     }
                 }
             } catch (error) {
-                this.addResult('Error handling test setup', 'FAIL', error.message);
+                this.addResult('错误处理测试设置', 'FAIL', error.message);
             }
             
-            // Test configuration validation
+            // 测试配置校验
             try {
                 const configPath = path.join(this.projectRoot, 'scripts/validate-config.js');
                 if (fs.existsSync(configPath)) {
                     const ConfigValidator = require(configPath);
                     const validator = new ConfigValidator();
                     const isValid = validator.validate();
-                    this.addResult('Configuration validation', isValid ? 'PASS' : 'FAIL', 'Configuration validation completed');
+                    this.addResult('配置校验', isValid ? 'PASS' : 'FAIL', '配置校验完成');
                 }
             } catch (error) {
-                this.addResult('Configuration validation', 'FAIL', error.message);
+                this.addResult('配置校验', 'FAIL', error.message);
             }
             
         } catch (error) {
-            this.addError('Error handling test failed', error.message);
+            this.addError('错误处理测试失败', error.message);
         }
     }
 
     /**
-     * Utility methods
+     * 工具方法
      */
     logTestStart(testName) {
-        console.log(chalk.blue(`\n🔍 Testing: ${testName}`));
+        console.log(chalk.blue(`\n🔍 测试: ${testName}`));
     }
 
     addResult(test, status, details) {
@@ -507,76 +506,76 @@ class IntegrationTestSuite {
     }
 
     /**
-     * Generate comprehensive test report
+     * 生成集成测试报告
      */
     generateTestReport() {
-        console.log(chalk.bold('\n📊 Integration Test Report\n'));
+        console.log(chalk.bold('\n📊 集成测试报告\n'));
         
         const passed = this.testResults.filter(r => r.status === 'PASS').length;
         const failed = this.testResults.filter(r => r.status === 'FAIL').length;
         const warnings = this.testResults.filter(r => r.status === 'WARN').length;
         const total = this.testResults.length;
         
-        console.log(chalk.bold('📈 Test Summary:'));
-        console.log(`  Total Tests: ${total}`);
-        console.log(`  ${chalk.green('Passed')}: ${passed}`);
-        console.log(`  ${chalk.red('Failed')}: ${failed}`);
-        console.log(`  ${chalk.yellow('Warnings')}: ${warnings}`);
+        console.log(chalk.bold('📈 测试汇总:'));
+        console.log(`  总测试数: ${total}`);
+        console.log(`  ${chalk.green('通过')}: ${passed}`);
+        console.log(`  ${chalk.red('失败')}: ${failed}`);
+        console.log(`  ${chalk.yellow('警告')}: ${warnings}`);
         
         const successRate = ((passed / total) * 100).toFixed(1);
-        console.log(`  Success Rate: ${successRate}%`);
+        console.log(`  通过率: ${successRate}%`);
         
         if (failed > 0) {
-            console.log(chalk.red('\n❌ Failed Tests:'));
+            console.log(chalk.red('\n❌ 失败用例:'));
             this.testResults
                 .filter(r => r.status === 'FAIL')
                 .forEach(r => console.log(`  • ${r.test}: ${r.details}`));
         }
         
         if (warnings > 0) {
-            console.log(chalk.yellow('\n⚠️  Warnings:'));
+            console.log(chalk.yellow('\n⚠️  警告:'));
             this.testResults
                 .filter(r => r.status === 'WARN')
                 .forEach(r => console.log(`  • ${r.test}: ${r.details}`));
         }
         
         if (this.errors.length > 0) {
-            console.log(chalk.red('\n🚨 Errors:'));
+            console.log(chalk.red('\n🚨 错误:'));
             this.errors.forEach(e => console.log(`  • ${e.context}: ${e.message}`));
         }
         
-        // Overall assessment
-        console.log(chalk.bold('\n🎯 Overall Assessment:'));
+        // 总体评估
+        console.log(chalk.bold('\n🏁 总体评估:'));
         if (failed === 0 && this.errors.length === 0) {
-            console.log(chalk.green('✅ All tests passed! The automated release system is ready for production use.'));
+            console.log(chalk.green('✅ 所有测试通过！自动化发布系统可用于生产。'));
         } else if (failed <= 2 && this.errors.length === 0) {
-            console.log(chalk.yellow('⚠️  Most tests passed with minor issues. Review failed tests before production use.'));
+            console.log(chalk.yellow('⚠️  大部分测试通过，仅有少量问题。请在生产前修复失败用例。'));
         } else {
-            console.log(chalk.red('❌ Multiple test failures detected. System requires fixes before production use.'));
+            console.log(chalk.red('❌ 存在多个失败用例，系统需修复后再用于生产。'));
         }
         
-        console.log(chalk.bold('\n🚀 Next Steps:'));
+        console.log(chalk.bold('\n🚀 后续建议:'));
         if (failed === 0) {
-            console.log('  • System is ready for production use');
-            console.log('  • Consider running a test release with --dry-run');
-            console.log('  • Review documentation for best practices');
+            console.log('  • 系统可直接用于生产');
+            console.log('  • 建议先用 --dry-run 进行测试发布');
+            console.log('  • 查阅文档获取最佳实践');
         } else {
-            console.log('  • Fix failed tests and re-run integration tests');
-            console.log('  • Check error messages for specific issues');
-            console.log('  • Verify environment setup and dependencies');
+            console.log('  • 修复失败用例后重新运行集成测试');
+            console.log('  • 检查错误信息定位具体问题');
+            console.log('  • 校验环境和依赖配置');
         }
         
         return failed === 0 && this.errors.length === 0;
     }
 }
 
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const testSuite = new IntegrationTestSuite();
     testSuite.runTests().then(success => {
         process.exit(success ? 0 : 1);
     }).catch(error => {
-        console.error(chalk.red('Test suite failed:'), error);
+        console.error(chalk.red('测试套件失败:'), error);
         process.exit(1);
     });
 }

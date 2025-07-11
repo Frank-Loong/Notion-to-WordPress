@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * WordPress Plugin Build Tool for Notion-to-WordPress
+ * Notion-to-WordPress WordPress 插件打包工具
  * 
- * This tool creates a WordPress-standard ZIP package for the plugin,
- * excluding development files and including only runtime-necessary files.
- * The generated ZIP can be directly installed in WordPress admin.
+ * 本工具用于生成符合 WordPress 标准的插件 ZIP 包，
+ * 自动排除开发文件，仅包含运行所需内容。
+ * 生成的 ZIP 可直接在 WordPress 后台安装。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -24,73 +24,49 @@ class WordPressBuildTool {
         this.tempDir = path.join(this.buildDir, 'temp');
         this.pluginName = 'notion-to-wordpress';
         
-        // Files and directories that must be included in WordPress plugin
+        // 必须包含的文件和目录
         this.requiredFiles = [
-            'notion-to-wordpress.php',  // Main plugin file
-            'readme.txt',               // WordPress plugin description
-            'uninstall.php'            // Uninstall script
-            // LICENSE file excluded to reduce package size
+            'notion-to-wordpress.php',  // 主插件文件
+            'readme.txt',               // 插件描述
+            'uninstall.php'            // 卸载脚本
+            // LICENSE 文件为减小包体积已排除
         ];
         
-        // Directories that should be included
+        // 必须包含的目录
         this.requiredDirs = [
-            'admin/',                  // Admin interface
-            'assets/',                 // Frontend resources
-            'includes/',               // Core functionality
-            'languages/'               // Internationalization
+            'admin/',                  // 后台界面
+            'assets/',                 // 前端资源
+            'includes/',               // 核心功能
+            'languages/'               // 国际化
         ];
         
-        // Additional files to include (optional but recommended)
+        // 可选包含的文件（推荐但非必须）
         this.optionalFiles = [
-            // Documentation files are excluded to reduce package size
+            // 文档文件为减小包体积已排除
         ];
 
-        // Additional directories to include (documentation)
+        // 可选包含的目录（文档）
         this.optionalDirs = [
-            // Documentation directories are excluded to reduce package size
+            // 文档目录为减小包体积已排除
         ];
         
-        // Development files/directories to exclude (in addition to .gitignore)
+        // 需排除的开发文件/目录（除 .gitignore 外）
         this.developmentExcludes = [
-            'scripts/',                // Build scripts
+            'scripts/',                // 构建脚本
             '.github/',               // GitHub Actions
-            'node_modules/',          // Node dependencies
-            'package.json',           // npm configuration
-            'package-lock.json',      // npm lock file
-            '.gitignore',            // Git ignore file
-            '.git/',                 // Git repository
-            'build/',                // Build output
-            '.version-backup/',      // Version backup
-            '*.zip',                 // Existing ZIP files
-            '*.tar.gz',              // Archive files
-            '*.log',                 // Log files
-            '.env*',                 // Environment files
-            '.DS_Store',             // macOS files
-            'Thumbs.db',             // Windows files
-            '.vscode/',              // VS Code settings
-            '.idea/',                // IntelliJ settings
-            '.cursor/',              // Cursor AI settings
-            '.augment/',             // Augment settings
-            'coverage/',             // Test coverage
-            'tests/',                // Test files
-            '*.tmp',                 // Temporary files
-            '*.bak',                 // Backup files
-            '*.swp',                 // Vim swap files
-            // Documentation files (not needed for WordPress plugin runtime)
-            'docs/',                 // Documentation directory
-            'wiki/',                 // Wiki directory
-            'README.md',             // Root README file
-            'README-zh_CN.md',       // Chinese README file
-            'CONTRIBUTING.md',       // Contributing guide
-            'CONTRIBUTING-zh_CN.md', // Chinese contributing guide
-            'LICENSE'                // License file
+            'node_modules/',          // Node 依赖
+            'package.json',           // npm 配置
+            'package-lock.json',      // npm 锁文件
+            '.gitignore',            // Git 忽略文件
+            '.env',                  // 环境变量
+            '*.log'                  // 日志文件
         ];
         
         this.gitignoreRules = [];
     }
 
     /**
-     * Read and parse .gitignore file
+     * 读取并解析 .gitignore 文件
      */
     readGitignore() {
         const gitignorePath = path.join(this.projectRoot, '.gitignore');
@@ -115,7 +91,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Check if a file should be excluded
+     * 判断文件是否应排除
      */
     shouldExclude(filePath) {
         const relativePath = path.relative(this.projectRoot, filePath);
@@ -152,7 +128,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Simple glob pattern matching
+     * 简单 glob 匹配
      */
     matchGlob(str, pattern) {
         // Convert glob pattern to regex
@@ -166,7 +142,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Get current plugin version
+     * 获取当前插件版本号
      */
     getPluginVersion() {
         try {
@@ -186,7 +162,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Create build directory structure
+     * 创建构建目录结构
      */
     prepareBuildDir() {
         this.log('Preparing build directory...');
@@ -204,7 +180,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Copy files to temporary directory
+     * 拷贝文件到临时目录
      */
     async copyFiles() {
         this.log('Copying plugin files...');
@@ -247,7 +223,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Create ZIP package
+     * 创建 ZIP 包
      */
     async createZip(sourceDir) {
         const version = this.getPluginVersion();
@@ -283,7 +259,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Clean up temporary files
+     * 清理临时文件
      */
     cleanup() {
         if (fs.existsSync(this.tempDir)) {
@@ -293,7 +269,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Validate the created ZIP package
+     * 校验生成的 ZIP 包
      */
     validatePackage(zipPath) {
         this.log('Validating WordPress plugin package...');
@@ -328,7 +304,7 @@ class WordPressBuildTool {
     }
 
     /**
-     * Main build process
+     * 主构建流程
      */
     async build() {
         try {
@@ -368,25 +344,24 @@ class WordPressBuildTool {
         }
     }
 
-    // Utility logging methods
+    // 工具方法：日志输出
     log(message) {
         console.log(message);
     }
 
     success(message) {
-        console.log(chalk.green('✅ ' + message));
+        console.log(chalk.green('\u2705 ' + message));
     }
 
     warn(message) {
-        console.log(chalk.yellow('⚠️  ' + message));
+        console.log(chalk.yellow('\u26a0\ufe0f  ' + message));
     }
 
     error(message) {
-        console.log(chalk.red('❌ ' + message));
+        console.log(chalk.red('\u274c ' + message));
     }
 }
-
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const builder = new WordPressBuildTool();
     builder.build();

@@ -94,7 +94,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.1.1-beta.1';
+			$this->version = '1.2.5-beta.5';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 
@@ -502,6 +502,33 @@ class Notion_To_WordPress {
 			$this->plugin_name . '-katex-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
 			array('jquery', 'mermaid', 'katex', 'katex-mhchem', 'katex-auto-render'),
+			$this->version,
+			true
+		);
+
+		// 懒加载和性能优化脚本
+		wp_enqueue_script(
+			$this->plugin_name . '-lazy-loading',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/lazy-loading.js'),
+			array(),
+			$this->version,
+			true
+		);
+
+		// 数据库交互功能脚本
+		wp_enqueue_script(
+			$this->plugin_name . '-database-interactions',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/database-interactions.js'),
+			array('jquery'),
+			$this->version,
+			true
+		);
+
+		// 注册锚点导航脚本，支持区块锚点跳转
+		wp_enqueue_script(
+			$this->plugin_name . '-anchor-navigation',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/anchor-navigation.js'),
+			array('jquery'),
 			$this->version,
 			true
 		);

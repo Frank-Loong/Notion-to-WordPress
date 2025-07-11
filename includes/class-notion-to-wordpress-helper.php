@@ -108,31 +108,18 @@ class Notion_To_WordPress_Helper {
             return $content;
         }
 
-        // 检查内容长度，超过500字符进行截断
-        if (strlen($content) > 500) {
-            $content = substr($content, 0, 500) . '... [' . __('内容已截断，完整内容请查看专用日志文件', 'notion-to-wordpress') . ']';
-        }
-
         // 检测并过滤HTML内容（可能包含文章内容）
-        if (preg_match('/<[^>]+>/', $content)) {
-            // 如果包含HTML标签，进行脱敏处理
-            $content = preg_replace('/<[^>]+>/', '[' . __('HTML标签已过滤', 'notion-to-wordpress') . ']', $content);
-            if (strlen($content) > 200) {
-                $content = substr($content, 0, 200) . '... [' . __('HTML内容已过滤', 'notion-to-wordpress') . ']';
+        if (preg_match('/<[^>]+>/', $content) && strlen($content) > 1000) {
+            // 如果包含HTML标签且内容很长，可能是文章内容，进行脱敏处理
+            $content = preg_replace('/<[^>]+>/', '[HTML标签已过滤]', $content);
+            if (strlen($content) > 500) {
+                $content = substr($content, 0, 500) . '... [HTML内容已过滤]';
             }
         }
 
-        // 过滤可能的JSON响应内容（API响应）
-        if (preg_match('/^\s*[\{\[]/', $content) && strlen($content) > 300) {
-            $decoded = json_decode($content, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $content = '[' . sprintf(__('JSON响应已过滤，长度: %d 字符', 'notion-to-wordpress'), strlen($content)) . ']';
-            }
-        }
-
-        // 过滤包含大量文本的数组输出
-        if (strpos($content, 'Array') === 0 && strlen($content) > 400) {
-            $content = '[' . sprintf(__('数组内容已过滤，长度: %d 字符', 'notion-to-wordpress'), strlen($content)) . ']';
+        // 过滤包含大量文本的数组输出（可能是文章内容）
+        if (strpos($content, 'Array') === 0 && strlen($content) > 2000) {
+            $content = '[数组内容已过滤，长度: ' . strlen($content) . ' 字符]';
         }
 
         return $content;
@@ -260,18 +247,28 @@ class Notion_To_WordPress_Helper {
      * @return   string                清理和过滤后的安全 HTML。
      */
     public static function custom_kses($content) {
+        // 获取 WordPress 默认允许的 HTML 标签
+        $default_allowed = wp_kses_allowed_html('post');
+
+        // 为所有默认标签添加 id 属性支持（用于锚点跳转）
+        foreach ($default_allowed as $tag => $attributes) {
+            $default_allowed[$tag]['id'] = true;
+        }
+
         $allowed_html = array_merge(
-            wp_kses_allowed_html('post'),
+            $default_allowed,
             [
                 'pre'  => [
                     'class' => true,
                 ],
                 'div'  => [
+                    'id' => true, // 允许 id 属性，用于锚点跳转
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于 equation
                     'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
                 ],
                 'span' => [
+                    'id' => true, // 允许 id 属性，用于锚点跳转
                     'class' => true,
                     'style' => true, // 允许 style 属性，例如用于颜色
                     'data-latex' => true, // 允许 data-latex 属性，用于公式渲染
@@ -684,6 +681,86 @@ class Notion_To_WordPress_Helper {
 
         // 使用WordPress的国际化日期函数
         return date_i18n($format, $timestamp);
+    }
+
+    /**
+     * 记录性能指标
+     *
+     * @since 1.1.1
+     * @param string $operation 操作名称
+     * @param float $start_time 开始时间
+     * @param array $additional_data 额外数据
+     */
+    public static function log_performance(string $operation, float $start_time, array $additional_data = []): void {
+        if (self::$debug_level < self::DEBUG_LEVEL_DEBUG) {
+            return;
+        }
+
+        $execution_time = microtime(true) - $start_time;
+        $memory_usage = memory_get_usage(true);
+        $peak_memory = memory_get_peak_usage(true);
+
+        $performance_data = [
+            'operation' => $operation,
+            'execution_time' => round($execution_time * 1000, 2) . 'ms',
+            'memory_usage' => self::format_bytes($memory_usage),
+            'peak_memory' => self::format_bytes($peak_memory),
+            'timestamp' => current_time('mysql')
+        ];
+
+        if (!empty($additional_data)) {
+            $performance_data = array_merge($performance_data, $additional_data);
+        }
+
+        self::debug_log(
+            '性能监控 - ' . $operation . ': ' . json_encode($performance_data, JSON_UNESCAPED_UNICODE),
+            'Performance'
+        );
+    }
+
+    /**
+     * 格式化字节数
+     *
+     * @since 1.1.1
+     * @param int $bytes 字节数
+     * @return string 格式化后的字符串
+     */
+    public static function format_bytes(int $bytes): string {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $factor = floor((strlen((string)$bytes) - 1) / 3);
+        return sprintf("%.2f %s", $bytes / pow(1024, $factor), $units[$factor]);
+    }
+
+    /**
+     * 开始性能计时
+     *
+     * @since 1.1.1
+     * @param string $operation 操作名称
+     * @return float 开始时间
+     */
+    public static function start_performance_timer(string $operation): float {
+        $start_time = microtime(true);
+
+        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG) {
+            self::debug_log(
+                '开始性能计时: ' . $operation,
+                'Performance Timer'
+            );
+        }
+
+        return $start_time;
+    }
+
+    /**
+     * 结束性能计时并记录
+     *
+     * @since 1.1.1
+     * @param string $operation 操作名称
+     * @param float $start_time 开始时间
+     * @param array $additional_data 额外数据
+     */
+    public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): void {
+        self::log_performance($operation, $start_time, $additional_data);
     }
 
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Build Verification Tool
- * Verifies that the build process correctly includes/excludes files
+ * 构建校验工具
+ * 校验打包过程是否正确包含/排除文件
  */
 
 const fs = require('fs');
@@ -15,7 +15,7 @@ class BuildVerifier {
         this.projectRoot = path.resolve(__dirname, '..');
         this.buildDir = path.join(this.projectRoot, 'build');
         
-        // Files that MUST be in the ZIP
+        // ZIP 包中必须包含的文件
         this.requiredFiles = [
             'notion-to-wordpress/notion-to-wordpress.php',
             'notion-to-wordpress/readme.txt',
@@ -23,7 +23,7 @@ class BuildVerifier {
             'notion-to-wordpress/LICENSE'
         ];
         
-        // Files that MUST NOT be in the ZIP
+        // ZIP 包中禁止包含的文件/目录
         this.forbiddenPatterns = [
             'node_modules/',
             'scripts/',
@@ -37,45 +37,45 @@ class BuildVerifier {
     }
 
     async verify() {
-        console.log(chalk.bold('🔍 Build Verification Tool'));
+        console.log(chalk.bold('🔍 构建校验工具'));
         
-        // Find ZIP file
+        // 查找 ZIP 文件
         const zipFiles = await glob('*.zip', { cwd: this.buildDir });
         
         if (zipFiles.length === 0) {
-            console.log(chalk.red('❌ No ZIP file found in build directory'));
+            console.log(chalk.red('❌ 构建目录下未找到 ZIP 文件'));
             return false;
         }
         
         const zipFile = zipFiles[0];
-        console.log(`Verifying: ${chalk.cyan(zipFile)}`);
+        console.log(`正在校验: ${chalk.cyan(zipFile)}`);
         
-        // Get file stats
+        // 获取文件信息
         const zipPath = path.join(this.buildDir, zipFile);
         const stats = fs.statSync(zipPath);
         const sizeInMB = (stats.size / 1024 / 1024).toFixed(2);
         
-        console.log(`File size: ${chalk.yellow(sizeInMB)} MB`);
+        console.log(`文件大小: ${chalk.yellow(sizeInMB)} MB`);
         
-        // Basic checks
+        // 基本校验
         const checks = [
             {
-                name: 'File exists',
+                name: '文件存在',
                 test: () => fs.existsSync(zipPath),
                 critical: true
             },
             {
-                name: 'File size > 1MB',
+                name: '文件大于 1MB',
                 test: () => stats.size > 1024 * 1024,
                 critical: true
             },
             {
-                name: 'File size < 50MB',
+                name: '文件小于 50MB',
                 test: () => stats.size < 50 * 1024 * 1024,
                 critical: false
             },
             {
-                name: 'WordPress plugin naming convention',
+                name: '符合 WordPress 插件命名规范',
                 test: () => zipFile.match(/^notion-to-wordpress-\d+\.\d+\.\d+.*\.zip$/),
                 critical: false
             }
@@ -83,7 +83,7 @@ class BuildVerifier {
         
         let allCriticalPassed = true;
         
-        console.log('\n📋 Basic Checks:');
+        console.log('\n📋 基本校验:');
         for (const check of checks) {
             const passed = check.test();
             const icon = passed ? '✅' : '❌';
@@ -97,19 +97,19 @@ class BuildVerifier {
         }
         
         if (!allCriticalPassed) {
-            console.log(chalk.red('\n❌ Critical checks failed!'));
+            console.log(chalk.red('\n❌ 关键校验未通过!'));
             return false;
         }
         
-        console.log(chalk.green('\n✅ All checks passed!'));
-        console.log(`\n📦 Package ready: ${chalk.green(zipPath)}`);
-        console.log('You can install this ZIP file in WordPress admin.');
+        console.log(chalk.green('\n✅ 所有校验通过!'));
+        console.log(`\n📦 包已就绪: ${chalk.green(zipPath)}`);
+        console.log('你可以在 WordPress 后台安装此 ZIP 文件。');
         
         return true;
     }
 }
 
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const verifier = new BuildVerifier();
     verifier.verify().then(success => {

@@ -1,123 +1,123 @@
-name: 🚀 Release WordPress Plugin
+name: 🚀 发布 WordPress 插件
 
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags like v1.1.0, v1.2.0-beta.1, etc.
+      - 'v*'  # 触发条件：如 v1.1.0、v1.2.0-beta.1 等版本标签
 
 permissions:
-  contents: write  # Required for creating releases and uploading assets
-  actions: read    # Required for downloading artifacts
+  contents: write  # 创建 Release 和上传资源所需权限
+  actions: read    # 下载构建产物所需权限
 
 jobs:
   release:
-    name: 📦 Build and Release
+    name: 📦 构建并发布
     runs-on: ubuntu-latest
     
     steps:
-      # Step 1: Checkout the repository
-      - name: 🔄 Checkout Repository
+      # 步骤 1：检出仓库代码
+      - name: 🔄 检出代码仓库
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch full history for proper release notes
+          fetch-depth: 0  # 拉取完整历史，便于生成发布说明
       
-      # Step 2: Setup Node.js environment
-      - name: 🟢 Setup Node.js
+      # 步骤 2：设置 Node.js 环境
+      - name: 🟢 设置 Node.js 环境
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
       
-      # Step 3: Install dependencies
-      - name: 📥 Install Dependencies
+      # 步骤 3：安装依赖
+      - name: 📥 安装依赖
         run: npm ci
       
-      # Step 4: Verify environment and version consistency
-      - name: 🔍 Verify Environment
+      # 步骤 4：校验环境和版本一致性
+      - name: 🔍 校验环境
         run: |
-          echo "Node.js version: $(node --version)"
-          echo "NPM version: $(npm --version)"
-          echo "Git tag: ${{ github.ref_name }}"
+          echo "Node.js 版本: $(node --version)"
+          echo "NPM 版本: $(npm --version)"
+          echo "Git 标签: ${{ github.ref_name }}"
           
-          # Extract version from tag (remove 'v' prefix)
+          # 从 tag 提取版本号（去掉 'v' 前缀）
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          echo "Tag version: $TAG_VERSION"
+          echo "标签版本: $TAG_VERSION"
           
-          # Verify version consistency
+          # 校验版本一致性
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          echo "Package.json version: $PACKAGE_VERSION"
+          echo "package.json 版本: $PACKAGE_VERSION"
           
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "❌ Version mismatch: tag=$TAG_VERSION, package.json=$PACKAGE_VERSION"
+            echo "❌ 版本不一致: tag=$TAG_VERSION, package.json=$PACKAGE_VERSION"
             exit 1
           fi
           
-          echo "✅ Version consistency verified"
+          echo "✅ 版本一致性校验通过"
       
-      # Step 5: Build WordPress plugin package
-      - name: 📦 Build Plugin Package
+      # 步骤 5：构建 WordPress 插件包
+      - name: 📦 构建插件包
         run: |
-          echo "🚀 Building WordPress plugin package..."
+          echo "🚀 正在构建 WordPress 插件包..."
           npm run build
           
-          # Verify build output
+          # 校验构建输出
           if [ ! -d "build" ]; then
-            echo "❌ Build directory not found"
+            echo "❌ 未找到 build 目录"
             exit 1
           fi
           
-          # Find the generated ZIP file
+          # 查找生成的 ZIP 文件
           ZIP_FILE=$(find build -name "*.zip" -type f | head -n 1)
           if [ -z "$ZIP_FILE" ]; then
-            echo "❌ No ZIP file found in build directory"
+            echo "❌ build 目录下未找到 ZIP 文件"
             exit 1
           fi
           
-          echo "✅ Plugin package built: $ZIP_FILE"
+          echo "✅ 插件包已构建: $ZIP_FILE"
           echo "ZIP_FILE=$ZIP_FILE" >> $GITHUB_ENV
           
-          # Get file size
+          # 获取文件大小
           FILE_SIZE=$(stat -c%s "$ZIP_FILE")
           FILE_SIZE_MB=$(echo "scale=2; $FILE_SIZE / 1024 / 1024" | bc)
-          echo "📊 Package size: ${FILE_SIZE_MB}MB"
+          echo "📊 包体积: ${FILE_SIZE_MB}MB"
           echo "PACKAGE_SIZE=${FILE_SIZE_MB}MB" >> $GITHUB_ENV
       
-      # Step 6: Generate checksums for security
-      - name: 🔐 Generate Checksums
+      # 步骤 6：生成校验和
+      - name: 🔐 生成校验和
         run: |
-          echo "🔐 Generating checksums..."
+          echo "🔐 正在生成校验和..."
           cd build
           
-          # Generate SHA256 checksum
+          # 生成 SHA256 校验和
           sha256sum *.zip > checksums.txt
           
-          # Generate MD5 checksum
+          # 生成 MD5 校验和
           md5sum *.zip >> checksums.txt
           
-          echo "✅ Checksums generated:"
+          echo "✅ 校验和已生成:"
           cat checksums.txt
       
-      # Step 7: Extract release information
-      - name: 📋 Extract Release Information
+      # 步骤 7：提取发布信息
+      - name: 📋 提取发布信息
         run: |
-          # Extract version from tag
+          # 从 tag 提取版本号
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           echo "RELEASE_VERSION=$TAG_VERSION" >> $GITHUB_ENV
           
-          # Determine if this is a pre-release
+          # 判断是否为预发布
           if [[ "$TAG_VERSION" == *"beta"* ]] || [[ "$TAG_VERSION" == *"alpha"* ]] || [[ "$TAG_VERSION" == *"rc"* ]]; then
             echo "IS_PRERELEASE=true" >> $GITHUB_ENV
-            echo "📋 This is a pre-release version"
+            echo "📋 这是预发布版本"
           else
             echo "IS_PRERELEASE=false" >> $GITHUB_ENV
-            echo "📋 This is a stable release"
+            echo "📋 这是正式发布"
           fi
           
-          # Set release name
+          # 设置发布名称
           echo "RELEASE_NAME=Notion-to-WordPress v$TAG_VERSION" >> $GITHUB_ENV
       
-      # Step 8: Create GitHub Release
-      - name: 🎉 Create GitHub Release
+      # 步骤 8：创建 GitHub Release
+      - name: 🎉 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: ${{ env.RELEASE_NAME }}
@@ -125,64 +125,64 @@ jobs:
           prerelease: ${{ env.IS_PRERELEASE }}
           generate_release_notes: true
           body: |
-            ## 🚀 Notion-to-WordPress Plugin Release v${{ env.RELEASE_VERSION }}
+            ## 🚀 Notion-to-WordPress 插件发布 v${{ env.RELEASE_VERSION }}
             
-            ### 📦 Package Information
-            - **Version**: ${{ env.RELEASE_VERSION }}
-            - **Package Size**: ${{ env.PACKAGE_SIZE }}
-            - **Release Type**: ${{ env.IS_PRERELEASE == 'true' && 'Pre-release' || 'Stable Release' }}
+            ### 📦 包信息
+            - **版本**: ${{ env.RELEASE_VERSION }}
+            - **包体积**: ${{ env.PACKAGE_SIZE }}
+            - **发布类型**: ${{ env.IS_PRERELEASE == 'true' && '预发布' || '正式发布' }}
             
-            ### 📥 Installation
-            1. Download the `notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip` file below
-            2. Go to your WordPress admin dashboard
-            3. Navigate to **Plugins** → **Add New** → **Upload Plugin**
-            4. Choose the downloaded ZIP file and click **Install Now**
-            5. Activate the plugin after installation
+            ### 📥 安装方法
+            1. 下载下方 `notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip` 文件
+            2. 进入 WordPress 后台
+            3. 依次点击 **插件** → **安装插件** → **上传插件**
+            4. 选择下载的 ZIP 文件并点击 **现在安装**
+            5. 安装完成后激活插件
             
-            ### 🔐 Security
-            Please verify the package integrity using the provided checksums:
-            - Download `checksums.txt` to verify file integrity
-            - Use `sha256sum` or `md5sum` to verify the ZIP file
+            ### 🔐 安全性
+            请使用提供的校验和文件校验包完整性：
+            - 下载 `checksums.txt` 校验文件完整性
+            - 使用 `sha256sum` 或 `md5sum` 校验 ZIP 文件
             
-            ### 📚 Documentation
-            - [Installation Guide](https://github.com/Frank-Loong/Notion-to-WordPress#installation)
-            - [Configuration Guide](https://github.com/Frank-Loong/Notion-to-WordPress#configuration)
-            - [Troubleshooting](https://github.com/Frank-Loong/Notion-to-WordPress#troubleshooting)
+            ### 📚 文档
+            - [安装指南](https://github.com/Frank-Loong/Notion-to-WordPress#installation)
+            - [配置指南](https://github.com/Frank-Loong/Notion-to-WordPress#configuration)
+            - [常见问题](https://github.com/Frank-Loong/Notion-to-WordPress#troubleshooting)
             
-            ### 🐛 Issues & Support
-            If you encounter any issues, please [create an issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues) with detailed information.
+            ### 🐛 问题与支持
+            如遇问题请 [提交 issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues) 并附详细信息。
             
             ---
             
-            **Full Changelog**: https://github.com/Frank-Loong/Notion-to-WordPress/compare/v${{ env.RELEASE_VERSION }}...HEAD
+            **完整更新日志**: https://github.com/Frank-Loong/Notion-to-WordPress/compare/v${{ env.RELEASE_VERSION }}...HEAD
           files: |
             build/*.zip
             build/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # Step 9: Post-release notifications and cleanup
-      - name: 📢 Post-Release Actions
+      # 步骤 9：发布后通知与清理
+      - name: 📢 发布后操作
         run: |
-          echo "🎉 Release v${{ env.RELEASE_VERSION }} created successfully!"
-          echo "📦 Package: notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip"
-          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
+          echo "🎉 v${{ env.RELEASE_VERSION }} 发布成功!"
+          echo "📦 包: notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip"
+          echo "🔗 发布地址: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}"
           
-          # Optional: Clean up build artifacts (keep for debugging)
+          # 可选：清理构建产物（建议保留便于调试）
           # rm -rf build
           
-          echo "✅ Release process completed!"
+          echo "✅ 发布流程已完成!"
 
-  # Optional: Notify on failure
+  # 可选：失败时通知
   notify-failure:
-    name: 📧 Notify on Failure
+    name: 📧 失败通知
     runs-on: ubuntu-latest
     needs: release
     if: failure()
     
     steps:
-      - name: 📧 Failure Notification
+      - name: 📧 失败通知
         run: |
-          echo "❌ Release process failed for tag ${{ github.ref_name }}"
-          echo "🔍 Please check the workflow logs for details"
-          echo "🔗 Workflow URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "❌ 发布流程失败，标签 ${{ github.ref_name }}"
+          echo "🔍 请检查 workflow 日志"
+          echo "🔗 Workflow 地址: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

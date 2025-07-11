@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Release Configuration Validator
+ * 发布配置校验工具
  * 
- * This script validates the release configuration file to ensure
- * all settings are properly configured and compatible with the
- * release system requirements.
+ * 本脚本用于校验发布配置文件，确保所有设置项都已正确配置，
+ * 并符合发布系统的要求。
  * 
  * @author Frank-Loong
  * @version 1.0.0
@@ -24,23 +23,23 @@ class ConfigValidator {
     }
 
     /**
-     * Validate the release configuration
+     * 校验发布配置
      */
     validate() {
-        console.log(chalk.bold('🔍 Release Configuration Validator\n'));
+        console.log(chalk.bold('🔍 发布配置校验工具\n'));
 
         try {
-            // Check if config file exists
+            // 检查配置文件是否存在
             if (!fs.existsSync(this.configPath)) {
-                throw new Error('Configuration file not found: release.config.js');
+                throw new Error('未找到配置文件：release.config.js');
             }
 
-            // Load configuration
+            // 加载配置
             delete require.cache[require.resolve(this.configPath)];
             const configModule = require(this.configPath);
             const config = configModule.getConfig();
 
-            // Validate different sections
+            // 校验各个模块
             this.validateProject(config.project);
             this.validateVersion(config.version);
             this.validateBuild(config.build);
@@ -48,251 +47,251 @@ class ConfigValidator {
             this.validateGitHub(config.github);
             this.validateEnvironment(config.environment);
 
-            // Check for file existence
+            // 检查文件是否存在
             this.validateFileReferences(config);
 
-            // Display results
+            // 展示结果
             this.displayResults(config);
 
             return this.errors.length === 0;
 
         } catch (error) {
-            console.log(chalk.red(`❌ Validation failed: ${error.message}`));
+            console.log(chalk.red(`❌ 校验失败：${error.message}`));
             return false;
         }
     }
 
     /**
-     * Validate project configuration
+     * 校验项目配置
      */
     validateProject(project) {
         if (!project.name) {
-            this.errors.push('project.name is required');
+            this.errors.push('project.name 为必填项');
         }
 
         if (!project.displayName) {
-            this.warnings.push('project.displayName is recommended');
+            this.warnings.push('建议填写 project.displayName');
         }
 
         if (!project.description) {
-            this.warnings.push('project.description is recommended');
+            this.warnings.push('建议填写 project.description');
         }
 
         if (!project.repository?.url) {
-            this.warnings.push('project.repository.url is recommended');
+            this.warnings.push('建议填写 project.repository.url');
         }
 
-        console.log(chalk.green('✅ Project configuration validated'));
+        console.log(chalk.green('✅ 项目配置校验通过'));
     }
 
     /**
-     * Validate version configuration
+     * 校验版本配置
      */
     validateVersion(version) {
         if (!version.files || !Array.isArray(version.files)) {
-            this.errors.push('version.files must be an array');
+            this.errors.push('version.files 必须是一个数组');
             return;
         }
 
         if (version.files.length === 0) {
-            this.errors.push('version.files cannot be empty');
+            this.errors.push('version.files 不能为空');
             return;
         }
 
-        // Validate each version file configuration
+        // 校验每个版本文件的配置
         for (let i = 0; i < version.files.length; i++) {
             const file = version.files[i];
             
             if (!file.path) {
-                this.errors.push(`version.files[${i}].path is required`);
+                this.errors.push(`version.files[${i}].path 为必填项`);
                 continue;
             }
 
             if (!file.patterns || !Array.isArray(file.patterns)) {
-                this.errors.push(`version.files[${i}].patterns must be an array`);
+                this.errors.push(`version.files[${i}].patterns 必须是一个数组`);
                 continue;
             }
 
-            // Check if file exists
+            // 检查文件是否存在
             const filePath = path.join(this.projectRoot, file.path);
             if (!fs.existsSync(filePath)) {
-                this.warnings.push(`Version file not found: ${file.path}`);
+                this.warnings.push(`未找到版本文件：${file.path}`);
             }
 
-            // Validate patterns
+            // 校验模式
             for (let j = 0; j < file.patterns.length; j++) {
                 const pattern = file.patterns[j];
                 
                 if (!pattern.regex) {
-                    this.errors.push(`version.files[${i}].patterns[${j}].regex is required`);
+                    this.errors.push(`version.files[${i}].patterns[${j}].regex 为必填项`);
                 }
 
                 if (!pattern.replacement) {
-                    this.errors.push(`version.files[${i}].patterns[${j}].replacement is required`);
+                    this.errors.push(`version.files[${i}].patterns[${j}].replacement 为必填项`);
                 }
             }
         }
 
-        console.log(chalk.green('✅ Version configuration validated'));
+        console.log(chalk.green('✅ 版本配置校验通过'));
     }
 
     /**
-     * Validate build configuration
+     * 校验构建配置
      */
     validateBuild(build) {
         if (!build.output?.directory) {
-            this.errors.push('build.output.directory is required');
+            this.errors.push('build.output.directory 为必填项');
         }
 
         if (!build.output?.filename) {
-            this.errors.push('build.output.filename is required');
+            this.errors.push('build.output.filename 为必填项');
         }
 
-        // Check if output directory can be created
+        // 检查输出目录是否可创建
         const outputDir = path.join(this.projectRoot, build.output.directory);
         try {
             if (!fs.existsSync(outputDir)) {
                 fs.mkdirSync(outputDir, { recursive: true });
-                fs.rmdirSync(outputDir); // Clean up test directory
+                fs.rmdirSync(outputDir); // 清理测试目录
             }
         } catch (error) {
-            this.errors.push(`Cannot create build output directory: ${build.output.directory}`);
+            this.errors.push(`无法创建构建输出目录：${build.output.directory}`);
         }
 
-        // Validate include/exclude settings
+        // 校验包含/排除设置
         if (build.include?.files && !Array.isArray(build.include.files)) {
-            this.errors.push('build.include.files must be an array');
+            this.errors.push('build.include.files 必须是一个数组');
         }
 
         if (build.exclude?.files && !Array.isArray(build.exclude.files)) {
-            this.errors.push('build.exclude.files must be an array');
+            this.errors.push('build.exclude.files 必须是一个数组');
         }
 
-        console.log(chalk.green('✅ Build configuration validated'));
+        console.log(chalk.green('✅ 构建配置校验通过'));
     }
 
     /**
-     * Validate Git configuration
+     * 校验 Git 配置
      */
     validateGit(git) {
         if (!git.branch?.main) {
-            this.errors.push('git.branch.main is required');
+            this.errors.push('git.branch.main 为必填项');
         }
 
         if (!git.remote?.name) {
-            this.errors.push('git.remote.name is required');
+            this.errors.push('git.remote.name 为必填项');
         }
 
         if (!git.tag?.prefix && git.tag?.prefix !== '') {
-            this.warnings.push('git.tag.prefix is recommended');
+            this.warnings.push('建议填写 git.tag.prefix');
         }
 
-        console.log(chalk.green('✅ Git configuration validated'));
+        console.log(chalk.green('✅ Git 配置校验通过'));
     }
 
     /**
-     * Validate GitHub configuration
+     * 校验 GitHub 配置
      */
     validateGitHub(github) {
         if (!github.repository?.owner) {
-            this.errors.push('github.repository.owner is required');
+            this.errors.push('github.repository.owner 为必填项');
         }
 
         if (!github.repository?.name) {
-            this.errors.push('github.repository.name is required');
+            this.errors.push('github.repository.name 为必填项');
         }
 
         if (!github.assets || !Array.isArray(github.assets)) {
-            this.warnings.push('github.assets should be an array');
+            this.warnings.push('github.assets 应该是一个数组');
         }
 
-        console.log(chalk.green('✅ GitHub configuration validated'));
+        console.log(chalk.green('✅ GitHub 配置校验通过'));
     }
 
     /**
-     * Validate environment configuration
+     * 校验环境配置
      */
     validateEnvironment(environment) {
         if (!environment.node?.minVersion) {
-            this.warnings.push('environment.node.minVersion is recommended');
+            this.warnings.push('建议设置 environment.node.minVersion');
         }
 
         if (!environment.requiredTools || !Array.isArray(environment.requiredTools)) {
-            this.warnings.push('environment.requiredTools should be an array');
+            this.warnings.push('environment.requiredTools 应该是一个数组');
         }
 
-        console.log(chalk.green('✅ Environment configuration validated'));
+        console.log(chalk.green('✅ 环境配置校验通过'));
     }
 
     /**
-     * Validate file references in configuration
+     * 校验配置中引用的文件
      */
     validateFileReferences(config) {
-        // Check version files
+        // 检查版本文件
         for (const file of config.version.files) {
             const filePath = path.join(this.projectRoot, file.path);
             if (!fs.existsSync(filePath)) {
-                this.warnings.push(`Referenced file not found: ${file.path}`);
+                this.warnings.push(`未找到引用的文件：${file.path}`);
             }
         }
 
-        // Check include files
+        // 检查包含的文件
         if (config.build.include?.files) {
             for (const file of config.build.include.files) {
                 const filePath = path.join(this.projectRoot, file);
                 if (!fs.existsSync(filePath)) {
-                    this.warnings.push(`Include file not found: ${file}`);
+                    this.warnings.push(`未找到包含的文件：${file}`);
                 }
             }
         }
 
-        // Check include directories
+        // 检查包含的目录
         if (config.build.include?.directories) {
             for (const dir of config.build.include.directories) {
                 const dirPath = path.join(this.projectRoot, dir);
                 if (!fs.existsSync(dirPath)) {
-                    this.warnings.push(`Include directory not found: ${dir}`);
+                    this.warnings.push(`未找到包含的目录：${dir}`);
                 }
             }
         }
 
-        console.log(chalk.green('✅ File references validated'));
+        console.log(chalk.green('✅ 文件引用校验通过'));
     }
 
     /**
-     * Display validation results
+     * 展示校验结果
      */
     displayResults(config) {
-        console.log(chalk.bold('\n📋 Configuration Summary:'));
-        console.log(`  • Project: ${config.project.name}`);
-        console.log(`  • Version files: ${config.version.files.length}`);
-        console.log(`  • Build output: ${config.build.output.directory}`);
-        console.log(`  • Git branch: ${config.git.branch.main}`);
-        console.log(`  • GitHub repo: ${config.github.repository.owner}/${config.github.repository.name}`);
+        console.log(chalk.bold('\n📋 配置摘要:'));
+        console.log(`  • 项目: ${config.project.name}`);
+        console.log(`  • 版本文件: ${config.version.files.length}`);
+        console.log(`  • 构建输出: ${config.build.output.directory}`);
+        console.log(`  • Git 分支: ${config.git.branch.main}`);
+        console.log(`  • GitHub 仓库: ${config.github.repository.owner}/${config.github.repository.name}`);
 
         if (this.warnings.length > 0) {
-            console.log(chalk.yellow('\n⚠️  Warnings:'));
+            console.log(chalk.yellow('\n⚠️  警告:'));
             this.warnings.forEach(warning => {
                 console.log(chalk.yellow(`  • ${warning}`));
             });
         }
 
         if (this.errors.length > 0) {
-            console.log(chalk.red('\n❌ Errors:'));
+            console.log(chalk.red('\n❌ 错误:'));
             this.errors.forEach(error => {
                 console.log(chalk.red(`  • ${error}`));
             });
-            console.log(chalk.red('\n❌ Configuration validation failed!'));
+            console.log(chalk.red('\n❌ 配置校验失败!'));
         } else {
-            console.log(chalk.green('\n✅ Configuration validation passed!'));
+            console.log(chalk.green('\n✅ 配置校验通过!'));
             if (this.warnings.length === 0) {
-                console.log(chalk.green('🎉 No issues found - configuration is perfect!'));
+                console.log(chalk.green('🎉 没有发现问题 - 配置完美!'));
             }
         }
     }
 }
 
-// CLI execution
+// CLI 执行入口
 if (require.main === module) {
     const validator = new ConfigValidator();
     const isValid = validator.validate();
