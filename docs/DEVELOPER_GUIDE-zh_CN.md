@@ -22,6 +22,7 @@
 - [📚 最佳实践](#-最佳实践)
 - [🤝 贡献指南](#-贡献指南)
 - [🔗 资源链接](#-资源链接)
+- [📖 术语表](#-术语表)
 
 ---
 
@@ -44,7 +45,8 @@ npm run validate:config
 npm run build
 
 # 5. 检查结果
-ls -la build/notion-to-wordpress-*.zip
+# Linux/Mac: ls -la build/notion-to-wordpress-*.zip
+# Windows: Get-ChildItem build/notion-to-wordpress-*.zip
 ```
 
 ### ✅ 环境要求
@@ -371,7 +373,7 @@ git merge feature/your-feature
 | `npm run package:local:minor` | 小版本 | 1.2.0 → 1.3.0 |
 | `npm run package:local:major` | 主版本 | 1.2.0 → 2.0.0 |
 | `npm run package:local:beta` | 测试版本 | 1.2.0 → 1.2.1-beta.1 |
-| `npm run package:local:build-only` | 仅构建 | 不更新版本 |
+| `npm run package:local:build-only` | 仅打包 | 不更新版本 |
 | `npm run package:local:help` | 显示帮助 | 查看选项 |
 
 ### 🚀 发布命令
@@ -389,12 +391,13 @@ git merge feature/your-feature
 
 | 命令 | 功能 | 用途 |
 |------|------|------|
-| `` | 检查版本一致性 | 诊断版本问题 |
-| `npm run version:bump:patch` | 补丁版本升级 | 修复版本不一致 |
-| `npm run version:bump:minor` | 小版本升级 | 版本管理 |
-| `npm run version:bump:major` | 主版本升级 | 版本管理 |
-| `npm run version:bump:beta` | 测试版本升级 | 版本管理 |
+| `npm run version:bump:patch` | 补丁版本升级 | 1.0.0 → 1.0.1 |
+| `npm run version:bump:minor` | 小版本升级 | 1.0.0 → 1.1.0 |
+| `npm run version:bump:major` | 主版本升级 | 1.0.0 → 2.0.0 |
+| `npm run version:bump:beta` | 测试版本升级 | 1.0.0 → 1.0.1-beta.1 |
 | `npm run version:bump:rollback` | 回滚版本 | 恢复备份 |
+
+**注意**: `version:bump` 命令必须指定类型，不能单独运行。
 
 ### 🧪 测试命令
 
@@ -402,7 +405,106 @@ git merge feature/your-feature
 |------|------|------|
 | `npm run test:integration` | 集成测试 | 全面测试 |
 | `php -l *.php` | PHP语法检查 | 代码验证 |
-| `find includes/ -name "*.php" -exec php -l {} \;` | 批量语法检查 | 全面验证 |
+| `Get-ChildItem includes/ -Filter "*.php" \| ForEach-Object { php -l $_.FullName }` | 批量语法检查（Windows） | 全面验证 |
+
+### 📝 单元测试指导
+
+#### 测试文件结构
+```
+tests/
+├── unit/                   # 单元测试
+│   ├── test-notion-api.php
+│   ├── test-notion-pages.php
+│   └── test-helper.php
+├── integration/            # 集成测试
+│   ├── test-sync-flow.php
+│   └── test-webhook.php
+└── bootstrap.php           # 测试引导文件
+```
+
+#### 编写单元测试示例
+```php
+<?php
+/**
+ * Notion API 单元测试
+ */
+class Test_Notion_API extends WP_UnitTestCase {
+
+    private $notion_api;
+
+    public function setUp(): void {
+        parent::setUp();
+        $this->notion_api = new Notion_API();
+    }
+
+    /**
+     * 测试API连接
+     */
+    public function test_api_connection() {
+        // 模拟API响应
+        $mock_response = [
+            'object' => 'database',
+            'id' => 'test-database-id'
+        ];
+
+        // 使用WordPress的HTTP API模拟
+        add_filter('pre_http_request', function($response, $args, $url) use ($mock_response) {
+            if (strpos($url, 'notion.com/v1') !== false) {
+                return [
+                    'response' => ['code' => 200],
+                    'body' => json_encode($mock_response)
+                ];
+            }
+            return $response;
+        }, 10, 3);
+
+        $result = $this->notion_api->test_connection();
+        $this->assertTrue($result);
+    }
+
+    /**
+     * 测试数据验证
+     */
+    public function test_data_validation() {
+        // 测试无效的数据库ID
+        $result = $this->notion_api->get_database_pages('invalid-id');
+        $this->assertInstanceOf('WP_Error', $result);
+        $this->assertEquals('invalid_database_id', $result->get_error_code());
+    }
+
+    /**
+     * 测试错误处理
+     */
+    public function test_error_handling() {
+        // 模拟API错误响应
+        add_filter('pre_http_request', function($response, $args, $url) {
+            return [
+                'response' => ['code' => 401],
+                'body' => json_encode(['message' => 'Unauthorized'])
+            ];
+        }, 10, 3);
+
+        $result = $this->notion_api->get_database_pages('test-id');
+        $this->assertInstanceOf('WP_Error', $result);
+        $this->assertEquals('api_unauthorized', $result->get_error_code());
+    }
+}
+```
+
+#### 运行测试
+```bash
+# 安装PHPUnit（如果未安装）
+composer require --dev phpunit/phpunit
+
+# 运行所有测试
+vendor/bin/phpunit
+
+# 运行特定测试文件
+vendor/bin/phpunit tests/unit/test-notion-api.php
+
+# 运行测试并生成覆盖率报告
+vendor/bin/phpunit --coverage-html coverage/
+```
 
 ---
 
@@ -416,7 +518,8 @@ git merge feature/your-feature
 node --version  # 需要18+
 
 # 清理重装
-rm -rf node_modules package-lock.json
+# Linux/Mac: rm -rf node_modules package-lock.json
+# Windows: Remove-Item node_modules, package-lock.json -Recurse -Force
 npm install
 
 # 验证环境
@@ -425,15 +528,20 @@ npm run validate:config
 
 #### 版本不一致
 ```bash
-# 检查版本
-npm run version:bump
-
-# 自动修复
+# 自动修复版本不一致（选择合适的类型）
 npm run version:bump:patch
 
-# 手动检查
-grep -r "Version:" notion-to-wordpress.php
-grep -r "version" package.json
+# 手动检查版本
+# Linux/Mac:
+grep "Version:" notion-to-wordpress.php
+grep "version" package.json
+
+# Windows PowerShell:
+Select-String "Version:" notion-to-wordpress.php
+Select-String "version" package.json
+
+# 查看帮助信息（使用任意类型命令）
+npm run version:bump -- --help
 ```
 
 #### 插件激活失败
@@ -465,6 +573,94 @@ $memory_before = memory_get_usage();
 // ... 代码 ...
 $memory_after = memory_get_usage();
 error_log('Memory used: ' . ($memory_after - $memory_before) . ' bytes');
+```
+
+### ❓ 故障排除FAQ
+
+#### Q1: 同步失败，显示"API密钥无效"
+**症状**: 测试连接失败，日志显示401错误
+**解决方案**:
+```bash
+# 1. 检查API密钥格式
+# 正确格式: secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# 2. 验证API密钥权限
+# 确保集成已添加到目标数据库
+
+# 3. 重新生成API密钥
+# 在Notion集成设置中重新生成密钥
+```
+
+#### Q2: 同步速度很慢
+**症状**: 同步大量页面时耗时过长
+**解决方案**:
+```bash
+# 1. 启用增量同步
+# 设置 → 同步选项 → 启用增量同步
+
+# 2. 调整批处理大小
+# 设置 → 性能优化 → 批处理大小: 10-20
+
+# 3. 检查服务器性能
+php -m | grep -E "(curl|json|mbstring)"  # 确保扩展已安装
+```
+
+#### Q3: 图片无法显示
+**症状**: 文章中的图片显示为链接或无法加载
+**解决方案**:
+```bash
+# 1. 检查媒体库权限
+# Linux/Mac: ls -la wp-content/uploads/
+# Windows: Get-ChildItem wp-content/uploads/ -Force
+
+# 2. 验证图片下载设置
+# 设置 → 媒体选项 → 启用图片下载
+
+# 3. 检查网络连接
+curl -I https://s3.us-west-2.amazonaws.com/secure.notion-static.com/test.jpg
+```
+
+#### Q4: Webhook不工作
+**症状**: Notion更新后WordPress没有自动同步
+**解决方案**:
+```bash
+# 1. 检查Webhook URL
+# 确保URL可从外网访问: https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
+
+# 2. 验证SSL证书
+curl -I https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
+
+# 3. 检查防火墙设置
+# 确保服务器允许来自Notion的请求
+```
+
+#### Q5: 内存不足错误
+**症状**: 同步时出现"Fatal error: Allowed memory size exhausted"
+**解决方案**:
+```php
+// 1. 增加PHP内存限制
+// wp-config.php中添加:
+ini_set('memory_limit', '512M');
+
+// 2. 优化批处理大小
+// 设置 → 性能优化 → 批处理大小: 5-10
+
+// 3. 启用对象缓存
+// 安装Redis或Memcached
+```
+
+#### Q6: 中文字符显示乱码
+**症状**: 同步后中文内容显示为问号或乱码
+**解决方案**:
+```sql
+-- 1. 检查数据库字符集
+SHOW VARIABLES LIKE 'character_set%';
+
+-- 2. 修改数据库字符集（如需要）
+ALTER DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 3. 修改表字符集
+ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
 ---
@@ -627,6 +823,161 @@ $post_ids = wp_list_pluck( $posts, 'ID' );
 $meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
 ```
 
+### 🚨 错误处理最佳实践
+
+#### 异常处理模式
+```php
+/**
+ * 标准错误处理示例
+ */
+public function sync_notion_page( $page_id ) {
+    try {
+        // 输入验证
+        if ( empty( $page_id ) || ! is_string( $page_id ) ) {
+            throw new InvalidArgumentException( '页面ID不能为空且必须是字符串' );
+        }
+
+        // API调用错误处理
+        $page_data = $this->notion_api->get_page( $page_id );
+        if ( is_wp_error( $page_data ) ) {
+            Notion_To_WordPress_Helper::error_log(
+                sprintf( '获取页面失败: %s', $page_data->get_error_message() ),
+                'SYNC_ERROR'
+            );
+            return $page_data; // 返回WP_Error对象
+        }
+
+        // 数据验证
+        if ( ! isset( $page_data['properties'] ) ) {
+            return new WP_Error(
+                'invalid_page_data',
+                '页面数据格式无效：缺少properties字段',
+                ['page_id' => $page_id, 'data' => $page_data]
+            );
+        }
+
+        // 业务逻辑处理
+        $post_id = $this->create_or_update_post( $page_data );
+        if ( is_wp_error( $post_id ) ) {
+            // 记录详细错误信息
+            Notion_To_WordPress_Helper::error_log(
+                sprintf(
+                    '创建/更新文章失败: %s (页面ID: %s)',
+                    $post_id->get_error_message(),
+                    $page_id
+                ),
+                'POST_CREATION_ERROR'
+            );
+            return $post_id;
+        }
+
+        // 成功日志
+        Notion_To_WordPress_Helper::info_log(
+            sprintf( '页面同步成功: %s -> 文章ID: %d', $page_id, $post_id ),
+            'SYNC_SUCCESS'
+        );
+
+        return $post_id;
+
+    } catch ( Exception $e ) {
+        // 捕获所有未处理的异常
+        $error_message = sprintf(
+            '同步过程中发生异常: %s (文件: %s, 行: %d)',
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        );
+
+        Notion_To_WordPress_Helper::error_log( $error_message, 'EXCEPTION' );
+
+        return new WP_Error(
+            'sync_exception',
+            '同步过程中发生未预期的错误',
+            ['exception' => $e->getMessage(), 'page_id' => $page_id]
+        );
+    }
+}
+```
+
+#### 错误分类和处理策略
+```php
+/**
+ * 错误分类处理
+ */
+class Notion_Error_Handler {
+
+    const ERROR_TYPES = [
+        'API_ERROR' => 'API调用错误',
+        'VALIDATION_ERROR' => '数据验证错误',
+        'PERMISSION_ERROR' => '权限错误',
+        'RATE_LIMIT_ERROR' => '速率限制错误',
+        'NETWORK_ERROR' => '网络连接错误',
+        'DATA_ERROR' => '数据处理错误'
+    ];
+
+    /**
+     * 统一错误处理
+     */
+    public static function handle_error( $error, $context = [] ) {
+        if ( ! is_wp_error( $error ) ) {
+            return $error;
+        }
+
+        $error_code = $error->get_error_code();
+        $error_message = $error->get_error_message();
+        $error_data = $error->get_error_data();
+
+        // 根据错误类型采取不同策略
+        switch ( $error_code ) {
+            case 'api_rate_limit':
+                // 速率限制：等待后重试
+                self::schedule_retry( $context, 60 ); // 60秒后重试
+                break;
+
+            case 'api_unauthorized':
+                // 认证错误：通知管理员
+                self::notify_admin( '认证失败，请检查API密钥', $error );
+                break;
+
+            case 'network_timeout':
+                // 网络超时：短时间后重试
+                self::schedule_retry( $context, 30 ); // 30秒后重试
+                break;
+
+            default:
+                // 其他错误：记录日志
+                Notion_To_WordPress_Helper::error_log(
+                    sprintf( '未分类错误: %s', $error_message ),
+                    'UNHANDLED_ERROR'
+                );
+        }
+
+        return $error;
+    }
+
+    /**
+     * 安排重试任务
+     */
+    private static function schedule_retry( $context, $delay_seconds ) {
+        wp_schedule_single_event(
+            time() + $delay_seconds,
+            'notion_retry_sync',
+            [$context]
+        );
+    }
+
+    /**
+     * 通知管理员
+     */
+    private static function notify_admin( $message, $error ) {
+        // 发送邮件通知或在后台显示通知
+        add_action( 'admin_notices', function() use ( $message ) {
+            echo '<div class="notice notice-error"><p>' . esc_html( $message ) . '</p></div>';
+        });
+    }
+}
+```
+
 ---
 
 ## 🤝 贡献指南
@@ -676,6 +1027,72 @@ git push origin feature/your-feature-name
 - [ ] 添加新功能的测试用例
 - [ ] 更新相关文档
 
+### 🔍 代码审查流程
+
+#### Pull Request检查清单
+
+**提交前自检**:
+- [ ] 代码符合PSR-12编码标准
+- [ ] 所有函数都有PHPDoc注释
+- [ ] 输入数据已正确验证和清理
+- [ ] 输出数据已正确转义
+- [ ] 错误处理完整且合理
+- [ ] 性能影响已考虑
+- [ ] 安全风险已评估
+- [ ] 测试用例已添加
+- [ ] 文档已更新
+
+**审查者检查项**:
+- [ ] **功能性**: 代码是否实现了预期功能？
+- [ ] **安全性**: 是否存在安全漏洞？
+- [ ] **性能**: 是否有性能问题？
+- [ ] **可维护性**: 代码是否易于理解和维护？
+- [ ] **测试覆盖**: 测试是否充分？
+- [ ] **文档完整性**: 文档是否准确和完整？
+
+#### 审查标准
+
+**代码质量标准**:
+```php
+// ✅ 好的示例
+/**
+ * 同步Notion页面到WordPress
+ *
+ * @param string $page_id Notion页面ID
+ * @param array  $options 同步选项
+ * @return int|WP_Error 成功返回文章ID，失败返回WP_Error
+ * @since 1.0.0
+ */
+public function sync_page( $page_id, $options = [] ) {
+    // 输入验证
+    if ( empty( $page_id ) ) {
+        return new WP_Error( 'invalid_page_id', '页面ID不能为空' );
+    }
+
+    // 业务逻辑...
+}
+
+// ❌ 需要改进的示例
+function sync($id) {  // 缺少类型提示和文档
+    $data = $_POST['data'];  // 未验证输入
+    echo $data;  // 未转义输出
+}
+```
+
+**安全审查重点**:
+- 所有用户输入必须验证和清理
+- 所有输出必须适当转义
+- 数据库查询必须使用预处理语句
+- 文件操作必须验证路径和权限
+- API调用必须处理错误和超时
+
+**性能审查重点**:
+- 避免N+1查询问题
+- 合理使用缓存
+- 优化数据库查询
+- 控制内存使用
+- 异步处理长时间操作
+
 ---
 
 ## 🔗 资源链接
@@ -695,6 +1112,48 @@ git push origin feature/your-feature-name
 - **一般问题**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
 - **Bug报告**: [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 - **安全问题**: 直接联系维护者
+
+---
+
+## 📖 术语表
+
+### 🔧 技术术语
+
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **增量同步** | Incremental Sync | 只同步自上次同步后有更新的内容，提高效率 |
+| **全量同步** | Full Sync | 同步所有内容，不考虑更新时间 |
+| **Webhook** | Webhook | 实时事件通知机制，Notion有更新时立即通知WordPress |
+| **API密钥** | API Key | 访问Notion API的认证凭据 |
+| **数据库ID** | Database ID | Notion数据库的唯一标识符 |
+| **页面ID** | Page ID | Notion页面的唯一标识符 |
+| **字段映射** | Field Mapping | 将Notion属性映射到WordPress字段的配置 |
+| **Nonce** | Nonce | WordPress安全机制，防止CSRF攻击 |
+| **转义** | Escaping | 对输出内容进行安全处理，防止XSS攻击 |
+| **清理** | Sanitization | 对输入数据进行清理和验证 |
+
+### 🏗️ 架构术语
+
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **API通信层** | API Communication Layer | 负责与Notion API交互的代码层 |
+| **数据转换器** | Data Transformer | 将Notion数据格式转换为WordPress格式 |
+| **同步引擎** | Sync Engine | 核心同步逻辑处理器 |
+| **钩子系统** | Hook System | WordPress的事件驱动机制 |
+| **加载器** | Loader | 负责注册钩子和初始化组件 |
+| **助手类** | Helper Class | 提供通用工具函数的类 |
+
+### 📝 开发术语
+
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **约定式提交** | Conventional Commits | 标准化的Git提交信息格式 |
+| **语义化版本** | Semantic Versioning | 版本号管理规范（主版本.次版本.修订版本） |
+| **PHPDoc** | PHPDoc | PHP代码文档注释标准 |
+| **PSR-12** | PSR-12 | PHP编码风格规范 |
+| **单元测试** | Unit Testing | 测试单个代码单元的功能 |
+| **集成测试** | Integration Testing | 测试多个组件协同工作 |
+| **代码覆盖率** | Code Coverage | 测试覆盖的代码百分比 |
 
 ---
 
