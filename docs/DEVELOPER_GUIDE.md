@@ -1192,6 +1192,9 @@ class Notion_To_WordPress_Example {
 - **[Notion API Documentation](https://developers.notion.com/)** - Complete Notion API reference
 - **[Semantic Versioning](https://semver.org/)** - Version numbering standards
 
+#### Project Documentation
+- **[Language Files Guide](../languages/README.md)** - Internationalization and localization guide
+
 #### Development Tools
 - **[WordPress CLI](https://wp-cli.org/)** - Command-line interface for WordPress
 - **[PHPStan](https://phpstan.org/)** - PHP static analysis tool

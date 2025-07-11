@@ -1,10 +1,10 @@
-** [🏠 主页](../README-zh_CN.md) • **📚 使用指南** • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
+** [🏠 主页](../README-zh_CN.md) • **📚 用户指南** • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 语言：** [English](Wiki.md) • **中文**
 
 ---
 
-# 📚 Notion to WordPress - 完整使用指南
+# 📚 Notion to WordPress - 用户指南
 
 > **最先进、最可靠的 Notion-to-WordPress 集成解决方案 - 从零到专家的完整教程**
 
@@ -1710,11 +1710,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div align="center">
 
-**📚 完整使用指南结束**
+**📚 用户指南结束**
 
-*感谢您阅读 Notion to WordPress 完整使用指南！*
+*感谢您阅读 Notion to WordPress 用户指南！*
 
-**[⬆️ 返回顶部](#-notion-to-wordpress---完整使用指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
+**[⬆️ 返回顶部](#-notion-to-wordpress---用户指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
 
 ---
 

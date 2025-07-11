@@ -1192,6 +1192,9 @@ class Notion_To_WordPress_Example {
 - **[Notion API 文档](https://developers.notion.com/)** - 完整的 Notion API 参考
 - **[语义化版本](https://semver.org/lang/zh-CN/)** - 版本编号标准
 
+#### 项目文档
+- **[语言文件指南](../languages/README.md)** - 国际化和本地化指南
+
 #### 开发工具
 - **[WordPress CLI](https://wp-cli.org/)** - WordPress 命令行界面
 - **[PHPStan](https://phpstan.org/)** - PHP 静态分析工具
