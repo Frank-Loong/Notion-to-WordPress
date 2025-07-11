@@ -24,16 +24,16 @@
 - [🎛️ 高级配置选项](#️-高级配置选项)
 - [⚡ 三种同步模式详解](#-三种同步模式详解)
 - [🎨 内容处理与转换](#-内容处理与转换)
-- [� 安全与性能优化](#-安全与性能优化)
+- [🔒 安全与性能优化](#-安全与性能优化)
 
 ### 🆘 第三部分：问题解决（支持帮助）
 - [❓ 常见问题解答](#-常见问题解答)
-- [🐞 系统化故障排查](#-故障排查)
+- [🐞 系统化故障排查](#-系统化故障排查)
 - [📝 使用最佳实践](#-使用最佳实践)
 
 ### 📚 第四部分：资源与扩展
-- [🔗 官方资源链接](#-相关链接)
-- [� 进阶学习资料](#-其他资源)
+- [🔗 官方资源链接](#-官方资源链接)
+- [📖 进阶学习资料](#-进阶学习资料)
 - [🤝 社区与支持](#-社区与支持)
 
 ---
@@ -71,6 +71,7 @@
 ### 🗄️ Notion 数据库准备
 
 为了确保同步效果最佳，你需要准备一个符合要求的 Notion 数据库。我们提供了多种模板选择：
+
 #### 🎯 官方推荐模板
 
 <div align="center">
@@ -179,7 +180,7 @@ wp core version
 
 <div align="center">
   <img src="../docs/images/notion-database-id.png" alt="添加集成并复制数据库ID" width="800">
-  <p><em>邀请集成到数据库并复制数据库ID</em></p>
+  <p><em>将集成连接到数据库并复制数据库ID</em></p>
 </div>
 
 **3. 获取数据库 ID**
@@ -398,6 +399,8 @@ wp plugin list | grep notion-to-wordpress
 - 🎨 自定义 [字段映射配置](#️-字段映射配置) 满足特殊需求
 - 🔒 优化 [安全与性能设置](#-安全与性能优化) 提升使用体验
 
+---
+
 # 🔧 第二部分：深入使用（进阶功能）
 
 ## 🎛️ 高级配置选项
@@ -420,7 +423,7 @@ wp plugin list | grep notion-to-wordpress
 | **标签** | `Tags`, `标签`, `Tag` | 多选 | 文章标签，支持多个标签 |
 | **密码保护** | `Password`, `密码` | 文本 | 设置文章访问密码，非空时自动启用密码保护 |
 
-#### � 状态字段配置详解
+#### 📊 状态字段配置详解
 
 状态字段是控制文章发布的关键字段，支持以下状态值：
 
@@ -850,6 +853,8 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 - ⚠️ 性能异常告警
 - 💡 优化建议提示
 
+---
+
 # 🆘 第三部分：问题解决（支持帮助）
 
 ## ❓ 常见问题解答
@@ -1129,7 +1134,7 @@ curl https://api.notion.com/v1/databases/YOUR_DATABASE_ID \
 
 **系统化排查：**
 1. **验证 API 密钥**
-   - 确保密钥格式正确（以 `secret_` 开头）
+   - 确保密钥格式正确
    - 确保密钥未过期或被撤销
    - 重新生成密钥进行测试
 
@@ -1546,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 ---
 
-## � 进阶学习资料
+## 📖 进阶学习资料
 
 ### 🎓 学习路径推荐
 
@@ -1687,8 +1692,9 @@ document.addEventListener('DOMContentLoaded', function() {
 - **社区支持者** - 帮助其他用户解决问题
 
 #### 🎖️ 特别感谢
-- **[notion-content](https://github.com/pchang78/notion-content)** - 提供了重要的技术参考
-- **[NotionNext](https://github.com/tangly1024/NotionNext)** - 数据库模板兼容性支持
+- **[NotionNext](https://github.com/tangly1024/NotionNext)** - 提供了宝贵的技术参考
+- **[Elog](https://github.com/LetTTGACO/elog)** - 提供了有益的启发
+- **[notion-content](https://github.com/pchang78/notion-content)** - 提供了初步的实现思路
 - **WordPress 社区** - 提供了强大的插件开发框架
 - **Notion 开发团队** - 提供了优秀的 API 接口
 
@@ -1708,36 +1714,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
 *感谢您阅读 Notion to WordPress 完整使用指南！*
 
-**🎯 快速导航：**
 **[⬆️ 返回顶部](#-notion-to-wordpress---完整使用指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
 
 ---
-
-**💡 文档更新信息：**
-- **当前版本：** v2.0 (完全重构版)
-- **最后更新：** 2024年12月
-- **文档状态：** ✅ 完整 | 🔄 持续更新
-- **适用插件版本：** v1.1.0+
-
-**📊 文档统计：**
-- **总字数：** 25,000+ 字
-- **章节数：** 4 大部分，20+ 子章节
-- **代码示例：** 50+ 个
-- **表格图表：** 30+ 个
-- **检查清单：** 15+ 个
 
 **🎉 如果这份指南对您有帮助，请考虑：**
 - ⭐ 给项目点个 Star
 - 🔄 分享给其他需要的用户
 - 💬 在社区中分享您的使用经验
 - 🐛 报告文档中的错误或改进建议
-
-</div>
-
-**📚 Wiki 结束**
-
-*本文档持续更新。获取最新信息，请访问我们的 [GitHub 仓库](https://github.com/Frank-Loong/Notion-to-WordPress)。*
-
-**[⬆️ 返回顶部](#-notion-to-wordpress---完整使用指南) • • [🏠 主页](../README-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English](Wiki.md)**
 
 </div>
