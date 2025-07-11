@@ -15,6 +15,11 @@ if (!defined('ABSPATH')) {
 
 class Notion_Pages {
 
+    // 数据库视图类型常量
+    const VIEW_TYPE_GALLERY = 'gallery';
+    const VIEW_TYPE_TABLE = 'table';
+    const VIEW_TYPE_BOARD = 'board';
+
     /**
      * 存储已导入的块ID，防止重复处理
      *
@@ -2322,41 +2327,8 @@ class Notion_Pages {
                 'Database Block'
             );
 
-            // 检查数据库标题，强制匹配视图类型
-            $database_title = '';
-            if (isset($database_info['title']) && is_array($database_info['title'])) {
-                // title是rich text数组，提取plain_text
-                foreach ($database_info['title'] as $title_part) {
-                    if (isset($title_part['plain_text'])) {
-                        $database_title .= $title_part['plain_text'];
-                    }
-                }
-            }
-
-            $view_type = '';
-
-            if (!empty($database_title)) {
-                $title_lower = strtolower($database_title);
-
-                Notion_To_WordPress_Helper::debug_log(
-                    '数据库标题解析: "' . $database_title . '" -> "' . $title_lower . '"',
-                    'Database Title Parse'
-                );
-
-                // 只支持三种核心视图：画廊、表格、看板
-                if (strpos($title_lower, '画廊') !== false || strpos($title_lower, 'gallery') !== false) {
-                    $view_type = 'gallery';
-                } elseif (strpos($title_lower, '表格') !== false || strpos($title_lower, 'table') !== false) {
-                    $view_type = 'table';
-                } elseif (strpos($title_lower, '看板') !== false || strpos($title_lower, 'board') !== false) {
-                    $view_type = 'board';
-                }
-            }
-
-            // 如果标题没有明确指定视图类型，默认使用表格视图
-            if (empty($view_type)) {
-                $view_type = 'table';
-            }
+            // 检测视图类型
+            $view_type = $this->detect_view_type($database_info);
 
             Notion_To_WordPress_Helper::debug_log(
                 '选择视图类型: ' . $view_type . ' for database: ' . $database_id . ', 标题: ' . $database_title,
@@ -2388,70 +2360,44 @@ class Notion_Pages {
     }
 
     /**
-     * 渲染单个数据库记录
+     * 检测数据库视图类型
      *
-     * @since 1.0.9
-     * @param array $record 记录数据
+     * @since 1.1.1
      * @param array $database_info 数据库信息
-     * @return string HTML内容
+     * @return string 视图类型
      */
-    private function render_single_database_record(array $record, array $database_info): string {
-        $properties = $record['properties'] ?? [];
-        $record_id = $record['id'] ?? '';
-        $created_time = $record['created_time'] ?? '';
-
-        $html = '<div class="notion-database-record" data-record-id="' . esc_attr($record_id) . '" data-created="' . esc_attr($created_time) . '">';
-
-        // 渲染封面图片（如果存在）
-        $cover_html = $this->render_record_cover($record);
-        if (!empty($cover_html)) {
-            $html .= $cover_html;
-        }
-
-        // 获取记录标题和图标
-        $title = $this->extract_record_title($properties);
-        $icon_html = $this->render_record_icon($record);
-
-        if (!empty($title)) {
-            $html .= '<div class="notion-record-title">';
-            if (!empty($icon_html)) {
-                $html .= $icon_html;
-            }
-            $html .= esc_html($title);
-            $html .= '</div>';
-        }
-
-        // 获取并显示关键属性
-        $key_properties = $this->extract_key_properties($properties, $database_info);
-        if (!empty($key_properties)) {
-            $html .= '<div class="notion-record-properties">';
-            foreach ($key_properties as $prop_name => $prop_value) {
-                if (!empty($prop_value) && $prop_value !== '未知' && $prop_value !== 'unknown') {
-                    $html .= '<div class="notion-record-property">';
-                    $html .= '<span class="notion-property-name">' . esc_html($prop_name) . ':</span> ';
-                    $html .= '<span class="notion-property-value">' . wp_kses_post($prop_value) . '</span>';
-                    $html .= '</div>';
+    private function detect_view_type(array $database_info): string {
+        // 提取数据库标题
+        $database_title = '';
+        if (isset($database_info['title']) && is_array($database_info['title'])) {
+            // title是rich text数组，提取plain_text
+            foreach ($database_info['title'] as $title_part) {
+                if (isset($title_part['plain_text'])) {
+                    $database_title .= $title_part['plain_text'];
                 }
             }
-            $html .= '</div>';
         }
 
-        // 如果记录有URL，添加链接
-        if (!empty($record['url']) && filter_var($record['url'], FILTER_VALIDATE_URL)) {
-            $html .= '<div class="notion-record-link">';
-            $html .= '<a href="' . esc_url($record['url']) . '" target="_blank" rel="noopener noreferrer">查看详情</a>';
-            $html .= '</div>';
-        } elseif (!empty($record_id)) {
-            // 如果没有URL但有记录ID，生成Notion链接
-            $notion_url = 'https://www.notion.so/' . str_replace('-', '', $record_id);
-            $html .= '<div class="notion-record-link">';
-            $html .= '<a href="' . esc_url($notion_url) . '" target="_blank" rel="noopener noreferrer">在Notion中查看</a>';
-            $html .= '</div>';
+        if (!empty($database_title)) {
+            $title_lower = strtolower($database_title);
+
+            Notion_To_WordPress_Helper::debug_log(
+                '数据库标题解析: "' . $database_title . '" -> "' . $title_lower . '"',
+                'Database Title Parse'
+            );
+
+            // 只支持三种核心视图：画廊、表格、看板
+            if (strpos($title_lower, '画廊') !== false || strpos($title_lower, 'gallery') !== false) {
+                return self::VIEW_TYPE_GALLERY;
+            } elseif (strpos($title_lower, '表格') !== false || strpos($title_lower, 'table') !== false) {
+                return self::VIEW_TYPE_TABLE;
+            } elseif (strpos($title_lower, '看板') !== false || strpos($title_lower, 'board') !== false) {
+                return self::VIEW_TYPE_BOARD;
+            }
         }
 
-        $html .= '</div>'; // 关闭 notion-database-record
-
-        return $html;
+        // 默认使用表格视图
+        return self::VIEW_TYPE_TABLE;
     }
 
     /**
@@ -2944,33 +2890,6 @@ class Notion_Pages {
     }
 
     /**
-     * 分析状态分布
-     *
-     * @since 1.1.1
-     * @param array $records 记录数组
-     * @param string $status_property 状态属性名
-     * @return array 状态值分布
-     */
-    private function analyze_status_distribution(array $records, string $status_property): array {
-        $status_values = [];
-
-        foreach ($records as $record) {
-            $properties = $record['properties'] ?? [];
-            if (isset($properties[$status_property])) {
-                $prop = $properties[$status_property];
-                $value = $prop['status']['name'] ?? $prop['select']['name'] ?? '';
-                if (!empty($value)) {
-                    $status_values[$value] = ($status_values[$value] ?? 0) + 1;
-                }
-            }
-        }
-
-        return $status_values;
-    }
-
-
-
-    /**
      * 使用指定视图类型渲染数据库
      *
      * @since 1.1.1
@@ -2988,11 +2907,11 @@ class Notion_Pages {
 
         // 只支持三种核心视图：画廊、表格、看板
         switch ($view_type) {
-            case 'gallery':
+            case self::VIEW_TYPE_GALLERY:
                 return $this->render_gallery_view($records, $database_info);
-            case 'board':
+            case self::VIEW_TYPE_BOARD:
                 return $this->render_board_view($records, $database_info);
-            case 'table':
+            case self::VIEW_TYPE_TABLE:
             default:
                 return $this->render_table_view($records, $database_info);
         }
@@ -3011,7 +2930,7 @@ class Notion_Pages {
     private function render_gallery_view(array $records, array $database_info): string {
         $html = '<div class="notion-database-preview notion-database-gallery">';
         $html .= '<div class="notion-gallery-header"><h4 class="notion-gallery-title">画廊视图</h4></div>';
-        $html .= '<div class="notion-database-records notion-gallery-grid">';
+        $html .= '<div class="notion-database-records">';
 
         foreach ($records as $record) {
             $html .= $this->render_gallery_record($record, $database_info);
@@ -3151,14 +3070,6 @@ class Notion_Pages {
 
         return $html;
     }
-
-
-
-
-
-
-
-
 
     /**
      * 渲染画廊视图的单个记录

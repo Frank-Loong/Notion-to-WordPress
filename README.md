@@ -31,7 +31,7 @@
 - **🌍 Multilingual** – i18n built-in (English & Simplified Chinese)
 - **📝 Clean uninstall** – optional removal of settings, logs & imported content
 
-> Dive deeper? Check the [Wiki 📚](./docs/Wiki.md) – English | [中文](./docs/Wiki.zh_CN.md)
+> Need help or dive deeper? Visit the [User Guidei 📚](./docs/Wiki.md) – English | [中文](./docs/Wiki.zh_CN.md), which includes templates, screenshots, and troubleshooting. 
 
 ---
 
@@ -41,8 +41,6 @@
 1. **Install** – upload the ZIP in `Plugins → Add New` and activate
 2. **Configure** – get your Notion API token and database ID
 3. **Sync** – click "Manual Sync" and watch your content appear in WordPress!
-
-**Need help?** Check our [📚 Complete Setup Guide](./docs/Wiki.md) with templates, screenshots, and troubleshooting.
 
 ---
 

@@ -4,7 +4,7 @@
 
 ---
 
-# 📚 Notion to WordPress - Complete User Guide
+# 📚 Notion to WordPress - User Guide
 
 > **The most advanced and reliable Notion-to-WordPress integration solution - Complete tutorial from zero to expert**
 
@@ -1710,9 +1710,9 @@ We appreciate all community members who contribute to the project:
 
 <div align="center">
 
-**📚 Complete User Guide End**
+**📚 User Guide End**
 
-*Thank you for reading the Notion to WordPress Complete User Guide!*
+*Thank you for reading the Notion to WordPress User Guide!*
 
 **[⬆️ Back to Top](#-notion-to-wordpress---complete-user-guide) • [🏠 Home](../README.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版本](Wiki.zh_CN.md)**
 
