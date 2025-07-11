@@ -1,4 +1,4 @@
-**🏠 Home** • [📚 User Guide](docs/Wiki.md) • [📊 Project Overview](docs/PROJECT_OVERVIEW.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits) • [🚀 Developer Guide](docs/DEVELOPER_GUIDE.md)
+**🏠 Home** • [📚 User Guide](docs/Wiki.md) • [📊 Project Overview](docs/PROJECT_OVERVIEW.md) • [🚀 Developer Guide](docs/DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 Language:** **English** • [中文](README-zh_CN.md)
 

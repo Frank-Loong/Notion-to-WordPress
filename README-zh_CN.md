@@ -1,4 +1,4 @@
-**🏠 主页** • [📚 用户指南](docs/Wiki.zh_CN.md) • [📊 项目概览](docs/PROJECT_OVERVIEW-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits) • [🚀 开发者指南](docs/DEVELOPER_GUIDE-zh_CN.md)
+**🏠 主页** • [📚 用户指南](docs/Wiki.zh_CN.md) • [📊 项目概览](docs/PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](docs/DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 语言：** [English](README.md) • **中文**
 
