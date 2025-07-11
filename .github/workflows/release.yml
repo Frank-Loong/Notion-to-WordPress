@@ -107,10 +107,11 @@ jobs:
           # 判断是否为预发布
           if [[ "$TAG_VERSION" == *"beta"* ]] || [[ "$TAG_VERSION" == *"alpha"* ]] || [[ "$TAG_VERSION" == *"rc"* ]]; then
             echo "IS_PRERELEASE=true" >> $GITHUB_ENV
-            echo "📋 这是预发布版本"
+            echo "📋 This is a pre-release version"
+
           else
             echo "IS_PRERELEASE=false" >> $GITHUB_ENV
-            echo "📋 这是正式发布"
+            echo "📋 This is a stable release"
           fi
           
           # 设置发布名称
@@ -125,36 +126,31 @@ jobs:
           prerelease: ${{ env.IS_PRERELEASE }}
           generate_release_notes: true
           body: |
-            ## 🚀 Notion-to-WordPress 插件发布 v${{ env.RELEASE_VERSION }}
-            
-            ### 📦 包信息
-            - **版本**: ${{ env.RELEASE_VERSION }}
-            - **包体积**: ${{ env.PACKAGE_SIZE }}
-            - **发布类型**: ${{ env.IS_PRERELEASE == 'true' && '预发布' || '正式发布' }}
-            
-            ### 📥 安装方法
-            1. 下载下方 `notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip` 文件
-            2. 进入 WordPress 后台
-            3. 依次点击 **插件** → **安装插件** → **上传插件**
-            4. 选择下载的 ZIP 文件并点击 **现在安装**
-            5. 安装完成后激活插件
-            
-            ### 🔐 安全性
-            请使用提供的校验和文件校验包完整性：
-            - 下载 `checksums.txt` 校验文件完整性
-            - 使用 `sha256sum` 或 `md5sum` 校验 ZIP 文件
-            
-            ### 📚 文档
-            - [安装指南](https://github.com/Frank-Loong/Notion-to-WordPress#installation)
-            - [配置指南](https://github.com/Frank-Loong/Notion-to-WordPress#configuration)
-            - [常见问题](https://github.com/Frank-Loong/Notion-to-WordPress#troubleshooting)
-            
-            ### 🐛 问题与支持
-            如遇问题请 [提交 issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues) 并附详细信息。
-            
+            ## 🚀 Notion-to-WordPress Plugin Release v${{ env.RELEASE_VERSION }}
+
+            ### 📦 Package Information
+            - **Version**: ${{ env.RELEASE_VERSION }}
+            - **Package Size**: ${{ env.PACKAGE_SIZE }}
+            - **Release Type**: ${{ env.IS_PRERELEASE == 'true' && 'Pre-release' || 'Stable Release' }}
+
+            ### 📥 Installation Instructions
+            1. Download the `notion-to-wordpress-${{ env.RELEASE_VERSION }}.zip` file below
+            2. Go to your WordPress admin dashboard
+            3. Navigate to **Plugins** → **Add New** → **Upload Plugin**
+            4. Select the downloaded ZIP file and click **Install Now**
+            5. Activate the plugin after installation completes
+
+            ### 🔐 Security & Verification
+            Please verify package integrity using the provided checksums:
+            - Download `checksums.txt` to verify file integrity
+            - Use `sha256sum` or `md5sum` to verify the ZIP file
+
+            ### 🐛 Issues & Support
+            If you encounter any issues, please [create an issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues) with detailed information.
+
             ---
-            
-            **完整更新日志**: https://github.com/Frank-Loong/Notion-to-WordPress/compare/v${{ env.RELEASE_VERSION }}...HEAD
+
+            **Full Changelog**: https://github.com/Frank-Loong/Notion-to-WordPress/compare/${{ github.event.repository.default_branch }}...v${{ env.RELEASE_VERSION }}
           files: |
             build/*.zip
             build/checksums.txt
@@ -179,7 +175,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: release
     if: failure()
-    
+
     steps:
       - name: 📧 失败通知
         run: |

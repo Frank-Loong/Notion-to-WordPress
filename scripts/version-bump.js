@@ -466,16 +466,36 @@ if (require.main === module) {
 
     const bumpType = command;
 
+    // Handle help command
+    if (command === '--help' || command === '-h' || command === 'help') {
+        console.log(chalk.bold('\n📝 Notion-to-WordPress 版本号管理工具\n'));
+        console.log('用法: node version-bump.js <command> [options]');
+        console.log('');
+        console.log('命令:');
+        console.log('  patch      补丁版本升级 (1.1.0 → 1.1.1)');
+        console.log('  minor      小版本升级 (1.1.0 → 1.2.0)');
+        console.log('  major      主版本升级 (1.1.0 → 2.0.0)');
+        console.log('  beta       测试版升级 (1.1.0 → 1.1.1-beta.1)');
+        console.log('  rollback   从备份恢复版本');
+        console.log('  help       显示帮助信息');
+        console.log('');
+        console.log('选项:');
+        console.log('  -h, --help 显示帮助信息');
+        console.log('');
+        console.log('示例:');
+        console.log('  node version-bump.js patch     # 补丁升级');
+        console.log('  node version-bump.js minor     # 小版本升级');
+        console.log('  node version-bump.js major     # 主版本升级');
+        console.log('  node version-bump.js beta      # 测试版升级');
+        console.log('  node version-bump.js rollback  # 恢复备份');
+        console.log('  node version-bump.js --help    # 显示帮助');
+        process.exit(0);
+    }
+
     if (!bumpType || !['patch', 'minor', 'major', 'beta'].includes(bumpType)) {
         console.log(chalk.red('\u274c 未指定或无效的升级类型'));
         console.log('用法: node version-bump.js <patch|minor|major|beta|rollback>');
-        console.log('');
-        console.log('示例:');
-        console.log('  node version-bump.js patch     # 1.1.0 → 1.1.1');
-        console.log('  node version-bump.js minor     # 1.1.0 → 1.2.0');
-        console.log('  node version-bump.js major     # 1.1.0 → 2.0.0');
-        console.log('  node version-bump.js beta      # 1.1.0 → 1.1.1-beta.1');
-        console.log('  node version-bump.js rollback  # 从备份恢复');
+        console.log('使用 --help 查看详细帮助信息');
         process.exit(1);
     }
 

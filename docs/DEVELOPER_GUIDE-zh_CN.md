@@ -696,7 +696,7 @@ npm run validate:config
 npm run validate:github-actions
 
 # 4. 预览发布（强烈推荐）
-npm run test:release patch  # 或 minor/major/beta
+npm run test:release:patch  # 或 test:release:minor/major/beta
 ```
 
 #### 执行发布

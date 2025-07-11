@@ -132,20 +132,26 @@ class GitHubActionsValidator {
     validateSteps(workflow) {
         const releaseSteps = workflow.jobs.release.steps;
         const requiredSteps = [
-            'Checkout Repository',
-            'Setup Node.js',
-            'Install Dependencies',
-            'Build Plugin Package',
-            'Create GitHub Release'
+            { name: 'Checkout Repository', keywords: ['检出', 'checkout'] },
+            { name: 'Setup Node.js', keywords: ['Node.js', 'setup-node'] },
+            { name: 'Install Dependencies', keywords: ['安装依赖', 'npm ci'] },
+            { name: 'Build Plugin Package', keywords: ['构建', 'build'] },
+            { name: 'Create GitHub Release', keywords: ['GitHub Release', 'gh-release'] }
         ];
 
         for (const requiredStep of requiredSteps) {
-            const stepExists = releaseSteps.some(step => 
-                step.name && step.name.includes(requiredStep.split(' ').pop())
-            );
-            
+            const stepExists = releaseSteps.some(step => {
+                if (!step.name && !step.uses && !step.run) return false;
+
+                return requiredStep.keywords.some(keyword => {
+                    return (step.name && step.name.includes(keyword)) ||
+                           (step.uses && step.uses.includes(keyword)) ||
+                           (step.run && step.run.includes(keyword));
+                });
+            });
+
             if (!stepExists) {
-                throw new Error(`缺少步骤: ${requiredStep}`);
+                throw new Error(`缺少步骤: ${requiredStep.name}`);
             }
         }
 

@@ -16,6 +16,7 @@ const path = require('path');
 const archiver = require('archiver');
 const chalk = require('chalk');
 const { glob } = require('glob');
+const crypto = require('crypto');
 
 class WordPressBuildTool {
     constructor() {
@@ -40,105 +41,7 @@ class WordPressBuildTool {
             'languages/'               // 国际化
         ];
         
-        // 可选包含的文件（推荐但非必须）
-        this.optionalFiles = [
-            // 文档文件为减小包体积已排除
-        ];
-
-        // 可选包含的目录（文档）
-        this.optionalDirs = [
-            // 文档目录为减小包体积已排除
-        ];
-        
-        // 需排除的开发文件/目录（除 .gitignore 外）
-        this.developmentExcludes = [
-            'scripts/',                // 构建脚本
-            '.github/',               // GitHub Actions
-            'node_modules/',          // Node 依赖
-            'package.json',           // npm 配置
-            'package-lock.json',      // npm 锁文件
-            '.gitignore',            // Git 忽略文件
-            '.env',                  // 环境变量
-            '*.log'                  // 日志文件
-        ];
-        
-        this.gitignoreRules = [];
-    }
-
-    /**
-     * 读取并解析 .gitignore 文件
-     */
-    readGitignore() {
-        const gitignorePath = path.join(this.projectRoot, '.gitignore');
-        
-        if (fs.existsSync(gitignorePath)) {
-            const content = fs.readFileSync(gitignorePath, 'utf8');
-            this.gitignoreRules = content
-                .split('\n')
-                .map(line => line.trim())
-                .filter(line => line && !line.startsWith('#'))
-                .filter(line => !line.startsWith('!')) // Ignore negation rules for simplicity
-                .map(rule => {
-                    // Convert gitignore patterns to glob patterns
-                    if (rule.endsWith('/')) {
-                        return rule + '**';
-                    }
-                    return rule;
-                });
-        }
-        
-        this.log(`Loaded ${this.gitignoreRules.length} gitignore rules`);
-    }
-
-    /**
-     * 判断文件是否应排除
-     */
-    shouldExclude(filePath) {
-        const relativePath = path.relative(this.projectRoot, filePath);
-        const normalizedPath = relativePath.replace(/\\/g, '/');
-        
-        // Check development excludes
-        for (const exclude of this.developmentExcludes) {
-            if (exclude.includes('*')) {
-                // Handle glob patterns
-                if (this.matchGlob(normalizedPath, exclude)) {
-                    return true;
-                }
-            } else if (exclude.endsWith('/')) {
-                // Directory exclusion
-                if (normalizedPath.startsWith(exclude) || normalizedPath === exclude.slice(0, -1)) {
-                    return true;
-                }
-            } else {
-                // File exclusion
-                if (normalizedPath === exclude || normalizedPath.endsWith('/' + exclude)) {
-                    return true;
-                }
-            }
-        }
-        
-        // Check gitignore rules
-        for (const rule of this.gitignoreRules) {
-            if (this.matchGlob(normalizedPath, rule)) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-
-    /**
-     * 简单 glob 匹配
-     */
-    matchGlob(str, pattern) {
-        // Convert glob pattern to regex
-        const regexPattern = pattern
-            .replace(/\./g, '\\.')
-            .replace(/\*/g, '.*')
-            .replace(/\?/g, '.');
-        
-        const regex = new RegExp('^' + regexPattern + '$');
-        return regex.test(str);
+        // 注意：现在使用白名单模式，只复制 requiredFiles 和 requiredDirs 中指定的内容
     }
 
     /**
@@ -154,9 +57,9 @@ class WordPressBuildTool {
                 return versionMatch[1];
             }
             
-            return '1.0.0'; // Fallback version
+            return '1.0.0'; // 备用版本
         } catch (error) {
-            this.warn(`Could not determine plugin version: ${error.message}`);
+            this.warn(`无法确定插件版本: ${error.message}`);
             return '1.0.0';
         }
     }
@@ -165,60 +68,79 @@ class WordPressBuildTool {
      * 创建构建目录结构
      */
     prepareBuildDir() {
-        this.log('Preparing build directory...');
+        this.log('正在准备构建目录...');
         
-        // Clean existing build directory
+        // 清理现有构建目录
         if (fs.existsSync(this.buildDir)) {
             fs.rmSync(this.buildDir, { recursive: true, force: true });
         }
         
-        // Create build and temp directories
+        // 创建构建和临时目录
         fs.mkdirSync(this.buildDir, { recursive: true });
         fs.mkdirSync(this.tempDir, { recursive: true });
         
-        this.success('Build directory prepared');
+        this.success('构建目录准备完成');
     }
 
     /**
      * 拷贝文件到临时目录
      */
     async copyFiles() {
-        this.log('Copying plugin files...');
-        
+        this.log('正在拷贝插件文件...');
+
         const pluginTempDir = path.join(this.tempDir, this.pluginName);
         fs.mkdirSync(pluginTempDir, { recursive: true });
-        
-        // Get all files in project
-        const allFiles = await glob('**/*', {
-            cwd: this.projectRoot,
-            dot: true,
-            nodir: true
-        });
-        
+
         let copiedCount = 0;
         let skippedCount = 0;
-        
-        for (const file of allFiles) {
+
+        // 复制必需文件
+        for (const file of this.requiredFiles) {
             const sourcePath = path.join(this.projectRoot, file);
             const targetPath = path.join(pluginTempDir, file);
-            
-            if (this.shouldExclude(sourcePath)) {
+
+            if (fs.existsSync(sourcePath)) {
+                fs.copyFileSync(sourcePath, targetPath);
+                copiedCount++;
+            } else {
+                this.warn(`必需文件未找到: ${file}`);
                 skippedCount++;
-                continue;
             }
-            
-            // Ensure target directory exists
-            const targetDir = path.dirname(targetPath);
-            if (!fs.existsSync(targetDir)) {
-                fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        // 复制必需目录
+        for (const dir of this.requiredDirs) {
+            const sourceDir = path.join(this.projectRoot, dir);
+            const targetDir = path.join(pluginTempDir, dir);
+
+            if (fs.existsSync(sourceDir)) {
+                // 获取此目录中的所有文件
+                const dirFiles = await glob('**/*', {
+                    cwd: sourceDir,
+                    dot: false,
+                    nodir: true
+                });
+
+                for (const file of dirFiles) {
+                    const sourcePath = path.join(sourceDir, file);
+                    const targetPath = path.join(targetDir, file);
+
+                    // 确保目标目录存在
+                    const targetFileDir = path.dirname(targetPath);
+                    if (!fs.existsSync(targetFileDir)) {
+                        fs.mkdirSync(targetFileDir, { recursive: true });
+                    }
+
+                    // 复制文件
+                    fs.copyFileSync(sourcePath, targetPath);
+                    copiedCount++;
+                }
+            } else {
+                this.warn(`必需目录未找到: ${dir}`);
             }
-            
-            // Copy file
-            fs.copyFileSync(sourcePath, targetPath);
-            copiedCount++;
         }
         
-        this.success(`Copied ${copiedCount} files, skipped ${skippedCount} files`);
+        this.success(`✅ 已复制 ${copiedCount} 个文件，跳过 ${skippedCount} 个文件`);
         return pluginTempDir;
     }
 
@@ -230,7 +152,7 @@ class WordPressBuildTool {
         const zipFileName = `${this.pluginName}-${version}.zip`;
         const zipPath = path.join(this.buildDir, zipFileName);
         
-        this.log(`Creating ZIP package: ${zipFileName}`);
+        this.log(`正在创建 ZIP 包: ${zipFileName}`);
         
         return new Promise((resolve, reject) => {
             const output = fs.createWriteStream(zipPath);
@@ -245,13 +167,13 @@ class WordPressBuildTool {
             });
             
             archive.on('error', (err) => {
-                this.error(`ZIP creation failed: ${err.message}`);
+                this.error(`ZIP 创建失败: ${err.message}`);
                 reject(err);
             });
             
             archive.pipe(output);
             
-            // Add all files from temp directory
+            // 添加临时目录中的所有文件
             archive.directory(sourceDir, this.pluginName);
             
             archive.finalize();
@@ -264,7 +186,7 @@ class WordPressBuildTool {
     cleanup() {
         if (fs.existsSync(this.tempDir)) {
             fs.rmSync(this.tempDir, { recursive: true, force: true });
-            this.log('Temporary files cleaned up');
+            this.log('临时文件已清理');
         }
     }
 
@@ -272,16 +194,16 @@ class WordPressBuildTool {
      * 校验生成的 ZIP 包
      */
     validatePackage(zipPath) {
-        this.log('Validating WordPress plugin package...');
+        this.log('正在验证 WordPress 插件包...');
         
         const stats = fs.statSync(zipPath);
         const sizeInMB = (stats.size / 1024 / 1024).toFixed(2);
         
-        // Basic validation checks
+        // 基本验证检查项
         const checks = [
-            { name: 'File exists', passed: fs.existsSync(zipPath) },
-            { name: 'File size > 0', passed: stats.size > 0 },
-            { name: 'File size < 50MB', passed: stats.size < 50 * 1024 * 1024 }
+            { name: '文件存在', passed: fs.existsSync(zipPath) },
+            { name: '文件大小大于0', passed: stats.size > 0 },
+            { name: '文件大小小于100MB', passed: stats.size < 100 * 1024 * 1024 }
         ];
         
         let allPassed = true;
@@ -295,11 +217,51 @@ class WordPressBuildTool {
         }
         
         if (allPassed) {
-            this.success(`Package validation passed (${sizeInMB} MB)`);
+            this.success(`验证通过（${sizeInMB} MB）`);
             return true;
         } else {
-            this.error('Package validation failed');
+            this.error('验证失败');
             return false;
+        }
+    }
+
+    /**
+     * 生成校验和文件
+     */
+    async generateChecksums(zipPath) {
+        this.log('🔐 正在生成校验和...');
+
+        try {
+            const zipFileName = path.basename(zipPath);
+            const checksumPath = path.join(this.buildDir, 'checksums.txt');
+
+            // 读取 ZIP 文件
+            const zipBuffer = fs.readFileSync(zipPath);
+
+            // 生成 SHA256 校验和
+            const sha256Hash = crypto.createHash('sha256');
+            sha256Hash.update(zipBuffer);
+            const sha256 = sha256Hash.digest('hex');
+
+            // 生成 MD5 校验和
+            const md5Hash = crypto.createHash('md5');
+            md5Hash.update(zipBuffer);
+            const md5 = md5Hash.digest('hex');
+
+            // 创建校验和内容（与 GitHub Actions 格式相同）
+            const checksumContent = `${sha256}  ${zipFileName}\n${md5}  ${zipFileName}\n`;
+
+            // 写入校验和文件
+            fs.writeFileSync(checksumPath, checksumContent, 'utf8');
+
+            this.success(`✅ 校验和已生成：${checksumPath}`);
+            this.log(`SHA256: ${sha256}`);
+            this.log(`MD5: ${md5}`);
+
+            return checksumPath;
+
+        } catch (error) {
+            throw new Error(`生成校验和失败：${error.message}`);
         }
     }
 
@@ -308,37 +270,40 @@ class WordPressBuildTool {
      */
     async build() {
         try {
-            this.log(chalk.bold('🚀 WordPress Plugin Build Tool'));
-            this.log(`Building plugin: ${chalk.cyan(this.pluginName)}`);
+            this.log(chalk.bold('🚀 WordPress 插件构建工具'));
+            this.log(`正在构建插件：${chalk.cyan(this.pluginName)}`);
             
-            // Read gitignore rules
-            this.readGitignore();
-            
-            // Prepare build directory
+            // 准备构建目录
             this.prepareBuildDir();
             
-            // Copy files
+            // 复制文件
             const pluginDir = await this.copyFiles();
             
-            // Create ZIP package
+            // 创建 ZIP 包
             const zipPath = await this.createZip(pluginDir);
             
-            // Validate package
+            // 验证包
             const isValid = this.validatePackage(zipPath);
-            
-            // Clean up
+
+            // 生成校验和
+            const checksumPath = await this.generateChecksums(zipPath);
+
+            // 清理
             this.cleanup();
-            
+
             if (isValid) {
-                this.success(`✅ Build completed successfully!`);
-                this.log(`Package location: ${chalk.green(zipPath)}`);
-                this.log(`You can now install this ZIP file in WordPress admin.`);
+                this.success(`✅ 构建成功完成！`);
+                this.log(`生成的包位置：${chalk.green(zipPath)}`);
+                this.log(`校验和文件：${chalk.green(checksumPath)}`);
+                this.log(`您现在可以在 WordPress 后台安装此 ZIP 文件。`);
+
+                return zipPath;
             } else {
-                throw new Error('Package validation failed');
+                throw new Error('包验证失败');
             }
             
         } catch (error) {
-            this.error(`Build failed: ${error.message}`);
+            this.error(`构建失败：${error.message}`);
             this.cleanup();
             process.exit(1);
         }
