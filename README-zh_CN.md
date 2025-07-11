@@ -60,7 +60,6 @@
 
 ## 💡 使用场景
 适用于博客、知识库、团队协作和在线课程。在熟悉的Notion界面中写作，自动发布到WordPress。
-
 | 实时发布 | Webhook触发即时同步 | 边写边更新 |
 
 ---
@@ -86,6 +85,7 @@
 
 * [🚀 开发者指南](./docs/DEVELOPER_GUIDE-zh_CN.md) - 完整的开发和贡献指南
 * [提交 Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+* [功能请求](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
 
 ---
 

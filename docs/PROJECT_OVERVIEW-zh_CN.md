@@ -259,14 +259,8 @@
 
 ---
 
-**准备将您的 Notion 工作空间转变为强大的 WordPress 发布平台？**
-
-**[🚀 立即开始](../README-zh_CN.md) • [📚 阅读文档](Wiki.zh_CN.md) • [💻 开发者指南](DEVELOPER_GUIDE-zh_CN.md)**
-
----
-
 <div align="center">
 
-**[⬆️ 返回顶部](#-notion-to-wordpress---项目概览与功能对比) • [🏠 主页](../README-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English](PROJECT_OVERVIEW.md)**
+**[⬆️ 返回顶部](#-notion-to-wordpress---项目概览与功能对比) • [🏠 主页](../README-zh_CN.md) • [📚 阅读文档](Wiki.zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English](PROJECT_OVERVIEW.md)**
 
 </div>

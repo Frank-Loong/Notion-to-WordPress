@@ -259,14 +259,8 @@
 
 ---
 
-**Ready to transform your Notion workspace into a powerful WordPress publishing platform?**
-
-**[🚀 Get Started Now](../README.md) • [📚 Read the Docs](../docs/Wiki.md) • [💻 Developer Guide](DEVELOPER_GUIDE.md)**
-
----
-
 <div align="center">
 
-**[⬆️ Back to Top](#-notion-to-wordpress---project-overview--feature-comparison) • [🏠 Home](../README.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版](PROJECT_OVERVIEW-zh_CN.md)**
+**[⬆️ Back to Top](#-notion-to-wordpress---project-overview--feature-comparison) • [🏠 Home](../README.md) • [📚 Read the Docs](../docs/Wiki.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版](PROJECT_OVERVIEW-zh_CN.md)**
 
 </div>
