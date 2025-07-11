@@ -65,7 +65,7 @@ function activate_notion_to_wordpress() {
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
  */
 function deactivate_notion_to_wordpress() {
-	// Clear any scheduled cron jobs
+	// 清除所有预定的cron作业
 	wp_clear_scheduled_hook('notion_cron_import');
 	wp_clear_scheduled_hook('notion_to_wordpress_cron_update');
 	wp_clear_scheduled_hook('notion_to_wordpress_log_cleanup');

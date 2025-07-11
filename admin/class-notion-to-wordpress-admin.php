@@ -1,5 +1,11 @@
 <?php
+// 声明严格类型
 declare(strict_types=1);
+
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 /**
  * 插件的管理区域功能

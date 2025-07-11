@@ -696,7 +696,7 @@ npm run validate:config
 npm run validate:github-actions
 
 # 4. Preview the release (highly recommended)
-npm run test:release patch  # or minor/major/beta
+npm run test:release:patch  # or test:release:minor/major/beta
 ```
 
 #### Execute Release

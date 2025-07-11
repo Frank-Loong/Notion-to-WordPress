@@ -1,24 +1,25 @@
 <?php
+// 声明严格类型
 declare(strict_types=1);
 
 /**
- * Provide a admin area view for the plugin
+ * 插件后台管理页面视图
  *
- * This file is used to markup the admin-facing aspects of the plugin.
+ * 本文件用于标记插件后台界面相关内容。
  *
  * @since      1.0.9
  * @package    Notion_To_WordPress
  */
 
-// If this file is called directly, abort.
+// 如果直接访问本文件，则终止执行。
 if (!defined('WPINC')) {
     die;
 }
 
-// Get all options at once
+// 一次性获取所有选项
 $options = get_option('notion_to_wordpress_options', []);
 
-// Safely get values from options array with defaults
+// 从选项数组中安全获取值，带默认值
 $api_key               = $options['notion_api_key'] ?? '';
 $database_id           = $options['notion_database_id'] ?? '';
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
@@ -38,7 +39,7 @@ $debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::
 $max_image_size        = $options['max_image_size'] ?? 5;
 $plugin_language       = $options['plugin_language'] ?? 'auto';
 
-// Generate nonce for inline scripts
+// 为内联脚本生成 nonce
 $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
 ?>
@@ -342,10 +343,10 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             
                             <div id="custom-field-mappings">
                                 <?php
-                                // Get saved custom field mappings
+                                // 获取已保存的自定义字段映射
                                 $custom_field_mappings = $options['custom_field_mappings'] ?? [];
                                 
-                                // If no mappings exist, add an empty default mapping
+                                // 如果不存在映射，则添加一个空的默认映射
                                 if (empty($custom_field_mappings)) {
                                     $custom_field_mappings = [
                                         [
@@ -356,7 +357,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     ];
                                 }
                                 
-                                // Field type options
+                                // 字段类型选项
                                 $field_types = [
                                     'text' => __('文本', 'notion-to-wordpress'),
                                     'number' => __('数字', 'notion-to-wordpress'),
@@ -418,59 +419,59 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     const container = document.getElementById('custom-field-mappings');
                                     const addButton = document.getElementById('add-custom-field');
                                     
-                                    // Add new field
+                                    // 添加新字段
                                     addButton.addEventListener('click', function() {
                                         const fields = container.querySelectorAll('.custom-field-mapping');
                                         const newIndex = fields.length;
                                         const fieldTemplate = fields[0].cloneNode(true);
                                         
-                                        // Reset field values
+                                        // 重置字段值
                                         const inputs = fieldTemplate.querySelectorAll('input');
                                         inputs.forEach(input => {
                                             input.value = '';
                                             input.name = input.name.replace(/\[\d+\]/, '[' + newIndex + ']');
                                         });
                                         
-                                        // Update select names
+                                        // 更新选择框名称
                                         const selects = fieldTemplate.querySelectorAll('select');
                                         selects.forEach(select => {
                                             select.name = select.name.replace(/\[\d+\]/, '[' + newIndex + ']');
                                         });
                                         
-                                        // Show remove button
+                                        // 显示删除按钮
                                         const removeButton = fieldTemplate.querySelector('.remove-field');
                                         removeButton.style.display = 'inline-block';
                                         
                                         container.appendChild(fieldTemplate);
                                         
-                                        // Ensure all remove buttons are visible
+                                        // 确保所有删除按钮可见
                                         document.querySelectorAll('.remove-field').forEach(btn => {
                                             btn.style.display = 'inline-block';
                                         });
                                     });
                                     
-                                    // Remove field (using event delegation)
+                                    // 删除字段（使用事件委托）
                                     container.addEventListener('click', function(e) {
                                         if (e.target.classList.contains('remove-field') || e.target.closest('.remove-field')) {
                                             const fieldRow = e.target.closest('.custom-field-mapping');
                                             
-                                            // Don't delete if only one field remains
+                                            // 如果只剩一个字段，则不删除
                                             const fields = container.querySelectorAll('.custom-field-mapping');
                                             if (fields.length > 1) {
                                                 fieldRow.remove();
                                                 
-                                                // Hide remove button if only one field remains
+                                                // 如果只剩两个字段，则隐藏删除按钮
                                                 if (fields.length === 2) {
                                                     container.querySelector('.remove-field').style.display = 'none';
                                                 }
                                                 
-                                                // Reindex fields
+                                                // 重新索引字段
                                                 reindexFields();
                                             }
                                         }
                                     });
                                     
-                                    // Reindex fields
+                                    // 重新索引字段
                                     function reindexFields() {
                                         const fields = container.querySelectorAll('.custom-field-mapping');
                                         fields.forEach((field, index) => {
@@ -819,4 +820,4 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         <span class="spinner is-active"></span>
         <?php esc_html_e('处理中，请稍候...', 'notion-to-wordpress'); ?>
     </div>
-</div> 
+</div>

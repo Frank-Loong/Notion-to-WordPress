@@ -20,7 +20,6 @@ class BuildVerifier {
             'notion-to-wordpress/notion-to-wordpress.php',
             'notion-to-wordpress/readme.txt',
             'notion-to-wordpress/uninstall.php',
-            'notion-to-wordpress/LICENSE'
         ];
         
         // ZIP 包中禁止包含的文件/目录

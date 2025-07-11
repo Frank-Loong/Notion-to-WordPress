@@ -403,8 +403,10 @@ class IntegrationTestSuite {
         
         try {
             const requiredDocs = [
-                'docs/RELEASE_GUIDE.md',
-                'docs/RELEASE_GUIDE-zh_CN.md',
+                'docs/PROJECT_OVERVIEW.md',
+                'docs/PROJECT_OVERVIEW-zh_CN.md',
+                'docs/DEVELOPER_GUIDE.md',
+                'docs/DEVELOPER_GUIDE-zh_CN.md',
                 'README.md',
                 'README-zh_CN.md'
             ];

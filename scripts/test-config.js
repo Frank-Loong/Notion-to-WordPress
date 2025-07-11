@@ -9,7 +9,7 @@
 const config = require('../release.config.js');
 const chalk = require('chalk');
 
-console.log(chalk.bold('🪪 配置集成测试\n'));
+console.log(chalk.bold('📋 配置集成测试\n'));
 
 try {
     const cfg = config.getConfig();
