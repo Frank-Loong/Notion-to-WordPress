@@ -73,7 +73,7 @@ class LocalPackager {
         }
 
         // 校验参数
-        if (!this.buildOnly && !this.customVersion && !this.versionType) {
+        if (!this.buildOnly && !this.versionOnly && !this.customVersion && !this.versionType) {
             throw new Error('请指定版本类型 (patch/minor/major/beta) 或使用 --version 指定自定义版本号');
         }
     }
@@ -84,10 +84,10 @@ class LocalPackager {
     showHelp() {
         console.log(chalk.bold('\n📦 Notion-to-WordPress 插件本地打包工具\n'));
         console.log('用法:');
-        console.log('  npm run package:local <版本类型>     # 更新版本并打包');
-        console.log('  npm run package:local --version=X.Y.Z   # 使用自定义版本号');
-        console.log('  npm run package:local --build-only      # 仅打包不更新版本');
-        console.log('  npm run package:local --version-only    # 仅更新版本不打包');
+        console.log('  npm run package:local:<版本类型>         # 更新版本并打包');
+        console.log('  npm run package:local:build-only        # 仅打包不更新版本');
+        console.log('  npm run package:local:version-only -- <版本类型>  # 仅更新版本不打包');
+        console.log('  npm run package:local -- --version=X.Y.Z  # 使用自定义版本号');
         console.log('');
         console.log('版本类型:');
         console.log('  patch    # 1.0.0 → 1.0.1');
@@ -96,17 +96,18 @@ class LocalPackager {
         console.log('  beta     # 1.0.0 → 1.0.1-beta.1');
         console.log('');
         console.log('选项:');
-        console.log('  -d, --dry-run        仅预览不实际更改');
-        console.log('  -v, --version=X.Y.Z  使用自定义版本号');
-        console.log('  -b, --build-only     仅打包不更新版本');
+        console.log('  --dry-run            仅预览不实际更改');
+        console.log('  --version=X.Y.Z      使用自定义版本号');
+        console.log('  --build-only         仅打包不更新版本');
         console.log('  --version-only       仅更新版本不打包');
-        console.log('  -h, --help           显示帮助');
+        console.log('  --help               显示帮助');
         console.log('');
         console.log('示例:');
-        console.log('  npm run package:local patch');
-        console.log('  npm run package:local --version=1.2.0-test.1');
-        console.log('  npm run package:local beta --dry-run');
-        console.log('  npm run package:local --build-only');
+        console.log('  npm run package:local:patch');
+        console.log('  npm run package:local:build-only');
+        console.log('  npm run package:local:version-only -- patch');
+        console.log('  npm run package:local -- --version=1.2.0-test.1');
+        console.log('  npm run package:local:dry-run');
     }
 
     /**

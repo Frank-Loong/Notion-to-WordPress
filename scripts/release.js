@@ -95,24 +95,23 @@ class ReleaseController {
      */
     showHelp() {
         console.log(chalk.bold('\n🚀 Notion-to-WordPress 发布控制器\n'));
-        console.log('用法: node release.js <release-type> [options]');
-        console.log('      node release.js --version=X.Y.Z [options]\n');
+        console.log('用法: npm run release:<发布类型> [-- options]');
+        console.log('      npm run release:custom -- --version=X.Y.Z [options]\n');
         console.log('发布类型:');
         console.log('  patch     补丁发布 (1.1.0 → 1.1.1)');
         console.log('  minor     小版本发布 (1.1.0 → 1.2.0)');
         console.log('  major     主版本发布 (1.1.0 → 2.0.0)');
         console.log('  beta      测试版发布 (1.1.0 → 1.1.1-beta.1)\n');
         console.log('选项:');
-        console.log('  -v, --version=X.Y.Z  使用自定义版本号');
-        console.log('  -d, --dry-run        仅预览不执行');
-        console.log('  -f, --force          跳过确认提示');
-        console.log('  -h, --help           显示帮助信息\n');
+        console.log('  --version=X.Y.Z      使用自定义版本号');
+        console.log('  --dry-run            仅预览不执行');
+        console.log('  --force              跳过确认提示');
+        console.log('  --help               显示帮助信息\n');
         console.log('示例:');
-        console.log('  node release.js patch');
-        console.log('  node release.js minor --dry-run');
-        console.log('  node release.js major --force');
-        console.log('  node release.js --version=1.2.0-rc.1');
-        console.log('  node release.js --version=1.2.0-hotfix.1 --dry-run');
+        console.log('  npm run release:patch');
+        console.log('  npm run test:release:minor');
+        console.log('  npm run release:custom -- --version=1.2.0-rc.1');
+        console.log('  npm run release:custom -- --version=1.2.0-hotfix.1 --dry-run');
     }
 
     /**

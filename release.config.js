@@ -75,26 +75,6 @@ const releaseConfig = {
                 ]
             },
             {
-                path: 'docs/PROJECT_STATUS.md',
-                patterns: [
-                    {
-                        // 文档版本（英文）
-                        regex: /(>\s*\*\*Current Version\*\*:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    }
-                ]
-            },
-            {
-                path: 'docs/PROJECT_STATUS-zh_CN.md',
-                patterns: [
-                    {
-                        // 文档版本（中文）
-                        regex: /(>\s*\*\*当前版本\*\*:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    }
-                ]
-            },
-            {
                 path: 'package.json',
                 patterns: [
                     {
