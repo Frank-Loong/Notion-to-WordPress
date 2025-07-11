@@ -94,7 +94,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.2.5-beta.5';
+			$this->version = '1.2.5';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 

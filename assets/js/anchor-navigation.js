@@ -11,46 +11,36 @@
 /* ---------------- 锚点导航核心功能 ---------------- */
 
 /**
- * 平滑滚动到目标区块
+ * 平滑滚动到目标区块，并确保其居中显示，兼容头部偏移
  * @param {string} targetId 目标区块的 ID
  */
 function smoothScrollToAnchor(targetId) {
-    try {
-        // 输入验证
-        if (!targetId || typeof targetId !== 'string') {
-            console.warn('⚠️ [Notion to WordPress] 无效的目标 ID:', targetId);
-            return;
-        }
+    if (!targetId || typeof targetId !== 'string') return;
+    const cleanId = targetId.replace(/^#/, '');
+    if (!cleanId || cleanId.length < 8) return;
+    const target = document.getElementById(cleanId);
+    if (!target) return;
 
-        // 移除 # 前缀（如果存在）
-        const cleanId = targetId.replace(/^#/, '');
+    // 先用 scrollIntoView 居中
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // 验证 ID 格式
-        if (!cleanId || cleanId.length < 8) {
-            console.warn('⚠️ [Notion to WordPress] ID 格式无效:', cleanId);
-            return;
-        }
-
-        const target = document.getElementById(cleanId);
-
-        if (target) {
-            console.log('🎯 [Notion to WordPress] 跳转到区块:', cleanId);
-
-            // 使用更可靠的居中滚动方案，等待滚动完成
-            scrollToCenter(target).then(() => {
-                // 滚动完成后再添加高亮效果，延迟200ms确保用户能看到
-                highlightBlock(target, 200);
+    // 头部偏移修正（如有固定头部）
+    setTimeout(() => {
+        const headerOffset = detectHeaderOffset();
+        const rect = target.getBoundingClientRect();
+        // 只在目标元素顶部被头部遮挡时修正
+        if (rect.top < headerOffset) {
+            window.scrollBy({
+                top: rect.top - headerOffset,
+                behavior: 'smooth'
             });
-
-            // 更新 URL hash（不触发滚动）
-            if (window.history && window.history.replaceState) {
-                window.history.replaceState(null, null, '#' + cleanId);
-            }
-        } else {
-            console.warn('⚠️ [Notion to WordPress] 未找到目标区块:', cleanId);
         }
-    } catch (error) {
-        console.error('❌ [Notion to WordPress] 锚点跳转出错:', error);
+        highlightBlock(target, 200);
+    }, 500);
+
+    // 更新 URL hash（不触发滚动）
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, null, '#' + cleanId);
     }
 }
 
@@ -59,132 +49,32 @@ function smoothScrollToAnchor(targetId) {
  * @returns {number} 头部偏移高度（像素）
  */
 function detectHeaderOffset() {
-    try {
-        // 常见的固定头部选择器
-        const headerSelectors = [
-            'header[style*="position: fixed"]',
-            'header[style*="position:fixed"]',
-            '.fixed-header',
-            '.sticky-header',
-            '#masthead',
-            '.site-header',
-            'nav[style*="position: fixed"]',
-            'nav[style*="position:fixed"]',
-            '.navbar-fixed-top',
-            '.fixed-top'
-        ];
-
-        let maxOffset = 0;
-
-        headerSelectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(element => {
-                const computedStyle = window.getComputedStyle(element);
-                if (computedStyle.position === 'fixed' || computedStyle.position === 'sticky') {
-                    const rect = element.getBoundingClientRect();
-                    if (rect.top <= 0 && rect.bottom > 0) {
-                        maxOffset = Math.max(maxOffset, rect.height);
-                    }
+    const headerSelectors = [
+        'header[style*="position: fixed"]',
+        'header[style*="position:fixed"]',
+        '.fixed-header',
+        '.sticky-header',
+        '#masthead',
+        '.site-header',
+        'nav[style*="position: fixed"]',
+        'nav[style*="position:fixed"]',
+        '.navbar-fixed-top',
+        '.fixed-top'
+    ];
+    let maxOffset = 0;
+    headerSelectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+            const style = window.getComputedStyle(element);
+            if (style.position === 'fixed' || style.position === 'sticky') {
+                const rect = element.getBoundingClientRect();
+                if (rect.top <= 0 && rect.bottom > 0) {
+                    maxOffset = Math.max(maxOffset, rect.height);
                 }
-            });
-        });
-
-        // 如果没有检测到固定头部，返回一个小的默认偏移
-        return maxOffset > 0 ? maxOffset : 20;
-    } catch (error) {
-        console.warn('⚠️ [Notion to WordPress] 检测头部偏移失败:', error);
-        return 20; // 默认偏移
-    }
-}
-
-/**
- * 将目标元素滚动到屏幕中央
- * @param {Element} target 目标元素
- * @returns {Promise} 滚动完成的Promise
- */
-function scrollToCenter(target) {
-    return new Promise((resolve) => {
-        try {
-            // 获取目标元素的位置信息
-            const targetRect = target.getBoundingClientRect();
-            const windowHeight = window.innerHeight;
-
-            // 计算目标元素相对于文档的绝对位置
-            const targetTop = targetRect.top + window.pageYOffset;
-
-            // 检测是否有固定头部导航栏
-            const headerOffset = detectHeaderOffset();
-
-            // 计算滚动位置，使目标元素的中心显示在屏幕中央
-            // 目标元素中心位置 = 目标元素顶部 + (元素高度 / 2)
-            // 滚动位置 = 目标元素中心位置 - (可视区域高度 / 2) - 头部偏移
-            const targetCenter = targetTop + (targetRect.height / 2);
-            const availableHeight = windowHeight - headerOffset;
-            const scrollPosition = targetCenter - (availableHeight / 2) - headerOffset;
-
-            // 确保滚动位置不会超出文档范围
-            const maxScroll = Math.max(0, document.documentElement.scrollHeight - windowHeight);
-            const finalScrollPosition = Math.max(0, Math.min(scrollPosition, maxScroll));
-
-            console.log('📍 [Notion to WordPress] 滚动计算:', {
-                targetTop: targetTop,
-                targetCenter: targetCenter,
-                windowHeight: windowHeight,
-                headerOffset: headerOffset,
-                availableHeight: availableHeight,
-                targetHeight: targetRect.height,
-                scrollPosition: scrollPosition,
-                finalScrollPosition: finalScrollPosition,
-                currentScroll: window.pageYOffset
-            });
-
-            // 记录开始滚动时间，用于监控滚动完成
-            const startTime = Date.now();
-
-            // 执行平滑滚动
-            window.scrollTo({
-                top: finalScrollPosition,
-                behavior: 'smooth'
-            });
-
-            // 监控滚动完成状态
-            const checkScrollComplete = () => {
-                const currentScroll = window.pageYOffset;
-                const timePassed = Date.now() - startTime;
-
-                // 检查是否到达目标位置（允许5px误差）或超时（最多2秒）
-                if (Math.abs(currentScroll - finalScrollPosition) <= 5 || timePassed > 2000) {
-                    console.log('✅ [Notion to WordPress] 滚动完成:', {
-                        targetPosition: finalScrollPosition,
-                        actualPosition: currentScroll,
-                        timeTaken: timePassed + 'ms'
-                    });
-                    resolve();
-                } else {
-                    // 继续检查
-                    requestAnimationFrame(checkScrollComplete);
-                }
-            };
-
-            // 开始监控滚动
-            requestAnimationFrame(checkScrollComplete);
-
-        } catch (error) {
-            console.error('❌ [Notion to WordPress] 居中滚动出错:', error);
-            // 备用方案：使用简单的 scrollIntoView
-            try {
-                target.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
-                // 备用方案也给一个延迟
-                setTimeout(resolve, 1000);
-            } catch (fallbackError) {
-                console.error('❌ [Notion to WordPress] 备用滚动方案也失败:', fallbackError);
-                resolve(); // 即使失败也要resolve，避免阻塞
             }
-        }
+        });
     });
+    return maxOffset > 0 ? maxOffset : 0;
 }
 
 /**
@@ -193,37 +83,15 @@ function scrollToCenter(target) {
  * @param {number} delay 延迟开始高亮的时间（毫秒），默认为0
  */
 function highlightBlock(element, delay = 0) {
-    try {
-        // 验证元素是否有效
-        if (!element || !element.classList) {
-            console.warn('⚠️ [Notion to WordPress] 无效的元素，无法添加高亮效果');
-            return;
-        }
-
-        // 延迟执行高亮效果，确保滚动完成后再开始
+    if (!element || !element.classList) return;
+    setTimeout(() => {
+        element.classList.remove('notion-block-highlight');
+        void element.offsetHeight;
+        element.classList.add('notion-block-highlight');
         setTimeout(() => {
-            // 移除可能存在的高亮类
             element.classList.remove('notion-block-highlight');
-
-            // 强制重绘，确保动画能正确触发
-            element.offsetHeight;
-
-            // 添加高亮类
-            element.classList.add('notion-block-highlight');
-
-            console.log('✨ [Notion to WordPress] 开始高亮效果');
-
-            // 3秒后移除高亮效果（延长时间让用户有足够时间看到）
-            setTimeout(() => {
-                if (element && element.classList) {
-                    element.classList.remove('notion-block-highlight');
-                    console.log('🔚 [Notion to WordPress] 高亮效果结束');
-                }
-            }, 3000);
-        }, delay);
-    } catch (error) {
-        console.error('❌ [Notion to WordPress] 高亮效果出错:', error);
-    }
+        }, 3000);
+    }, delay);
 }
 
 /**
