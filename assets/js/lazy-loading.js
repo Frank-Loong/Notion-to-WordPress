@@ -98,11 +98,11 @@
                 observer.observe(img);
             });
             
-            console.log('Notion懒加载已启用，观察图片数量:', lazyImages.length);
+            // console.log('Notion懒加载已启用，观察图片数量:', lazyImages.length);
         } else {
             // 降级处理
             fallbackLoad();
-            console.log('Notion懒加载降级模式已启用');
+            // console.log('Notion懒加载降级模式已启用');
         }
     }
 
@@ -119,7 +119,7 @@
         });
         
         if (newLazyImages.length > 0) {
-            console.log('Notion懒加载新增观察图片:', newLazyImages.length);
+            // console.log('Notion懒加载新增观察图片:', newLazyImages.length);
         }
     }
 
@@ -166,11 +166,15 @@
                     const records = data.records;
                     let html = '';
 
+                    // 安全地渲染记录，防止XSS
+                    const fragment = document.createDocumentFragment();
                     records.forEach(record => {
-                        html += this.renderSimpleRecord(record);
+                        const recordElement = this.createSafeRecordElement(record);
+                        fragment.appendChild(recordElement);
                     });
 
-                    contentContainer.innerHTML = html;
+                    contentContainer.innerHTML = ''; // 清空容器
+                    contentContainer.appendChild(fragment);
 
                     // 隐藏加载按钮
                     button.parentElement.style.display = 'none';
@@ -180,7 +184,7 @@
                         window.NotionLazyLoading.refresh();
                     }
 
-                    console.log('渐进式加载完成，加载记录数:', records.length);
+                    // console.log('渐进式加载完成，加载记录数:', records.length);
                 }, 500);
 
             } catch (error) {
@@ -190,6 +194,27 @@
                 loadingSpinner.style.display = 'none';
                 button.disabled = false;
             }
+        },
+
+        /**
+         * 安全地创建记录元素，防止XSS
+         */
+        createSafeRecordElement(record) {
+            const div = document.createElement('div');
+            div.className = 'notion-database-record';
+
+            // 安全地设置文本内容
+            const title = document.createElement('h3');
+            title.textContent = record.title || '无标题';
+            div.appendChild(title);
+
+            if (record.excerpt) {
+                const excerpt = document.createElement('p');
+                excerpt.textContent = record.excerpt;
+                div.appendChild(excerpt);
+            }
+
+            return div;
         },
 
         renderSimpleRecord: function(record) {

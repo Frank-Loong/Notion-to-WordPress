@@ -40,31 +40,83 @@ function smoothScrollToAnchor(targetId) {
     const target = document.getElementById(cleanId);
     if (!target) return;
 
-    // 使用 scrollIntoView 将目标垂直居中显示
-    const scrollOptions = { block: 'center', inline: 'nearest' };
-    if (supportsNativeSmoothScroll) scrollOptions.behavior = 'smooth';
-    target.scrollIntoView(scrollOptions);
+    // 获取视口高度和目标元素高度，用于计算滚动位置
+    const viewportHeight = window.innerHeight;
+    const targetHeight = target.offsetHeight;
+    const headerOffset = detectHeaderOffset();
 
-    // 如果目标元素仍被固定头部遮挡，则二次修正
+    // 计算最佳滚动位置：使目标垂直居中
+    const targetRect = target.getBoundingClientRect();
+    const targetTop = window.pageYOffset + targetRect.top;
+    // 计算最终的滚动位置，使目标元素在视口中央
+    const scrollPosition = targetTop - (viewportHeight / 2) + (targetHeight / 2) - headerOffset;
+
+    // 执行滚动，优先使用原生平滑滚动
+    if (supportsNativeSmoothScroll) {
+        window.scrollTo({
+            top: scrollPosition,
+            behavior: 'smooth'
+        });
+    } else {
+        // 对不支持原生平滑滚动的浏览器使用JS动画
+        animateScroll(scrollPosition);
+    }
+
+    // 添加高亮效果
     setTimeout(() => {
-        const headerOffset = detectHeaderOffset();
-        const rect = target.getBoundingClientRect();
-        if (rect.top < headerOffset) {
-            const offsetBy = rect.top - headerOffset;
+        highlightBlock(target);
+
+        // 再次检查位置，确保目标元素确实在中间
+        const newRect = target.getBoundingClientRect();
+        const centerPosition = viewportHeight / 2;
+        // 如果目标不在视口中央附近（考虑元素高度），进行微调
+        if (Math.abs((newRect.top + newRect.bottom) / 2 - centerPosition) > 50) {
+            const adjustedPosition = window.pageYOffset + newRect.top - (viewportHeight / 2) + (newRect.height / 2) - headerOffset;
             if (supportsNativeSmoothScroll) {
-                window.scrollBy({ top: offsetBy, behavior: 'smooth' });
+                window.scrollTo({
+                    top: adjustedPosition,
+                    behavior: 'smooth'
+                });
             } else {
-                window.scrollBy(0, offsetBy);
+                window.scrollTo(0, adjustedPosition);
             }
         }
     }, 300);
 
-    // 添加高亮
-    highlightBlock(target);
-
+    // 更新URL但不触发跳转
     if (window.history && window.history.replaceState) {
         window.history.replaceState(null, null, '#' + cleanId);
     }
+}
+
+/**
+ * 实现平滑滚动的JS动画（用于不支持CSS滚动行为的浏览器）
+ * @param {number} targetPosition 目标滚动位置
+ */
+function animateScroll(targetPosition) {
+    const startPosition = window.pageYOffset;
+    const distance = targetPosition - startPosition;
+    const duration = 500; // 动画持续时间（毫秒）
+    let startTime = null;
+
+    function animation(currentTime) {
+        if (startTime === null) startTime = currentTime;
+        const timeElapsed = currentTime - startTime;
+        const progress = Math.min(timeElapsed / duration, 1);
+        
+        // 使用easeInOutQuad缓动函数使动画更自然
+        const easing = progress => progress < 0.5 ? 
+            2 * progress * progress : 
+            -1 + (4 - 2 * progress) * progress;
+            
+        window.scrollTo(0, startPosition + distance * easing(progress));
+        
+        if (timeElapsed < duration) {
+            requestAnimationFrame(animation);
+        }
+    }
+    
+    requestAnimationFrame(animation);
 }
 
 /**
@@ -75,7 +127,28 @@ function scrollToCenter(target) {
     if (!target) return;
     const element = typeof target === 'string' ? document.getElementById(target.replace(/^#/, '')) : target;
     if (!element) return;
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // 获取视口高度和目标元素高度，用于计算滚动位置
+    const viewportHeight = window.innerHeight;
+    const targetHeight = element.offsetHeight;
+    const headerOffset = detectHeaderOffset();
+
+    // 计算最佳滚动位置：使目标垂直居中
+    const targetRect = element.getBoundingClientRect();
+    const targetTop = window.pageYOffset + targetRect.top;
+    // 计算最终的滚动位置，使目标元素在视口中央
+    const scrollPosition = targetTop - (viewportHeight / 2) + (targetHeight / 2) - headerOffset;
+
+    // 执行滚动，优先使用原生平滑滚动
+    if (supportsNativeSmoothScroll) {
+        window.scrollTo({
+            top: scrollPosition,
+            behavior: 'smooth'
+        });
+    } else {
+        // 对不支持原生平滑滚动的浏览器使用JS动画
+        animateScroll(scrollPosition);
+    }
 }
 
 /**
@@ -185,7 +258,7 @@ const handleHashChange = debounce(() => {
  * 初始化锚点导航功能
  */
 function initAnchorNavigation() {
-    console.log('🚀 [Notion to WordPress] 初始化锚点导航功能');
+    // console.log('🚀 [Notion to WordPress] 初始化锚点导航功能');
     
     // 监听所有锚点链接的点击事件
     if (hasJQuery) {
@@ -223,7 +296,7 @@ function initAnchorNavigation() {
         }
     }
     
-    console.log('✅ [Notion to WordPress] 锚点导航功能初始化完成');
+    // console.log('✅ [Notion to WordPress] 锚点导航功能初始化完成');
 }
 
 /* ---------------- 主题兼容性处理 ---------------- */

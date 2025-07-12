@@ -68,6 +68,9 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                 <button class="notion-wp-menu-item" data-tab="other-settings">
                     <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
                 </button>
+                <button class="notion-wp-menu-item" data-tab="advanced-config">
+                    <?php esc_html_e('🛠️ 高级配置', 'notion-to-wordpress'); ?>
+                </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
                 </button>
@@ -212,9 +215,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <label for="webhook_url"><?php esc_html_e('Webhook 地址', 'notion-to-wordpress'); ?></label>
                                                 <div class="input-with-button">
                                                     <input type="text" id="webhook_url" value="<?php echo esc_url($webhook_url); ?>" class="regular-text" readonly>
-                                                    <button type="button" class="button button-secondary copy-to-clipboard" 
-                                                        data-clipboard-target="#webhook_url" 
-                                                        onclick="window.copyTextToClipboard(document.getElementById('webhook_url').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
+                                                    <button type="button" class="button button-secondary copy-to-clipboard"
+                                                        data-clipboard-target="#webhook_url"
                                                         title="<?php esc_attr_e('复制 URL', 'notion-to-wordpress'); ?>">
                                                         <span class="dashicons dashicons-clipboard"></span>
                                                     </button>
@@ -596,8 +598,286 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <p class="description"><?php esc_html_e('允许下载的最大图片大小（以 MB 为单位）。建议不超过 10MB。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
+
+                                <!-- 文件安全设置 -->
+                                <tr>
+                                    <th scope="row">
+                                        <label for="file_security_level"><?php esc_html_e('文件安全级别', 'notion-to-wordpress'); ?></label>
+                                    </th>
+                                    <td>
+                                        <?php
+                                        $file_security_level = $options['file_security_level'] ?? 'strict';
+                                        ?>
+                                        <select id="file_security_level" name="file_security_level">
+                                            <option value="strict" <?php selected($file_security_level, 'strict'); ?>><?php esc_html_e('严格（推荐）', 'notion-to-wordpress'); ?></option>
+                                            <option value="moderate" <?php selected($file_security_level, 'moderate'); ?>><?php esc_html_e('中等', 'notion-to-wordpress'); ?></option>
+                                            <option value="permissive" <?php selected($file_security_level, 'permissive'); ?>><?php esc_html_e('宽松（不推荐）', 'notion-to-wordpress'); ?></option>
+                                        </select>
+                                        <p class="description">
+                                            <?php esc_html_e('严格：只允许安全的文件类型；中等：允许常见文件类型但加强验证；宽松：允许更多文件类型（存在安全风险）。', 'notion-to-wordpress'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">
+                                        <label for="allowed_file_types"><?php esc_html_e('额外允许的文件类型', 'notion-to-wordpress'); ?></label>
+                                    </th>
+                                    <td>
+                                        <?php
+                                        $allowed_file_types = $options['allowed_file_types'] ?? '';
+                                        ?>
+                                        <textarea id="allowed_file_types" name="allowed_file_types" rows="3" cols="50" class="large-text"><?php echo esc_textarea($allowed_file_types); ?></textarea>
+                                        <p class="description">
+                                            <?php esc_html_e('用逗号分隔的文件扩展名，例如：svg,zip,docx。留空使用默认安全设置。', 'notion-to-wordpress'); ?><br>
+                                            <strong><?php esc_html_e('警告：', 'notion-to-wordpress'); ?></strong> <?php esc_html_e('某些文件类型可能包含恶意代码，请谨慎添加。', 'notion-to-wordpress'); ?>
+                                        </p>
+
+                                        <div class="notion-file-types-help" style="margin-top: 10px;">
+                                            <details>
+                                                <summary style="cursor: pointer; font-weight: bold;"><?php esc_html_e('查看支持的文件类型', 'notion-to-wordpress'); ?></summary>
+                                                <div style="margin-top: 10px; padding: 10px; background: #f9f9f9; border-radius: 4px;">
+                                                    <p><strong><?php esc_html_e('默认安全类型（无需配置）：', 'notion-to-wordpress'); ?></strong></p>
+                                                    <ul style="margin-left: 20px;">
+                                                        <li><?php esc_html_e('图片：jpg, jpeg, png, gif, webp, bmp, ico', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('文档：pdf, txt, rtf, csv', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('音频：mp3, wav, ogg, flac, m4a', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('视频：mp4, webm', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('数据：json, xml', 'notion-to-wordpress'); ?></li>
+                                                    </ul>
+
+                                                    <p><strong><?php esc_html_e('可选类型（需要配置启用）：', 'notion-to-wordpress'); ?></strong></p>
+                                                    <ul style="margin-left: 20px;">
+                                                        <li><?php esc_html_e('Office文档：doc, docx, xls, xlsx, ppt, pptx', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('矢量图：svg', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('其他视频：avi, mov, wmv, flv', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('压缩文件：zip, rar, 7z, tar, gz', 'notion-to-wordpress'); ?></li>
+                                                    </ul>
+
+                                                    <p style="color: #d63638;"><strong><?php esc_html_e('安全提示：', 'notion-to-wordpress'); ?></strong></p>
+                                                    <ul style="margin-left: 20px; color: #d63638;">
+                                                        <li><?php esc_html_e('SVG文件可能包含恶意脚本', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('Office文档可能包含宏病毒', 'notion-to-wordpress'); ?></li>
+                                                        <li><?php esc_html_e('压缩文件可能包含恶意软件', 'notion-to-wordpress'); ?></li>
+                                                    </ul>
+                                                </div>
+                                            </details>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                                <!-- 缓存性能设置 -->
+                                <tr>
+                                    <th scope="row" colspan="2">
+                                        <h3 style="margin: 20px 0 10px 0; color: #1d2327;"><?php esc_html_e('缓存性能设置', 'notion-to-wordpress'); ?></h3>
+                                        <p style="margin: 0; color: #646970; font-weight: normal;"><?php esc_html_e('优化同步性能，减少内存使用和API调用次数', 'notion-to-wordpress'); ?></p>
+                                    </th>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">
+                                        <label for="cache_max_items"><?php esc_html_e('最大缓存条目数', 'notion-to-wordpress'); ?></label>
+                                    </th>
+                                    <td>
+                                        <?php
+                                        $cache_max_items = $options['cache_max_items'] ?? 1000;
+                                        ?>
+                                        <input type="number" id="cache_max_items" name="cache_max_items" value="<?php echo esc_attr($cache_max_items); ?>" min="100" max="10000" step="100" />
+                                        <p class="description">
+                                            <?php esc_html_e('缓存中最多保存的条目数量。数值越大占用内存越多，但缓存命中率越高。推荐值：1000-5000。', 'notion-to-wordpress'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">
+                                        <label for="cache_memory_limit"><?php esc_html_e('缓存内存限制 (MB)', 'notion-to-wordpress'); ?></label>
+                                    </th>
+                                    <td>
+                                        <?php
+                                        $cache_memory_limit = $options['cache_memory_limit'] ?? 50;
+                                        ?>
+                                        <input type="number" id="cache_memory_limit" name="cache_memory_limit" value="<?php echo esc_attr($cache_memory_limit); ?>" min="10" max="500" step="10" />
+                                        <p class="description">
+                                            <?php esc_html_e('缓存使用的最大内存限制。超过此限制时会自动清理最少使用的缓存。推荐值：50-200MB。', 'notion-to-wordpress'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <th scope="row">
+                                        <label for="cache_ttl"><?php esc_html_e('缓存有效期 (秒)', 'notion-to-wordpress'); ?></label>
+                                    </th>
+                                    <td>
+                                        <?php
+                                        $cache_ttl = $options['cache_ttl'] ?? 300;
+                                        ?>
+                                        <input type="number" id="cache_ttl" name="cache_ttl" value="<?php echo esc_attr($cache_ttl); ?>" min="60" max="3600" step="60" />
+                                        <p class="description">
+                                            <?php esc_html_e('缓存数据的有效期。过期后会重新从Notion API获取数据。推荐值：300秒（5分钟）。', 'notion-to-wordpress'); ?>
+                                        </p>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="2">
+                                        <div style="background: #f0f6fc; border: 1px solid #0969da; border-radius: 6px; padding: 15px; margin: 10px 0;">
+                                            <h4 style="margin: 0 0 10px 0; color: #0969da;">💡 <?php esc_html_e('缓存性能提示', 'notion-to-wordpress'); ?></h4>
+                                            <ul style="margin: 0; padding-left: 20px; color: #656d76;">
+                                                <li><?php esc_html_e('缓存可以显著提高同步速度，减少API调用次数', 'notion-to-wordpress'); ?></li>
+                                                <li><?php esc_html_e('内存充足的服务器可以适当增加缓存限制', 'notion-to-wordpress'); ?></li>
+                                                <li><?php esc_html_e('频繁更新的内容可以适当减少缓存有效期', 'notion-to-wordpress'); ?></li>
+                                                <li><?php esc_html_e('系统会自动清理过期和最少使用的缓存', 'notion-to-wordpress'); ?></li>
+                                            </ul>
+                                        </div>
+                                    </td>
+                                </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <div class="notion-wp-tab-content" id="advanced-config">
+                    <div class="notion-wp-settings-section">
+                        <h2><?php esc_html_e('高级配置', 'notion-to-wordpress'); ?></h2>
+                        <p class="description"><?php esc_html_e('调整插件的高级设置以优化性能、安全性和功能。这些设置适用于有经验的用户。', 'notion-to-wordpress'); ?></p>
+
+                        <!-- 配置管理工具 -->
+                        <div class="notion-wp-config-management" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3><?php esc_html_e('配置管理工具', 'notion-to-wordpress'); ?></h3>
+                            <p class="description"><?php esc_html_e('验证、重置、导出配置设置。', 'notion-to-wordpress'); ?></p>
+
+                            <div class="notion-wp-config-tools" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                                <button type="button" id="validate-config" class="button button-secondary">
+                                    <span class="dashicons dashicons-yes-alt"></span>
+                                    <?php esc_html_e('验证配置', 'notion-to-wordpress'); ?>
+                                </button>
+
+                                <button type="button" id="reset-config" class="button button-secondary" style="color: #d63384;">
+                                    <span class="dashicons dashicons-update"></span>
+                                    <?php esc_html_e('重置为默认值', 'notion-to-wordpress'); ?>
+                                </button>
+
+                                <button type="button" id="export-config" class="button button-secondary">
+                                    <span class="dashicons dashicons-download"></span>
+                                    <?php esc_html_e('导出配置', 'notion-to-wordpress'); ?>
+                                </button>
+                            </div>
+
+                            <div id="config-validation-result" style="margin-top: 15px; display: none;"></div>
+                        </div>
+
+                        <!-- 查询性能监控 -->
+                        <div class="notion-wp-query-performance" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3><?php esc_html_e('查询性能监控', 'notion-to-wordpress'); ?></h3>
+                            <p class="description"><?php esc_html_e('监控数据库查询性能，识别慢查询和优化机会。', 'notion-to-wordpress'); ?></p>
+
+                            <div class="notion-wp-performance-tools" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                                <button type="button" id="refresh-query-stats" class="button button-secondary">
+                                    <span class="dashicons dashicons-chart-area"></span>
+                                    <?php esc_html_e('刷新统计', 'notion-to-wordpress'); ?>
+                                </button>
+                            </div>
+
+                            <div id="query-performance-stats" style="margin-top: 15px;">
+                                <div class="query-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px;">
+                                    <div class="stat-card" style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                                        <h4 style="margin: 0 0 10px 0; color: #666;">总查询数</h4>
+                                        <div class="stat-value" id="total-queries" style="font-size: 24px; font-weight: bold; color: #2271b1;">-</div>
+                                    </div>
+                                    <div class="stat-card" style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                                        <h4 style="margin: 0 0 10px 0; color: #666;">慢查询数</h4>
+                                        <div class="stat-value" id="slow-queries" style="font-size: 24px; font-weight: bold; color: #d63384;">-</div>
+                                    </div>
+                                    <div class="stat-card" style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                                        <h4 style="margin: 0 0 10px 0; color: #666;">平均耗时</h4>
+                                        <div class="stat-value" id="avg-time" style="font-size: 24px; font-weight: bold; color: #198754;">-</div>
+                                    </div>
+                                    <div class="stat-card" style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                                        <h4 style="margin: 0 0 10px 0; color: #666;">最大耗时</h4>
+                                        <div class="stat-value" id="max-time" style="font-size: 24px; font-weight: bold; color: #fd7e14;">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <?php
+                        // 获取配置表单字段
+                        $config_fields = Notion_To_WordPress_Helper::get_config_form_fields();
+                        
+                        // 创建配置分组
+                        $sections = [
+                            'api' => __('API设置', 'notion-to-wordpress'),
+                            'cache' => __('缓存配置', 'notion-to-wordpress'),
+                            'files' => __('文件处理', 'notion-to-wordpress'),
+                            'security' => __('安全设置', 'notion-to-wordpress'),
+                            'performance' => __('性能优化', 'notion-to-wordpress'),
+                            'logging' => __('日志记录', 'notion-to-wordpress'),
+                        ];
+                        
+                        // 遍历所有配置节点
+                        foreach ($sections as $section_key => $section_title) :
+                            if (isset($config_fields[$section_key])) :
+                        ?>
+                            <div class="notion-wp-config-section">
+                                <h3><?php echo esc_html($section_title); ?></h3>
+                                <table class="form-table">
+                                    <tbody>
+                                        <?php foreach ($config_fields[$section_key] as $field) : ?>
+                                            <tr>
+                                                <th scope="row">
+                                                    <label for="config_<?php echo esc_attr($section_key . '_' . $field['name']); ?>">
+                                                        <?php echo esc_html($field['label']); ?>
+                                                    </label>
+                                                </th>
+                                                <td>
+                                                    <?php if ($field['type'] === 'integer') : ?>
+                                                        <input 
+                                                            type="number" 
+                                                            id="config_<?php echo esc_attr($section_key . '_' . $field['name']); ?>"
+                                                            name="notion_to_wordpress_config[<?php echo esc_attr($section_key); ?>][<?php echo esc_attr($field['name']); ?>]"
+                                                            value="<?php echo esc_attr($field['value']); ?>"
+                                                            class="regular-text"
+                                                            <?php if (isset($field['min'])) : ?>min="<?php echo esc_attr($field['min']); ?>"<?php endif; ?>
+                                                            <?php if (isset($field['max'])) : ?>max="<?php echo esc_attr($field['max']); ?>"<?php endif; ?>
+                                                        >
+                                                    <?php elseif ($field['type'] === 'select') : ?>
+                                                        <select 
+                                                            id="config_<?php echo esc_attr($section_key . '_' . $field['name']); ?>"
+                                                            name="notion_to_wordpress_config[<?php echo esc_attr($section_key); ?>][<?php echo esc_attr($field['name']); ?>]"
+                                                            class="regular-text"
+                                                        >
+                                                            <?php foreach ($field['options'] as $option) : ?>
+                                                                <option value="<?php echo esc_attr($option); ?>" <?php selected($field['value'], $option); ?>>
+                                                                    <?php echo esc_html($option); ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    <?php else : ?>
+                                                        <input 
+                                                            type="text" 
+                                                            id="config_<?php echo esc_attr($section_key . '_' . $field['name']); ?>"
+                                                            name="notion_to_wordpress_config[<?php echo esc_attr($section_key); ?>][<?php echo esc_attr($field['name']); ?>]"
+                                                            value="<?php echo esc_attr($field['value']); ?>"
+                                                            class="regular-text"
+                                                        >
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php 
+                            endif;
+                        endforeach; 
+                        ?>
+
+                        <div class="notion-wp-button-row">
+                            <button type="button" id="reset-all-config" class="button button-secondary">
+                                <span class="dashicons dashicons-image-rotate"></span> <?php esc_html_e('重置所有配置', 'notion-to-wordpress'); ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
