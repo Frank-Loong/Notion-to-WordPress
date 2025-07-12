@@ -8,6 +8,25 @@
 (function($) {
 'use strict';
 
+// 判断是否有 jQuery 可用
+const hasJQuery = typeof $ === 'function' && typeof $.fn !== 'undefined';
+
+// 检测浏览器是否原生支持 smooth scroll
+const supportsNativeSmoothScroll = 'scrollBehavior' in document.documentElement.style;
+
+/**
+ * 根据固定头部高度设置 CSS 变量，供 scroll-margin-top 使用
+ */
+function setupHeaderOffsetCss() {
+    const offset = detectHeaderOffset();
+    document.documentElement.style.setProperty('--ntw-header-offset', offset + 'px');
+}
+
+// 在页面加载和窗口尺寸变化时重新计算
+window.addEventListener('load', setupHeaderOffsetCss);
+window.addEventListener('resize', setupHeaderOffsetCss);
+window.addEventListener('orientationchange', setupHeaderOffsetCss);
+
 /* ---------------- 锚点导航核心功能 ---------------- */
 
 /**
@@ -21,27 +40,42 @@ function smoothScrollToAnchor(targetId) {
     const target = document.getElementById(cleanId);
     if (!target) return;
 
-    // 先用 scrollIntoView 居中
-    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // 使用 scrollIntoView 将目标垂直居中显示
+    const scrollOptions = { block: 'center', inline: 'nearest' };
+    if (supportsNativeSmoothScroll) scrollOptions.behavior = 'smooth';
+    target.scrollIntoView(scrollOptions);
 
-    // 头部偏移修正（如有固定头部）
+    // 如果目标元素仍被固定头部遮挡，则二次修正
     setTimeout(() => {
         const headerOffset = detectHeaderOffset();
         const rect = target.getBoundingClientRect();
-        // 只在目标元素顶部被头部遮挡时修正
         if (rect.top < headerOffset) {
-            window.scrollBy({
-                top: rect.top - headerOffset,
-                behavior: 'smooth'
-            });
+            const offsetBy = rect.top - headerOffset;
+            if (supportsNativeSmoothScroll) {
+                window.scrollBy({ top: offsetBy, behavior: 'smooth' });
+            } else {
+                window.scrollBy(0, offsetBy);
+            }
         }
-        highlightBlock(target, 200);
-    }, 500);
+    }, 300);
 
-    // 更新 URL hash（不触发滚动）
+    // 添加高亮
+    highlightBlock(target);
+
     if (window.history && window.history.replaceState) {
         window.history.replaceState(null, null, '#' + cleanId);
     }
+}
+
+/**
+ * 滚动使元素垂直居中显示（供外部调用）
+ * @param {Element|string} target 目标元素或其 ID
+ */
+function scrollToCenter(target) {
+    if (!target) return;
+    const element = typeof target === 'string' ? document.getElementById(target.replace(/^#/, '')) : target;
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 /**
@@ -86,11 +120,13 @@ function highlightBlock(element, delay = 0) {
     if (!element || !element.classList) return;
     setTimeout(() => {
         element.classList.remove('notion-block-highlight');
-        void element.offsetHeight;
+        void element.offsetWidth; // 强制 reflow 重触发动画
         element.classList.add('notion-block-highlight');
-        setTimeout(() => {
+        const removeHandler = () => {
             element.classList.remove('notion-block-highlight');
-        }, 3000);
+            element.removeEventListener('animationend', removeHandler);
+        };
+        element.addEventListener('animationend', removeHandler, { once: true });
     }, delay);
 }
 
@@ -152,21 +188,40 @@ function initAnchorNavigation() {
     console.log('🚀 [Notion to WordPress] 初始化锚点导航功能');
     
     // 监听所有锚点链接的点击事件
-    $(document).on('click', 'a[href^="#notion-block-"]', handleAnchorClick);
+    if (hasJQuery) {
+        $(document).on('click', 'a[href^="#notion-block-"]', handleAnchorClick);
+    } else {
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="#notion-block-"]');
+            if (link) {
+                handleAnchorClick.call(link, e);
+            }
+        });
+    }
     
     // 监听 URL hash 变化
-    $(window).on('hashchange', handleHashChange);
+    if (hasJQuery) {
+        $(window).on('hashchange', handleHashChange);
+    } else {
+        window.addEventListener('hashchange', handleHashChange);
+    }
     
     // 页面加载时检查 URL hash
-    $(document).ready(() => {
+    const onReady = () => {
         const hash = window.location.hash;
         if (isNotionBlockAnchor(hash)) {
-            // 延迟执行，确保页面完全加载
-            setTimeout(() => {
-                smoothScrollToAnchor(hash);
-            }, 500);
+            setTimeout(() => smoothScrollToAnchor(hash), 500);
         }
-    });
+    };
+    if (hasJQuery) {
+        $(onReady);
+    } else {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', onReady);
+        } else {
+            onReady();
+        }
+    }
     
     console.log('✅ [Notion to WordPress] 锚点导航功能初始化完成');
 }
@@ -177,29 +232,39 @@ function initAnchorNavigation() {
  * 检测主题是否有自定义滚动行为
  */
 function detectThemeScrollBehavior() {
-    // 检测是否有其他滚动相关的脚本
     const hasCustomScroll = window.smoothScroll || 
                            window.SmoothScroll || 
-                           $('body').hasClass('smooth-scroll') ||
-                           $('html').css('scroll-behavior') === 'smooth';
+                           (hasJQuery && $('body').hasClass('smooth-scroll')) ||
+                           document.documentElement.style.scrollBehavior === 'smooth';
     
     if (hasCustomScroll) {
-        console.info('🔍 [Notion to WordPress] 检测到主题可能有自定义滚动行为，将与之协调工作');
+        console.info('🔍 [Notion to WordPress] 检测到主题可能有自定义滚动行为，禁用原生 smooth 行为以避免冲突');
+        document.documentElement.style.scrollBehavior = 'auto';
     }
-    
     return hasCustomScroll;
 }
 
 /* ---------------- 初始化 ---------------- */
 
 // 页面准备就绪时初始化
-$(function() {
-    // 检测主题兼容性
-    detectThemeScrollBehavior();
-    
-    // 初始化锚点导航
-    initAnchorNavigation();
-});
+if (hasJQuery) {
+    $(function() {
+        detectThemeScrollBehavior();
+        setupHeaderOffsetCss();
+        initAnchorNavigation();
+    });
+} else {
+    const bootstrap = () => {
+        detectThemeScrollBehavior();
+        setupHeaderOffsetCss();
+        initAnchorNavigation();
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrap);
+    } else {
+        bootstrap();
+    }
+}
 
 // 暴露核心函数到全局作用域，供调试和扩展使用
 window.NotionToWordPressAnchor = {
@@ -210,4 +275,4 @@ window.NotionToWordPressAnchor = {
     isNotionBlockAnchor: isNotionBlockAnchor
 };
 
-})(jQuery);
+})(typeof jQuery !== 'undefined' ? jQuery : undefined);

@@ -907,6 +907,7 @@ blockquote {
     --notion-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     --notion-table-border: #e9ecef;
     --notion-table-header-bg: #f8f9fa;
+    --ntw-header-offset: 0px;
 }
 
 /* 数据库区块主容器 */
@@ -1571,8 +1572,8 @@ blockquote {
     min-width: 200px;
 }
 
-/* 表格列宽度控制 - Grid布局 */
-/* 注意：列数现在包含标题列，所以从1列开始 */
+/* 表格列宽度控制 - 智能Grid布局 */
+/* 标题列始终占2fr，其他列根据内容类型智能分配 */
 .notion-database-table[data-column-count="1"] .notion-table-row {
     grid-template-columns: 1fr; /* 只有标题列 */
 }
@@ -1586,19 +1587,20 @@ blockquote {
 }
 
 .notion-database-table[data-column-count="4"] .notion-table-row {
-    grid-template-columns: 2fr 1fr 1fr 1fr; /* 标题列 + 3个属性列 */
+    grid-template-columns: 2fr 1fr 1.5fr 1fr; /* 标题列 + 状态 + URL(更宽) + 日期 */
 }
 
 .notion-database-table[data-column-count="5"] .notion-table-row {
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr; /* 标题列 + 4个属性列 */
+    grid-template-columns: 2fr 1fr 1.2fr 1fr 1fr; /* 标题列 + 4个属性列，第3列稍宽 */
 }
 
 .notion-database-table[data-column-count="6"] .notion-table-row {
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; /* 标题列 + 5个属性列 */
+    grid-template-columns: 2fr 1fr 1.2fr 1fr 1fr 1fr; /* 标题列 + 5个属性列 */
 }
 
-.notion-database-table[data-column-count="7"] .notion-table-row {
-    grid-template-columns: 2fr repeat(6, 1fr); /* 标题列 + 6个属性列 */
+/* 通用回退：超过6列时使用动态计算 */
+.notion-database-table .notion-table-row {
+    grid-template-columns: 2fr repeat(auto-fit, minmax(120px, 1fr));
 }
 
 /* 简化版表格布局 - 如果Grid有问题就用这个 */
@@ -2576,6 +2578,7 @@ html {
 .notion-block {
     position: relative;
     transition: background-color 0.3s ease;
+    scroll-margin-top: var(--ntw-header-offset, 0px);
 }
 
 /* 锚点跳转高亮动画效果 */
@@ -2656,4 +2659,112 @@ html {
 
 .notion-table-cell a {
     word-break: break-all; /* 链接在任何字符处换行，避免过长 */
+}
+
+/* 空值占位符样式 */
+.notion-empty-value {
+    color: #9ca3af;
+    font-style: italic;
+    opacity: 0.7;
+}
+
+/* 错误值样式 */
+.notion-error-value {
+    color: #ef4444;
+    font-style: italic;
+    font-size: 0.9em;
+    cursor: help;
+}
+
+/* 空视图样式 */
+.notion-empty-table,
+.notion-empty-gallery,
+.notion-empty-board,
+.notion-empty-database {
+    padding: 40px 20px;
+    text-align: center;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    color: #6c757d;
+    margin: 16px 0;
+}
+
+.notion-empty-gallery {
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notion-empty-board {
+    min-height: 240px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 看板降级提示样式 */
+.notion-board-fallback-notice {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    color: #856404;
+    font-size: 14px;
+}
+
+/* 表格响应式设计 */
+@media (max-width: 768px) {
+    /* 移动端表格优化 */
+    .notion-database-table {
+        max-height: 400px;
+        font-size: 14px;
+    }
+
+    .notion-table-cell {
+        padding: 8px 12px;
+        font-size: 13px;
+        min-height: 36px;
+    }
+
+    .notion-table-header-cell {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+
+    /* 移动端强制使用Flexbox布局 */
+    .notion-database-table .notion-table-row {
+        display: flex !important;
+        grid-template-columns: none !important;
+    }
+
+    .notion-table-simple .notion-table-cell {
+        min-width: 80px;
+        flex: 1;
+    }
+
+    .notion-table-simple .notion-table-title-cell {
+        flex: 1.5;
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* 超小屏幕优化 */
+    .notion-database-table {
+        max-height: 300px;
+        font-size: 12px;
+    }
+
+    .notion-table-cell {
+        padding: 6px 8px;
+        font-size: 12px;
+        min-height: 32px;
+    }
+
+    .notion-table-simple .notion-table-cell {
+        min-width: 60px;
+    }
 }

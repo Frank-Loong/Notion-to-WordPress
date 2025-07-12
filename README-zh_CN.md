@@ -102,4 +102,4 @@
 ## License
 GPL-3.0-or-later
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.2.5-beta.5
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.0-beta.5
