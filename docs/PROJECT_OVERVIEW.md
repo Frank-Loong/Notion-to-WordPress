@@ -6,7 +6,7 @@
 
 # 🚀 Notion-to-WordPress - Project Overview & Feature Comparison
 
-> **Current Version**: 1.2.5  
+> **Current Version**: 1.8.0-beta.1  
 > **Status**: Production Ready ✅  
 > **Last Updated**: 2025-07-07
 

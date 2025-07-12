@@ -178,10 +178,10 @@ body.wp-admin {
 /* 添加Element Plus全局引用 */
 @import url('https://cdn.jsdelivr.net/npm/element-plus@2.3.2/dist/index.css');
 
-/* 侧边栏样式*/
+/* 侧边栏样式 - 修复黑色背景问题 */
 .ncf-admin-aside {
-    background: #001529;
-    color: #fff;
+    background: #f1f1f1;
+    color: #333;
     border-right: 1px solid #eee;
     height: 100vh;
     position: fixed;
@@ -300,9 +300,10 @@ body.wp-admin {
     background: var(--notion-primary-dark);
 }
 
-/* WordPress 暗模式兼容*/
+/* WordPress 暗模式兼容 - 修复黑色背景问题 */
 body.admin-color-dark .ncf-admin-aside {
-    background: #23282d;
+    background: #f9f9f9;
+    color: #333;
 }
 
 /* 管理页面样式 */
