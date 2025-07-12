@@ -3154,13 +3154,13 @@ class Notion_Pages {
                       role="table"
                       aria-label="' . esc_attr(__('数据库表格视图', 'notion-to-wordpress')) . '">';
 
-        // 渲染表格头部
-        $html .= $this->render_table_header($database_info);
+        // 渲染表格头部（保持与显示属性一致）
+        $html .= $this->render_table_header($display_properties);
 
         // 渲染表格内容
         $html .= '<div class="notion-table-body">';
         foreach ($records as $index => $record) {
-            $html .= $this->render_table_row($record, $database_info, $index);
+            $html .= $this->render_table_row($record, $display_properties, $index);
         }
         $html .= '</div>'; // 关闭 notion-table-body
 
@@ -3173,11 +3173,11 @@ class Notion_Pages {
      * 渲染表格头部
      *
      * @since 1.1.1
-     * @param array $database_info 数据库信息
+     * @param array $display_properties 显示属性列表
      * @return string HTML内容
      */
-    private function render_table_header(array $database_info): string {
-        $properties = $database_info['properties'] ?? [];
+    private function render_table_header(array $display_properties): string {
+        $properties = $display_properties;
 
         $html = '<div class="notion-table-header">';
         $html .= '<div class="notion-table-row notion-table-header-row">';
@@ -3211,13 +3211,13 @@ class Notion_Pages {
      *
      * @since 1.1.1
      * @param array $record 记录数据
-     * @param array $database_info 数据库信息
+     * @param array $display_properties 显示属性列表
      * @param int $row_index 行索引
      * @return string HTML内容
      */
-    private function render_table_row(array $record, array $database_info, int $row_index = 0): string {
+    private function render_table_row(array $record, array $display_properties, int $row_index = 0): string {
         $properties = $record['properties'] ?? [];
-        $db_properties = $database_info['properties'] ?? [];
+        $db_properties = $display_properties;
         $record_id = $record['id'] ?? '';
 
         $html = '<div class="notion-table-row"

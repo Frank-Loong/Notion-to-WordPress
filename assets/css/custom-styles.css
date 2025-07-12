@@ -1523,7 +1523,10 @@ blockquote {
     border-right: 1px solid #f1f3f4;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal; /* 允许换行 */
+    word-break: break-word; /* 长单词/URL自动换行 */
+    text-overflow: clip; /* 取消省略号 */
+    overflow: visible; /* 允许内容超出时显示 */
     display: flex;
     align-items: center;
     min-height: 44px;
@@ -2632,4 +2635,16 @@ html {
             box-shadow: none;
         }
     }
+}
+
+/* === 表格视图改进：防止单元格内容截断 === */
+.notion-table-cell {
+    white-space: normal; /* 允许换行 */
+    word-break: break-word; /* 长单词/URL自动换行 */
+    text-overflow: clip; /* 取消省略号 */
+    overflow: visible; /* 允许内容超出时显示 */
+}
+
+.notion-table-cell a {
+    word-break: break-all; /* 链接在任何字符处换行，避免过长 */
 }
