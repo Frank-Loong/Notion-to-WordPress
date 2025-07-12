@@ -2321,19 +2321,8 @@ class Notion_Pages {
                 return '<div class="notion-database-empty">' . __('暂无记录', 'notion-to-wordpress') . '</div>';
             }
 
-            // 显示所有记录的预览
-            Notion_To_WordPress_Helper::debug_log(
-                '获取数据库记录成功: ' . $database_id . ', 总记录: ' . count($records),
-                'Database Block'
-            );
-
             // 检测视图类型
             $view_type = $this->detect_view_type($database_info);
-
-            Notion_To_WordPress_Helper::debug_log(
-                '选择视图类型: ' . $view_type . ' for database: ' . $database_id . ', 标题: ' . $database_title,
-                'Database View'
-            );
 
             // 实现渐进式加载：先显示基本信息，后续加载详细内容
             $initial_load_count = min(6, count($records)); // 首次加载最多6条记录
@@ -2380,11 +2369,6 @@ class Notion_Pages {
 
         if (!empty($database_title)) {
             $title_lower = strtolower($database_title);
-
-            Notion_To_WordPress_Helper::debug_log(
-                '数据库标题解析: "' . $database_title . '" -> "' . $title_lower . '"',
-                'Database Title Parse'
-            );
 
             // 只支持三种核心视图：画廊、表格、看板
             if (strpos($title_lower, '画廊') !== false || strpos($title_lower, 'gallery') !== false) {
@@ -2473,6 +2457,10 @@ class Notion_Pages {
      * @return string 格式化后的值
      */
     private function format_property_for_preview(array $property, string $type): string {
+        if (empty($property) || !is_array($property)) {
+            return '';
+        }
+
         switch ($type) {
             case 'select':
             case 'status':
@@ -2481,15 +2469,17 @@ class Notion_Pages {
             case 'date':
                 $date_value = $property['date']['start'] ?? '';
                 if (!empty($date_value)) {
-                    return date('Y-m-d', strtotime($date_value));
+                    $timestamp = strtotime($date_value);
+                    return $timestamp ? date('Y-m-d', $timestamp) : '';
                 }
                 return '';
 
             case 'number':
-                return (string) ($property['number'] ?? '');
+                $number = $property['number'] ?? null;
+                return $number !== null ? (string) $number : '';
 
             case 'checkbox':
-                return $property['checkbox'] ? '是' : '否';
+                return isset($property['checkbox']) ? ($property['checkbox'] ? '是' : '否') : '';
 
             case 'rich_text':
                 if (!empty($property['rich_text'])) {
@@ -2504,8 +2494,9 @@ class Notion_Pages {
             case 'url':
                 $url = $property['url'] ?? '';
                 if (!empty($url)) {
-                    $display_url = mb_strlen($url) > 30 ? mb_substr($url, 0, 30) . '...' : $url;
-                    return '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">' . esc_html($display_url) . '</a>';
+                    // 增加URL显示长度，并优化显示方式
+                    $display_url = mb_strlen($url) > 50 ? mb_substr($url, 0, 47) . '...' : $url;
+                    return '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer" title="' . esc_attr($url) . '">' . esc_html($display_url) . '</a>';
                 }
                 return '';
 
@@ -2899,21 +2890,37 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_database_with_view(array $records, array $database_info, string $view_type): string {
-        // 记录视图类型
-        Notion_To_WordPress_Helper::debug_log(
-            '渲染数据库视图: ' . $view_type . ', 标题: ' . ($database_info['title'] ?? '未知'),
-            'Database View Rendering'
-        );
+        // 验证输入参数
+        if (empty($records) || !is_array($records)) {
+            return '<div class="notion-database-preview notion-empty-database">' .
+                   '<p>' . __('暂无数据', 'notion-to-wordpress') . '</p>' .
+                   '</div>';
+        }
+
+        // 验证视图类型
+        $valid_views = [self::VIEW_TYPE_GALLERY, self::VIEW_TYPE_TABLE, self::VIEW_TYPE_BOARD];
+        if (!in_array($view_type, $valid_views)) {
+            $view_type = self::VIEW_TYPE_TABLE; // 默认使用表格视图
+        }
 
         // 只支持三种核心视图：画廊、表格、看板
-        switch ($view_type) {
-            case self::VIEW_TYPE_GALLERY:
-                return $this->render_gallery_view($records, $database_info);
-            case self::VIEW_TYPE_BOARD:
-                return $this->render_board_view($records, $database_info);
-            case self::VIEW_TYPE_TABLE:
-            default:
-                return $this->render_table_view($records, $database_info);
+        try {
+            switch ($view_type) {
+                case self::VIEW_TYPE_GALLERY:
+                    return $this->render_gallery_view($records, $database_info);
+                case self::VIEW_TYPE_BOARD:
+                    return $this->render_board_view($records, $database_info);
+                case self::VIEW_TYPE_TABLE:
+                default:
+                    return $this->render_table_view($records, $database_info);
+            }
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '数据库视图渲染异常: ' . $view_type . ', 错误: ' . $e->getMessage(),
+                'Database View'
+            );
+            // 发生错误时降级为简单的表格视图
+            return $this->render_table_view($records, $database_info);
         }
     }
 
@@ -2928,11 +2935,20 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_gallery_view(array $records, array $database_info): string {
+        // 验证输入参数
+        if (empty($records) || !is_array($records)) {
+            return '<div class="notion-database-preview notion-empty-gallery">' .
+                   '<p>' . __('暂无数据', 'notion-to-wordpress') . '</p>' .
+                   '</div>';
+        }
+
         $html = '<div class="notion-database-preview notion-database-gallery">';
         $html .= '<div class="notion-database-records">';
 
         foreach ($records as $record) {
-            $html .= $this->render_gallery_record($record, $database_info);
+            if (is_array($record)) {
+                $html .= $this->render_gallery_record($record, $database_info);
+            }
         }
 
         $html .= '</div>'; // 关闭 notion-database-records
@@ -2950,16 +2966,32 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_board_view(array $records, array $database_info): string {
+        // 验证输入参数
+        if (empty($records) || !is_array($records)) {
+            return '<div class="notion-database-preview notion-empty-board">' .
+                   '<p>' . __('暂无数据', 'notion-to-wordpress') . '</p>' .
+                   '</div>';
+        }
+
         $properties = $database_info['properties'] ?? [];
         $status_property = $this->find_status_property($properties);
 
         if (!$status_property) {
-            // 如果没有状态属性，降级为表格视图
-            return $this->render_table_view($records, $database_info);
+            // 如果没有状态属性，显示友好提示并降级为表格视图
+            $fallback_html = '<div class="notion-board-fallback-notice">';
+            $fallback_html .= '<p>' . __('看板视图需要状态属性，已自动切换为表格视图', 'notion-to-wordpress') . '</p>';
+            $fallback_html .= '</div>';
+            return $fallback_html . $this->render_table_view($records, $database_info);
         }
 
         // 按状态分组记录
         $grouped_records = $this->group_records_by_status($records, $status_property);
+
+        if (empty($grouped_records)) {
+            return '<div class="notion-database-preview notion-empty-board">' .
+                   '<p>' . __('暂无有效状态数据', 'notion-to-wordpress') . '</p>' .
+                   '</div>';
+        }
 
         $html = '<div class="notion-database-preview notion-database-board">';
         $html .= '<div class="notion-board-container">';
@@ -2973,7 +3005,9 @@ class Notion_Pages {
 
             $html .= '<div class="notion-board-column-content">';
             foreach ($status_records as $record) {
-                $html .= $this->render_board_card($record, $database_info);
+                if (is_array($record)) {
+                    $html .= $this->render_board_card($record, $database_info);
+                }
             }
             $html .= '</div>'; // 关闭 notion-board-column-content
             $html .= '</div>'; // 关闭 notion-board-column
@@ -3023,15 +3057,27 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_board_card(array $record, array $database_info): string {
+        if (empty($record) || !is_array($record)) {
+            return '';
+        }
+
         $properties = $record['properties'] ?? [];
         $record_id = $record['id'] ?? '';
 
         $html = '<div class="notion-board-card" data-record-id="' . esc_attr($record_id) . '">';
 
         // 渲染封面图片（如果存在）
-        $cover_html = $this->render_record_cover($record);
-        if (!empty($cover_html)) {
-            $html .= $cover_html;
+        try {
+            $cover_html = $this->render_record_cover($record);
+            if (!empty($cover_html)) {
+                $html .= $cover_html;
+            }
+        } catch (Exception $e) {
+            // 封面渲染失败时继续处理其他内容
+            Notion_To_WordPress_Helper::debug_log(
+                '看板卡片封面渲染失败: ' . $e->getMessage(),
+                'Board Card'
+            );
         }
 
         // 卡片内容
@@ -3079,6 +3125,10 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_gallery_record(array $record, array $database_info): string {
+        if (empty($record) || !is_array($record)) {
+            return '';
+        }
+
         $properties = $record['properties'] ?? [];
         $record_id = $record['id'] ?? '';
         $created_time = $record['created_time'] ?? '';
@@ -3086,9 +3136,17 @@ class Notion_Pages {
         $html = '<div class="notion-database-record" data-record-id="' . esc_attr($record_id) . '" data-created="' . esc_attr($created_time) . '">';
 
         // 渲染封面图片（如果存在）
-        $cover_html = $this->render_record_cover($record);
-        if (!empty($cover_html)) {
-            $html .= $cover_html;
+        try {
+            $cover_html = $this->render_record_cover($record);
+            if (!empty($cover_html)) {
+                $html .= $cover_html;
+            }
+        } catch (Exception $e) {
+            // 封面渲染失败时继续处理其他内容
+            Notion_To_WordPress_Helper::debug_log(
+                '画廊记录封面渲染失败: ' . $e->getMessage(),
+                'Gallery Record'
+            );
         }
 
         // 内容容器
@@ -3137,16 +3195,20 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_table_view(array $records, array $database_info): string {
-        // 简化日志输出
-        Notion_To_WordPress_Helper::info_log(
-            '渲染表格视图，记录数量: ' . count($records),
-            'Table View'
-        );
+        // 验证输入参数
+        if (empty($records) || !is_array($records)) {
+            return '<div class="notion-database-preview notion-empty-table">' .
+                   '<p>' . __('暂无数据', 'notion-to-wordpress') . '</p>' .
+                   '</div>';
+        }
 
         // 获取显示属性列表以计算列数
         $display_properties = $this->get_table_display_properties($database_info['properties'] ?? []);
         // 列数 = 标题列(1) + 属性列数
         $column_count = 1 + count($display_properties);
+
+        // 确保列数在合理范围内
+        $column_count = max(1, min($column_count, 7));
 
         // 添加数据属性以支持CSS Grid布局，同时添加简化布局类作为备用
         $html = '<div class="notion-database-preview notion-database-table notion-table-simple"
@@ -3161,7 +3223,9 @@ class Notion_Pages {
         // 渲染表格内容
         $html .= '<div class="notion-table-body">';
         foreach ($records as $index => $record) {
-            $html .= $this->render_table_row($record, $display_properties, $index);
+            if (is_array($record)) {
+                $html .= $this->render_table_row($record, $display_properties, $index);
+            }
         }
         $html .= '</div>'; // 关闭 notion-table-body
 
@@ -3230,8 +3294,18 @@ class Notion_Pages {
             $prop_type = $prop_config['type'] ?? '';
 
             $prop_value = '';
-            if (isset($properties[$prop_name])) {
-                $prop_value = $this->format_property_for_preview($properties[$prop_name], $prop_type);
+            if (isset($properties[$prop_name]) && is_array($properties[$prop_name])) {
+                try {
+                    $prop_value = $this->format_property_for_preview($properties[$prop_name], $prop_type);
+                } catch (Exception $e) {
+                    // 属性格式化失败时的回退处理
+                    $prop_value = '<span class="notion-error-value" title="' . esc_attr($e->getMessage()) . '">错误</span>';
+                }
+            }
+
+            // 如果属性值为空，显示占位符（除了URL类型）
+            if (empty($prop_value) && $prop_type !== 'url') {
+                $prop_value = '<span class="notion-empty-value">-</span>';
             }
 
             $html .= '<div class="notion-table-cell">' . $prop_value . '</div>';
@@ -3349,38 +3423,23 @@ class Notion_Pages {
      *
      * @since 1.1.1
      * @param array $properties 数据库属性
-     * @return array 显示属性列表（不包含title类型）
+     * @return array 显示属性列表（不包含title类型，保持原始顺序）
      */
     private function get_table_display_properties(array $properties): array {
+        if (empty($properties) || !is_array($properties)) {
+            return [];
+        }
+
         $display_properties = [];
+        $count = 0;
+        $max_display = 5; // 最多显示5个非title属性
 
-        // 定义属性类型的优先级（数字越小优先级越高）
-        // 注意：title类型已被排除，因为标题列单独处理
-        $type_priority = [
-            'select' => 1,      // 选择类型
-            'multi_select' => 2, // 多选类型
-            'status' => 3,      // 状态类型
-            'date' => 4,        // 日期类型
-            'number' => 5,      // 数字类型
-            'checkbox' => 6,    // 复选框类型
-            'rich_text' => 7,   // 富文本类型
-            'url' => 8,         // URL类型
-            'email' => 9,       // 邮箱类型
-            'phone_number' => 10, // 电话类型
-            'people' => 11,     // 人员类型
-            'files' => 12,      // 文件类型
-            'relation' => 13,   // 关联类型
-            'formula' => 14,    // 公式类型
-            'rollup' => 15,     // 汇总类型
-            'created_time' => 16, // 创建时间
-            'created_by' => 17, // 创建者
-            'last_edited_time' => 18, // 最后编辑时间
-            'last_edited_by' => 19,   // 最后编辑者
-        ];
-
-        // 按优先级排序属性，同时排除title类型
-        $sorted_properties = [];
         foreach ($properties as $key => $property) {
+            // 验证属性结构
+            if (!is_array($property) || empty($key)) {
+                continue;
+            }
+
             $type = $property['type'] ?? 'unknown';
 
             // 排除title类型，因为标题列单独处理
@@ -3388,26 +3447,12 @@ class Notion_Pages {
                 continue;
             }
 
-            $priority = $type_priority[$type] ?? 999;
-            $sorted_properties[] = [
-                'key' => $key,
-                'property' => $property,
-                'priority' => $priority
-            ];
-        }
+            // 达到最大显示数量时停止
+            if ($count >= $max_display) {
+                break;
+            }
 
-        // 按优先级排序
-        usort($sorted_properties, function($a, $b) {
-            return $a['priority'] <=> $b['priority'];
-        });
-
-        // 选择前5个最重要的非title属性用于显示
-        $max_display = 5;
-        $count = 0;
-        foreach ($sorted_properties as $item) {
-            if ($count >= $max_display) break;
-
-            $display_properties[$item['key']] = $item['property'];
+            $display_properties[$key] = $property;
             $count++;
         }
 

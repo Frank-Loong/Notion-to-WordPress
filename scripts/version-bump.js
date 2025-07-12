@@ -77,7 +77,7 @@ class VersionBumper {
                 path: 'README-zh_CN.md',
                 patterns: [
                     {
-                        regex: /(>\s*©\s*2025\s+Frank-Loong\s*·\s*Notion·to·WordPress\s+v?)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        regex: /(>\s*©\s*2025\s+Frank-Loong\s*·\s*Notion-to-WordPress\s+v?)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
                         replacement: '$1{VERSION}'
                     }
                 ]
