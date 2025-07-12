@@ -3145,7 +3145,8 @@ class Notion_Pages {
 
         // 获取显示属性列表以计算列数
         $display_properties = $this->get_table_display_properties($database_info['properties'] ?? []);
-        $column_count = count($display_properties);
+        // 列数 = 标题列(1) + 属性列数
+        $column_count = 1 + count($display_properties);
 
         // 添加数据属性以支持CSS Grid布局，同时添加简化布局类作为备用
         $html = '<div class="notion-database-preview notion-database-table notion-table-simple"
@@ -3173,31 +3174,19 @@ class Notion_Pages {
      * 渲染表格头部
      *
      * @since 1.1.1
-     * @param array $display_properties 显示属性列表
+     * @param array $display_properties 显示属性列表（已排除title类型）
      * @return string HTML内容
      */
     private function render_table_header(array $display_properties): string {
-        $properties = $display_properties;
-
         $html = '<div class="notion-table-header">';
         $html .= '<div class="notion-table-row notion-table-header-row">';
 
         // 标题列
         $html .= '<div class="notion-table-cell notion-table-header-cell">' . __('标题', 'notion-to-wordpress') . '</div>';
 
-        // 属性列（最多显示5个主要属性）
-        $displayed_props = 0;
-        $max_props = 5;
-
-        foreach ($properties as $prop_name => $prop_config) {
-            if ($displayed_props >= $max_props) break;
-
-            $prop_type = $prop_config['type'] ?? '';
-            // 跳过title类型（已经有标题列了）
-            if ($prop_type === 'title') continue;
-
+        // 属性列（display_properties已经排除了title类型，直接遍历即可）
+        foreach ($display_properties as $prop_name => $prop_config) {
             $html .= '<div class="notion-table-cell notion-table-header-cell">' . esc_html($prop_name) . '</div>';
-            $displayed_props++;
         }
 
         $html .= '</div>'; // 关闭 notion-table-header-row
@@ -3236,16 +3225,9 @@ class Notion_Pages {
         $html .= esc_html($title);
         $html .= '</div>';
 
-        // 属性单元格
-        $displayed_props = 0;
-        $max_props = 5;
-
+        // 属性单元格（display_properties已经排除了title类型，直接遍历即可）
         foreach ($db_properties as $prop_name => $prop_config) {
-            if ($displayed_props >= $max_props) break;
-
             $prop_type = $prop_config['type'] ?? '';
-            // 跳过title类型
-            if ($prop_type === 'title') continue;
 
             $prop_value = '';
             if (isset($properties[$prop_name])) {
@@ -3253,7 +3235,6 @@ class Notion_Pages {
             }
 
             $html .= '<div class="notion-table-cell">' . $prop_value . '</div>';
-            $displayed_props++;
         }
 
         $html .= '</div>'; // 关闭 notion-table-row
@@ -3368,14 +3349,14 @@ class Notion_Pages {
      *
      * @since 1.1.1
      * @param array $properties 数据库属性
-     * @return array 显示属性列表
+     * @return array 显示属性列表（不包含title类型）
      */
     private function get_table_display_properties(array $properties): array {
         $display_properties = [];
 
         // 定义属性类型的优先级（数字越小优先级越高）
+        // 注意：title类型已被排除，因为标题列单独处理
         $type_priority = [
-            'title' => 0,       // 标题类型最高优先级
             'select' => 1,      // 选择类型
             'multi_select' => 2, // 多选类型
             'status' => 3,      // 状态类型
@@ -3397,10 +3378,16 @@ class Notion_Pages {
             'last_edited_by' => 19,   // 最后编辑者
         ];
 
-        // 按优先级排序属性
+        // 按优先级排序属性，同时排除title类型
         $sorted_properties = [];
         foreach ($properties as $key => $property) {
             $type = $property['type'] ?? 'unknown';
+
+            // 排除title类型，因为标题列单独处理
+            if ($type === 'title') {
+                continue;
+            }
+
             $priority = $type_priority[$type] ?? 999;
             $sorted_properties[] = [
                 'key' => $key,
@@ -3414,8 +3401,8 @@ class Notion_Pages {
             return $a['priority'] <=> $b['priority'];
         });
 
-        // 选择前6个最重要的属性用于显示
-        $max_display = 6;
+        // 选择前5个最重要的非title属性用于显示
+        $max_display = 5;
         $count = 0;
         foreach ($sorted_properties as $item) {
             if ($count >= $max_display) break;
