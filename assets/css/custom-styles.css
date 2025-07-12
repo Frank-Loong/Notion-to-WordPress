@@ -1572,24 +1572,33 @@ blockquote {
 }
 
 /* 表格列宽度控制 - Grid布局 */
+/* 注意：列数现在包含标题列，所以从1列开始 */
+.notion-database-table[data-column-count="1"] .notion-table-row {
+    grid-template-columns: 1fr; /* 只有标题列 */
+}
+
 .notion-database-table[data-column-count="2"] .notion-table-row {
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 2fr 1fr; /* 标题列 + 1个属性列 */
 }
 
 .notion-database-table[data-column-count="3"] .notion-table-row {
-    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr; /* 标题列 + 2个属性列 */
 }
 
 .notion-database-table[data-column-count="4"] .notion-table-row {
-    grid-template-columns: 2fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr; /* 标题列 + 3个属性列 */
 }
 
 .notion-database-table[data-column-count="5"] .notion-table-row {
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr; /* 标题列 + 4个属性列 */
 }
 
 .notion-database-table[data-column-count="6"] .notion-table-row {
-    grid-template-columns: 2fr repeat(5, 1fr);
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr; /* 标题列 + 5个属性列 */
+}
+
+.notion-database-table[data-column-count="7"] .notion-table-row {
+    grid-template-columns: 2fr repeat(6, 1fr); /* 标题列 + 6个属性列 */
 }
 
 /* 简化版表格布局 - 如果Grid有问题就用这个 */
