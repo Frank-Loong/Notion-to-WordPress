@@ -2929,7 +2929,6 @@ class Notion_Pages {
      */
     private function render_gallery_view(array $records, array $database_info): string {
         $html = '<div class="notion-database-preview notion-database-gallery">';
-        $html .= '<div class="notion-gallery-header"><h4 class="notion-gallery-title">画廊视图</h4></div>';
         $html .= '<div class="notion-database-records">';
 
         foreach ($records as $record) {
@@ -3138,16 +3137,30 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_table_view(array $records, array $database_info): string {
-        $html = '<div class="notion-database-preview notion-database-table">';
-        $html .= '<div class="notion-table-header"><h4 class="notion-table-title">表格视图</h4></div>';
+        // 简化日志输出
+        Notion_To_WordPress_Helper::info_log(
+            '渲染表格视图，记录数量: ' . count($records),
+            'Table View'
+        );
+
+        // 获取显示属性列表以计算列数
+        $display_properties = $this->get_table_display_properties($database_info['properties'] ?? []);
+        $column_count = count($display_properties);
+
+        // 添加数据属性以支持CSS Grid布局，同时添加简化布局类作为备用
+        $html = '<div class="notion-database-preview notion-database-table notion-table-simple"
+                      data-view-type="table"
+                      data-column-count="' . esc_attr($column_count) . '"
+                      role="table"
+                      aria-label="' . esc_attr(__('数据库表格视图', 'notion-to-wordpress')) . '">';
 
         // 渲染表格头部
         $html .= $this->render_table_header($database_info);
 
         // 渲染表格内容
         $html .= '<div class="notion-table-body">';
-        foreach ($records as $record) {
-            $html .= $this->render_table_row($record, $database_info);
+        foreach ($records as $index => $record) {
+            $html .= $this->render_table_row($record, $database_info, $index);
         }
         $html .= '</div>'; // 关闭 notion-table-body
 
@@ -3199,13 +3212,18 @@ class Notion_Pages {
      * @since 1.1.1
      * @param array $record 记录数据
      * @param array $database_info 数据库信息
+     * @param int $row_index 行索引
      * @return string HTML内容
      */
-    private function render_table_row(array $record, array $database_info): string {
+    private function render_table_row(array $record, array $database_info, int $row_index = 0): string {
         $properties = $record['properties'] ?? [];
         $db_properties = $database_info['properties'] ?? [];
+        $record_id = $record['id'] ?? '';
 
-        $html = '<div class="notion-table-row">';
+        $html = '<div class="notion-table-row"
+                      role="row"
+                      data-record-id="' . esc_attr($record_id) . '"
+                      data-row-index="' . esc_attr($row_index) . '">';
 
         // 标题单元格（包含图标）
         $title = $this->extract_record_title($properties);
@@ -3343,5 +3361,69 @@ class Notion_Pages {
     public function register_ajax_handlers(): void {
         add_action('wp_ajax_notion_get_record_details', [$this, 'ajax_get_record_details']);
         add_action('wp_ajax_nopriv_notion_get_record_details', [$this, 'ajax_get_record_details']);
+    }
+
+    /**
+     * 获取表格显示属性列表
+     *
+     * @since 1.1.1
+     * @param array $properties 数据库属性
+     * @return array 显示属性列表
+     */
+    private function get_table_display_properties(array $properties): array {
+        $display_properties = [];
+
+        // 定义属性类型的优先级（数字越小优先级越高）
+        $type_priority = [
+            'title' => 0,       // 标题类型最高优先级
+            'select' => 1,      // 选择类型
+            'multi_select' => 2, // 多选类型
+            'status' => 3,      // 状态类型
+            'date' => 4,        // 日期类型
+            'number' => 5,      // 数字类型
+            'checkbox' => 6,    // 复选框类型
+            'rich_text' => 7,   // 富文本类型
+            'url' => 8,         // URL类型
+            'email' => 9,       // 邮箱类型
+            'phone_number' => 10, // 电话类型
+            'people' => 11,     // 人员类型
+            'files' => 12,      // 文件类型
+            'relation' => 13,   // 关联类型
+            'formula' => 14,    // 公式类型
+            'rollup' => 15,     // 汇总类型
+            'created_time' => 16, // 创建时间
+            'created_by' => 17, // 创建者
+            'last_edited_time' => 18, // 最后编辑时间
+            'last_edited_by' => 19,   // 最后编辑者
+        ];
+
+        // 按优先级排序属性
+        $sorted_properties = [];
+        foreach ($properties as $key => $property) {
+            $type = $property['type'] ?? 'unknown';
+            $priority = $type_priority[$type] ?? 999;
+            $sorted_properties[] = [
+                'key' => $key,
+                'property' => $property,
+                'priority' => $priority
+            ];
+        }
+
+        // 按优先级排序
+        usort($sorted_properties, function($a, $b) {
+            return $a['priority'] <=> $b['priority'];
+        });
+
+        // 选择前6个最重要的属性用于显示
+        $max_display = 6;
+        $count = 0;
+        foreach ($sorted_properties as $item) {
+            if ($count >= $max_display) break;
+
+            $display_properties[$item['key']] = $item['property'];
+            $count++;
+        }
+
+        return $display_properties;
     }
 }
