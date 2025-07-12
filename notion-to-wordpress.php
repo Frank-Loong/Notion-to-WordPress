@@ -69,6 +69,7 @@ function deactivate_notion_to_wordpress() {
 	wp_clear_scheduled_hook('notion_cron_import');
 	wp_clear_scheduled_hook('notion_to_wordpress_cron_update');
 	wp_clear_scheduled_hook('notion_to_wordpress_log_cleanup');
+	wp_clear_scheduled_hook('notion_to_wordpress_cache_cleanup');
 }
 
 register_activation_hook( NOTION_TO_WORDPRESS_FILE, 'activate_notion_to_wordpress' );

@@ -521,14 +521,21 @@ class Notion_Pages {
                         $html .= $this->_convert_child_blocks($block, $notion_api);
                     }
                 } catch (Exception $e) {
-                    // 记录错误并添加注释
+                    // 使用统一错误处理
+                    $error = Notion_To_WordPress_Helper::exception_to_wp_error(
+                        $e,
+                        Notion_To_WordPress_Helper::ERROR_TYPE_DATA,
+                        Notion_To_WordPress_Helper::ERROR_SEVERITY_LOW,
+                        ['operation' => 'convert_block', 'block_type' => $block_type, 'block_id' => $block['id'] ?? 'unknown']
+                    );
+
                     if ($block_type === 'child_database') {
                         Notion_To_WordPress_Helper::error_log(
-                            '数据库区块转换失败: ' . ($block['id'] ?? 'unknown') . ', 错误: ' . $e->getMessage(),
+                            '数据库区块转换失败: ' . ($block['id'] ?? 'unknown') . ', 错误: ' . $error->get_error_message(),
                             'Database Block'
                         );
                     } else {
-                        Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage(), 'Block Convert');
+                        Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $error->get_error_message(), 'Block Convert');
                     }
                     $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
                 }
@@ -995,34 +1002,10 @@ class Notion_Pages {
             return '<!-- ' . __('无效的嵌入URL', 'notion-to-wordpress') . ' -->';
         }
         
-        // 根据URL类型处理不同的嵌入
-        if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
-            // YouTube视频
-            $video_id = '';
-            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
-                $video_id = $matches[1];
-            }
-            if ($video_id) {
-                return '<div class="notion-embed notion-embed-youtube"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
-            }
-        } elseif (strpos($url, 'vimeo.com') !== false) {
-            // Vimeo视频
-            $video_id = '';
-            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
-                $video_id = $matches[2];
-            }
-            if ($video_id) {
-                return '<div class="notion-embed notion-embed-vimeo"><iframe src="https://player.vimeo.com/video/' . esc_attr($video_id) . '" width="560" height="315" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
-            }
-        } elseif (strpos($url, 'bilibili.com') !== false) {
-            // Bilibili视频
-            $video_id = '';
-            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
-                $video_id = $matches[1];
-            }
-            if ($video_id) {
-                return '<div class="notion-embed notion-embed-bilibili"><iframe src="//player.bilibili.com/player.html?bvid=' . esc_attr($video_id) . '&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" width="560" height="315"></iframe></div>';
-            }
+        // 使用通用视频处理函数
+        $video_embed = $this->process_video_embed($url, 'notion-embed');
+        if (!empty($video_embed)) {
+            return $video_embed;
         }
         
         // 通用网页嵌入
@@ -1043,34 +1026,10 @@ class Notion_Pages {
             return '<!-- ' . __('无效的视频URL', 'notion-to-wordpress') . ' -->';
         }
         
-        // 处理不同的视频平台
-        if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
-            // YouTube视频
-            $video_id = '';
-            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
-                $video_id = $matches[1];
-            }
-            if ($video_id) {
-                return '<div class="notion-video notion-video-youtube"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
-            }
-        } elseif (strpos($url, 'vimeo.com') !== false) {
-            // Vimeo视频
-            $video_id = '';
-            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
-                $video_id = $matches[2];
-            }
-            if ($video_id) {
-                return '<div class="notion-video notion-video-vimeo"><iframe src="https://player.vimeo.com/video/' . esc_attr($video_id) . '" width="560" height="315" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
-            }
-        } elseif (strpos($url, 'bilibili.com') !== false) {
-            // Bilibili视频
-            $video_id = '';
-            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
-                $video_id = $matches[1];
-            }
-            if ($video_id) {
-                return '<div class="notion-video notion-video-bilibili"><iframe src="//player.bilibili.com/player.html?bvid=' . esc_attr($video_id) . '&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" width="560" height="315"></iframe></div>';
-            }
+        // 使用通用视频处理函数
+        $video_embed = $this->process_video_embed($url, 'notion-video');
+        if (!empty($video_embed)) {
+            return $video_embed;
         }
         
         // 通用视频
@@ -1228,6 +1187,11 @@ class Notion_Pages {
      * @return   int                     WordPress文章ID
      */
     private function get_post_by_notion_id($notion_id) {
+        // 使用查询性能监控
+        $query_id = Notion_To_WordPress_Helper::start_query_monitor('get_post_by_notion_id', [
+            'notion_id' => $notion_id
+        ]);
+
         $args = array(
             'post_type'      => 'any',
             'post_status'    => 'any',
@@ -1241,10 +1205,16 @@ class Notion_Pages {
             ),
             'fields' => 'ids' // 仅获取ID以提高性能
         );
-        
+
         $posts = get_posts($args);
-        
-        return !empty($posts) ? $posts[0] : 0;
+        $result = !empty($posts) ? $posts[0] : 0;
+
+        Notion_To_WordPress_Helper::end_query_monitor($query_id, [
+            'found_post' => $result > 0,
+            'post_id' => $result
+        ]);
+
+        return $result;
     }
 
     /**
@@ -1396,11 +1366,10 @@ class Notion_Pages {
             return $existing;
         }
 
-        // 读取插件设置
-        $options            = get_option( 'notion_to_wordpress_options', [] );
-        $allowed_mime_string = $options['allowed_image_types'] ?? 'image/jpeg,image/png,image/gif,image/webp';
-        $max_size_mb         = isset( $options['max_image_size'] ) ? (int) $options['max_image_size'] : 5;
-        $max_size_bytes      = $max_size_mb * 1024 * 1024;
+        // 读取插件设置 - 使用配置管理系统
+        $allowed_mime_string = Notion_To_WordPress_Helper::get_config('files.allowed_image_types', 'image/jpeg,image/png,image/gif,image/webp');
+        $max_size_mb = Notion_To_WordPress_Helper::get_config('files.max_image_size_mb', 5);
+        $max_size_bytes = $max_size_mb * 1024 * 1024;
 
         // HEAD 请求仅用于获取大小和 MIME，可容错
         $head = wp_remote_head( $url, [ 'timeout' => 10 ] );
@@ -1581,12 +1550,21 @@ class Notion_Pages {
 
             error_log('Notion to WordPress: 开始处理页面，总数: ' . count($pages));
 
+            // 批量预查询现有文章，避免N+1查询问题
+            $notion_ids = array_column($pages, 'id');
+            $existing_posts = Notion_To_WordPress_Helper::get_posts_by_notion_ids_batch($notion_ids);
+
+            Notion_To_WordPress_Helper::debug_log(
+                '批量查询完成，找到 ' . count($existing_posts) . ' 个现有文章',
+                'Pages Import'
+            );
+
             foreach ($pages as $index => $page) {
                 error_log('Notion to WordPress: 处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'));
 
                 try {
-                    // 检查页面是否已存在
-                    $existing_post_id = $this->get_post_by_notion_id($page['id']);
+                    // 使用预查询的结果，避免重复查询
+                    $existing_post_id = $existing_posts[$page['id']] ?? 0;
                     Notion_To_WordPress_Helper::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
 
                     Notion_To_WordPress_Helper::debug_log('开始导入单个页面...', 'Pages Import');
@@ -1603,10 +1581,22 @@ class Notion_Pages {
                         $stats['failed']++;
                     }
                 } catch (Exception $e) {
-                    Notion_To_WordPress_Helper::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
+                    $error = Notion_To_WordPress_Helper::exception_to_wp_error(
+                        $e,
+                        Notion_To_WordPress_Helper::ERROR_TYPE_DATA,
+                        Notion_To_WordPress_Helper::ERROR_SEVERITY_MEDIUM,
+                        ['operation' => 'process_page', 'page_index' => $index]
+                    );
+                    Notion_To_WordPress_Helper::error_log('处理页面异常: ' . $error->get_error_message(), 'Pages Import');
                     $stats['failed']++;
                 } catch (Error $e) {
-                    Notion_To_WordPress_Helper::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
+                    $error = Notion_To_WordPress_Helper::exception_to_wp_error(
+                        new Exception($e->getMessage(), $e->getCode(), $e),
+                        Notion_To_WordPress_Helper::ERROR_TYPE_SYSTEM,
+                        Notion_To_WordPress_Helper::ERROR_SEVERITY_HIGH,
+                        ['operation' => 'process_page', 'page_index' => $index]
+                    );
+                    Notion_To_WordPress_Helper::error_log('处理页面错误: ' . $error->get_error_message(), 'Pages Import');
                     $stats['failed']++;
                 }
 
@@ -1758,18 +1748,68 @@ class Notion_Pages {
             return $tmp;
         }
 
-        // 文件名
+        // 安全的文件名处理
         $file_name = $override_name ?: basename( parse_url( $url, PHP_URL_PATH ) );
         if ( empty( $file_name ) ) {
             $file_name = 'notion-file-' . time();
         }
 
-        // PDF文件验证
-        if ( strtolower( pathinfo( $file_name, PATHINFO_EXTENSION ) ) === 'pdf' ) {
-            if ( ! $this->validate_pdf_file( $tmp ) ) {
-                @unlink( $tmp );
-                return new WP_Error( 'invalid_pdf', __('无效的PDF文件或包含不安全内容', 'notion-to-wordpress') );
-            }
+        // 文件名安全过滤（防止路径遍历攻击）
+        $file_name = $this->sanitize_filename( $file_name );
+        if ( empty( $file_name ) ) {
+            @unlink( $tmp );
+            return new WP_Error( 'invalid_filename', __('文件名无效或包含危险字符', 'notion-to-wordpress') );
+        }
+
+        // 根据安全级别进行文件类型验证
+        $options = get_option( 'notion_to_wordpress_options', [] );
+        $security_level = $options['file_security_level'] ?? 'strict';
+
+        if ( ! $this->validate_file_by_security_level( $file_name, $tmp, $security_level ) ) {
+            @unlink( $tmp );
+            return new WP_Error( 'security_validation_failed', __('文件安全验证失败', 'notion-to-wordpress') );
+        }
+
+        // 文件大小检查
+        $file_size = filesize( $tmp );
+        $max_size = $this->get_max_file_size( $file_name );
+        if ( $file_size === false || $file_size > $max_size ) {
+            @unlink( $tmp );
+            return new WP_Error( 'file_too_large', sprintf( __('文件过大（%sMB），超过限制（%sMB）', 'notion-to-wordpress'),
+                $file_size ? round( $file_size / 1024 / 1024, 2 ) : 'unknown',
+                round( $max_size / 1024 / 1024, 2 )
+            ));
+        }
+
+        // MIME类型验证
+        if ( ! $this->validate_file_mime_type( $tmp, $file_name ) ) {
+            @unlink( $tmp );
+            return new WP_Error( 'invalid_mime_type', __('文件MIME类型与扩展名不匹配', 'notion-to-wordpress') );
+        }
+
+        // 特定文件类型的深度安全检查
+        $extension = strtolower( pathinfo( $file_name, PATHINFO_EXTENSION ) );
+        switch ( $extension ) {
+            case 'pdf':
+                if ( ! $this->validate_pdf_file( $tmp ) ) {
+                    @unlink( $tmp );
+                    return new WP_Error( 'invalid_pdf', __('PDF文件安全验证失败', 'notion-to-wordpress') );
+                }
+                break;
+            case 'svg':
+                if ( ! $this->validate_svg_file( $tmp ) ) {
+                    @unlink( $tmp );
+                    return new WP_Error( 'invalid_svg', __('SVG文件包含不安全内容', 'notion-to-wordpress') );
+                }
+                break;
+            case 'zip':
+            case 'rar':
+            case '7z':
+                if ( ! $this->validate_archive_file( $tmp ) ) {
+                    @unlink( $tmp );
+                    return new WP_Error( 'invalid_archive', __('压缩文件包含不安全内容', 'notion-to-wordpress') );
+                }
+                break;
         }
 
         // 构造 $_FILES 兼容数组
@@ -1853,33 +1893,354 @@ class Notion_Pages {
 
 
     /**
-     * 验证PDF文件
+     * 验证PDF文件安全性
      *
      * @since 1.0.9
      * @param string $file_path 文件路径
-     * @return bool 是否为有效PDF
+     * @return bool 是否为安全的PDF文件
      */
     private function validate_pdf_file(string $file_path): bool {
+        // 检查文件是否存在且可读
+        if (!file_exists($file_path) || !is_readable($file_path)) {
+            Notion_To_WordPress_Helper::error_log("PDF文件不存在或不可读: " . $file_path, 'Notion PDF Security');
+            return false;
+        }
+
+        // 检查文件大小（防止过大文件攻击）
+        $file_size = filesize($file_path);
+        $max_size = 50 * 1024 * 1024; // 50MB限制
+        if ($file_size === false || $file_size > $max_size) {
+            Notion_To_WordPress_Helper::error_log("PDF文件过大或无法获取大小: " . ($file_size ? round($file_size / 1024 / 1024, 2) . 'MB' : 'unknown'), 'Notion PDF Security');
+            return false;
+        }
+
+        $file_handle = fopen($file_path, 'rb');
+        if (!$file_handle) {
+            Notion_To_WordPress_Helper::error_log("无法打开PDF文件进行验证: " . $file_path, 'Notion PDF Security');
+            return false;
+        }
+
+        // 读取更多内容进行深度检查（前8KB）
+        $content = fread($file_handle, 8192);
+        fclose($file_handle);
+
+        if ($content === false) {
+            Notion_To_WordPress_Helper::error_log("无法读取PDF文件内容", 'Notion PDF Security');
+            return false;
+        }
+
+        // 1. 检查PDF头部标识
+        if (strpos($content, '%PDF-') !== 0) {
+            Notion_To_WordPress_Helper::error_log("文件不是有效的PDF格式（缺少PDF头部）", 'Notion PDF Security');
+            return false;
+        }
+
+        // 2. 检查PDF版本是否合理（1.0-2.0）
+        if (preg_match('/%PDF-(\d+\.\d+)/', $content, $matches)) {
+            $version = floatval($matches[1]);
+            if ($version < 1.0 || $version > 2.0) {
+                Notion_To_WordPress_Helper::error_log("PDF版本不受支持: " . $version, 'Notion PDF Security');
+                return false;
+            }
+        }
+
+        // 3. 检查危险的JavaScript内容
+        $dangerous_js_patterns = [
+            '/JavaScript',
+            '/JS',
+            'this.print(',
+            'app.alert(',
+            'app.launchURL(',
+            'this.submitForm(',
+            'this.mailDoc(',
+            'util.printf(',
+            'AFSimple_Calculate'
+        ];
+
+        foreach ($dangerous_js_patterns as $pattern) {
+            if (stripos($content, $pattern) !== false) {
+                Notion_To_WordPress_Helper::error_log("PDF文件包含潜在危险的JavaScript代码: " . $pattern, 'Notion PDF Security');
+                return false;
+            }
+        }
+
+        // 4. 检查嵌入文件和外部引用
+        $dangerous_embed_patterns = [
+            '/EmbeddedFile',
+            '/Launch',
+            '/URI',
+            '/SubmitForm',
+            '/ImportData',
+            '/JavaScript',
+            '/GoToR',
+            '/Sound',
+            '/Movie'
+        ];
+
+        foreach ($dangerous_embed_patterns as $pattern) {
+            if (stripos($content, $pattern) !== false) {
+                Notion_To_WordPress_Helper::error_log("PDF文件包含潜在危险的嵌入内容: " . $pattern, 'Notion PDF Security');
+                return false;
+            }
+        }
+
+        // 5. 检查可疑的编码内容（可能隐藏恶意代码）
+        if (preg_match('/\/Filter\s*\/FlateDecode.*\/Length\s*\d+.*stream/i', $content)) {
+            // 检查是否有过多的压缩流（可能隐藏恶意内容）
+            $stream_count = substr_count(strtolower($content), 'stream');
+            if ($stream_count > 50) {
+                Notion_To_WordPress_Helper::error_log("PDF文件包含过多压缩流，可能隐藏恶意内容: " . $stream_count . " streams", 'Notion PDF Security');
+                return false;
+            }
+        }
+
+        // 6. 检查文件结构完整性
+        if (stripos($content, '%%EOF') === false && $file_size > 1024) {
+            // 对于较大的文件，检查是否有正确的结束标记
+            $file_handle = fopen($file_path, 'rb');
+            fseek($file_handle, -1024, SEEK_END);
+            $tail = fread($file_handle, 1024);
+            fclose($file_handle);
+
+            if (stripos($tail, '%%EOF') === false) {
+                Notion_To_WordPress_Helper::error_log("PDF文件结构不完整（缺少EOF标记）", 'Notion PDF Security');
+                return false;
+            }
+        }
+
+        Notion_To_WordPress_Helper::debug_log("PDF文件安全验证通过: " . basename($file_path), 'Notion PDF Security');
+        return true;
+    }
+
+    /**
+     * 安全的文件名过滤
+     *
+     * @since 1.0.9
+     * @param string $filename 原始文件名
+     * @return string 过滤后的安全文件名
+     */
+    private function sanitize_filename(string $filename): string {
+        // 移除路径分隔符，防止路径遍历攻击
+        $filename = basename($filename);
+
+        // 移除危险字符
+        $dangerous_chars = ['..', '/', '\\', ':', '*', '?', '"', '<', '>', '|', "\0", "\r", "\n"];
+        $filename = str_replace($dangerous_chars, '', $filename);
+
+        // 移除控制字符
+        $filename = preg_replace('/[\x00-\x1F\x7F]/', '', $filename);
+
+        // 限制文件名长度
+        if (strlen($filename) > 255) {
+            $extension = pathinfo($filename, PATHINFO_EXTENSION);
+            $basename = pathinfo($filename, PATHINFO_FILENAME);
+            $basename = substr($basename, 0, 255 - strlen($extension) - 1);
+            $filename = $basename . '.' . $extension;
+        }
+
+        // 确保文件名不为空且不以点开头
+        if (empty($filename) || $filename[0] === '.') {
+            $filename = 'notion-file-' . time() . '.tmp';
+        }
+
+        return $filename;
+    }
+
+    /**
+     * 获取文件类型的最大允许大小
+     *
+     * @since 1.0.9
+     * @param string $filename 文件名
+     * @return int 最大字节数
+     */
+    private function get_max_file_size(string $filename): int {
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        // 根据文件类型设置不同的大小限制
+        $size_limits = [
+            // 图片文件 - 较小限制
+            'jpg' => 10 * 1024 * 1024,   // 10MB
+            'jpeg' => 10 * 1024 * 1024,  // 10MB
+            'png' => 10 * 1024 * 1024,   // 10MB
+            'gif' => 5 * 1024 * 1024,    // 5MB
+            'webp' => 10 * 1024 * 1024,  // 10MB
+            'svg' => 1 * 1024 * 1024,    // 1MB
+            'bmp' => 20 * 1024 * 1024,   // 20MB
+            'ico' => 1 * 1024 * 1024,    // 1MB
+
+            // 文档文件
+            'pdf' => 50 * 1024 * 1024,   // 50MB
+            'doc' => 25 * 1024 * 1024,   // 25MB
+            'docx' => 25 * 1024 * 1024,  // 25MB
+            'xls' => 25 * 1024 * 1024,   // 25MB
+            'xlsx' => 25 * 1024 * 1024,  // 25MB
+            'ppt' => 50 * 1024 * 1024,   // 50MB
+            'pptx' => 50 * 1024 * 1024,  // 50MB
+            'txt' => 5 * 1024 * 1024,    // 5MB
+            'rtf' => 10 * 1024 * 1024,   // 10MB
+
+            // 音频文件
+            'mp3' => 50 * 1024 * 1024,   // 50MB
+            'wav' => 100 * 1024 * 1024,  // 100MB
+            'ogg' => 50 * 1024 * 1024,   // 50MB
+            'flac' => 100 * 1024 * 1024, // 100MB
+            'm4a' => 50 * 1024 * 1024,   // 50MB
+
+            // 视频文件 - 较大限制
+            'mp4' => 200 * 1024 * 1024,  // 200MB
+            'avi' => 200 * 1024 * 1024,  // 200MB
+            'mov' => 200 * 1024 * 1024,  // 200MB
+            'wmv' => 200 * 1024 * 1024,  // 200MB
+            'flv' => 200 * 1024 * 1024,  // 200MB
+            'webm' => 200 * 1024 * 1024, // 200MB
+
+            // 压缩文件
+            'zip' => 100 * 1024 * 1024,  // 100MB
+            'rar' => 100 * 1024 * 1024,  // 100MB
+            '7z' => 100 * 1024 * 1024,   // 100MB
+            'tar' => 100 * 1024 * 1024,  // 100MB
+            'gz' => 100 * 1024 * 1024,   // 100MB
+
+            // 其他文件
+            'csv' => 10 * 1024 * 1024,   // 10MB
+            'json' => 5 * 1024 * 1024,   // 5MB
+            'xml' => 10 * 1024 * 1024,   // 10MB
+        ];
+
+        return $size_limits[$extension] ?? (20 * 1024 * 1024); // 默认20MB
+    }
+
+    /**
+     * 验证文件MIME类型与扩展名是否匹配
+     *
+     * @since 1.0.9
+     * @param string $file_path 文件路径
+     * @param string $filename 文件名
+     * @return bool 是否匹配
+     */
+    private function validate_file_mime_type(string $file_path, string $filename): bool {
+        // 使用WordPress内置方法获取MIME类型
+        $wp_filetype = wp_check_filetype(basename($file_path));
+        $file_mime = $wp_filetype['type'];
+        
+        // 如果WordPress不能识别MIME类型，尝试PHP的mime_content_type
+        if (!$file_mime && function_exists('mime_content_type')) {
+            $file_mime = mime_content_type($file_path);
+        }
+        
+        // 记录MIME类型以便调试
+        Notion_To_WordPress_Helper::debug_log('文件 ' . basename($file_path) . ' 的MIME类型: ' . ($file_mime ?: 'unknown'));
+        
+        // 如果无法检测MIME类型，拒绝文件
+        if (!$file_mime) {
+            Notion_To_WordPress_Helper::warning_log('文件 ' . basename($file_path) . ' MIME类型无法识别，已拒绝');
+            return false;
+        }
+
+        // 获取安全级别设置
+        $options = get_option('notion_to_wordpress_options', []);
+        $security_level = isset($options['file_security_level']) ? $options['file_security_level'] : 'strict';
+        
+        // 获取文件扩展名
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        // 基于安全级别验证文件
+        return $this->validate_file_by_security_level($filename, $file_path, $security_level);
+    }
+
+    /**
+     * 验证SVG文件安全性
+     *
+     * @since 1.0.9
+     * @param string $file_path 文件路径
+     * @return bool 是否安全
+     */
+    private function validate_svg_file(string $file_path): bool {
+        $content = file_get_contents($file_path);
+        if ($content === false) {
+            return false;
+        }
+
+        // 检查危险的SVG元素和属性
+        $dangerous_patterns = [
+            '<script',
+            'javascript:',
+            'onload=',
+            'onerror=',
+            'onclick=',
+            'onmouseover=',
+            'onfocus=',
+            'onblur=',
+            'onchange=',
+            'onsubmit=',
+            '<iframe',
+            '<object',
+            '<embed',
+            '<link',
+            '<meta',
+            'xlink:href="javascript:',
+            'href="data:text/html',
+            'href="data:image/svg+xml',
+        ];
+
+        foreach ($dangerous_patterns as $pattern) {
+            if (stripos($content, $pattern) !== false) {
+                Notion_To_WordPress_Helper::error_log("SVG文件包含危险内容: " . $pattern, 'SVG Security');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证压缩文件安全性
+     *
+     * @since 1.0.9
+     * @param string $file_path 文件路径
+     * @return bool 是否安全
+     */
+    private function validate_archive_file(string $file_path): bool {
+        // 检查文件大小（压缩炸弹防护）
+        $file_size = filesize($file_path);
+        $max_archive_size = 100 * 1024 * 1024; // 100MB
+
+        if ($file_size > $max_archive_size) {
+            Notion_To_WordPress_Helper::error_log("压缩文件过大: " . round($file_size / 1024 / 1024, 2) . "MB", 'Archive Security');
+            return false;
+        }
+
+        // 基本的文件头检查
         $file_handle = fopen($file_path, 'rb');
         if (!$file_handle) {
             return false;
         }
 
-        $header = fread($file_handle, 1024);
+        $header = fread($file_handle, 10);
         fclose($file_handle);
 
-        // 检查PDF头部
-        if (strpos($header, '%PDF-') !== 0) {
-            return false;
-        }
+        $extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
 
-        // 检查是否包含JavaScript（可能的安全风险）
-        if (stripos($header, '/JavaScript') !== false || stripos($header, '/JS') !== false) {
-            Notion_To_WordPress_Helper::error_log(
-                "PDF文件包含JavaScript代码，可能存在安全风险",
-                'Notion PDF'
-            );
-            return false;
+        // 检查文件头是否与扩展名匹配
+        switch ($extension) {
+            case 'zip':
+                if (substr($header, 0, 2) !== "PK") {
+                    Notion_To_WordPress_Helper::error_log("ZIP文件头不正确", 'Archive Security');
+                    return false;
+                }
+                break;
+            case 'rar':
+                if (substr($header, 0, 4) !== "Rar!") {
+                    Notion_To_WordPress_Helper::error_log("RAR文件头不正确", 'Archive Security');
+                    return false;
+                }
+                break;
+            case '7z':
+                if (substr($header, 0, 6) !== "7z\xBC\xAF\x27\x1C") {
+                    Notion_To_WordPress_Helper::error_log("7Z文件头不正确", 'Archive Security');
+                    return false;
+                }
+                break;
         }
 
         return true;
@@ -1919,11 +2280,16 @@ class Notion_Pages {
 
         error_log('Notion to WordPress: 找到 ' . count($wordpress_posts) . ' 个WordPress文章有Notion ID');
 
-        foreach ($wordpress_posts as $post_id) {
-            $notion_id = get_post_meta($post_id, '_notion_page_id', true);
+        // 批量获取所有文章的Notion ID，避免N+1查询
+        $post_ids = wp_list_pluck($wordpress_posts, 'ID');
+        $posts_meta = Notion_To_WordPress_Helper::get_posts_meta_batch($post_ids, '_notion_page_id');
+
+        foreach ($wordpress_posts as $post) {
+            $post_id = $post->ID;
+            $notion_id = $posts_meta[$post_id]['_notion_page_id'] ?? '';
 
             // 如果这个Notion ID不在当前页面列表中，说明已被删除
-            if (!in_array($notion_id, $current_notion_ids)) {
+            if (!empty($notion_id) && !in_array($notion_id, $current_notion_ids)) {
                 error_log('Notion to WordPress: 发现孤儿文章，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id);
 
                 $result = wp_delete_post($post_id, true); // true表示彻底删除
@@ -3308,7 +3674,65 @@ class Notion_Pages {
                 $prop_value = '<span class="notion-empty-value">-</span>';
             }
 
-            $html .= '<div class="notion-table-cell">' . $prop_value . '</div>';
+            // 为不同类型的属性添加特定的CSS类
+            $cell_classes = ['notion-table-cell'];
+            
+            // 根据属性类型添加特定类
+            switch ($prop_type) {
+                case 'rich_text':
+                    // 如果富文本内容较长，添加长文本类
+                    $plaintext = strip_tags($prop_value);
+                    if (mb_strlen($plaintext) > 50) {
+                        $cell_classes[] = 'notion-cell-long-text';
+                    }
+                    break;
+                    
+                case 'url':
+                    $cell_classes[] = 'notion-cell-url';
+                    break;
+                    
+                case 'date':
+                    $cell_classes[] = 'notion-cell-date';
+                    break;
+                    
+                case 'select':
+                case 'status':
+                    $cell_classes[] = 'notion-cell-select';
+                    break;
+                    
+                case 'multi_select':
+                    $cell_classes[] = 'notion-cell-multi-select';
+                    break;
+                    
+                case 'number':
+                    $cell_classes[] = 'notion-cell-number';
+                    break;
+                    
+                case 'checkbox':
+                    $cell_classes[] = 'notion-cell-checkbox';
+                    break;
+                    
+                case 'files':
+                    $cell_classes[] = 'notion-cell-files';
+                    break;
+                    
+                case 'people':
+                    $cell_classes[] = 'notion-cell-people';
+                    break;
+                    
+                case 'email':
+                    $cell_classes[] = 'notion-cell-email';
+                    break;
+                    
+                case 'phone_number':
+                    $cell_classes[] = 'notion-cell-phone';
+                    break;
+            }
+            
+            // 将类数组转换为类字符串
+            $cell_class_string = implode(' ', $cell_classes);
+
+            $html .= '<div class="' . esc_attr($cell_class_string) . '">' . $prop_value . '</div>';
         }
 
         $html .= '</div>'; // 关闭 notion-table-row
@@ -3457,5 +3881,184 @@ class Notion_Pages {
         }
 
         return $display_properties;
+    }
+
+    /**
+     * 根据安全级别验证文件
+     *
+     * @since 1.0.9
+     * @param string $filename 文件名
+     * @param string $file_path 文件路径
+     * @param string $security_level 安全级别
+     * @return bool 是否通过验证
+     */
+    private function validate_file_by_security_level(string $filename, string $file_path, string $security_level): bool {
+        // 检查文件名是否包含危险字符
+        if (Notion_To_WordPress_Helper::has_dangerous_filename($filename)) {
+            Notion_To_WordPress_Helper::error_log("文件名包含危险字符: " . $filename, 'File Security');
+            return false;
+        }
+
+        // 基本文件类型检查
+        if (!Notion_To_WordPress_Helper::is_safe_file_type($filename)) {
+            Notion_To_WordPress_Helper::error_log("文件类型不在允许列表中: " . $filename, 'File Security');
+            return false;
+        }
+
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+        // 根据安全级别进行不同程度的验证
+        switch ($security_level) {
+            case 'strict':
+                return $this->validate_file_strict($filename, $file_path, $extension);
+            case 'moderate':
+                return $this->validate_file_moderate($filename, $file_path, $extension);
+            case 'permissive':
+                return $this->validate_file_permissive($filename, $file_path, $extension);
+            default:
+                return $this->validate_file_strict($filename, $file_path, $extension);
+        }
+    }
+
+    /**
+     * 严格模式文件验证
+     *
+     * @since 1.0.9
+     * @param string $filename 文件名
+     * @param string $file_path 文件路径
+     * @param string $extension 文件扩展名
+     * @return bool 是否通过验证
+     */
+    private function validate_file_strict(string $filename, string $file_path, string $extension): bool {
+        // 严格模式：只允许最安全的文件类型，并进行全面检查
+        $safe_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'pdf', 'txt', 'rtf', 'csv', 'mp3', 'wav', 'ogg', 'flac', 'm4a', 'mp4', 'webm', 'json', 'xml'];
+
+        if (!in_array($extension, $safe_extensions)) {
+            Notion_To_WordPress_Helper::error_log("严格模式：不允许的文件类型 " . $extension, 'File Security');
+            return false;
+        }
+
+        // MIME类型验证
+        if (!$this->validate_file_mime_type($file_path, $filename)) {
+            return false;
+        }
+
+        // 特定文件类型的深度检查
+        switch ($extension) {
+            case 'pdf':
+                return $this->validate_pdf_file($file_path);
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * 中等模式文件验证
+     *
+     * @since 1.0.9
+     * @param string $filename 文件名
+     * @param string $file_path 文件路径
+     * @param string $extension 文件扩展名
+     * @return bool 是否通过验证
+     */
+    private function validate_file_moderate(string $filename, string $file_path, string $extension): bool {
+        // 中等模式：允许更多文件类型，但仍进行安全检查
+        $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'svg', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'csv', 'mp3', 'wav', 'ogg', 'flac', 'm4a', 'mp4', 'avi', 'mov', 'webm', 'json', 'xml', 'zip'];
+
+        if (!in_array($extension, $allowed_extensions)) {
+            Notion_To_WordPress_Helper::error_log("中等模式：不允许的文件类型 " . $extension, 'File Security');
+            return false;
+        }
+
+        // MIME类型验证（对某些类型可选）
+        $require_mime_check = ['pdf', 'svg', 'zip'];
+        if (in_array($extension, $require_mime_check)) {
+            if (!$this->validate_file_mime_type($file_path, $filename)) {
+                return false;
+            }
+        }
+
+        // 特定文件类型的安全检查
+        switch ($extension) {
+            case 'pdf':
+                return $this->validate_pdf_file($file_path);
+            case 'svg':
+                return $this->validate_svg_file($file_path);
+            case 'zip':
+                return $this->validate_archive_file($file_path);
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * 宽松模式文件验证
+     *
+     * @since 1.0.9
+     * @param string $filename 文件名
+     * @param string $file_path 文件路径
+     * @param string $extension 文件扩展名
+     * @return bool 是否通过验证
+     */
+    private function validate_file_permissive(string $filename, string $file_path, string $extension): bool {
+        // 宽松模式：允许大部分文件类型，只进行基本检查
+        $forbidden_extensions = ['exe', 'bat', 'cmd', 'com', 'scr', 'vbs', 'js', 'jar', 'php', 'phtml', 'php3', 'php4', 'php5', 'phar'];
+
+        if (in_array($extension, $forbidden_extensions)) {
+            Notion_To_WordPress_Helper::error_log("宽松模式：禁止的可执行文件类型 " . $extension, 'File Security');
+            return false;
+        }
+
+        // 只对高风险文件进行检查
+        switch ($extension) {
+            case 'pdf':
+                return $this->validate_pdf_file($file_path);
+            case 'svg':
+                return $this->validate_svg_file($file_path);
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * 处理视频URL，提取平台特定的ID和生成嵌入代码
+     * 
+     * @since    1.8.1
+     * @param    string    $url            视频URL
+     * @param    string    $container_class  容器CSS类名
+     * @return   string                   HTML嵌入代码
+     */
+    private function process_video_embed(string $url, string $container_class): string {
+        // 处理不同的视频平台
+        if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
+            // YouTube视频
+            $video_id = '';
+            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return "<div class=\"{$container_class} {$container_class}-youtube\"><iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/" . esc_attr($video_id) . "\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture\" allowfullscreen></iframe></div>";
+            }
+        } elseif (strpos($url, 'vimeo.com') !== false) {
+            // Vimeo视频
+            $video_id = '';
+            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
+                $video_id = $matches[2];
+            }
+            if ($video_id) {
+                return "<div class=\"{$container_class} {$container_class}-vimeo\"><iframe src=\"https://player.vimeo.com/video/" . esc_attr($video_id) . "\" width=\"560\" height=\"315\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe></div>";
+            }
+        } elseif (strpos($url, 'bilibili.com') !== false) {
+            // Bilibili视频
+            $video_id = '';
+            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return "<div class=\"{$container_class} {$container_class}-bilibili\"><iframe src=\"//player.bilibili.com/player.html?bvid=" . esc_attr($video_id) . "&page=1\" scrolling=\"no\" border=\"0\" frameborder=\"no\" framespacing=\"0\" allowfullscreen=\"true\" width=\"560\" height=\"315\"></iframe></div>";
+            }
+        }
+        
+        return '';
     }
 }

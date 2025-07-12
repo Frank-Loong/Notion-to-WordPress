@@ -73,12 +73,44 @@ class Notion_To_WordPress_Webhook {
      * @return   WP_REST_Response               REST 响应对象
      */
     public function handle_webhook($request) {
+        $request_id = uniqid('webhook_', true);
+        $client_ip = $this->get_client_ip();
+        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+
+        Notion_To_WordPress_Helper::debug_log(
+            "Webhook请求开始 - 请求ID: {$request_id}, IP: {$client_ip}, UA: " . substr($user_agent, 0, 100),
+            'Webhook Security'
+        );
+
+        // 1. 检查请求频率限制
+        if (!$this->check_webhook_rate_limit($client_ip)) {
+            Notion_To_WordPress_Helper::error_log(
+                "Webhook请求频率超限 - 请求ID: {$request_id}, IP: {$client_ip}",
+                'Webhook Security'
+            );
+            return new WP_REST_Response(['status' => 'error', 'message' => __('请求过于频繁', 'notion-to-wordpress')], 429);
+        }
+
+        // 2. 验证请求来源（如果配置了）
+        if (!$this->validate_webhook_origin()) {
+            Notion_To_WordPress_Helper::error_log(
+                "Webhook请求来源验证失败 - 请求ID: {$request_id}",
+                'Webhook Security'
+            );
+            return new WP_REST_Response(['status' => 'error', 'message' => __('请求来源验证失败', 'notion-to-wordpress')], 403);
+        }
+
         $token_param = $request['token'] ?? '';
         $options = get_option('notion_to_wordpress_options', []);
         $expected_token = $options['webhook_token'] ?? '';
 
+        // 3. 验证token
         if (empty($expected_token) || $token_param !== $expected_token) {
-            return new WP_REST_Response(['status' => 'error', 'message' => __('Token mismatch', 'notion-to-wordpress')], 403);
+            Notion_To_WordPress_Helper::error_log(
+                "Webhook token验证失败 - 请求ID: {$request_id}, 提供的token: " . substr($token_param, 0, 10) . '...',
+                'Webhook Security'
+            );
+            return new WP_REST_Response(['status' => 'error', 'message' => __('Token验证失败', 'notion-to-wordpress')], 403);
         }
 
         // 获取请求体
@@ -443,5 +475,135 @@ class Notion_To_WordPress_Webhook {
         $posts = get_posts($args);
 
         return !empty($posts) ? $posts[0] : 0;
+    }
+
+    /**
+     * 获取客户端真实IP地址
+     *
+     * @since 1.1.1
+     * @return string
+     */
+    private function get_client_ip(): string {
+        $ip_headers = [
+            'HTTP_CF_CONNECTING_IP',     // Cloudflare
+            'HTTP_X_FORWARDED_FOR',      // 代理服务器
+            'HTTP_X_FORWARDED',          // 代理服务器
+            'HTTP_X_CLUSTER_CLIENT_IP',  // 集群
+            'HTTP_FORWARDED_FOR',        // 代理服务器
+            'HTTP_FORWARDED',            // 代理服务器
+            'REMOTE_ADDR'                // 标准
+        ];
+
+        foreach ($ip_headers as $header) {
+            if (!empty($_SERVER[$header])) {
+                $ip = $_SERVER[$header];
+                // 处理多个IP的情况（取第一个）
+                if (strpos($ip, ',') !== false) {
+                    $ip = trim(explode(',', $ip)[0]);
+                }
+                // 验证IP格式
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                    return $ip;
+                }
+            }
+        }
+
+        return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    }
+
+    /**
+     * 检查Webhook请求频率限制
+     *
+     * @since 1.1.1
+     * @param string $ip 客户端IP
+     * @return bool
+     */
+    private function check_webhook_rate_limit(string $ip): bool {
+        $transient_key = 'notion_webhook_rate_limit_' . md5($ip);
+        $current_time = time();
+        $window_size = 60; // 1分钟窗口
+        $max_requests = 10; // 每分钟最多10个webhook请求
+
+        $requests = get_transient($transient_key);
+        if ($requests === false) {
+            $requests = [];
+        }
+
+        // 清理过期的请求记录
+        $requests = array_filter($requests, function($timestamp) use ($current_time, $window_size) {
+            return ($current_time - $timestamp) < $window_size;
+        });
+
+        // 检查是否超过限制
+        if (count($requests) >= $max_requests) {
+            return false;
+        }
+
+        // 记录当前请求
+        $requests[] = $current_time;
+        set_transient($transient_key, $requests, $window_size);
+
+        return true;
+    }
+
+    /**
+     * 验证Webhook请求来源
+     *
+     * @since 1.1.1
+     * @return bool
+     */
+    private function validate_webhook_origin(): bool {
+        // 获取配置的允许来源
+        $options = get_option('notion_to_wordpress_options', []);
+        $allowed_origins = $options['webhook_allowed_origins'] ?? '';
+
+        // 如果没有配置允许来源，则跳过验证
+        if (empty($allowed_origins)) {
+            return true;
+        }
+
+        $client_ip = $this->get_client_ip();
+        $allowed_ips = array_map('trim', explode(',', $allowed_origins));
+
+        // 检查IP是否在允许列表中
+        foreach ($allowed_ips as $allowed_ip) {
+            if (empty($allowed_ip)) continue;
+
+            // 支持CIDR格式
+            if (strpos($allowed_ip, '/') !== false) {
+                if ($this->ip_in_range($client_ip, $allowed_ip)) {
+                    return true;
+                }
+            } else {
+                if ($client_ip === $allowed_ip) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查IP是否在CIDR范围内
+     *
+     * @since 1.1.1
+     * @param string $ip IP地址
+     * @param string $cidr CIDR格式的网络范围
+     * @return bool
+     */
+    private function ip_in_range(string $ip, string $cidr): bool {
+        list($subnet, $mask) = explode('/', $cidr);
+
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) ||
+            !filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            return false;
+        }
+
+        $ip_long = ip2long($ip);
+        $subnet_long = ip2long($subnet);
+        $mask_long = -1 << (32 - (int)$mask);
+
+        return ($ip_long & $mask_long) === ($subnet_long & $mask_long);
     }
 }

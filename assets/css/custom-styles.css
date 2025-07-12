@@ -1499,12 +1499,13 @@ blockquote {
     grid-row: 2;
 }
 
+/* 表格行样式 */
 .notion-table-row {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr; /* 默认4列布局 */
     border-bottom: 1px solid #f1f3f4;
     transition: background-color 0.15s ease;
-    align-items: center;
+    align-items: stretch; /* 修改：确保所有单元格等高 */
     min-height: 44px;
     gap: 0; /* 确保没有间隙 */
 }
@@ -1517,21 +1518,20 @@ blockquote {
     border-bottom: none;
 }
 
+/* 表格单元格样式 */
 .notion-table-cell {
     padding: 12px 16px;
     font-size: 14px;
     color: #374151;
     border-right: 1px solid #f1f3f4;
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: normal; /* 允许换行 */
     word-break: break-word; /* 长单词/URL自动换行 */
-    text-overflow: clip; /* 取消省略号 */
     overflow: visible; /* 允许内容超出时显示 */
     display: flex;
     align-items: center;
-    min-height: 44px;
+    height: 100%; /* 修改：确保单元格填充整行高度 */
     box-sizing: border-box; /* 确保边框计算正确 */
+    position: relative; /* 添加：相对定位以便于内容对齐 */
 }
 
 .notion-table-cell:last-child {
@@ -1598,38 +1598,63 @@ blockquote {
     grid-template-columns: 2fr 1fr 1.2fr 1fr 1fr 1fr; /* 标题列 + 5个属性列 */
 }
 
-/* 通用回退：超过6列时使用动态计算 */
-.notion-database-table .notion-table-row {
-    grid-template-columns: 2fr repeat(auto-fit, minmax(120px, 1fr));
+/* 修改：增强表格单元格内容对齐性 */
+.notion-table-body .notion-table-row:nth-child(odd) {
+    background-color: rgba(249, 250, 251, 0.5); /* 添加轻微的斑马纹以区分行 */
 }
 
-/* 简化版表格布局 - 如果Grid有问题就用这个 */
+/* 简化版表格布局 - 优化flex布局属性 */
 .notion-table-simple .notion-table-row {
     display: flex !important;
     width: 100%;
+    flex-wrap: nowrap; /* 确保不换行 */
+    align-items: stretch; /* 确保等高 */
 }
 
 .notion-table-simple .notion-table-cell {
     flex: 1;
     min-width: 120px;
     border-right: 1px solid #f1f3f4;
+    height: auto; /* 自动高度适应内容 */
+    display: flex;
+    align-items: center;
 }
 
-.notion-table-simple .notion-table-title-cell {
-    flex: 2;
-    min-width: 200px;
+/* 修改：为长文本添加最大高度和滚动条，确保表格布局不被破坏 */
+.notion-table-cell.notion-cell-long-text {
+    max-height: 120px; /* 设置合理的最大高度 */
+    overflow-y: auto; /* 添加垂直滚动条 */
 }
 
-/* 表格响应式 */
+/* 修改：增强表格响应式布局 */
 @media (max-width: 768px) {
+    /* 移动端表格优化 */
+    .notion-database-table {
+        max-height: 400px;
+        font-size: 14px;
+    }
+
     .notion-table-cell {
-        padding: 10px 12px;
+        padding: 8px 10px; /* 稍微增加水平内边距 */
         font-size: 13px;
-        min-width: 100px;
+        min-height: 36px;
     }
 
     .notion-table-header-cell {
         font-size: 12px;
+        padding: 6px 8px;
+        position: sticky;
+        top: 0;
+        z-index: 2; /* 确保始终显示在内容之上 */
+        background: #f8f9fa; /* 确保背景色不透明 */
+    }
+
+    /* 移动端强制使用Flexbox布局 */
+    .notion-database-table .notion-table-row {
+        display: flex !important;
+        grid-template-columns: none !important;
+        overflow-x: auto; /* 允许水平滚动 */
+        width: 100%;
     }
 }
 
@@ -2578,7 +2603,9 @@ html {
 .notion-block {
     position: relative;
     transition: background-color 0.3s ease;
-    scroll-margin-top: var(--ntw-header-offset, 0px);
+    scroll-margin-top: calc(var(--ntw-header-offset, 0px) + 40px);
+    scroll-margin-bottom: 40px;
+    padding: 2px 0; /* 确保高亮效果有足够的空间 */
 }
 
 /* 锚点跳转高亮动画效果 */
@@ -2586,6 +2613,9 @@ html {
     background-color: rgba(255, 235, 59, 0.3) !important;
     border-radius: 4px;
     animation: notion-anchor-highlight 3s ease-out;
+    box-shadow: 0 0 0 4px rgba(255, 235, 59, 0.2);
+    position: relative;
+    z-index: 2; /* 确保高亮元素在前层 */
 }
 
 @keyframes notion-anchor-highlight {
@@ -2767,4 +2797,99 @@ html {
     .notion-table-simple .notion-table-cell {
         min-width: 60px;
     }
+}
+
+/* === 表格视图类型特定样式 === */
+/* 长文本单元格 */
+.notion-cell-long-text {
+    white-space: normal;
+    overflow-y: auto;
+    max-height: 120px;
+    padding-right: 20px; /* 为滚动条留出空间 */
+    position: relative;
+    line-height: 1.4;
+}
+
+/* URL单元格 */
+.notion-cell-url {
+    word-break: break-all; /* 允许URL在任何字符处换行 */
+}
+
+.notion-cell-url a {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.notion-cell-url a:hover {
+    text-decoration: underline;
+    color: #1d4ed8;
+}
+
+/* 日期单元格 */
+.notion-cell-date {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums; /* 使数字等宽，对齐更好 */
+}
+
+/* 选择器单元格 */
+.notion-cell-select {
+    white-space: nowrap;
+}
+
+.notion-cell-select span {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background-color: #f3f4f6;
+    font-size: 12px;
+}
+
+/* 多选择器单元格 */
+.notion-cell-multi-select {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+.notion-cell-multi-select span {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background-color: #f3f4f6;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* 数字单元格 */
+.notion-cell-number {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 文件单元格 */
+.notion-cell-files {
+    padding: 8px 12px; /* 调整内边距，为文件图标留出空间 */
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .notion-cell-long-text {
+        max-height: 80px; /* 减少在移动端的最大高度 */
+    }
+    
+    .notion-cell-multi-select {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* 表格行悬停高亮改进 */
+.notion-table-row:hover .notion-table-cell {
+    background-color: rgba(245, 247, 250, 0.6); /* 轻微透明背景，让hover状态更明显 */
 }

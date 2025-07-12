@@ -54,9 +54,10 @@
         initViewOptimization();
         initLazyLoading();
         initResponsiveHandlers();
+        enhanceTableCells(); // 添加：表格单元格增强处理
 
         state.isInitialized = true;
-        console.log('数据库交互功能已初始化（增强版）');
+        // console.log('数据库交互功能已初始化（增强版）');
     }
 
     /**
@@ -84,7 +85,7 @@
                     detail: { oldViewport, newViewport }
                 }));
 
-                console.log('视口变化:', oldViewport, '->', newViewport);
+                // console.log('视口变化:', oldViewport, '->', newViewport);
             }
         }
 
@@ -178,6 +179,66 @@
                     cell.style.flex = '1';
                 }
             });
+
+            // 修复表格行高度不一致的问题
+            equalizeRowHeights(table);
+        });
+    }
+
+    /**
+     * 均衡表格行高度
+     * @param {HTMLElement} table 表格容器元素
+     */
+    function equalizeRowHeights(table) {
+        const rows = table.querySelectorAll('.notion-table-row');
+        if (rows.length <= 1) return;
+
+        // 重置行高
+        rows.forEach(row => {
+            row.style.minHeight = '';
+        });
+
+        // 应用Flexbox布局以均衡高度
+        if (window.innerWidth <= CONFIG.mobileBreakpoint) {
+            rows.forEach(row => {
+                row.classList.add('flex-layout');
+            });
+        } else {
+            rows.forEach(row => {
+                row.classList.remove('flex-layout');
+            });
+        }
+    }
+
+    /**
+     * 增强表格单元格
+     * 检测单元格内容并应用适当的样式类
+     */
+    function enhanceTableCells() {
+        const tableCells = document.querySelectorAll('.notion-table-cell:not(.notion-table-header-cell)');
+        
+        tableCells.forEach(cell => {
+            // 清除之前可能应用的类
+            cell.classList.remove('notion-cell-long-text', 'notion-cell-url', 'notion-cell-date');
+            
+            // 检测单元格内容类型
+            const content = cell.textContent || '';
+            const contentLength = content.trim().length;
+            const containsUrl = cell.querySelector('a') !== null;
+            const isDateFormat = /^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(content.trim());
+            
+            // 应用适当的类
+            if (contentLength > 50) {
+                cell.classList.add('notion-cell-long-text');
+            }
+            
+            if (containsUrl) {
+                cell.classList.add('notion-cell-url');
+            }
+            
+            if (isDateFormat) {
+                cell.classList.add('notion-cell-date');
+            }
         });
     }
 
@@ -215,18 +276,20 @@
         // 监听视口变化事件
         document.addEventListener('notionViewportChange', function(e) {
             const { newViewport } = e.detail;
-            console.log('响应式处理器触发:', newViewport);
+            // console.log('响应式处理器触发:', newViewport);
 
             // 重新优化所有视图
             optimizeTableColumns();
             optimizeBoardColumns();
             optimizeGalleryImages();
+            enhanceTableCells(); // 添加：视口变化时重新处理表格单元格
         });
 
         // 窗口大小变化处理
         window.addEventListener('resize', debounce(() => {
             optimizeTableColumns();
             optimizeBoardColumns();
+            enhanceTableCells(); // 添加：窗口大小变化时重新处理表格单元格
         }, CONFIG.debounceDelay));
 
         // 方向变化处理
@@ -234,6 +297,7 @@
             setTimeout(() => {
                 optimizeTableColumns();
                 optimizeBoardColumns();
+                enhanceTableCells(); // 添加：方向变化时重新处理表格单元格
             }, 100); // 等待方向变化完成
         }, CONFIG.debounceDelay));
     }

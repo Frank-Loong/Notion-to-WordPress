@@ -19,18 +19,18 @@ class Notion_To_WordPress_Helper {
     /**
      * 调试级别常量
      */
-    const DEBUG_LEVEL_NONE = 0;    // 不记录任何日志
-    const DEBUG_LEVEL_ERROR = 1;   // 只记录错误
-    const DEBUG_LEVEL_INFO = 2;    // 记录错误和信息
-    const DEBUG_LEVEL_DEBUG = 3;   // 记录所有内容，包括详细调试信息
+    const DEBUG_LEVEL_NONE = 'none';    // 不记录任何日志
+    const DEBUG_LEVEL_ERROR = 'error';   // 只记录错误
+    const DEBUG_LEVEL_INFO = 'info';    // 记录错误和信息
+    const DEBUG_LEVEL_DEBUG = 'debug';   // 记录所有内容，包括详细调试信息
     
     /**
      * 当前日志记录级别。
      *
      * @access private
-     * @var int
+     * @var string
      */
-    private static int $debug_level = self::DEBUG_LEVEL_ERROR;
+    private static string $debug_level = self::DEBUG_LEVEL_ERROR;
     
     /**
      * 根据WordPress设置初始化日志级别。
@@ -600,30 +600,921 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 验证文件类型是否安全
+     * 错误类型常量
      *
-     * @since 1.0.9
-     * @param string $filename 文件名
-     * @return bool 是否为安全的文件类型
+     * @since 1.1.1
+     */
+    const ERROR_TYPE_API = 'api_error';
+    const ERROR_TYPE_VALIDATION = 'validation_error';
+    const ERROR_TYPE_PERMISSION = 'permission_error';
+    const ERROR_TYPE_RATE_LIMIT = 'rate_limit_error';
+    const ERROR_TYPE_NETWORK = 'network_error';
+    const ERROR_TYPE_DATA = 'data_error';
+    const ERROR_TYPE_SECURITY = 'security_error';
+    const ERROR_TYPE_SYSTEM = 'system_error';
+
+    /**
+     * 错误严重级别常量
+     *
+     * @since 1.1.1
+     */
+    const ERROR_SEVERITY_LOW = 'low';
+    const ERROR_SEVERITY_MEDIUM = 'medium';
+    const ERROR_SEVERITY_HIGH = 'high';
+    const ERROR_SEVERITY_CRITICAL = 'critical';
+
+    /**
+     * 创建标准化的WP_Error对象
+     *
+     * @since 1.1.1
+     * @param string $code 错误代码
+     * @param string $message 错误消息
+     * @param string $type 错误类型
+     * @param string $severity 错误严重级别
+     * @param array $data 额外数据
+     * @param Exception|null $exception 原始异常（如果有）
+     * @return WP_Error
+     */
+    public static function create_error(
+        string $code,
+        string $message,
+        string $type = self::ERROR_TYPE_SYSTEM,
+        string $severity = self::ERROR_SEVERITY_MEDIUM,
+        array $data = [],
+        ?Exception $exception = null
+    ): WP_Error {
+        // 构建错误数据
+        $error_data = array_merge($data, [
+            'type' => $type,
+            'severity' => $severity,
+            'timestamp' => current_time('mysql'),
+            'context' => [
+                'file' => $exception ? $exception->getFile() : '',
+                'line' => $exception ? $exception->getLine() : '',
+                'trace' => $exception ? $exception->getTraceAsString() : ''
+            ]
+        ]);
+
+        // 记录错误日志
+        self::log_error($code, $message, $type, $severity, $error_data);
+
+        return new WP_Error($code, $message, $error_data);
+    }
+
+    /**
+     * 将Exception转换为WP_Error
+     *
+     * @since 1.1.1
+     * @param Exception $exception 异常对象
+     * @param string $type 错误类型
+     * @param string $severity 错误严重级别
+     * @param array $additional_data 额外数据
+     * @return WP_Error
+     */
+    public static function exception_to_wp_error(
+        Exception $exception,
+        string $type = self::ERROR_TYPE_SYSTEM,
+        string $severity = self::ERROR_SEVERITY_MEDIUM,
+        array $additional_data = []
+    ): WP_Error {
+        // 根据异常类型自动确定错误类型
+        $auto_type = self::determine_error_type_from_exception($exception);
+        if ($auto_type !== self::ERROR_TYPE_SYSTEM) {
+            $type = $auto_type;
+        }
+
+        // 根据异常消息自动确定严重级别
+        $auto_severity = self::determine_severity_from_exception($exception);
+        if ($auto_severity !== self::ERROR_SEVERITY_MEDIUM) {
+            $severity = $auto_severity;
+        }
+
+        $code = 'exception_' . strtolower(str_replace('Exception', '', get_class($exception)));
+        $message = $exception->getMessage();
+
+        return self::create_error($code, $message, $type, $severity, $additional_data, $exception);
+    }
+
+    /**
+     * 根据异常类型确定错误类型
+     *
+     * @since 1.1.1
+     * @param Exception $exception
+     * @return string
+     */
+    private static function determine_error_type_from_exception(Exception $exception): string {
+        $class_name = get_class($exception);
+        $message = $exception->getMessage();
+
+        // 根据异常类名判断
+        if (strpos($class_name, 'InvalidArgument') !== false) {
+            return self::ERROR_TYPE_VALIDATION;
+        }
+        if (strpos($class_name, 'Permission') !== false || strpos($class_name, 'Unauthorized') !== false) {
+            return self::ERROR_TYPE_PERMISSION;
+        }
+
+        // 根据异常消息判断
+        if (strpos($message, 'API') !== false || strpos($message, 'api') !== false) {
+            return self::ERROR_TYPE_API;
+        }
+        if (strpos($message, 'network') !== false || strpos($message, 'timeout') !== false) {
+            return self::ERROR_TYPE_NETWORK;
+        }
+        if (strpos($message, 'rate limit') !== false || strpos($message, '429') !== false) {
+            return self::ERROR_TYPE_RATE_LIMIT;
+        }
+
+        return self::ERROR_TYPE_SYSTEM;
+    }
+
+    /**
+     * 根据异常确定严重级别
+     *
+     * @since 1.1.1
+     * @param Exception $exception
+     * @return string
+     */
+    private static function determine_severity_from_exception(Exception $exception): string {
+        $message = strtolower($exception->getMessage());
+
+        // 关键词匹配
+        if (strpos($message, 'critical') !== false || strpos($message, 'fatal') !== false) {
+            return self::ERROR_SEVERITY_CRITICAL;
+        }
+        if (strpos($message, 'unauthorized') !== false || strpos($message, 'permission') !== false) {
+            return self::ERROR_SEVERITY_HIGH;
+        }
+        if (strpos($message, 'timeout') !== false || strpos($message, 'rate limit') !== false) {
+            return self::ERROR_SEVERITY_MEDIUM;
+        }
+        if (strpos($message, 'validation') !== false || strpos($message, 'invalid') !== false) {
+            return self::ERROR_SEVERITY_LOW;
+        }
+
+        return self::ERROR_SEVERITY_MEDIUM;
+    }
+
+    /**
+     * 记录错误日志
+     *
+     * @since 1.1.1
+     * @param string $code 错误代码
+     * @param string $message 错误消息
+     * @param string $type 错误类型
+     * @param string $severity 错误严重级别
+     * @param array $data 错误数据
+     */
+    private static function log_error(string $code, string $message, string $type, string $severity, array $data): void {
+        $log_message = sprintf(
+            '[%s] %s: %s (类型: %s, 严重级别: %s)',
+            $code,
+            $message,
+            $type,
+            $severity
+        );
+
+        // 根据严重级别选择日志级别
+        switch ($severity) {
+            case self::ERROR_SEVERITY_CRITICAL:
+                self::error_log($log_message, 'CRITICAL ERROR');
+                break;
+            case self::ERROR_SEVERITY_HIGH:
+                self::error_log($log_message, 'HIGH ERROR');
+                break;
+            case self::ERROR_SEVERITY_MEDIUM:
+                self::error_log($log_message, 'MEDIUM ERROR');
+                break;
+            case self::ERROR_SEVERITY_LOW:
+                self::debug_log($log_message, 'LOW ERROR');
+                break;
+        }
+
+        // 记录详细的错误上下文（仅在调试模式下）
+        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG && !empty($data['context'])) {
+            self::debug_log('错误上下文: ' . print_r($data['context'], true), 'ERROR CONTEXT');
+        }
+    }
+
+    /**
+     * 统一的错误处理器
+     *
+     * @since 1.1.1
+     * @param mixed $error 错误对象（WP_Error或Exception）
+     * @param array $context 上下文信息
+     * @return WP_Error 标准化的WP_Error对象
+     */
+    public static function handle_error($error, array $context = []): WP_Error {
+        // 如果已经是WP_Error，直接返回
+        if (is_wp_error($error)) {
+            return $error;
+        }
+
+        // 如果是Exception，转换为WP_Error
+        if ($error instanceof Exception) {
+            return self::exception_to_wp_error($error, self::ERROR_TYPE_SYSTEM, self::ERROR_SEVERITY_MEDIUM, $context);
+        }
+
+        // 如果是其他类型，创建通用错误
+        $message = is_string($error) ? $error : '未知错误';
+        return self::create_error('unknown_error', $message, self::ERROR_TYPE_SYSTEM, self::ERROR_SEVERITY_MEDIUM, $context);
+    }
+
+    /**
+     * 错误恢复机制
+     *
+     * @since 1.1.1
+     * @param WP_Error $error 错误对象
+     * @param callable|null $retry_callback 重试回调函数
+     * @param int $max_retries 最大重试次数
+     * @return mixed 恢复结果或原错误
+     */
+    public static function attempt_error_recovery(WP_Error $error, ?callable $retry_callback = null, int $max_retries = 3) {
+        $error_data = $error->get_error_data();
+        $error_type = $error_data['type'] ?? self::ERROR_TYPE_SYSTEM;
+        $error_code = $error->get_error_code();
+
+        // 根据错误类型决定恢复策略
+        switch ($error_type) {
+            case self::ERROR_TYPE_RATE_LIMIT:
+                return self::handle_rate_limit_error($error, $retry_callback, $max_retries);
+
+            case self::ERROR_TYPE_NETWORK:
+                return self::handle_network_error($error, $retry_callback, $max_retries);
+
+            case self::ERROR_TYPE_API:
+                return self::handle_api_error($error, $retry_callback, $max_retries);
+
+            default:
+                // 对于其他类型的错误，如果提供了重试回调，尝试重试
+                if ($retry_callback && is_callable($retry_callback)) {
+                    return self::retry_with_backoff($retry_callback, $max_retries);
+                }
+                return $error;
+        }
+    }
+
+    /**
+     * 处理速率限制错误
+     *
+     * @since 1.1.1
+     * @param WP_Error $error
+     * @param callable|null $retry_callback
+     * @param int $max_retries
+     * @return mixed
+     */
+    private static function handle_rate_limit_error(WP_Error $error, ?callable $retry_callback, int $max_retries) {
+        if (!$retry_callback || !is_callable($retry_callback)) {
+            return $error;
+        }
+
+        // 速率限制：等待60秒后重试
+        self::info_log('检测到速率限制，等待60秒后重试', 'Error Recovery');
+        sleep(60);
+
+        return self::retry_with_backoff($retry_callback, min($max_retries, 2)); // 速率限制最多重试2次
+    }
+
+    /**
+     * 处理网络错误
+     *
+     * @since 1.1.1
+     * @param WP_Error $error
+     * @param callable|null $retry_callback
+     * @param int $max_retries
+     * @return mixed
+     */
+    private static function handle_network_error(WP_Error $error, ?callable $retry_callback, int $max_retries) {
+        if (!$retry_callback || !is_callable($retry_callback)) {
+            return $error;
+        }
+
+        // 网络错误：短时间后重试
+        self::info_log('检测到网络错误，准备重试', 'Error Recovery');
+        return self::retry_with_backoff($retry_callback, $max_retries, 5); // 从5秒开始
+    }
+
+    /**
+     * 处理API错误
+     *
+     * @since 1.1.1
+     * @param WP_Error $error
+     * @param callable|null $retry_callback
+     * @param int $max_retries
+     * @return mixed
+     */
+    private static function handle_api_error(WP_Error $error, ?callable $retry_callback, int $max_retries) {
+        $error_code = $error->get_error_code();
+
+        // 对于认证错误，不重试
+        if (strpos($error_code, 'unauthorized') !== false || strpos($error_code, 'permission') !== false) {
+            self::error_log('检测到认证/权限错误，不进行重试', 'Error Recovery');
+            return $error;
+        }
+
+        if (!$retry_callback || !is_callable($retry_callback)) {
+            return $error;
+        }
+
+        // 其他API错误：适度重试
+        self::info_log('检测到API错误，准备重试', 'Error Recovery');
+        return self::retry_with_backoff($retry_callback, min($max_retries, 2), 10); // 从10秒开始，最多2次
+    }
+
+    /**
+     * 带指数退避的重试机制
+     *
+     * @since 1.1.1
+     * @param callable $callback 重试的回调函数
+     * @param int $max_retries 最大重试次数
+     * @param int $base_delay 基础延迟秒数
+     * @return mixed 回调结果或最后的错误
+     */
+    private static function retry_with_backoff(callable $callback, int $max_retries = 3, int $base_delay = 1) {
+        $last_error = null;
+
+        for ($attempt = 0; $attempt <= $max_retries; $attempt++) {
+            try {
+                $result = call_user_func($callback);
+
+                // 如果结果不是错误，返回成功结果
+                if (!is_wp_error($result)) {
+                    if ($attempt > 0) {
+                        self::info_log("重试成功，尝试次数: " . ($attempt + 1), 'Error Recovery');
+                    }
+                    return $result;
+                }
+
+                $last_error = $result;
+            } catch (Exception $e) {
+                $last_error = self::exception_to_wp_error($e);
+            }
+
+            // 如果不是最后一次尝试，等待后重试
+            if ($attempt < $max_retries) {
+                $delay = $base_delay * pow(2, $attempt); // 指数退避
+                self::debug_log("重试失败，等待 {$delay} 秒后进行第 " . ($attempt + 2) . " 次尝试", 'Error Recovery');
+                sleep($delay);
+            }
+        }
+
+        self::error_log("重试失败，已达到最大重试次数: " . ($max_retries + 1), 'Error Recovery');
+        return $last_error;
+    }
+
+    /**
+     * 配置管理系统
+     *
+     * @since 1.1.1
+     */
+
+    /**
+     * 获取默认配置定义
+     *
+     * @since 1.1.1
+     * @return array 默认配置数组
+     */
+    public static function get_default_config_schema(): array {
+        return [
+            // API配置
+            'api' => [
+                'timeout' => [
+                    'default' => 30,
+                    'type' => 'integer',
+                    'min' => 5,
+                    'max' => 300,
+                    'description' => 'API请求超时时间（秒）'
+                ],
+                'retry_attempts' => [
+                    'default' => 3,
+                    'type' => 'integer',
+                    'min' => 1,
+                    'max' => 10,
+                    'description' => 'API请求重试次数'
+                ],
+                'retry_delay' => [
+                    'default' => 1000,
+                    'type' => 'integer',
+                    'min' => 100,
+                    'max' => 10000,
+                    'description' => 'API请求重试延迟（毫秒）'
+                ]
+            ],
+
+            // 缓存配置
+            'cache' => [
+                'max_items' => [
+                    'default' => 1000,
+                    'type' => 'integer',
+                    'min' => 100,
+                    'max' => 10000,
+                    'description' => '最大缓存条目数'
+                ],
+                'memory_limit_mb' => [
+                    'default' => 50,
+                    'type' => 'integer',
+                    'min' => 10,
+                    'max' => 500,
+                    'description' => '缓存内存限制（MB）'
+                ],
+                'ttl' => [
+                    'default' => 300,
+                    'type' => 'integer',
+                    'min' => 60,
+                    'max' => 3600,
+                    'description' => '缓存有效期（秒）'
+                ]
+            ],
+
+            // 文件处理配置
+            'files' => [
+                'max_image_size_mb' => [
+                    'default' => 5,
+                    'type' => 'integer',
+                    'min' => 1,
+                    'max' => 20,
+                    'description' => '最大图片大小（MB）'
+                ],
+                'allowed_image_types' => [
+                    'default' => 'image/jpeg,image/png,image/gif,image/webp',
+                    'type' => 'string',
+                    'validation' => 'mime_types',
+                    'description' => '允许的图片MIME类型'
+                ],
+                'allowed_file_types' => [
+                    'default' => '',
+                    'type' => 'string',
+                    'validation' => 'file_extensions',
+                    'description' => '额外允许的文件扩展名'
+                ],
+                'security_level' => [
+                    'default' => 'strict',
+                    'type' => 'select',
+                    'options' => ['strict', 'moderate', 'permissive'],
+                    'description' => '文件安全级别'
+                ]
+            ],
+
+            // 安全配置
+            'security' => [
+                'iframe_whitelist' => [
+                    'default' => 'www.youtube.com,youtu.be,player.bilibili.com,b23.tv,v.qq.com',
+                    'type' => 'string',
+                    'validation' => 'domain_list',
+                    'description' => 'iframe白名单域名'
+                ],
+                'rate_limit_requests' => [
+                    'default' => 30,
+                    'type' => 'integer',
+                    'min' => 10,
+                    'max' => 100,
+                    'description' => '每分钟最大请求数'
+                ],
+                'webhook_rate_limit' => [
+                    'default' => 10,
+                    'type' => 'integer',
+                    'min' => 5,
+                    'max' => 50,
+                    'description' => 'Webhook每分钟最大请求数'
+                ]
+            ],
+
+            // 性能配置
+            'performance' => [
+                'execution_time_limit' => [
+                    'default' => 300,
+                    'type' => 'integer',
+                    'min' => 60,
+                    'max' => 600,
+                    'description' => '脚本执行时间限制（秒）'
+                ],
+                'memory_limit_mb' => [
+                    'default' => 256,
+                    'type' => 'integer',
+                    'min' => 128,
+                    'max' => 1024,
+                    'description' => '内存限制（MB）'
+                ],
+                'batch_size' => [
+                    'default' => 50,
+                    'type' => 'integer',
+                    'min' => 10,
+                    'max' => 200,
+                    'description' => '批处理大小'
+                ]
+            ],
+
+            // 日志配置
+            'logging' => [
+                'debug_level' => [
+                    'default' => self::DEBUG_LEVEL_ERROR,
+                    'type' => 'select',
+                    'options' => [
+                        self::DEBUG_LEVEL_NONE,
+                        self::DEBUG_LEVEL_ERROR,
+                        self::DEBUG_LEVEL_INFO,
+                        self::DEBUG_LEVEL_DEBUG
+                    ],
+                    'description' => '调试日志级别'
+                ],
+                'log_retention_days' => [
+                    'default' => 7,
+                    'type' => 'integer',
+                    'min' => 1,
+                    'max' => 30,
+                    'description' => '日志保留天数'
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * 获取配置项
+     *
+     * @since 1.1.1
+     * @param string $section 配置节点
+     * @param string $key 配置键名
+     * @param mixed $default 默认值
+     * @return mixed 配置值
+     */
+    public static function get_config($section, $key = '', $default = null) {
+        $options = get_option('notion_to_wordpress_config', []);
+        
+        // 如果只指定了节点，返回整个节点配置
+        if (empty($key)) {
+            return isset($options[$section]) ? $options[$section] : [];
+        }
+        
+        // 如果指定了键名，返回具体配置值
+        if (isset($options[$section][$key])) {
+            return $options[$section][$key];
+        }
+        
+        // 如果配置不存在，获取默认配置
+        if ($default === null) {
+            $schema = self::get_default_config_schema();
+            if (isset($schema[$section][$key]['default'])) {
+                return $schema[$section][$key]['default'];
+            }
+        }
+        
+        return $default;
+    }
+    
+    /**
+     * 设置配置项
+     *
+     * @since 1.1.1
+     * @param string $section 配置节点
+     * @param string|array $key 配置键名或配置数组
+     * @param mixed $value 配置值（当$key为数组时忽略）
+     * @return bool 是否成功设置
+     */
+    public static function set_config($section, $key, $value = null) {
+        $options = get_option('notion_to_wordpress_config', []);
+        
+        // 确保节点存在
+        if (!isset($options[$section])) {
+            $options[$section] = [];
+        }
+        
+        // 如果key是数组，批量设置配置
+        if (is_array($key)) {
+            foreach ($key as $k => $v) {
+                $options[$section][$k] = $v;
+            }
+        } else {
+            // 设置单个配置
+            $options[$section][$key] = $value;
+        }
+        
+        // 保存配置到数据库
+        return update_option('notion_to_wordpress_config', $options);
+    }
+    
+    /**
+     * 验证配置值
+     *
+     * @since 1.1.1
+     * @param string $section 配置节点
+     * @param string $key 配置键名
+     * @param mixed $value 待验证的值
+     * @return array 验证结果，包含 'valid' 和 'message' 键
+     */
+    public static function validate_config_value($section, $key, $value) {
+        $schema = self::get_default_config_schema();
+        
+        // 检查配置是否存在于架构中
+        if (!isset($schema[$section][$key])) {
+            return [
+                'valid' => false,
+                'message' => sprintf('配置 %s.%s 不存在', $section, $key)
+            ];
+        }
+        
+        $config_def = $schema[$section][$key];
+        $type = $config_def['type'];
+        
+        // 根据类型验证
+        switch ($type) {
+            case 'integer':
+                // 整数类型验证
+                if (!is_numeric($value) || intval($value) != $value) {
+                    return [
+                        'valid' => false,
+                        'message' => '必须是整数值'
+                    ];
+                }
+                
+                $int_value = intval($value);
+                
+                // 验证最小值
+                if (isset($config_def['min']) && $int_value < $config_def['min']) {
+                    return [
+                        'valid' => false,
+                        'message' => sprintf('不能小于 %d', $config_def['min'])
+                    ];
+                }
+                
+                // 验证最大值
+                if (isset($config_def['max']) && $int_value > $config_def['max']) {
+                    return [
+                        'valid' => false,
+                        'message' => sprintf('不能大于 %d', $config_def['max'])
+                    ];
+                }
+                break;
+                
+            case 'string':
+                // 字符串验证
+                if (!is_string($value)) {
+                    return [
+                        'valid' => false,
+                        'message' => '必须是字符串'
+                    ];
+                }
+                
+                // 特定验证规则
+                if (isset($config_def['validation'])) {
+                    switch ($config_def['validation']) {
+                        case 'mime_types':
+                            // MIME类型验证
+                            $mime_types = explode(',', $value);
+                            foreach ($mime_types as $mime) {
+                                $mime = trim($mime);
+                                if (!empty($mime) && !preg_match('/^[a-z0-9\.\-\/\+]+$/i', $mime)) {
+                                    return [
+                                        'valid' => false,
+                                        'message' => sprintf('无效的MIME类型: %s', $mime)
+                                    ];
+                                }
+                            }
+                            break;
+                            
+                        case 'file_extensions':
+                            // 文件扩展名验证
+                            if (!empty($value)) {
+                                $extensions = explode(',', $value);
+                                foreach ($extensions as $ext) {
+                                    $ext = trim($ext);
+                                    if (!empty($ext) && !preg_match('/^[a-z0-9]+$/i', $ext)) {
+                                        return [
+                                            'valid' => false,
+                                            'message' => sprintf('无效的文件扩展名: %s', $ext)
+                                        ];
+                                    }
+                                }
+                            }
+                            break;
+                            
+                        case 'domain_list':
+                            // 域名列表验证
+                            $domains = explode(',', $value);
+                            foreach ($domains as $domain) {
+                                $domain = trim($domain);
+                                if (!empty($domain) && !preg_match('/^[a-z0-9\.\-]+$/i', $domain)) {
+                                    return [
+                                        'valid' => false,
+                                        'message' => sprintf('无效的域名: %s', $domain)
+                                    ];
+                                }
+                            }
+                            break;
+                    }
+                }
+                break;
+                
+            case 'select':
+                // 选择类型验证
+                if (!in_array($value, $config_def['options'])) {
+                    return [
+                        'valid' => false,
+                        'message' => sprintf('值必须是以下之一: %s', implode(', ', $config_def['options']))
+                    ];
+                }
+                break;
+        }
+        
+        return [
+            'valid' => true,
+            'message' => '验证通过'
+        ];
+    }
+    
+    /**
+     * 应用配置到系统
+     *
+     * @since 1.1.1
+     * @return void
+     */
+    public static function apply_runtime_config() {
+        // 应用性能配置
+        $execution_time = self::get_config('performance', 'execution_time_limit');
+        if ($execution_time > 0) {
+            @set_time_limit($execution_time);
+        }
+        
+        $memory_limit = self::get_config('performance', 'memory_limit_mb');
+        if ($memory_limit > 0) {
+            @ini_set('memory_limit', $memory_limit . 'M');
+        }
+        
+        // 应用日志配置
+        $debug_level = self::get_config('logging', 'debug_level');
+        if ($debug_level !== self::DEBUG_LEVEL_NONE) {
+            // 在系统运行中设置调试级别
+            self::$debug_level = $debug_level;
+        }
+    }
+    
+    /**
+     * 重置配置到默认值
+     *
+     * @since 1.1.1
+     * @param string $section 可选，指定要重置的配置节点
+     * @return bool 是否成功重置
+     */
+    public static function reset_config($section = '') {
+        $schema = self::get_default_config_schema();
+        $options = get_option('notion_to_wordpress_config', []);
+        
+        // 如果指定了节点，只重置该节点
+        if (!empty($section) && isset($schema[$section])) {
+            $defaults = [];
+            foreach ($schema[$section] as $key => $def) {
+                $defaults[$key] = $def['default'];
+            }
+            $options[$section] = $defaults;
+        } else {
+            // 重置所有配置
+            $options = [];
+            foreach ($schema as $section => $configs) {
+                $options[$section] = [];
+                foreach ($configs as $key => $def) {
+                    $options[$section][$key] = $def['default'];
+                }
+            }
+        }
+        
+        return update_option('notion_to_wordpress_config', $options);
+    }
+    
+    /**
+     * 初始化默认配置
+     *
+     * @since 1.1.1
+     * @return void
+     */
+    public static function initialize_config() {
+        $options = get_option('notion_to_wordpress_config');
+        
+        // 如果配置不存在，创建默认配置
+        if ($options === false) {
+            self::reset_config();
+        }
+    }
+
+    /**
+     * 获取配置管理页面的表单字段
+     *
+     * @since 1.1.1
+     * @return array 配置表单字段
+     */
+    public static function get_config_form_fields() {
+        $schema = self::get_default_config_schema();
+        $options = get_option('notion_to_wordpress_config', []);
+        $form_fields = [];
+        
+        foreach ($schema as $section => $configs) {
+            $form_fields[$section] = [];
+            
+            foreach ($configs as $key => $def) {
+                $current_value = isset($options[$section][$key]) ? $options[$section][$key] : $def['default'];
+                
+                $field = [
+                    'name' => $key,
+                    'label' => $def['description'],
+                    'type' => $def['type'],
+                    'value' => $current_value
+                ];
+                
+                // 添加类型特定的属性
+                switch ($def['type']) {
+                    case 'integer':
+                        if (isset($def['min'])) {
+                            $field['min'] = $def['min'];
+                        }
+                        if (isset($def['max'])) {
+                            $field['max'] = $def['max'];
+                        }
+                        break;
+                    case 'select':
+                        $field['options'] = $def['options'];
+                        break;
+                }
+                
+                $form_fields[$section][] = $field;
+            }
+        }
+        
+        return $form_fields;
+    }
+
+    /**
+     * 
+     */
+
+    /**
+     * 检查文件名是否包含危险字符
+     *
+     * @since    1.8.1
+     * @param    string    $filename    文件名
+     * @return   bool                   是否包含危险字符
+     */
+    public static function has_dangerous_filename(string $filename): bool {
+        // 检查危险字符
+        $dangerous_chars = [';', '&', '|', '`', '$', '(', ')', '{', '}', '[', ']', '<', '>', "\0", "\n", "\r"];
+        foreach ($dangerous_chars as $char) {
+            if (strpos($filename, $char) !== false) {
+                self::warning_log('文件名包含危险字符: ' . $filename);
+                return true;
+            }
+        }
+
+        // 检查双扩展名（可能隐藏真实扩展名）
+        if (preg_match('/\.(php|html|js|exe|bat|sh|pl|py)\./i', $filename)) {
+            self::warning_log('文件名包含可疑双扩展名: ' . $filename);
+                return true;
+            }
+
+        return false;
+    }
+
+    /**
+     * 检查文件类型是否安全
+     *
+     * @since    1.8.1
+     * @param    string    $filename    文件名
+     * @return   bool                   是否为安全文件类型
      */
     public static function is_safe_file_type(string $filename): bool {
-        $allowed_extensions = [
-            // 图片
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico',
-            // 文档
-            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf',
-            // 音频
-            'mp3', 'wav', 'ogg', 'flac', 'm4a',
-            // 视频
-            'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
-            // 压缩文件
-            'zip', 'rar', '7z', 'tar', 'gz',
-            // 其他
-            'csv', 'json', 'xml'
-        ];
-
         $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        return in_array($extension, $allowed_extensions);
+        
+        // 黑名单扩展名（始终拒绝）
+        $blacklist = [
+            'php', 'phtml', 'php3', 'php4', 'php5', 'php7', 'phar', 'phpt', 
+            'exe', 'bat', 'cmd', 'sh', 'pl', 'py', 'cgi', 'asp', 'aspx', 'jsp',
+            'dll', 'so', 'bin', 'msi', 'com', 'htaccess', 'htpasswd', 'config',
+            'inc', 'ini'
+        ];
+        
+        if (in_array($extension, $blacklist)) {
+            self::warning_log('文件扩展名在黑名单中: ' . $extension);
+        return false;
+        }
+        
+        // 允许的扩展名列表（白名单）
+        $whitelist = [
+            // 图像
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'svg',
+            // 文档
+            'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'csv', 'odt', 'ods', 'odp',
+            // 音频
+            'mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac',
+            // 视频
+            'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', 'mpeg',
+            // 压缩
+            'zip', 'rar', '7z', 'tar', 'gz', 'bz2',
+            // 数据
+            'json', 'xml', 'csv', 'md'
+        ];
+        
+        if (!in_array($extension, $whitelist)) {
+            self::warning_log('文件扩展名不在白名单中: ' . $extension);
+            return false;
+        }
+        
+        return true;
     }
 
     /**
@@ -763,6 +1654,501 @@ class Notion_To_WordPress_Helper {
         self::log_performance($operation, $start_time, $additional_data);
     }
 
+    /**
+     * 加密API密钥
+     *
+     * @since    1.8.1
+     * @param    string    $api_key    需要加密的API密钥
+     * @return   string                加密后的API密钥
+     */
+    public static function encrypt_api_key(string $api_key): string {
+        if (empty($api_key)) {
+            return '';
+        }
+
+        // 获取加密密钥，如果不存在则创建一个
+        $encryption_key = get_option('notion_to_wordpress_encryption_key');
+        if (empty($encryption_key)) {
+            $encryption_key = bin2hex(random_bytes(32));
+            update_option('notion_to_wordpress_encryption_key', $encryption_key, false);
+        }
+
+        // 创建初始化向量
+        $iv = random_bytes(16);
+        
+        // 加密API密钥
+        $encrypted = openssl_encrypt(
+            $api_key,
+            'AES-256-CBC',
+            hex2bin($encryption_key),
+            0,
+            $iv
+        );
+
+        // 返回初始化向量和加密后的数据
+        if ($encrypted === false) {
+            return $api_key; // 加密失败，返回原始密钥
+        }
+
+        return base64_encode($iv . base64_decode($encrypted));
+    }
+
+    /**
+     * 解密API密钥
+     *
+     * @since    1.8.1
+     * @param    string    $encrypted_api_key    加密后的API密钥
+     * @return   string                          解密后的API密钥
+     */
+    public static function decrypt_api_key(string $encrypted_api_key): string {
+        if (empty($encrypted_api_key)) {
+            return '';
+        }
+
+        // 获取加密密钥
+        $encryption_key = get_option('notion_to_wordpress_encryption_key');
+        if (empty($encryption_key)) {
+            return $encrypted_api_key; // 找不到密钥，返回加密的密钥
+        }
+
+        // 解码加密的数据
+        $decoded = base64_decode($encrypted_api_key);
+        if ($decoded === false) {
+            return $encrypted_api_key; // 解码失败，返回加密的密钥
+        }
+
+        // 提取初始化向量和加密数据
+        $iv = substr($decoded, 0, 16);
+        $encrypted_data = base64_encode(substr($decoded, 16));
+        
+        // 解密数据
+        $decrypted = openssl_decrypt(
+            $encrypted_data,
+            'AES-256-CBC',
+            hex2bin($encryption_key),
+            0,
+            $iv
+        );
+
+        if ($decrypted === false) {
+            return $encrypted_api_key; // 解密失败，返回加密的密钥
+        }
+
+        return $decrypted;
+    }
+
+    /**
+     * 检查文件是否为可执行文件
+     *
+     * @since    1.8.1
+     * @param    string    $file_path    文件路径
+     * @return   bool                    是否为可执行文件
+     */
+    public static function is_executable_file(string $file_path): bool {
+        // 检查文件扩展名
+        $dangerous_extensions = [
+            // 可执行文件
+            'exe', 'bat', 'cmd', 'sh', 'php', 'pl', 'py', 'js', 'vbs', 'cgi',
+            // 系统文件
+            'dll', 'so', 'bin', 'msi', 'com',
+            // 脚本文件
+            'htaccess', 'phtml', 'php3', 'php4', 'php5', 'php7', 'phps', 'phar'
+        ];
+
+        $extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+        if (in_array($extension, $dangerous_extensions)) {
+            self::warning_log('文件扩展名可能是可执行文件: ' . $extension);
+            return true;
+        }
+
+        // 检查文件头部是否包含shebang
+        $fp = @fopen($file_path, 'rb');
+        if ($fp) {
+            $line = fgets($fp, 100);
+            fclose($fp);
+            if ($line && strpos($line, '#!') === 0) {
+                self::warning_log('文件包含shebang标记，可能是脚本文件');
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 检查图片文件是否包含隐藏的PHP代码
+     *
+     * @since    1.8.1
+     * @param    string    $file_path    文件路径
+     * @return   bool                    是否包含隐藏代码
+     */
+    public static function image_contains_php(string $file_path): bool {
+        // 检查文件是否为有效图像
+        $image_info = @getimagesize($file_path);
+        if ($image_info === false) {
+            // 不是有效的图像
+            return false;
+        }
+
+        // 读取文件内容
+        $content = @file_get_contents($file_path);
+        if ($content === false) {
+            return false;
+        }
+
+        // 检查PHP标记
+        $php_patterns = [
+            '/<\?php/i',
+            '/<\?=/i',
+            '/<\?/i',
+            '/eval\s*\(/i',
+            '/base64_decode\s*\(/i',
+            '/system\s*\(/i',
+            '/exec\s*\(/i',
+            '/shell_exec\s*\(/i',
+            '/passthru\s*\(/i',
+        ];
+
+        foreach ($php_patterns as $pattern) {
+            if (preg_match($pattern, $content)) {
+                self::warning_log('检测到图像文件可能包含PHP代码');
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 数据库查询优化工具
+     *
+     * @since 1.1.1
+     */
+
+    /**
+     * 查询性能监控
+     *
+     * @since 1.1.1
+     * @var array
+     */
+    private static array $query_stats = [
+        'total_queries' => 0,
+        'slow_queries' => 0,
+        'query_times' => [],
+        'query_details' => []
+    ];
+
+    /**
+     * 慢查询阈值（毫秒）
+     *
+     * @since 1.1.1
+     * @var float
+     */
+    private static float $slow_query_threshold = 100.0;
+
+    /**
+     * 开始查询性能监控
+     *
+     * @since 1.1.1
+     * @param string $query_name 查询名称
+     * @param array $params 查询参数
+     * @return string 查询ID
+     */
+    public static function start_query_monitor(string $query_name, array $params = []): string {
+        $query_id = uniqid('query_', true);
+        $start_time = microtime(true);
+
+        self::$query_stats['query_details'][$query_id] = [
+            'name' => $query_name,
+            'params' => $params,
+            'start_time' => $start_time,
+            'memory_start' => memory_get_usage(true)
+        ];
+
+        return $query_id;
+    }
+
+    /**
+     * 结束查询性能监控
+     *
+     * @since 1.1.1
+     * @param string $query_id 查询ID
+     * @param array $result_info 结果信息
+     */
+    public static function end_query_monitor(string $query_id, array $result_info = []): void {
+        if (!isset(self::$query_stats['query_details'][$query_id])) {
+            return;
+        }
+
+        $query_detail = self::$query_stats['query_details'][$query_id];
+        $end_time = microtime(true);
+        $duration = ($end_time - $query_detail['start_time']) * 1000; // 转换为毫秒
+        $memory_used = memory_get_usage(true) - $query_detail['memory_start'];
+
+        // 更新统计信息
+        self::$query_stats['total_queries']++;
+        self::$query_stats['query_times'][] = $duration;
+
+        if ($duration > self::$slow_query_threshold) {
+            self::$query_stats['slow_queries']++;
+        }
+
+        // 记录查询详情
+        self::$query_stats['query_details'][$query_id] = array_merge($query_detail, [
+            'end_time' => $end_time,
+            'duration_ms' => $duration,
+            'memory_used' => $memory_used,
+            'result_info' => $result_info,
+            'is_slow' => $duration > self::$slow_query_threshold
+        ]);
+
+        // 记录慢查询日志
+        if ($duration > self::$slow_query_threshold) {
+            self::debug_log(
+                sprintf(
+                    '慢查询检测: %s 耗时 %.2fms, 内存使用 %s, 参数: %s',
+                    $query_detail['name'],
+                    $duration,
+                    size_format($memory_used),
+                    json_encode($query_detail['params'])
+                ),
+                'Slow Query'
+            );
+        }
+
+        // 清理旧的查询详情（保留最近100个）
+        if (count(self::$query_stats['query_details']) > 100) {
+            $keys = array_keys(self::$query_stats['query_details']);
+            $old_keys = array_slice($keys, 0, -100);
+            foreach ($old_keys as $old_key) {
+                unset(self::$query_stats['query_details'][$old_key]);
+            }
+        }
+    }
+
+    /**
+     * 获取查询性能统计
+     *
+     * @since 1.1.1
+     * @return array 查询统计信息
+     */
+    public static function get_query_stats(): array {
+        $query_times = self::$query_stats['query_times'];
+        $total_queries = self::$query_stats['total_queries'];
+
+        if (empty($query_times)) {
+            return [
+                'total_queries' => 0,
+                'slow_queries' => 0,
+                'avg_time_ms' => 0,
+                'max_time_ms' => 0,
+                'min_time_ms' => 0,
+                'total_time_ms' => 0
+            ];
+        }
+
+        return [
+            'total_queries' => $total_queries,
+            'slow_queries' => self::$query_stats['slow_queries'],
+            'avg_time_ms' => round(array_sum($query_times) / count($query_times), 2),
+            'max_time_ms' => round(max($query_times), 2),
+            'min_time_ms' => round(min($query_times), 2),
+            'total_time_ms' => round(array_sum($query_times), 2),
+            'slow_query_threshold' => self::$slow_query_threshold
+        ];
+    }
+
+    /**
+     * 批量获取文章元数据
+     *
+     * @since 1.1.1
+     * @param array $post_ids 文章ID数组
+     * @param string|array $meta_keys 元数据键名
+     * @return array 批量元数据结果
+     */
+    public static function get_posts_meta_batch(array $post_ids, $meta_keys): array {
+        if (empty($post_ids)) {
+            return [];
+        }
+
+        $query_id = self::start_query_monitor('get_posts_meta_batch', [
+            'post_ids_count' => count($post_ids),
+            'meta_keys' => $meta_keys
+        ]);
+
+        global $wpdb;
+        $post_ids_str = implode(',', array_map('intval', $post_ids));
+        $meta_keys_array = is_array($meta_keys) ? $meta_keys : [$meta_keys];
+        $meta_keys_placeholders = implode(',', array_fill(0, count($meta_keys_array), '%s'));
+
+        $query = $wpdb->prepare(
+            "SELECT post_id, meta_key, meta_value
+             FROM {$wpdb->postmeta}
+             WHERE post_id IN ({$post_ids_str})
+             AND meta_key IN ({$meta_keys_placeholders})",
+            ...$meta_keys_array
+        );
+
+        $results = $wpdb->get_results($query);
+
+        // 组织结果
+        $organized_results = [];
+        foreach ($results as $row) {
+            $organized_results[$row->post_id][$row->meta_key] = $row->meta_value;
+        }
+
+        self::end_query_monitor($query_id, [
+            'results_count' => count($results),
+            'posts_with_meta' => count($organized_results)
+        ]);
+
+        return $organized_results;
+    }
+
+    /**
+     * 批量查询文章通过Notion ID
+     *
+     * @since 1.1.1
+     * @param array $notion_ids Notion ID数组
+     * @return array 文章ID映射数组 [notion_id => post_id]
+     */
+    public static function get_posts_by_notion_ids_batch(array $notion_ids): array {
+        if (empty($notion_ids)) {
+            return [];
+        }
+
+        $query_id = self::start_query_monitor('get_posts_by_notion_ids_batch', [
+            'notion_ids_count' => count($notion_ids)
+        ]);
+
+        global $wpdb;
+        $notion_ids_placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
+
+        $query = $wpdb->prepare(
+            "SELECT p.ID, pm.meta_value as notion_id
+             FROM {$wpdb->posts} p
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+             WHERE pm.meta_key = '_notion_page_id'
+             AND pm.meta_value IN ({$notion_ids_placeholders})",
+            ...$notion_ids
+        );
+
+        $results = $wpdb->get_results($query);
+
+        // 组织结果
+        $organized_results = [];
+        foreach ($results as $row) {
+            $organized_results[$row->notion_id] = (int)$row->ID;
+        }
+
+        self::end_query_monitor($query_id, [
+            'results_count' => count($results),
+            'matched_posts' => count($organized_results)
+        ]);
+
+        return $organized_results;
+    }
+
+    /**
+     * 批量更新文章元数据
+     *
+     * @since 1.1.1
+     * @param array $updates 更新数据 [post_id => [meta_key => meta_value]]
+     * @return bool 是否成功
+     */
+    public static function update_posts_meta_batch(array $updates): bool {
+        if (empty($updates)) {
+            return true;
+        }
+
+        $query_id = self::start_query_monitor('update_posts_meta_batch', [
+            'posts_count' => count($updates),
+            'total_updates' => array_sum(array_map('count', $updates))
+        ]);
+
+        global $wpdb;
+        $success = true;
+
+        // 开始事务
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            foreach ($updates as $post_id => $meta_data) {
+                foreach ($meta_data as $meta_key => $meta_value) {
+                    $result = $wpdb->replace(
+                        $wpdb->postmeta,
+                        [
+                            'post_id' => $post_id,
+                            'meta_key' => $meta_key,
+                            'meta_value' => $meta_value
+                        ],
+                        ['%d', '%s', '%s']
+                    );
+
+                    if ($result === false) {
+                        throw new Exception("Failed to update meta for post {$post_id}");
+                    }
+                }
+            }
+
+            $wpdb->query('COMMIT');
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            $success = false;
+            self::error_log('批量更新元数据失败: ' . $e->getMessage(), 'Database Batch');
+        }
+
+        self::end_query_monitor($query_id, [
+            'success' => $success,
+            'updates_processed' => $success ? array_sum(array_map('count', $updates)) : 0
+        ]);
+
+        return $success;
+    }
+
+    /**
+     * 优化的分页查询
+     *
+     * @since 1.1.1
+     * @param array $args 查询参数
+     * @param int $page 页码
+     * @param int $per_page 每页数量
+     * @return array 查询结果
+     */
+    public static function get_posts_paginated(array $args, int $page = 1, int $per_page = 50): array {
+        $query_id = self::start_query_monitor('get_posts_paginated', [
+            'page' => $page,
+            'per_page' => $per_page,
+            'args' => $args
+        ]);
+
+        // 设置分页参数
+        $args['paged'] = $page;
+        $args['posts_per_page'] = $per_page;
+
+        // 优化查询参数
+        if (!isset($args['fields'])) {
+            $args['fields'] = 'ids'; // 默认只获取ID以提高性能
+        }
+
+        if (!isset($args['no_found_rows'])) {
+            $args['no_found_rows'] = true; // 不计算总行数以提高性能
+        }
+
+        $query = new WP_Query($args);
+        $results = [
+            'posts' => $query->posts,
+            'found_posts' => $query->found_posts,
+            'max_num_pages' => $query->max_num_pages
+        ];
+
+        self::end_query_monitor($query_id, [
+            'posts_found' => count($query->posts),
+            'total_found' => $query->found_posts
+        ]);
+
+        return $results;
+    }
 
 }
 

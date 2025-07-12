@@ -211,6 +211,8 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
+		$this->loader->add_action( 'wp_ajax_notion_config_management', $this->admin, 'handle_config_management' );
+		$this->loader->add_action( 'wp_ajax_notion_query_performance', $this->admin, 'handle_query_performance' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -224,6 +226,7 @@ class Notion_To_WordPress {
 		// 新增：添加新的cron事件
 		$this->loader->add_action('notion_to_wordpress_cron_update', $this->notion_pages, 'update_post_from_notion_cron', 10, 1);
 		$this->loader->add_action('notion_to_wordpress_log_cleanup', 'Notion_To_WordPress_Helper', 'run_log_cleanup');
+		$this->loader->add_action('notion_to_wordpress_cache_cleanup', 'Notion_API', 'cleanup_expired_cache');
 	}
 
 	/**
@@ -397,6 +400,19 @@ class Notion_To_WordPress {
 			}
 		}
 
+		// 设置缓存清理定时任务（每小时执行一次）
+		if ( ! wp_next_scheduled( 'notion_to_wordpress_cache_cleanup' ) ) {
+			wp_schedule_event( time(), 'hourly', 'notion_to_wordpress_cache_cleanup' );
+		}
+
+		// 配置缓存参数 - 使用配置管理系统
+		$cache_config = [
+			'max_items' => Notion_To_WordPress_Helper::get_config('cache.max_items', 1000),
+			'memory_limit_mb' => Notion_To_WordPress_Helper::get_config('cache.memory_limit_mb', 50),
+			'ttl' => Notion_To_WordPress_Helper::get_config('cache.ttl', 300)
+		];
+		Notion_API::configure_cache( $cache_config );
+
 		// 刷新重写规则
 		flush_rewrite_rules();
 	}
@@ -419,6 +435,12 @@ class Notion_To_WordPress {
 
 		// 同时清除此钩子的任何其他计划
 		wp_clear_scheduled_hook( 'notion_cron_import' );
+
+		// 清除缓存清理定时任务
+		wp_clear_scheduled_hook( 'notion_to_wordpress_cache_cleanup' );
+
+		// 清除所有缓存
+		Notion_API::clear_page_cache();
 
 		// 刷新重写规则
 		flush_rewrite_rules();
@@ -445,41 +467,41 @@ class Notion_To_WordPress {
 		);
 
 		// ---------------- 公式相关（KaTeX） ----------------
-		// 允许通过过滤器自定义CDN前缀
-		$cdn_prefix = apply_filters( 'ntw_cdn_prefix', 'https://cdn.jsdelivr.net' );
+		// 使用本地资源替代CDN，提高安全性和可靠性
+		$vendor_base_url = Notion_To_WordPress_Helper::plugin_url('assets/vendor/');
 
 		// KaTeX 样式
 		wp_enqueue_style(
 			'katex',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.css',
+			$vendor_base_url . 'katex/katex.min.css',
 			array(),
-			'0.16.22'
+			$this->version
 		);
 
 		// KaTeX 主库
 		wp_register_script(
 			'katex',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.js',
+			$vendor_base_url . 'katex/katex.min.js',
 			array(),
-			'0.16.22',
+			$this->version,
 			true
 		);
 
 		// mhchem 扩展（化学公式）依赖 KaTeX
 		wp_register_script(
 			'katex-mhchem',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+			$vendor_base_url . 'katex/mhchem.min.js',
 			array( 'katex' ),
-			'0.16.22',
+			$this->version,
 			true
 		);
 
-		// 新增：KaTeX auto-render 扩展，依赖 KaTeX
+		// KaTeX auto-render 扩展，依赖 KaTeX
 		wp_register_script(
 			'katex-auto-render',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
+			$vendor_base_url . 'katex/auto-render.min.js',
 			array( 'katex' ),
-			'0.16.22',
+			$this->version,
 			true
 		);
 
@@ -491,9 +513,9 @@ class Notion_To_WordPress {
 		// ---------------- Mermaid ----------------
 		wp_enqueue_script(
 			'mermaid',
-			$cdn_prefix . '/npm/mermaid@11/dist/mermaid.min.js',
+			$vendor_base_url . 'mermaid/mermaid.min.js',
 			array(),
-			'11.7.0',
+			$this->version,
 			true
 		);
 
