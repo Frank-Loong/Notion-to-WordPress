@@ -720,6 +720,164 @@ jQuery(document).ready(function($) {
         }
     };
 
+    // 测试验证模块
+    NotionWP.TestValidation = {
+        init: function() {
+            this.bindEvents();
+        },
+
+        bindEvents: function() {
+            $('#run-quick-test').on('click', () => this.runTest('quick'));
+            $('#run-security-test').on('click', () => this.runTest('security'));
+            $('#run-performance-test').on('click', () => this.runTest('performance'));
+            $('#run-functional-test').on('click', () => this.runTest('functional'));
+        },
+
+        runTest: function(testType) {
+            const $button = $(`#run-${testType}-test`);
+            const $results = $('#test-validation-results');
+
+            $button.prop('disabled', true).find('.dashicons').addClass('spin');
+            $results.hide();
+
+            $.ajax({
+                url: notionToWp.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'notion_test_validation',
+                    test_type: testType,
+                    nonce: notionToWp.nonce
+                },
+                success: (response) => {
+                    if (response.success) {
+                        this.displayTestResults(response.data, testType);
+                        $results.show();
+                    } else {
+                        NotionWP.Utils.showNotice('测试执行失败: ' + response.data.message, 'error');
+                    }
+                },
+                error: () => {
+                    NotionWP.Utils.showNotice('测试请求失败', 'error');
+                },
+                complete: () => {
+                    $button.prop('disabled', false).find('.dashicons').removeClass('spin');
+                }
+            });
+        },
+
+        displayTestResults: function(data, testType) {
+            const $summary = $('#test-summary');
+            const $details = $('#test-details');
+
+            // 显示测试摘要
+            if (data.summary) {
+                const summary = data.summary;
+                const statusColor = this.getStatusColor(summary.overall_status);
+
+                $summary.html(`
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h4 style="margin: 0; color: ${statusColor};">
+                                ${this.getStatusText(summary.overall_status)} (${summary.pass_rate}%)
+                            </h4>
+                            <p style="margin: 5px 0 0 0; color: #666;">
+                                总计: ${summary.total_checks} 项，通过: ${summary.passed_checks} 项，
+                                失败: ${summary.failed_checks} 项，警告: ${summary.warning_checks} 项
+                            </p>
+                        </div>
+                        <div style="text-align: right; color: #666;">
+                            <small>执行时间: ${summary.execution_time}秒</small>
+                        </div>
+                    </div>
+                `);
+            }
+
+            // 显示测试详情
+            $details.empty();
+
+            if (data.results) {
+                Object.keys(data.results).forEach(category => {
+                    const categoryResults = data.results[category];
+                    const categoryCard = this.createCategoryCard(category, categoryResults);
+                    $details.append(categoryCard);
+                });
+            }
+        },
+
+        createCategoryCard: function(category, results) {
+            const categoryName = {
+                'security': '安全检查',
+                'performance': '性能检查',
+                'functional': '功能检查'
+            }[category] || category;
+
+            let cardHtml = `
+                <div class="test-category-card" style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd;">
+                    <h5 style="margin: 0 0 15px 0; color: #333;">${categoryName}</h5>
+                    <div class="test-items">
+            `;
+
+            Object.keys(results).forEach(testName => {
+                const result = results[testName];
+                const statusIcon = this.getStatusIcon(result.status);
+                const statusColor = this.getStatusColor(result.status);
+
+                cardHtml += `
+                    <div class="test-item" style="display: flex; align-items: center; margin-bottom: 10px; padding: 8px; background: #f9f9f9; border-radius: 4px;">
+                        <span style="color: ${statusColor}; margin-right: 8px;">${statusIcon}</span>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; color: #333;">${testName}</div>
+                            <div style="font-size: 12px; color: #666;">${result.message}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            cardHtml += `
+                    </div>
+                </div>
+            `;
+
+            return cardHtml;
+        },
+
+        getStatusIcon: function(status) {
+            const icons = {
+                'PASS': '✅',
+                'FAIL': '❌',
+                'WARNING': '⚠️',
+                'EXCELLENT': '🌟',
+                'GOOD': '✅',
+                'ACCEPTABLE': '⚠️',
+                'NEEDS_ATTENTION': '❌'
+            };
+            return icons[status] || '❓';
+        },
+
+        getStatusColor: function(status) {
+            const colors = {
+                'PASS': '#198754',
+                'FAIL': '#dc3545',
+                'WARNING': '#fd7e14',
+                'EXCELLENT': '#198754',
+                'GOOD': '#198754',
+                'ACCEPTABLE': '#fd7e14',
+                'NEEDS_ATTENTION': '#dc3545'
+            };
+            return colors[status] || '#6c757d';
+        },
+
+        getStatusText: function(status) {
+            const texts = {
+                'EXCELLENT': '优秀',
+                'GOOD': '良好',
+                'ACCEPTABLE': '可接受',
+                'NEEDS_ATTENTION': '需要关注'
+            };
+            return texts[status] || status;
+        }
+    };
+
     // 暴露全局函数（必要的）
     window.copyTextToClipboard = function(text, callback) {
         NotionWP.Utils.copyToClipboard(text, callback);
@@ -734,6 +892,7 @@ jQuery(document).ready(function($) {
         NotionWP.Stats.init();
         NotionWP.ConfigManager.init(); // 添加配置管理初始化
         NotionWP.QueryPerformance.init(); // 添加查询性能监控初始化
+        NotionWP.TestValidation.init(); // 添加测试验证初始化
 
         // 页面加载时获取统计信息
         if ($('.notion-stats-grid').length > 0) {
