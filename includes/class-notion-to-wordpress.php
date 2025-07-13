@@ -213,6 +213,7 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
 		$this->loader->add_action( 'wp_ajax_notion_config_management', $this->admin, 'handle_config_management' );
 		$this->loader->add_action( 'wp_ajax_notion_query_performance', $this->admin, 'handle_query_performance' );
+		$this->loader->add_action( 'wp_ajax_notion_test_validation', $this->admin, 'handle_test_validation' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );

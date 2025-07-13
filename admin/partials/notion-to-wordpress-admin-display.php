@@ -801,6 +801,44 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             </div>
                         </div>
 
+                        <!-- 测试验证面板 -->
+                        <div class="notion-wp-test-validation" style="background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                            <h3><?php esc_html_e('安全和性能测试验证', 'notion-to-wordpress'); ?></h3>
+                            <p class="description"><?php esc_html_e('对插件进行全面的安全、性能和功能测试验证，确保系统稳定性。', 'notion-to-wordpress'); ?></p>
+
+                            <div class="notion-wp-test-tools" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px;">
+                                <button type="button" id="run-quick-test" class="button button-primary">
+                                    <span class="dashicons dashicons-shield-alt"></span>
+                                    <?php esc_html_e('快速检查', 'notion-to-wordpress'); ?>
+                                </button>
+
+                                <button type="button" id="run-security-test" class="button button-secondary">
+                                    <span class="dashicons dashicons-lock"></span>
+                                    <?php esc_html_e('安全测试', 'notion-to-wordpress'); ?>
+                                </button>
+
+                                <button type="button" id="run-performance-test" class="button button-secondary">
+                                    <span class="dashicons dashicons-performance"></span>
+                                    <?php esc_html_e('性能测试', 'notion-to-wordpress'); ?>
+                                </button>
+
+                                <button type="button" id="run-functional-test" class="button button-secondary">
+                                    <span class="dashicons dashicons-admin-tools"></span>
+                                    <?php esc_html_e('功能测试', 'notion-to-wordpress'); ?>
+                                </button>
+                            </div>
+
+                            <div id="test-validation-results" style="margin-top: 20px; display: none;">
+                                <h4><?php esc_html_e('测试结果', 'notion-to-wordpress'); ?></h4>
+                                <div id="test-summary" class="test-summary-card" style="background: white; padding: 15px; border-radius: 6px; border: 1px solid #ddd; margin-bottom: 15px;">
+                                    <!-- 测试摘要将在这里显示 -->
+                                </div>
+                                <div id="test-details" class="test-details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                                    <!-- 测试详情将在这里显示 -->
+                                </div>
+                            </div>
+                        </div>
+
                         <?php
                         // 获取配置表单字段
                         $config_fields = Notion_To_WordPress_Helper::get_config_form_fields();

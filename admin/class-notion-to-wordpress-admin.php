@@ -1265,6 +1265,51 @@ class Notion_To_WordPress_Admin {
     }
 
     /**
+     * 处理测试验证请求
+     *
+     * @since 1.1.1
+     */
+    public function handle_test_validation() {
+        // 使用统一的安全验证中间件
+        if (!$this->validate_ajax_security()) {
+            return; // 验证失败时中间件已经发送了错误响应
+        }
+
+        $test_type = isset($_POST['test_type']) ? sanitize_text_field($_POST['test_type']) : 'quick';
+
+        try {
+            // 加载测试执行器
+            require_once plugin_dir_path(dirname(__FILE__)) . 'tests/admin-test-executor.php';
+
+            switch ($test_type) {
+                case 'security':
+                    $results = Notion_Admin_Test_Executor::run_quick_security_check();
+                    break;
+                case 'performance':
+                    $results = Notion_Admin_Test_Executor::run_quick_performance_check();
+                    break;
+                case 'functional':
+                    $results = Notion_Admin_Test_Executor::run_quick_functional_check();
+                    break;
+                case 'quick':
+                default:
+                    $results = Notion_Admin_Test_Executor::run_complete_quick_check();
+                    break;
+            }
+
+            wp_send_json_success($results);
+        } catch (Exception $e) {
+            $error = Notion_To_WordPress_Helper::exception_to_wp_error(
+                $e,
+                Notion_To_WordPress_Helper::ERROR_TYPE_SYSTEM,
+                Notion_To_WordPress_Helper::ERROR_SEVERITY_MEDIUM,
+                ['operation' => 'test_validation', 'test_type' => $test_type]
+            );
+            wp_send_json_error(['message' => $error->get_error_message()]);
+        }
+    }
+
+    /**
      * 注册与管理区域功能相关的所有钩子
      *
      * @since    1.0.5
