@@ -38,8 +38,8 @@ cd Notion-to-WordPress
 # 2. Install dependencies
 npm install
 
-# 3. Verify environment
-npm run validate:config
+# 3. Verify version consistency
+npm run validate:version
 
 # 4. Build test
 npm run build
@@ -322,8 +322,8 @@ sequenceDiagram
 git checkout -b feature/your-feature
 
 # 2. Development and testing
+npm run validate:version
 npm run build
-npm run package:local:patch
 
 # 3. Code checks
 npm run validate:config
@@ -365,16 +365,13 @@ Types:
 | `npm run validate:config` | Validate configuration | Environment check |
 | `npm run validate:github-actions` | Validate CI configuration | Pre-release check |
 
-### 📦 Local Packaging
+### 📦 Development Workflow
 
-| Command | Function | Version Change |
-|---------|----------|----------------|
-| `npm run package:local:patch` | Patch version | 1.2.0 → 1.2.1 |
-| `npm run package:local:minor` | Minor version | 1.2.0 → 1.3.0 |
-| `npm run package:local:major` | Major version | 1.2.0 → 2.0.0 |
-| `npm run package:local:beta` | Beta version | 1.2.0 → 1.2.1-beta.1 |
-| `npm run package:local:build-only` | Build only | No version update |
-| `npm run package:local:help` | Show help | View options |
+| Step | Command | Description |
+|------|---------|-------------|
+| 1. Check version | `npm run validate:version` | Validate version consistency |
+| 2. Bump version | `npm run version:bump:patch` | Upgrade version as needed |
+| 3. Build package | `npm run build` | Generate production package |
 
 ### 🚀 Release Commands
 
@@ -391,13 +388,15 @@ Types:
 
 | Command | Function | Purpose |
 |---------|----------|---------|
+| `npm run version:bump:check` | Check version consistency | Validate all files have same version |
 | `npm run version:bump:patch` | Patch version upgrade | 1.0.0 → 1.0.1 |
 | `npm run version:bump:minor` | Minor version upgrade | 1.0.0 → 1.1.0 |
 | `npm run version:bump:major` | Major version upgrade | 1.0.0 → 2.0.0 |
 | `npm run version:bump:beta` | Beta version upgrade | 1.0.0 → 1.0.1-beta.1 |
 | `npm run version:bump:rollback` | Rollback version | Restore backup |
+| `npm run version:bump:help` | Show help | Display usage information |
 
-**Note**: `version:bump` commands must specify a type and cannot be run alone.
+**Note**: All version operations automatically create backups and can be rolled back.
 
 ### 🧪 Testing Commands
 
@@ -1005,8 +1004,8 @@ cd Notion-to-WordPress
 git checkout -b feature/your-feature-name
 
 # 4. Develop and test
+npm run validate:version
 npm run build
-npm run package:local:patch
 
 # 5. Commit changes
 git add .

@@ -83,6 +83,21 @@ const releaseConfig = {
                         replacement: '$1{VERSION}$3'
                     }
                 ]
+            },
+            {
+                path: 'package-lock.json',
+                patterns: [
+                    {
+                        // npm 锁定文件版本 - 根级别（第3行）
+                        regex: /(^\s*"version":\s*")([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(.*")/m,
+                        replacement: '$1{VERSION}$3'
+                    },
+                    {
+                        // npm 锁定文件版本 - packages根级别（第9行左右）
+                        regex: /(\s*"":\s*\{[^}]*?"version":\s*")([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(.*")/s,
+                        replacement: '$1{VERSION}$3'
+                    }
+                ]
             }
         ],
 

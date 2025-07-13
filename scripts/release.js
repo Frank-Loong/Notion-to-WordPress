@@ -144,8 +144,10 @@ class ReleaseController {
             if (error.message.includes('uncommitted changes')) {
                 throw error;
             }
-            // 其他原因导致 git status 失败
-            this.warn('无法检查 Git 状态');
+            // 其他原因导致 git status 失败（如不在git仓库中）
+            if (!this.dryRun) {
+                this.warn('无法检查 Git 状态');
+            }
         }
 
         // 检查所需工具文件
