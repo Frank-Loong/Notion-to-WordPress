@@ -128,9 +128,16 @@ class Notion_API {
      */
     private static function init_cache_config(): void {
         if (!isset(self::$cache_ttl)) {
-            self::$cache_ttl = Notion_To_WordPress_Helper::get_config('cache.ttl', 300);
-            self::$max_cache_items = Notion_To_WordPress_Helper::get_config('cache.max_items', 1000);
-            self::$memory_limit = Notion_To_WordPress_Helper::get_config('cache.memory_limit_mb', 50) * 1024 * 1024;
+            // 确保返回值是int类型，避免null值导致的类型错误
+            $cache_ttl = Notion_To_WordPress_Helper::get_config('cache.ttl', 300);
+            self::$cache_ttl = is_numeric($cache_ttl) ? (int)$cache_ttl : 300;
+
+            $max_cache_items = Notion_To_WordPress_Helper::get_config('cache.max_items', 1000);
+            self::$max_cache_items = is_numeric($max_cache_items) ? (int)$max_cache_items : 1000;
+
+            $memory_limit_mb = Notion_To_WordPress_Helper::get_config('cache.memory_limit_mb', 50);
+            $memory_limit_mb = is_numeric($memory_limit_mb) ? (int)$memory_limit_mb : 50;
+            self::$memory_limit = $memory_limit_mb * 1024 * 1024;
         }
     }
 

@@ -72,6 +72,32 @@
 
 ---
 
+## 🚀 开发与发布
+
+### 快速开发工作流
+
+```bash
+# 1. 检查版本一致性
+npm run validate:version
+
+# 2. 升级版本（如需要）
+npm run version:bump:patch    # 或 minor/major/beta
+
+# 3. 构建生产包
+npm run build
+```
+
+### 发布命令
+
+- `npm run release:patch` - 补丁发布 (1.1.0 → 1.1.1)
+- `npm run release:minor` - 小版本发布 (1.1.0 → 1.2.0)
+- `npm run release:major` - 主版本发布 (1.1.0 → 2.0.0)
+- `npm run release:beta` - 测试版发布 (1.1.0 → 1.1.1-beta.1)
+
+详细开发指南请参考 [DEVELOPER_GUIDE-zh_CN.md](docs/DEVELOPER_GUIDE-zh_CN.md)。
+
+---
+
 ## 🌟 Star 历史
 
 [![Star History Chart](https://star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
@@ -102,4 +128,4 @@
 ## License
 GPL-3.0-or-later
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.0-beta.5
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.0-beta.6

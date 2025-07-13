@@ -72,6 +72,32 @@ Perfect for blogs, knowledge bases, team collaboration, and online courses. Writ
 
 ---
 
+## 🚀 Development & Release
+
+### Quick Development Workflow
+
+```bash
+# 1. Check version consistency
+npm run validate:version
+
+# 2. Bump version (if needed)
+npm run version:bump:patch    # or minor/major/beta
+
+# 3. Build production package
+npm run build
+```
+
+### Release Commands
+
+- `npm run release:patch` - Patch release (1.1.0 → 1.1.1)
+- `npm run release:minor` - Minor release (1.1.0 → 1.2.0)
+- `npm run release:major` - Major release (1.1.0 → 2.0.0)
+- `npm run release:beta` - Beta release (1.1.0 → 1.1.1-beta.1)
+
+For detailed development guide, see [DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md).
+
+---
+
 ## 🌟 Star History
 
 [![Star History Chart](https://star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
@@ -102,4 +128,4 @@ We extend our heartfelt gratitude to these projects and their maintainers for th
 ## License
 GPL-3.0-or-later
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.0-beta.5
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.0-beta.6
