@@ -38,17 +38,53 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
+        // 确保WordPress函数可用
+        if (!function_exists('get_option')) {
+            return;
+        }
+
         // 从选项中获取调试级别
         $options = get_option('notion_to_wordpress_options', []);
-        self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+        // 修复：保持字符串类型一致性，不进行int转换
+        self::$debug_level = isset($options['debug_level']) ? $options['debug_level'] : self::DEBUG_LEVEL_ERROR;
+
+        // 验证调试级别的有效性
+        $valid_levels = [self::DEBUG_LEVEL_NONE, self::DEBUG_LEVEL_ERROR, self::DEBUG_LEVEL_INFO, self::DEBUG_LEVEL_DEBUG];
+        if (!in_array(self::$debug_level, $valid_levels)) {
+            self::$debug_level = self::DEBUG_LEVEL_ERROR;
+        }
 
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
-        if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
+        if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level === self::DEBUG_LEVEL_NONE) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
 
         // 使用Helper类的方法记录日志，避免直接使用error_log
-        self::debug_log(__('调试级别设置为: ', 'notion-to-wordpress') . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
+        if (function_exists('__')) {
+            self::debug_log(__('调试级别设置为: ', 'notion-to-wordpress') . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
+        }
+    }
+
+    /**
+     * 检查是否应该记录指定级别的日志
+     *
+     * @since 1.0.8
+     * @param string $level 要检查的日志级别
+     * @return bool 是否应该记录
+     */
+    private static function should_log($level) {
+        // 定义日志级别的优先级（数字越大，级别越高）
+        $level_priority = [
+            self::DEBUG_LEVEL_NONE => 0,
+            self::DEBUG_LEVEL_ERROR => 1,
+            self::DEBUG_LEVEL_INFO => 2,
+            self::DEBUG_LEVEL_DEBUG => 3
+        ];
+
+        $current_priority = isset($level_priority[self::$debug_level]) ? $level_priority[self::$debug_level] : 0;
+        $required_priority = isset($level_priority[$level]) ? $level_priority[$level] : 3;
+
+        return $current_priority >= $required_priority;
     }
 
     /**
@@ -60,8 +96,8 @@ class Notion_To_WordPress_Helper {
      * @param    int       $level      此日志条目的级别。
      */
     public static function debug_log($data, $prefix = 'Notion Debug', $level = self::DEBUG_LEVEL_DEBUG) {
-        // 如果当前调试级别小于指定级别，则不记录
-        if (self::$debug_level < $level) {
+        // 检查是否应该记录此级别的日志
+        if (!self::should_log($level)) {
             return;
         }
         
@@ -85,7 +121,7 @@ class Notion_To_WordPress_Helper {
         $filtered_content = self::filter_sensitive_content($log_content, $level);
 
         // 仅在最高调试级别且WP_DEBUG启用时才写入WordPress error_log，避免污染
-        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG && defined('WP_DEBUG') && WP_DEBUG === true) {
+        if (self::should_log(self::DEBUG_LEVEL_DEBUG) && defined('WP_DEBUG') && WP_DEBUG === true) {
             error_log($log_prefix . $filtered_content);
         }
 
@@ -791,7 +827,7 @@ class Notion_To_WordPress_Helper {
         }
 
         // 记录详细的错误上下文（仅在调试模式下）
-        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG && !empty($data['context'])) {
+        if (self::should_log(self::DEBUG_LEVEL_DEBUG) && !empty($data['context'])) {
             self::debug_log('错误上下文: ' . print_r($data['context'], true), 'ERROR CONTEXT');
         }
     }
@@ -1583,7 +1619,7 @@ class Notion_To_WordPress_Helper {
      * @param array $additional_data 额外数据
      */
     public static function log_performance(string $operation, float $start_time, array $additional_data = []): void {
-        if (self::$debug_level < self::DEBUG_LEVEL_DEBUG) {
+        if (!self::should_log(self::DEBUG_LEVEL_DEBUG)) {
             return;
         }
 
@@ -1632,7 +1668,7 @@ class Notion_To_WordPress_Helper {
     public static function start_performance_timer(string $operation): float {
         $start_time = microtime(true);
 
-        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG) {
+        if (self::should_log(self::DEBUG_LEVEL_DEBUG)) {
             self::debug_log(
                 '开始性能计时: ' . $operation,
                 'Performance Timer'
@@ -2152,5 +2188,5 @@ class Notion_To_WordPress_Helper {
 
 }
 
-// 初始化静态帮助类
-Notion_To_WordPress_Helper::init();
+// 注意：不在此处立即初始化，而是在WordPress环境完全加载后初始化
+// 初始化将在主插件类的构造函数中调用

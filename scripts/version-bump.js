@@ -65,6 +65,21 @@ class VersionBumper {
                 ]
             },
             {
+                path: 'package-lock.json',
+                patterns: [
+                    {
+                        // npm 锁定文件版本 - 根级别（第3行）
+                        regex: /(^\s*"version":\s*")([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(.*")/m,
+                        replacement: '$1{VERSION}$3'
+                    },
+                    {
+                        // npm 锁定文件版本 - packages根级别（第9行左右）
+                        regex: /(\s*"":\s*\{[^}]*?"version":\s*")([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(.*")/s,
+                        replacement: '$1{VERSION}$3'
+                    }
+                ]
+            },
+            {
                 path: 'README.md',
                 patterns: [
                     {
@@ -128,49 +143,65 @@ class VersionBumper {
      * 校验所有文件的版本号格式和一致性
      */
     validateVersion() {
-        this.log('正在校验文件版本号的一致性...');
-        
         const versions = [];
-        
+        const missingFiles = [];
+
         for (const fileConfig of this.versionFiles) {
             const filePath = path.join(this.projectRoot, fileConfig.path);
-            
+
             if (!fs.existsSync(filePath)) {
-                this.warn(`未找到文件: ${fileConfig.path}`);
+                missingFiles.push(fileConfig.path);
                 continue;
             }
-            
+
             const content = fs.readFileSync(filePath, 'utf8');
-            
+
             for (const pattern of fileConfig.patterns) {
                 const match = content.match(pattern.regex);
                 if (match && match[2]) {
                     versions.push({
                         file: fileConfig.path,
-                        version: match[2]
+                        version: match[2],
+                        line: this.getLineNumber(content, match[0])
                     });
                 }
             }
         }
-        
-        // 检查所有版本号是否一致
+
+        // 报告缺失的文件
+        if (missingFiles.length > 0) {
+            this.warn(`以下文件未找到: ${missingFiles.join(', ')}`);
+        }
+
+        // 检查是否找到版本号
+        if (versions.length === 0) {
+            throw new Error('未找到任何版本号');
+        }
+
+        // 检查版本一致性
         const uniqueVersions = [...new Set(versions.map(v => v.version))];
-        
+
         if (uniqueVersions.length > 1) {
-            this.error('检测到版本不一致:');
-            versions.forEach(v => {
-                console.log(`  ${v.file}: ${v.version}`);
-            });
-            process.exit(1);
+            const errorMsg = '检测到版本不一致:\n' +
+                versions.map(v => `  ${v.file}:${v.line} → ${v.version}`).join('\n');
+            throw new Error(errorMsg);
         }
-        
-        if (uniqueVersions.length === 0) {
-            this.error('在任何文件中未找到版本号');
-            process.exit(1);
-        }
-        
-        this.success(`所有文件的版本号一致: ${uniqueVersions[0]}`);
+
         return uniqueVersions[0];
+    }
+
+    /**
+     * 获取匹配内容在文件中的行号
+     */
+    getLineNumber(content, matchText) {
+        try {
+            const index = content.indexOf(matchText);
+            if (index === -1) return 0;
+            const lines = content.substring(0, index).split('\n');
+            return lines.length;
+        } catch (error) {
+            return 0;
+        }
     }
 
     /**
@@ -453,50 +484,76 @@ if (require.main === module) {
     const args = process.argv.slice(2);
     const command = args[0];
 
-    if (command === 'rollback') {
-        const bumper = new VersionBumper();
-        if (bumper.restoreFromBackup()) {
-            bumper.success('\u2705 成功回滚到上一个版本');
-        } else {
-            bumper.error('\u274c 回滚失败');
-            process.exit(1);
-        }
-        return;
-    }
-
-    const bumpType = command;
-
-    // Handle help command
-    if (command === '--help' || command === '-h' || command === 'help') {
+    // 显示帮助信息
+    function showHelp() {
         console.log(chalk.bold('\n📝 Notion-to-WordPress 版本号管理工具\n'));
-        console.log('用法: npm run version:bump:<命令>');
+        console.log('用法:');
+        console.log('  npm run version:bump:check     # 检查版本一致性');
+        console.log('  npm run version:bump:<类型>     # 升级版本号');
+        console.log('  npm run version:bump:rollback  # 恢复备份');
+        console.log('  npm run version:bump:help      # 显示帮助');
         console.log('');
-        console.log('命令:');
+        console.log('版本升级类型:');
         console.log('  patch      补丁版本升级 (1.1.0 → 1.1.1)');
         console.log('  minor      小版本升级 (1.1.0 → 1.2.0)');
         console.log('  major      主版本升级 (1.1.0 → 2.0.0)');
         console.log('  beta       测试版升级 (1.1.0 → 1.1.1-beta.1)');
-        console.log('  rollback   从备份恢复版本');
         console.log('');
         console.log('示例:');
+        console.log('  npm run version:bump:check     # 仅检查版本一致性');
         console.log('  npm run version:bump:patch     # 补丁升级');
         console.log('  npm run version:bump:minor     # 小版本升级');
         console.log('  npm run version:bump:major     # 主版本升级');
         console.log('  npm run version:bump:beta      # 测试版升级');
         console.log('  npm run version:bump:rollback  # 恢复备份');
-        console.log('  npm run version:bump           # 检查版本一致性');
+        console.log('');
+        console.log('注意: 所有操作都会自动创建备份，可以使用 rollback 恢复');
+    }
+
+    // 处理帮助命令
+    if (!command || command === '--help' || command === '-h' || command === 'help') {
+        showHelp();
         process.exit(0);
     }
 
-    if (!bumpType || !['patch', 'minor', 'major', 'beta'].includes(bumpType)) {
-        console.log(chalk.red('\u274c 未指定或无效的升级类型'));
-        console.log('用法: npm run version:bump:<patch|minor|major|beta|rollback>');
-        console.log('使用 npm run version:bump -- --help 查看详细帮助信息');
+    const bumper = new VersionBumper();
+
+    // 处理版本一致性检查
+    if (command === 'check' || command === 'validate') {
+        try {
+            bumper.log(chalk.bold('🔍 检查版本一致性...'));
+            const currentVersion = bumper.getCurrentVersion();
+            bumper.validateVersion();
+            bumper.success(`✅ 所有文件版本一致: ${chalk.green(currentVersion)}`);
+            process.exit(0);
+        } catch (error) {
+            bumper.error(`❌ 版本检查失败: ${error.message}`);
+            process.exit(1);
+        }
+    }
+
+    // 处理回滚命令
+    if (command === 'rollback') {
+        if (bumper.restoreFromBackup()) {
+            bumper.success('✅ 成功回滚到上一个版本');
+        } else {
+            bumper.error('❌ 回滚失败');
+            process.exit(1);
+        }
+        return;
+    }
+
+    // 处理版本升级命令
+    const validBumpTypes = ['patch', 'minor', 'major', 'beta'];
+    if (!validBumpTypes.includes(command)) {
+        console.log(chalk.red(`❌ 无效的命令: ${command}`));
+        console.log('');
+        showHelp();
         process.exit(1);
     }
 
-    const bumper = new VersionBumper();
-    bumper.run(bumpType);
+    // 执行版本升级
+    bumper.run(command);
 }
 
 module.exports = VersionBumper;

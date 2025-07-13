@@ -94,9 +94,12 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.8.0-beta.5';
+			$this->version = '1.8.0-beta.6';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
+
+		// 在WordPress环境完全加载后初始化Helper类
+		Notion_To_WordPress_Helper::init();
 
 		$this->load_dependencies();
 		$this->instantiate_objects();
@@ -406,13 +409,17 @@ class Notion_To_WordPress {
 			wp_schedule_event( time(), 'hourly', 'notion_to_wordpress_cache_cleanup' );
 		}
 
-		// 配置缓存参数 - 使用配置管理系统
+		// 配置缓存参数 - 使用默认值，避免在激活时调用可能未初始化的配置系统
 		$cache_config = [
-			'max_items' => Notion_To_WordPress_Helper::get_config('cache.max_items', 1000),
-			'memory_limit_mb' => Notion_To_WordPress_Helper::get_config('cache.memory_limit_mb', 50),
-			'ttl' => Notion_To_WordPress_Helper::get_config('cache.ttl', 300)
+			'max_items' => 1000,
+			'memory_limit_mb' => 50,
+			'ttl' => 300
 		];
-		Notion_API::configure_cache( $cache_config );
+
+		// 安全检查：确保Notion_API类存在且方法可用
+		if (class_exists('Notion_API') && method_exists('Notion_API', 'configure_cache')) {
+			Notion_API::configure_cache( $cache_config );
+		}
 
 		// 刷新重写规则
 		flush_rewrite_rules();
@@ -441,7 +448,9 @@ class Notion_To_WordPress {
 		wp_clear_scheduled_hook( 'notion_to_wordpress_cache_cleanup' );
 
 		// 清除所有缓存
-		Notion_API::clear_page_cache();
+		if (class_exists('Notion_API') && method_exists('Notion_API', 'clear_page_cache')) {
+			Notion_API::clear_page_cache();
+		}
 
 		// 刷新重写规则
 		flush_rewrite_rules();
