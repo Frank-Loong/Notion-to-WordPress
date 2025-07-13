@@ -38,8 +38,8 @@ cd Notion-to-WordPress
 # 2. 安装依赖
 npm install
 
-# 3. 验证环境
-npm run validate:config
+# 3. 验证版本一致性
+npm run validate:version
 
 # 4. 构建测试
 npm run build
@@ -48,6 +48,26 @@ npm run build
 # Linux/Mac: ls -la build/notion-to-wordpress-*.zip
 # Windows: Get-ChildItem build/notion-to-wordpress-*.zip
 ```
+
+### ⚡ 简化开发工作流
+
+**日常开发的3步工作流：**
+
+```bash
+# 1. 检查版本一致性
+npm run validate:version
+
+# 2. 升级版本（如需要）
+npm run version:bump:patch    # 或 minor/major/beta
+
+# 3. 构建生产包
+npm run build
+```
+
+**常用命令速查：**
+- `npm run version:bump:help` - 查看版本管理帮助
+- `npm run version:bump:check` - 仅检查版本一致性
+- `npm run version:bump:rollback` - 回滚到上一版本
 
 ### ✅ 环境要求
 
@@ -322,8 +342,8 @@ sequenceDiagram
 git checkout -b feature/your-feature
 
 # 2. 开发和测试
+npm run validate:version
 npm run build
-npm run package:local:patch
 
 # 3. 代码检查
 npm run validate:config
@@ -365,16 +385,13 @@ git merge feature/your-feature
 | `npm run validate:config` | 验证配置 | 环境检查 |
 | `npm run validate:github-actions` | 验证CI配置 | 发布前检查 |
 
-### 📦 本地打包
+### 📦 开发工作流
 
-| 命令 | 功能 | 版本变化 |
-|------|------|----------|
-| `npm run package:local:patch` | 补丁版本 | 1.2.0 → 1.2.1 |
-| `npm run package:local:minor` | 小版本 | 1.2.0 → 1.3.0 |
-| `npm run package:local:major` | 主版本 | 1.2.0 → 2.0.0 |
-| `npm run package:local:beta` | 测试版本 | 1.2.0 → 1.2.1-beta.1 |
-| `npm run package:local:build-only` | 仅打包 | 不更新版本 |
-| `npm run package:local:help` | 显示帮助 | 查看选项 |
+| 步骤 | 命令 | 说明 |
+|------|------|------|
+| 1. 检查版本 | `npm run validate:version` | 验证版本一致性 |
+| 2. 升级版本 | `npm run version:bump:patch` | 根据需要升级版本 |
+| 3. 构建打包 | `npm run build` | 生成生产包 |
 
 ### 🚀 发布命令
 
@@ -391,13 +408,15 @@ git merge feature/your-feature
 
 | 命令 | 功能 | 用途 |
 |------|------|------|
+| `npm run version:bump:check` | 检查版本一致性 | 验证所有文件版本号一致 |
 | `npm run version:bump:patch` | 补丁版本升级 | 1.0.0 → 1.0.1 |
 | `npm run version:bump:minor` | 小版本升级 | 1.0.0 → 1.1.0 |
 | `npm run version:bump:major` | 主版本升级 | 1.0.0 → 2.0.0 |
 | `npm run version:bump:beta` | 测试版本升级 | 1.0.0 → 1.0.1-beta.1 |
 | `npm run version:bump:rollback` | 回滚版本 | 恢复备份 |
+| `npm run version:bump:help` | 显示帮助 | 显示使用说明 |
 
-**注意**: `version:bump` 命令必须指定类型，不能单独运行。
+**注意**: 所有版本操作都会自动创建备份，可以使用rollback恢复。
 
 ### 🧪 测试命令
 
@@ -1005,8 +1024,8 @@ cd Notion-to-WordPress
 git checkout -b feature/your-feature-name
 
 # 4. 开发测试
+npm run validate:version
 npm run build
-npm run package:local:patch
 
 # 5. 提交更改
 git add .
