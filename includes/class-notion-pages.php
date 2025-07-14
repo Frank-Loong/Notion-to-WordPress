@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Notion 页面处理类。
  * 负责将 Notion 页面转换为 WordPress 文章，包括内容转换、字段映射和媒体处理。
  * @since      1.0.9
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

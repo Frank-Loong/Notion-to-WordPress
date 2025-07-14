@@ -3,7 +3,7 @@
  * 性能监视器页面。
  * 此文件负责渲染性能监视器页面，包括实时数据卡片和操作按钮。
  * @since      1.8.2
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/admin/partials
  * @author     Frank-Loong

@@ -6,7 +6,7 @@
 
 # 🚀 Notion-to-WordPress - 项目概览与功能对比
 
-> **当前版本**: 1.8.3-test.2  
+> **当前版本**: 1.8.3-beta.1  
 > **状态**: 生产就绪 ✅  
 > **最后更新**: 2025-07-07
 
@@ -265,4 +265,4 @@
 
 </div>
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-test.2
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.1

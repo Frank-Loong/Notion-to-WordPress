@@ -7,7 +7,7 @@
  * 简化的发布流程，依赖 Git 进行版本控制和回滚。
  *
  * @author Frank-Loong
- * @version 1.8.3-test.2
+ * @version 1.8.3-beta.1
  */
 
 const fs = require('fs');
