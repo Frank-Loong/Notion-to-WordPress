@@ -139,7 +139,7 @@ wp core version
 - 使用你的 Notion 账号登录
 
 <div align="center">
-  <img src="../docs/images/notion-integrations.png" alt="Notion 集成页面" width="800">
+  <img src="../docs/images/notion-integrations-zh_CN.png" alt="Notion 集成页面" width="800">
   <p><em>Notion 集成管理界面</em></p>
 </div>
 
@@ -162,7 +162,7 @@ wp core version
 - ⚠️ **重要：** 请妥善保存此密钥，后续配置需要使用
 
 <div align="center">
-  <img src="../docs/images/notion-internal-integration-key.png" alt="复制内部集成秘钥" width="800">
+  <img src="../docs/images/notion-internal-integration-key-zh_CN.png" alt="复制内部集成密钥" width="800">
   <p><em>复制并保存你的内部集成秘钥</em></p>
 </div>
 
@@ -179,7 +179,7 @@ wp core version
 - 点击 "**添加连接**" 完成添加
 
 <div align="center">
-  <img src="../docs/images/notion-database-id.png" alt="添加集成并复制数据库ID" width="800">
+  <img src="../docs/images/notion-database-id-zh_CN.png" alt="添加集成并复制数据库ID" width="800">
   <p><em>将集成连接到数据库并复制数据库ID</em></p>
 </div>
 
@@ -212,7 +212,7 @@ wp core version
 - 进入 `插件` → `添加新插件` → `上传插件`
 
 <div align="center">
-  <img src="../docs/images/install.png" alt="WordPress插件安装" width="800">
+  <img src="../docs/images/install-zh_CN.png" alt="WordPress插件安装" width="800">
   <p><em>WordPress 插件上传界面</em></p>
 </div>
 
@@ -289,7 +289,7 @@ wp plugin list | grep notion-to-wordpress
 - **Database ID（数据库 ID）：** 粘贴第一步获取的 32 位数据库 ID
 
 <div align="center">
-  <img src="../docs/images/wordpress-config.png" alt="WordPress配置" width="600">
+  <img src="../docs/images/wordpress-config-zh_CN.png" alt="WordPress配置" width="600">
   <p><em>在 WordPress 中配置 Notion 集成信息</em></p>
 </div>
 

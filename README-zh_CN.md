@@ -12,6 +12,25 @@
 
 ---
 
+## 🖼️ 效果演示
+
+<p align="center">
+  <img src="docs/images/demo-overview-zh_CN.gif" alt="插件后台界面" width="90%"><br/>
+  <em>▲ 可视化后台：一键配置、同步与监控</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-notion-page-zh_CN.gif" alt="Notion 原页面" width="90%"><br/>
+  <em>▲ 在你熟悉的 Notion 中编写和组织内容</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-wordpress-post-zh_CN.gif" alt="WordPress 同步效果" width="90%"><br/>
+  <em>▲ 一键同步，内容完美还原到 WordPress，所见即所得</em>
+</p>
+
+---
+
 ## 简介
 **Notion-to-WordPress** 是一款现代化 WordPress 插件，让你无需写一行代码，就能把 Notion 数据库里的文章、页面、图片、数学公式、Mermaid 图表等内容批量同步到 WordPress，并保持实时更新。
 

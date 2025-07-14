@@ -90,7 +90,70 @@ class Notion_Pages {
      * @access   private
      * @var      int    $cache_ttl    缓存有效期
      */
-    private static int $cache_ttl = 300; // 5分钟
+    private static int $cache_ttl = 1800; // 30分钟，提升缓存效率
+
+    /**
+     * 缓存性能统计
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array    $cache_performance    缓存性能统计
+     */
+    private static array $cache_performance = [
+        'total_queries' => 0,
+        'cache_hits' => 0,
+        'cache_misses' => 0,
+        'batch_queries' => 0,
+        'single_queries' => 0,
+        'preload_operations' => 0
+    ];
+
+    /**
+     * 缓存预热配置
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array    $preload_config    缓存预热配置
+     */
+    private static array $preload_config = [
+        'max_preload_size' => 1000,    // 最大预加载数量
+        'preload_threshold' => 50,     // 预加载阈值
+        'smart_preload' => true,       // 智能预加载
+        'preload_recent_posts' => true // 预加载最近文章
+    ];
+
+    /**
+     * 图片下载队列管理器
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      Notion_Concurrent_Manager|null
+     */
+    private ?Notion_Concurrent_Manager $image_download_manager = null;
+
+    /**
+     * 图片下载缓存
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private static array $image_download_cache = [];
+
+    /**
+     * 图片下载统计
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private static array $image_download_stats = [
+        'total_images_processed' => 0,
+        'images_downloaded_async' => 0,
+        'images_from_cache' => 0,
+        'images_failed' => 0,
+        'total_download_time' => 0
+    ];
 
     /**
      * 构造函数
@@ -104,6 +167,42 @@ class Notion_Pages {
         $this->notion_api = $notion_api;
         $this->database_id = $database_id;
         $this->field_mapping = $field_mapping;
+
+        // 初始化图片下载管理器
+        $this->initialize_image_download_manager();
+    }
+
+    /**
+     * 初始化图片下载管理器
+     *
+     * @since    1.8.1
+     */
+    private function initialize_image_download_manager(): void {
+        try {
+            // 获取API密钥
+            $options = get_option('notion_to_wordpress_options', []);
+            $api_key = $options['api_key'] ?? '';
+
+            if (!empty($api_key)) {
+                // 创建专门用于图片下载的并发管理器，使用较小的并发数
+                $this->image_download_manager = new Notion_Concurrent_Manager($api_key, 8);
+
+                Notion_To_WordPress_Helper::debug_log(
+                    '图片下载管理器初始化成功，并发数：8',
+                    'Image Download Manager'
+                );
+            } else {
+                Notion_To_WordPress_Helper::error_log(
+                    '图片下载管理器初始化失败：API密钥为空',
+                    'Image Download Manager'
+                );
+            }
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '图片下载管理器初始化异常：' . $e->getMessage(),
+                'Image Download Manager'
+            );
+        }
     }
 
     /**
@@ -1255,47 +1354,120 @@ class Notion_Pages {
         }
 
         $start_time = Notion_To_WordPress_Helper::start_performance_timer('get_posts_by_notion_ids');
+        self::$cache_performance['total_queries']++;
+        self::$cache_performance['batch_queries']++;
 
-        // 检查缓存是否过期
+        // 智能缓存管理：检查缓存是否过期
         $current_time = time();
-        if ($current_time - self::$cache_timestamp > self::$cache_ttl) {
+        $cache_age = $current_time - self::$cache_timestamp;
+
+        // 根据缓存大小动态调整TTL
+        $dynamic_ttl = $this->calculate_dynamic_cache_ttl();
+
+        if ($cache_age > $dynamic_ttl) {
+            $old_cache_size = count(self::$notion_id_cache);
             self::$notion_id_cache = [];
             self::$cache_timestamp = $current_time;
-            Notion_To_WordPress_Helper::debug_log('批量查询缓存已过期，清空缓存', 'Batch Query Cache');
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('智能缓存过期清理：缓存年龄%ds，动态TTL%ds，清理%d个条目',
+                       $cache_age, $dynamic_ttl, $old_cache_size),
+                'Smart Cache'
+            );
         }
 
         // 找出未缓存的ID
         $uncached_ids = array_diff($notion_ids, array_keys(self::$notion_id_cache));
+        $cached_count = count($notion_ids) - count($uncached_ids);
+
+        // 更新缓存命中统计
+        self::$cache_performance['cache_hits'] += $cached_count;
+        self::$cache_performance['cache_misses'] += count($uncached_ids);
 
         if (!empty($uncached_ids)) {
             Notion_To_WordPress_Helper::debug_log(
-                sprintf('批量查询：总计%d个ID，未缓存%d个', count($notion_ids), count($uncached_ids)),
-                'Batch Query'
+                sprintf('智能批量查询：总计%d个ID，缓存命中%d个，需查询%d个',
+                       count($notion_ids), $cached_count, count($uncached_ids)),
+                'Smart Batch Query'
             );
 
-            // 批量查询数据库
-            $args = [
-                'post_type'      => 'any',
-                'post_status'    => 'any',
-                'posts_per_page' => -1, // 获取所有匹配的文章
-                'meta_query'     => [
-                    [
-                        'key'     => '_notion_page_id',
-                        'value'   => $uncached_ids,
-                        'compare' => 'IN'
-                    ]
-                ],
-                'fields' => 'ids' // 仅获取ID以提高性能
-            ];
+            // 分批查询以避免大查询的性能问题
+            $batch_size = 100; // 每批最多100个ID
+            $all_posts = [];
+            $batches = array_chunk($uncached_ids, $batch_size);
 
-            $posts = get_posts($args);
+            foreach ($batches as $batch_index => $batch_ids) {
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf('执行数据库查询批次 %d/%d，查询%d个ID',
+                           $batch_index + 1, count($batches), count($batch_ids)),
+                    'DB Batch Query'
+                );
 
-            // 获取每个文章的notion_id并更新缓存
-            foreach ($posts as $post_id) {
-                $notion_id = get_post_meta($post_id, '_notion_page_id', true);
-                if (!empty($notion_id)) {
-                    self::$notion_id_cache[$notion_id] = $post_id;
+                // 优化的批量查询参数
+                $args = [
+                    'post_type'      => 'any',
+                    'post_status'    => 'any',
+                    'posts_per_page' => -1,
+                    'meta_query'     => [
+                        [
+                            'key'     => '_notion_page_id',
+                            'value'   => $batch_ids,
+                            'compare' => 'IN'
+                        ]
+                    ],
+                    'fields' => 'ids', // 仅获取ID以提高性能
+                    'no_found_rows' => true, // 不计算总行数，提升性能
+                    'update_post_meta_cache' => false, // 不更新meta缓存
+                    'update_post_term_cache' => false  // 不更新term缓存
+                ];
+
+                $batch_posts = get_posts($args);
+                $all_posts = array_merge($all_posts, $batch_posts);
+            }
+
+            $posts = $all_posts;
+
+            // 批量获取所有meta数据，避免循环中的单个查询
+            if (!empty($posts)) {
+                $meta_start_time = microtime(true);
+
+                // 使用WordPress的批量meta查询
+                $meta_data = [];
+                if (function_exists('get_post_meta_batch')) {
+                    // 如果有批量meta查询函数，使用它
+                    $meta_data = get_post_meta_batch($posts, '_notion_page_id');
+                } else {
+                    // 否则使用优化的单次查询获取所有meta
+                    global $wpdb;
+                    $post_ids_str = implode(',', array_map('intval', $posts));
+                    $meta_results = $wpdb->get_results(
+                        $wpdb->prepare(
+                            "SELECT post_id, meta_value FROM {$wpdb->postmeta}
+                             WHERE post_id IN ($post_ids_str) AND meta_key = %s",
+                            '_notion_page_id'
+                        )
+                    );
+
+                    foreach ($meta_results as $meta_row) {
+                        $meta_data[$meta_row->post_id] = $meta_row->meta_value;
+                    }
                 }
+
+                $meta_time = (microtime(true) - $meta_start_time) * 1000;
+
+                // 批量更新缓存
+                $cached_count = 0;
+                foreach ($posts as $post_id) {
+                    $notion_id = $meta_data[$post_id] ?? '';
+                    if (!empty($notion_id)) {
+                        self::$notion_id_cache[$notion_id] = $post_id;
+                        $cached_count++;
+                    }
+                }
+
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf('批量meta查询完成：%.2fms，缓存%d个映射', $meta_time, $cached_count),
+                    'Batch Meta Query'
+                );
             }
 
             // 对于未找到的ID，也缓存为0，避免重复查询
@@ -1306,8 +1478,9 @@ class Notion_Pages {
             }
 
             Notion_To_WordPress_Helper::debug_log(
-                sprintf('批量查询完成：找到%d个匹配文章', count($posts)),
-                'Batch Query'
+                sprintf('智能批量查询完成：找到%d个匹配文章，缓存%d个条目',
+                       count($posts), count($uncached_ids)),
+                'Smart Batch Query'
             );
         } else {
             Notion_To_WordPress_Helper::debug_log(
@@ -1316,19 +1489,308 @@ class Notion_Pages {
             );
         }
 
-        // 返回请求的ID映射
+        // 构建结果数组并统计命中率
         $result = [];
+        $found_count = 0;
         foreach ($notion_ids as $notion_id) {
-            $result[$notion_id] = self::$notion_id_cache[$notion_id] ?? 0;
+            $post_id = self::$notion_id_cache[$notion_id] ?? 0;
+            if ($post_id > 0) {
+                $result[$notion_id] = $post_id;
+                $found_count++;
+            }
         }
 
-        Notion_To_WordPress_Helper::end_performance_timer('get_posts_by_notion_ids', $start_time, [
+        // 计算并记录缓存性能统计
+        $cache_hit_rate = count($notion_ids) > 0 ?
+            round((count($notion_ids) - count($uncached_ids)) / count($notion_ids) * 100, 2) : 0;
+
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer('get_posts_by_notion_ids', $start_time, [
             'total_ids' => count($notion_ids),
             'uncached_ids' => count($uncached_ids),
-            'cache_hit_rate' => round((count($notion_ids) - count($uncached_ids)) / count($notion_ids) * 100, 2) . '%'
+            'found_posts' => $found_count,
+            'cache_hit_rate' => $cache_hit_rate . '%',
+            'cache_size' => count(self::$notion_id_cache)
         ]);
 
+        // 记录详细的性能统计
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('智能批量查询完成 - 查询%d个ID，找到%d个文章，缓存命中率%.1f%%，缓存大小%d，执行时间%.2fms',
+                   count($notion_ids), $found_count, $cache_hit_rate, count(self::$notion_id_cache), $execution_time),
+            'Smart Batch Performance'
+        );
+
         return $result;
+    }
+
+    /**
+     * 计算动态缓存TTL
+     *
+     * @since    1.8.1
+     * @return   int    动态TTL（秒）
+     */
+    private function calculate_dynamic_cache_ttl(): int {
+        $base_ttl = self::$cache_ttl;
+        $cache_size = count(self::$notion_id_cache);
+
+        // 根据缓存大小调整TTL
+        if ($cache_size > 500) {
+            // 缓存较大时，延长TTL以减少重建频率
+            $base_ttl = (int)($base_ttl * 1.5);
+        } elseif ($cache_size < 50) {
+            // 缓存较小时，缩短TTL以保持数据新鲜度
+            $base_ttl = (int)($base_ttl * 0.7);
+        }
+
+        // 根据缓存命中率调整TTL
+        if (self::$cache_performance['total_queries'] > 10) {
+            $hit_rate = self::$cache_performance['cache_hits'] /
+                       (self::$cache_performance['cache_hits'] + self::$cache_performance['cache_misses']);
+
+            if ($hit_rate > 0.9) {
+                // 命中率很高，延长TTL
+                $base_ttl = (int)($base_ttl * 1.3);
+            } elseif ($hit_rate < 0.6) {
+                // 命中率较低，缩短TTL
+                $base_ttl = (int)($base_ttl * 0.8);
+            }
+        }
+
+        // 确保TTL在合理范围内
+        return max(300, min(3600, $base_ttl)); // 5分钟到1小时之间
+    }
+
+    /**
+     * 批量预加载notion_id映射缓存
+     *
+     * @since    1.8.1
+     * @param    array    $pages    页面数组
+     */
+    private function preload_notion_id_cache(array $pages): void {
+        if (empty($pages)) {
+            return;
+        }
+
+        $preload_start_time = Notion_To_WordPress_Helper::start_performance_timer('preload_notion_id_cache');
+        self::$cache_performance['preload_operations']++;
+
+        // 提取所有notion_id
+        $notion_ids = [];
+        foreach ($pages as $page) {
+            if (isset($page['id'])) {
+                $notion_ids[] = $page['id'];
+            }
+        }
+
+        if (empty($notion_ids)) {
+            Notion_To_WordPress_Helper::debug_log('预加载：未找到有效的notion_id', 'Cache Preload');
+            return;
+        }
+
+        // 限制预加载数量以避免内存问题
+        if (count($notion_ids) > self::$preload_config['max_preload_size']) {
+            $notion_ids = array_slice($notion_ids, 0, self::$preload_config['max_preload_size']);
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('预加载：限制到%d个ID以避免内存问题', self::$preload_config['max_preload_size']),
+                'Cache Preload'
+            );
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('开始预加载%d个notion_id映射到缓存', count($notion_ids)),
+            'Cache Preload'
+        );
+
+        // 使用现有的批量查询方法进行预加载
+        $preloaded_mappings = $this->get_posts_by_notion_ids($notion_ids);
+
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($preload_start_time, 'preload_notion_id_cache');
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('缓存预加载完成：预加载%d个ID，找到%d个映射，执行时间%.2fms，缓存大小%d',
+                   count($notion_ids), count($preloaded_mappings), $execution_time, count(self::$notion_id_cache)),
+            'Cache Preload'
+        );
+    }
+
+    /**
+     * 批量收集页面中的所有图片URL
+     *
+     * @since    1.8.1
+     * @param    string    $content    页面内容
+     * @return   array                图片URL数组
+     */
+    private function collect_images_from_content(string $content): array {
+        $images = [];
+
+        // 使用正则表达式匹配Notion临时URL
+        $pattern = '/https:\/\/[^\/]*\.amazonaws\.com\/[^"\s]+/';
+        if (preg_match_all($pattern, $content, $matches)) {
+            foreach ($matches[0] as $url) {
+                if ($this->is_notion_temp_url($url)) {
+                    $images[] = [
+                        'url' => $url,
+                        'caption' => basename(parse_url($url, PHP_URL_PATH))
+                    ];
+                }
+            }
+        }
+
+        // 也可以匹配其他图片URL模式
+        $image_pattern = '/https?:\/\/[^\s"\'<>]+\.(?:jpg|jpeg|png|gif|webp|svg)(?:\?[^\s"\'<>]*)?/i';
+        if (preg_match_all($image_pattern, $content, $image_matches)) {
+            foreach ($image_matches[0] as $url) {
+                if ($this->is_notion_temp_url($url)) {
+                    $images[] = [
+                        'url' => $url,
+                        'caption' => basename(parse_url($url, PHP_URL_PATH))
+                    ];
+                }
+            }
+        }
+
+        // 去重
+        $unique_images = [];
+        $seen_urls = [];
+
+        foreach ($images as $image) {
+            $base_url = strtok($image['url'], '?');
+            if (!in_array($base_url, $seen_urls)) {
+                $seen_urls[] = $base_url;
+                $unique_images[] = $image;
+            }
+        }
+
+        return $unique_images;
+    }
+
+    /**
+     * 异步下载页面中的所有图片
+     *
+     * @since    1.8.1
+     * @param    string    $content    页面内容
+     * @return   array                下载结果映射
+     */
+    public function download_images_async(string $content): array {
+        if (!$this->image_download_manager) {
+            Notion_To_WordPress_Helper::error_log(
+                '图片下载管理器未初始化，无法执行异步下载',
+                'Image Download'
+            );
+            return [];
+        }
+
+        $start_time = Notion_To_WordPress_Helper::start_performance_timer('download_images_async');
+
+        // 收集页面中的所有图片
+        $images = $this->collect_images_from_content($content);
+
+        if (empty($images)) {
+            Notion_To_WordPress_Helper::debug_log('页面中未发现需要下载的图片', 'Image Download');
+            return [];
+        }
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('开始异步下载页面中的%d个图片', count($images)),
+            'Image Download'
+        );
+
+        // 批量添加到下载队列
+        $request_ids = $this->image_download_manager->add_batch_image_download_requests($images);
+
+        // 执行下载
+        $download_results = $this->image_download_manager->execute_image_downloads();
+
+        // 构建URL到附件ID的映射
+        $url_to_attachment_map = [];
+        foreach ($request_ids as $request_id) {
+            $result = $this->image_download_manager->get_image_download_result($request_id);
+            if ($result && $result['status'] === 'completed' && $result['attachment_id']) {
+                $url_to_attachment_map[$result['url']] = $result['attachment_id'];
+
+                // 更新缓存
+                $base_url = strtok($result['url'], '?');
+                self::$image_download_cache[$base_url] = $result['attachment_id'];
+            }
+        }
+
+        // 更新统计
+        self::$image_download_stats['total_images_processed'] += count($images);
+        self::$image_download_stats['images_downloaded_async'] += count($url_to_attachment_map);
+
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($start_time, 'download_images_async');
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('异步图片下载完成：处理%d个图片，成功%d个，执行时间%.2fms',
+                   count($images), count($url_to_attachment_map), $execution_time),
+            'Image Download'
+        );
+
+        return $url_to_attachment_map;
+    }
+
+    /**
+     * 获取缓存性能统计
+     *
+     * @since    1.8.1
+     * @return   array    缓存性能统计数据
+     */
+    public static function get_cache_performance_stats(): array {
+        $total_cache_operations = self::$cache_performance['cache_hits'] + self::$cache_performance['cache_misses'];
+        $cache_hit_rate = $total_cache_operations > 0 ?
+            round((self::$cache_performance['cache_hits'] / $total_cache_operations) * 100, 2) : 0;
+
+        return array_merge(self::$cache_performance, [
+            'cache_hit_rate' => $cache_hit_rate . '%',
+            'cache_size' => count(self::$notion_id_cache),
+            'cache_ttl' => self::$cache_ttl,
+            'cache_age' => time() - self::$cache_timestamp
+        ]);
+    }
+
+    /**
+     * 重置缓存性能统计
+     *
+     * @since    1.8.1
+     */
+    public static function reset_cache_performance_stats(): void {
+        self::$cache_performance = [
+            'total_queries' => 0,
+            'cache_hits' => 0,
+            'cache_misses' => 0,
+            'batch_queries' => 0,
+            'single_queries' => 0,
+            'preload_operations' => 0
+        ];
+    }
+
+    /**
+     * 获取图片下载统计
+     *
+     * @since    1.8.1
+     * @return   array    图片下载统计数据
+     */
+    public static function get_image_download_stats(): array {
+        return array_merge(self::$image_download_stats, [
+            'cache_size' => count(self::$image_download_cache),
+            'cache_hit_rate' => self::$image_download_stats['total_images_processed'] > 0 ?
+                round((self::$image_download_stats['images_from_cache'] / self::$image_download_stats['total_images_processed']) * 100, 2) . '%' : '0%'
+        ]);
+    }
+
+    /**
+     * 重置图片下载统计
+     *
+     * @since    1.8.1
+     */
+    public static function reset_image_download_stats(): void {
+        self::$image_download_stats = [
+            'total_images_processed' => 0,
+            'images_downloaded_async' => 0,
+            'images_from_cache' => 0,
+            'images_failed' => 0,
+            'total_download_time' => 0
+        ];
+        self::$image_download_cache = [];
     }
 
     /**
@@ -1339,19 +1801,46 @@ class Notion_Pages {
      * @return   int                     WordPress文章ID
      */
     private function get_post_by_notion_id($notion_id) {
-        // 检查缓存是否过期
+        $start_time = microtime(true);
+        self::$cache_performance['total_queries']++;
+        self::$cache_performance['single_queries']++;
+
+        // 智能缓存管理：检查缓存是否过期
         $current_time = time();
-        if ($current_time - self::$cache_timestamp > self::$cache_ttl) {
+        $dynamic_ttl = $this->calculate_dynamic_cache_ttl();
+
+        if ($current_time - self::$cache_timestamp > $dynamic_ttl) {
+            $old_cache_size = count(self::$notion_id_cache);
             self::$notion_id_cache = [];
             self::$cache_timestamp = $current_time;
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('单查询缓存过期清理：清理%d个条目', $old_cache_size),
+                'Single Query Cache'
+            );
         }
 
         // 优先从缓存获取
         if (isset(self::$notion_id_cache[$notion_id])) {
+            self::$cache_performance['cache_hits']++;
+            $execution_time = (microtime(true) - $start_time) * 1000;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('单查询缓存命中：notion_id=%s，执行时间%.2fms', $notion_id, $execution_time),
+                'Single Query Cache Hit'
+            );
+
             return self::$notion_id_cache[$notion_id];
         }
 
         // 缓存未命中，执行单独查询
+        self::$cache_performance['cache_misses']++;
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('单查询缓存未命中：notion_id=%s，执行数据库查询', $notion_id),
+            'Single Query Cache Miss'
+        );
+
+        // 优化的单个查询参数
         $args = array(
             'post_type'      => 'any',
             'post_status'    => 'any',
@@ -1363,7 +1852,10 @@ class Notion_Pages {
                     'compare' => '='
                 )
             ),
-            'fields' => 'ids' // 仅获取ID以提高性能
+            'fields' => 'ids', // 仅获取ID以提高性能
+            'no_found_rows' => true, // 不计算总行数，提升性能
+            'update_post_meta_cache' => false, // 不更新meta缓存
+            'update_post_term_cache' => false  // 不更新term缓存
         );
 
         $posts = get_posts($args);
@@ -1371,6 +1863,14 @@ class Notion_Pages {
 
         // 将结果存入缓存
         self::$notion_id_cache[$notion_id] = $post_id;
+
+        $execution_time = (microtime(true) - $start_time) * 1000;
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('单查询完成：notion_id=%s，找到post_id=%d，执行时间%.2fms',
+                   $notion_id, $post_id, $execution_time),
+            'Single Query Performance'
+        );
 
         return $post_id;
     }
@@ -1506,21 +2006,47 @@ class Notion_Pages {
     }
 
     /**
-     * 下载并插入图片到媒体库
+     * 下载并插入图片到媒体库（支持异步下载结果）
      *
      * @since    1.0.5
-     * @param    string    $url       图片URL
-     * @param    string    $caption   图片标题
-     * @return   int                  WordPress附件ID
+     * @param    string    $url                    图片URL
+     * @param    string    $caption                图片标题
+     * @param    array     $async_download_map     异步下载结果映射（可选）
+     * @return   int                               WordPress附件ID
      */
-    private function download_and_insert_image( string $url, string $caption = '' ) {
+    private function download_and_insert_image( string $url, string $caption = '', array $async_download_map = [] ) {
         // 去掉查询参数用于去重
         $base_url = strtok( $url, '?' );
+
+        // 首先检查异步下载结果
+        if (!empty($async_download_map) && isset($async_download_map[$url])) {
+            $attachment_id = $async_download_map[$url];
+            Notion_To_WordPress_Helper::debug_log(
+                "使用异步下载结果 (Attachment ID: {$attachment_id})",
+                'Async Image Download'
+            );
+            self::$image_download_stats['images_from_cache']++;
+            return $attachment_id;
+        }
+
+        // 检查图片下载缓存
+        if (isset(self::$image_download_cache[$base_url])) {
+            $attachment_id = self::$image_download_cache[$base_url];
+            Notion_To_WordPress_Helper::debug_log(
+                "使用图片下载缓存 (Attachment ID: {$attachment_id})",
+                'Image Download Cache'
+            );
+            self::$image_download_stats['images_from_cache']++;
+            return $attachment_id;
+        }
 
         // 若已存在同源附件，直接返回ID
         $existing = $this->get_attachment_by_url( $base_url );
         if ( $existing ) {
             Notion_To_WordPress_Helper::debug_log( "Image already exists in media library (Attachment ID: {$existing}).", 'Notion Info' );
+            // 更新缓存
+            self::$image_download_cache[$base_url] = $existing;
+            self::$image_download_stats['images_from_cache']++;
             return $existing;
         }
 
@@ -1586,6 +2112,10 @@ class Notion_Pages {
         // 存储源 URL 方便后续去重
         update_post_meta( $attachment_id, '_notion_original_url', esc_url_raw( $url ) );
         update_post_meta( $attachment_id, '_notion_base_url', esc_url_raw( $base_url ) );
+
+        // 更新图片下载缓存
+        self::$image_download_cache[$base_url] = $attachment_id;
+        self::$image_download_stats['total_images_processed']++;
 
         return $attachment_id;
     }
@@ -1691,6 +2221,9 @@ class Notion_Pages {
                     $stats['deleted'] = 0;
                 }
             }
+
+            // 批量预加载notion_id映射缓存
+            $this->preload_notion_id_cache($pages);
 
             // 如果启用增量同步，过滤出需要更新的页面
             if ($incremental) {
