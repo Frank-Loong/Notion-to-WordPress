@@ -51,15 +51,15 @@ jQuery(document).ready(function($) {
     $('.notion-wp-menu-item').on('click', function(e) {
         e.preventDefault();
         var tabId = $(this).data('tab');
-        
+
         $('.notion-wp-menu-item').removeClass('active');
         $('.notion-wp-tab-content').removeClass('active');
-        
+
         $(this).addClass('active');
-        
+
         // 添加淡入效果
         $('#' + tabId).addClass('active').hide().fadeIn(300);
-        
+
         // 保存用户的标签选择到本地存储
         localStorage.setItem('notion_wp_active_tab', tabId);
     });
@@ -791,4 +791,5 @@ jQuery(document).ready(function($) {
             }
         }
     });
-})(jQuery); 
+
+})(jQuery);
