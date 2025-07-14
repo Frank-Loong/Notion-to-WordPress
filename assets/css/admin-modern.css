@@ -555,7 +555,7 @@ body.admin-color-dark .ncf-admin-aside {
 
 /* 内容区域 */
 .notion-wp-tab-content {
-  display: none;
+  display: none !important;
   background: white;
   border-radius: var(--notion-border-radius);
   padding: 25px;
@@ -564,8 +564,27 @@ body.admin-color-dark .ncf-admin-aside {
 }
 
 .notion-wp-tab-content.active {
-  display: block;
+  display: block !important;
   animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 确保标签页内的notice元素也被正确隐藏 */
+.notion-wp-tab-content:not(.active) .notion-wp-tab-notice {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* 更强的隐藏规则，确保非活动标签页完全隐藏 */
+.notion-wp-tab-content:not(.active) {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
 }
 
 @keyframes fadeIn {

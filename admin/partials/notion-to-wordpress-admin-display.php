@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * 插件主后台页面。
- * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射等。
+ * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射、性能配置等。
  * @since      1.0.9
  * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
@@ -63,7 +63,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         <div class="notion-wp-sidebar">
             <div class="notion-wp-menu">
                 <button class="notion-wp-menu-item active" data-tab="api-settings">
-                    <?php esc_html_e('🛠️ 主要设置', 'notion-to-wordpress'); ?>
+                    <?php esc_html_e('🔄 同步设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="field-mapping">
                     <?php esc_html_e('🔗 字段映射', 'notion-to-wordpress'); ?>
@@ -73,6 +73,12 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                 </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
+                </button>
+                <button class="notion-wp-menu-item" data-tab="performance-config">
+                    <?php esc_html_e('⚡ 性能配置', 'notion-to-wordpress'); ?>
+                </button>
+                <button class="notion-wp-menu-item" data-tab="performance-monitor">
+                    <?php esc_html_e('📊 性能监控', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="help">
                     <?php esc_html_e('📖 帮助与指南', 'notion-to-wordpress'); ?>
@@ -264,6 +270,26 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             <button type="button" id="notion-test-connection" class="button button-secondary">
                                 <span class="dashicons dashicons-admin-network"></span> <?php esc_html_e('测试连接', 'notion-to-wordpress'); ?>
                             </button>
+                        </div>
+
+                        <!-- 同步操作按钮 -->
+                        <div class="notion-wp-sync-actions" style="margin-top: 20px;">
+                            <h3><?php esc_html_e('同步操作', 'notion-to-wordpress'); ?></h3>
+                            <div class="sync-buttons" style="margin-bottom: 15px; display: flex; gap: 20px;">
+                                <button type="button" class="button button-primary" id="smart-sync">
+                                    <span class="dashicons dashicons-lightbulb"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
+                                </button>
+                                <button type="button" class="button button-secondary" id="full-sync">
+                                    <span class="dashicons dashicons-update"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
+                                </button>
+                                <button type="button" class="button" id="refresh-all">
+                                    <span class="dashicons dashicons-admin-generic"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
+                                </button>
+                            </div>
+                            <div class="sync-info">
+                                <p><strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?></p>
+                                <p><strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?></p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -708,6 +734,384 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                     </div>
                 </div>
 
+                <div class="notion-wp-tab-content" id="performance-config">
+                    <div class="notion-wp-settings-section">
+                        <h2><?php esc_html_e('性能配置', 'notion-to-wordpress'); ?></h2>
+                        <p class="description"><?php esc_html_e('调整插件的性能参数可以提高同步速度，优化插件性能和系统资源使用。', 'notion-to-wordpress'); ?><br><?php esc_html_e('建议在了解各参数含义后进行调整，错误的配置可能影响系统稳定性。', 'notion-to-wordpress'); ?></p>
+
+                        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=notion-to-wordpress')); ?>">
+                            <?php wp_nonce_field('save_performance_config', 'performance_config_nonce'); ?>
+                            <input type="hidden" name="save_performance_config" value="1">
+
+                            <!-- 并发管理器配置 -->
+                            <div class="notion-wp-settings-group">
+                                <h3><?php esc_html_e('并发管理器配置', 'notion-to-wordpress'); ?></h3>
+                                <table class="form-table" role="presentation">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('最大并发请求数', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="concurrent_max_requests" value="25" min="1" max="100" class="small-text">
+                                                <p class="description"><?php esc_html_e('同时发送的最大API请求数量。建议值：15-30', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用自适应调节', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="concurrent_adaptive_enabled" value="1" checked>
+                                                        <?php esc_html_e('根据网络状况自动调整并发数量', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('目标响应时间 (毫秒)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="concurrent_target_response_time" value="2000" min="500" max="10000" class="small-text">
+                                                <p class="description"><?php esc_html_e('自适应调节的目标响应时间。建议值：1500-3000毫秒', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('调节阈值', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="concurrent_adjustment_threshold" value="0.1" min="0.05" max="0.5" step="0.05" class="small-text">
+                                                <p class="description"><?php esc_html_e('触发并发数调节的阈值。建议值：0.1-0.2', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- 缓存配置 -->
+                            <div class="notion-wp-settings-group">
+                                <h3><?php esc_html_e('缓存配置', 'notion-to-wordpress'); ?></h3>
+                                <table class="form-table" role="presentation">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('内存缓存TTL (秒)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="cache_memory_ttl" value="1800" min="60" max="7200" class="small-text">
+                                                <p class="description"><?php esc_html_e('内存缓存的生存时间。建议值：1800-3600秒', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('持久化缓存TTL (秒)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="cache_transient_ttl" value="3600" min="300" max="86400" class="small-text">
+                                                <p class="description"><?php esc_html_e('持久化缓存的生存时间。建议值：3600-7200秒', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用缓存预热', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="cache_preload_enabled" value="1" checked>
+                                                        <?php esc_html_e('启用缓存预热可以提升首次访问速度', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('预热最大数量', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="cache_preload_max_size" value="100" min="10" max="500" class="small-text">
+                                                <p class="description"><?php esc_html_e('缓存预热时处理的最大页面数量。建议值：50-200', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- 分页处理配置 -->
+                            <div class="notion-wp-settings-group">
+                                <h3><?php esc_html_e('分页处理配置', 'notion-to-wordpress'); ?></h3>
+                                <table class="form-table" role="presentation">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用分页处理', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="pagination_enabled" value="1" checked>
+                                                        <?php esc_html_e('启用分页处理可以减少内存使用', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('默认页面大小', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="pagination_default_size" value="20" min="5" max="100" class="small-text">
+                                                <p class="description"><?php esc_html_e('每次处理的页面数量。建议值：15-30', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('最大页面大小', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="pagination_max_size" value="50" min="10" max="200" class="small-text">
+                                                <p class="description"><?php esc_html_e('单次处理的最大页面数量。建议值：30-80', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('内存阈值 (%)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="pagination_memory_threshold" value="70" min="50" max="90" class="small-text">
+                                                <p class="description"><?php esc_html_e('触发分页处理的内存使用阈值。建议值：60-80%', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- 网络配置 -->
+                            <div class="notion-wp-settings-group">
+                                <h3><?php esc_html_e('网络配置', 'notion-to-wordpress'); ?></h3>
+                                <table class="form-table" role="presentation">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('基础超时时间 (秒)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="network_base_timeout" value="8" min="3" max="30" class="small-text">
+                                                <p class="description"><?php esc_html_e('API请求的基础超时时间。建议值：5-15秒', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('连接超时时间 (秒)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="network_connect_timeout" value="3" min="1" max="10" class="small-text">
+                                                <p class="description"><?php esc_html_e('建立连接的超时时间。建议值：2-5秒', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用Keep-Alive', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="network_keepalive_enabled" value="1" checked>
+                                                        <?php esc_html_e('启用HTTP Keep-Alive可以提高连接效率', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用压缩', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="network_compression_enabled" value="1" checked>
+                                                        <?php esc_html_e('启用GZIP压缩可以减少传输数据量', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用自适应超时', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="network_adaptive_timeout" value="1" checked>
+                                                        <?php esc_html_e('根据网络状况自动调整超时时间', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- 内存管理配置 -->
+                            <div class="notion-wp-settings-group">
+                                <h3><?php esc_html_e('内存管理配置', 'notion-to-wordpress'); ?></h3>
+                                <table class="form-table" role="presentation">
+                                    <tbody>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('启用内存监控', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="memory_monitoring_enabled" value="1" checked>
+                                                        <?php esc_html_e('启用内存使用监控和警告', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                </fieldset>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('警告阈值 (%)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="memory_warning_threshold" value="70" min="50" max="90" class="small-text">
+                                                <p class="description"><?php esc_html_e('内存使用警告阈值。建议值：60-80%', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('严重阈值 (%)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="memory_critical_threshold" value="85" min="70" max="95" class="small-text">
+                                                <p class="description"><?php esc_html_e('内存使用严重阈值。建议值：80-90%', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th scope="row"><?php esc_html_e('紧急阈值 (%)', 'notion-to-wordpress'); ?></th>
+                                            <td>
+                                                <input type="number" name="memory_emergency_threshold" value="95" min="85" max="99" class="small-text">
+                                                <p class="description"><?php esc_html_e('内存使用紧急阈值。建议值：90-98%', 'notion-to-wordpress'); ?></p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <?php submit_button(__('保存性能配置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
+                            <button type="button" class="button button-secondary" id="reset-performance-config"><?php esc_html_e('恢复默认值', 'notion-to-wordpress'); ?></button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="notion-wp-tab-content" id="performance-monitor">
+                    <div class="notion-wp-settings-section">
+                        <h2><?php esc_html_e('性能监控', 'notion-to-wordpress'); ?></h2>
+                        <p class="description"><?php esc_html_e('此页面显示插件各模块的实时性能数据，帮助您了解系统运行状况并优化配置。', 'notion-to-wordpress'); ?></p>
+
+                        <!-- 操作按钮 -->
+                        <div class="notion-wp-button-row">
+                            <button type="button" class="button button-primary" id="refresh-performance-data">
+                                <span class="dashicons dashicons-update"></span> <?php esc_html_e('刷新数据', 'notion-to-wordpress'); ?>
+                            </button>
+                            <button type="button" class="button button-secondary" id="reset-performance-stats">
+                                <span class="dashicons dashicons-trash"></span> <?php esc_html_e('重置统计', 'notion-to-wordpress'); ?>
+                            </button>
+                            <button type="button" class="button" id="run-performance-test">
+                                <span class="dashicons dashicons-performance"></span> <?php esc_html_e('运行性能测试', 'notion-to-wordpress'); ?>
+                            </button>
+                        </div>
+
+                        <!-- 性能概览 -->
+                        <div class="notion-wp-settings-group">
+                            <h3><?php esc_html_e('性能概览', 'notion-to-wordpress'); ?></h3>
+                            <div class="notion-wp-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 20px 0;">
+                                <div class="notion-wp-stat-card" style="background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px;">
+                                    <h4 style="margin: 0 0 15px 0; color: #1d2327;"><span class="dashicons dashicons-networking"></span> <?php esc_html_e('并发性能', 'notion-to-wordpress'); ?></h4>
+                                    <div class="stat-content">
+                                        <p><strong><?php esc_html_e('最大并发数', 'notion-to-wordpress'); ?>：</strong>5</p>
+                                        <p><strong><?php esc_html_e('成功率', 'notion-to-wordpress'); ?>：</strong>0%</p>
+                                        <p><strong><?php esc_html_e('平均响应时间', 'notion-to-wordpress'); ?>：</strong>0ms</p>
+                                        <p><strong><?php esc_html_e('网络质量', 'notion-to-wordpress'); ?>：</strong><span style="color: #00a32a; font-weight: bold;">A</span></p>
+                                    </div>
+                                </div>
+
+                                <div class="notion-wp-stat-card" style="background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px;">
+                                    <h4 style="margin: 0 0 15px 0; color: #1d2327;"><span class="dashicons dashicons-database-view"></span> <?php esc_html_e('API缓存', 'notion-to-wordpress'); ?></h4>
+                                    <div class="stat-content">
+                                        <p><strong><?php esc_html_e('缓存命中率', 'notion-to-wordpress'); ?>：</strong>0%</p>
+                                        <p><strong><?php esc_html_e('请求合并率', 'notion-to-wordpress'); ?>：</strong>0%</p>
+                                        <p><strong><?php esc_html_e('综合评分', 'notion-to-wordpress'); ?>：</strong>0</p>
+                                        <p><strong><?php esc_html_e('性能等级', 'notion-to-wordpress'); ?>：</strong><span style="color: #d63638; font-weight: bold;">D</span></p>
+                                    </div>
+                                </div>
+
+                                <div class="notion-wp-stat-card" style="background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px;">
+                                    <h4 style="margin: 0 0 15px 0; color: #1d2327;"><span class="dashicons dashicons-chart-area"></span> <?php esc_html_e('内存使用', 'notion-to-wordpress'); ?></h4>
+                                    <div class="stat-content">
+                                        <p><strong><?php esc_html_e('当前使用', 'notion-to-wordpress'); ?>：</strong>4.00 MB</p>
+                                        <p><strong><?php esc_html_e('使用率', 'notion-to-wordpress'); ?>：</strong>1.56%</p>
+                                        <p><strong><?php esc_html_e('峰值使用', 'notion-to-wordpress'); ?>：</strong>0.00 B</p>
+                                        <p><strong><?php esc_html_e('警告次数', 'notion-to-wordpress'); ?>：</strong>0</p>
+                                    </div>
+                                </div>
+
+                                <div class="notion-wp-stat-card" style="background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 20px;">
+                                    <h4 style="margin: 0 0 15px 0; color: #1d2327;"><span class="dashicons dashicons-list-view"></span> <?php esc_html_e('分页处理', 'notion-to-wordpress'); ?></h4>
+                                    <div class="stat-content">
+                                        <p><strong><?php esc_html_e('处理页面数', 'notion-to-wordpress'); ?>：</strong>0</p>
+                                        <p><strong><?php esc_html_e('批次数', 'notion-to-wordpress'); ?>：</strong>0</p>
+                                        <p><strong><?php esc_html_e('平均批次大小', 'notion-to-wordpress'); ?>：</strong>0</p>
+                                        <p><strong><?php esc_html_e('效率评分', 'notion-to-wordpress'); ?>：</strong>0</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 详细统计 -->
+                        <div class="notion-wp-settings-group">
+                            <h3><?php esc_html_e('详细统计', 'notion-to-wordpress'); ?></h3>
+
+                            <div class="stats-section" style="margin-bottom: 30px;">
+                                <h4><?php esc_html_e('并发管理器统计', 'notion-to-wordpress'); ?></h4>
+                                <table class="wp-list-table widefat fixed striped">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col"><?php esc_html_e('指标', 'notion-to-wordpress'); ?></th>
+                                            <th scope="col"><?php esc_html_e('当前值', 'notion-to-wordpress'); ?></th>
+                                            <th scope="col"><?php esc_html_e('说明', 'notion-to-wordpress'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><?php esc_html_e('总请求数', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('自启动以来的总请求数量', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><?php esc_html_e('成功请求数', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('成功完成的请求数量', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><?php esc_html_e('失败请求数', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('失败的请求数量', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><?php esc_html_e('网络质量评分', 'notion-to-wordpress'); ?></td>
+                                            <td>100</td>
+                                            <td><?php esc_html_e('基于响应时间和失败率的网络质量评分', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="stats-section">
+                                <h4><?php esc_html_e('API缓存统计', 'notion-to-wordpress'); ?></h4>
+                                <table class="wp-list-table widefat fixed striped">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col"><?php esc_html_e('指标', 'notion-to-wordpress'); ?></th>
+                                            <th scope="col"><?php esc_html_e('当前值', 'notion-to-wordpress'); ?></th>
+                                            <th scope="col"><?php esc_html_e('说明', 'notion-to-wordpress'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><?php esc_html_e('内存缓存命中', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('内存缓存命中次数', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><?php esc_html_e('持久化缓存命中', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('持久化缓存命中次数', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><?php esc_html_e('缓存未命中', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('缓存未命中次数', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><?php esc_html_e('节省的API调用', 'notion-to-wordpress'); ?></td>
+                                            <td>0</td>
+                                            <td><?php esc_html_e('通过请求合并节省的API调用次数', 'notion-to-wordpress'); ?></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <p class="description"><strong><?php esc_html_e('数据更新时间', 'notion-to-wordpress'); ?>：</strong><?php echo current_time('Y-m-d H:i:s'); ?></p>
+                    </div>
+                </div>
+
                 <div class="notion-wp-tab-content" id="about-author">
                     <div class="notion-wp-settings-section">
                         <h2><?php esc_html_e('关于作者', 'notion-to-wordpress'); ?></h2>
@@ -781,25 +1185,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                 </div>
 
                 <div class="notion-wp-actions-bar">
-                    <div class="left-actions">
-                        <div class="sync-options-group">
-                            <button type="button" id="notion-manual-import" class="button button-secondary">
-                                <span class="dashicons dashicons-lightbulb"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
-                            </button>
-                            <button type="button" id="notion-full-import" class="button button-secondary">
-                                <span class="dashicons dashicons-database-import"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
-                            </button>
-                            <button type="button" class="button button-secondary refresh-all-content">
-                                <span class="dashicons dashicons-update-alt"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
-                            </button>
-                        </div>
-                        <div class="sync-options-info">
-                            <small class="description">
-                                <strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?><br>
-                                <strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?>
-                            </small>
-                        </div>
-                    </div>
+
                     <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
                 </div>
             </form>

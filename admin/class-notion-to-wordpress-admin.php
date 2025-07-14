@@ -274,26 +274,6 @@ class Notion_To_WordPress_Admin {
             $icon_svg, // 使用自定义SVG图标
             99
         );
-
-        // 添加性能监控子菜单
-        add_submenu_page(
-            $this->plugin_name,
-            __('性能监控', 'notion-to-wordpress'),
-            __('性能监控', 'notion-to-wordpress'),
-            'manage_options',
-            $this->plugin_name . '-performance',
-            array($this, 'display_performance_page')
-        );
-
-        // 添加性能配置子菜单
-        add_submenu_page(
-            $this->plugin_name,
-            __('性能配置', 'notion-to-wordpress'),
-            __('性能配置', 'notion-to-wordpress'),
-            'manage_options',
-            $this->plugin_name . '-performance-config',
-            array($this, 'display_performance_config_page')
-        );
     }
 
     /**
@@ -1173,42 +1153,7 @@ class Notion_To_WordPress_Admin {
         }
     }
 
-    /**
-     * 显示性能监控页面
-     *
-     * @since    1.8.1
-     */
-    public function display_performance_page() {
-        // 处理AJAX请求
-        if (isset($_POST['action']) && $_POST['action'] === 'refresh_performance_data') {
-            $this->handle_performance_ajax();
-            return;
-        }
 
-        // 获取性能数据
-        $performance_data = $this->get_comprehensive_performance_data();
-
-        // 显示性能监控页面
-        include_once plugin_dir_path(__FILE__) . 'partials/performance-monitor-display.php';
-    }
-
-    /**
-     * 显示性能配置页面
-     *
-     * @since    1.8.1
-     */
-    public function display_performance_config_page() {
-        // 处理配置保存
-        if (isset($_POST['save_performance_config'])) {
-            $this->save_performance_config();
-        }
-
-        // 获取当前配置
-        $current_config = $this->get_performance_config();
-
-        // 显示性能配置页面
-        include_once plugin_dir_path(__FILE__) . 'partials/performance-config-display.php';
-    }
 
     /**
      * 获取综合性能数据
@@ -1216,7 +1161,7 @@ class Notion_To_WordPress_Admin {
      * @since    1.8.1
      * @return   array    性能数据
      */
-    private function get_comprehensive_performance_data(): array {
+    public function get_comprehensive_performance_data(): array {
         // 获取各模块的性能统计
         $concurrent_stats = [];
         $api_stats = [];
@@ -1270,7 +1215,7 @@ class Notion_To_WordPress_Admin {
      * @since    1.8.1
      * @return   array    性能配置
      */
-    private function get_performance_config(): array {
+    public function get_performance_config(): array {
         $saved_config = get_option('notion_to_wordpress_performance_config', []);
         return array_merge($this->performance_config_defaults, $saved_config);
     }
