@@ -915,7 +915,7 @@ class Notion_To_WordPress_Admin {
     }
 
     /**
-     * 应用缓存设置
+     * 应用缓存设置（增强版）
      *
      * @since    1.8.1
      * @param    array    $options    插件选项
@@ -924,6 +924,16 @@ class Notion_To_WordPress_Admin {
         // 设置transient缓存TTL
         if (isset($options['transient_cache_ttl'])) {
             Notion_API::set_transient_cache_ttl((int)$options['transient_cache_ttl']);
+        }
+
+        // 应用智能缓存配置
+        if (isset($options['smart_cache_enabled'])) {
+            $this->apply_smart_cache_config($options);
+        }
+
+        // 应用缓存预热配置
+        if (isset($options['cache_preload_enabled'])) {
+            $this->apply_cache_preload_config($options);
         }
 
         // 如果禁用了transient缓存，清除所有transient缓存
@@ -936,9 +946,60 @@ class Notion_To_WordPress_Admin {
         }
 
         Notion_To_WordPress_Helper::debug_log(
-            '缓存设置已应用: transient_cache=' . ($options['enable_transient_cache'] ? 'enabled' : 'disabled') .
-            ', ttl=' . ($options['transient_cache_ttl'] ?? 3600) . 's',
-            'Cache Config'
+            '增强缓存设置已应用: transient_cache=' . ($options['enable_transient_cache'] ? 'enabled' : 'disabled') .
+            ', smart_cache=' . ($options['smart_cache_enabled'] ? 'enabled' : 'disabled') .
+            ', preload=' . ($options['cache_preload_enabled'] ? 'enabled' : 'disabled') .
+            ', ttl=' . ($options['transient_cache_ttl'] ?? 7200) . 's',
+            'Enhanced Cache Config'
+        );
+    }
+
+    /**
+     * 应用智能缓存配置
+     *
+     * @since    1.8.1
+     * @param    array    $options    插件选项
+     */
+    private function apply_smart_cache_config(array $options): void {
+        $smart_cache_config = [
+            'page_content_ttl' => (int)($options['page_content_cache_ttl'] ?? 3600),
+            'page_details_ttl' => (int)($options['page_details_cache_ttl'] ?? 1800),
+            'database_pages_ttl' => (int)($options['database_pages_cache_ttl'] ?? 1800),
+            'database_info_ttl' => (int)($options['database_info_cache_ttl'] ?? 7200),
+            'image_urls_ttl' => (int)($options['image_urls_cache_ttl'] ?? 86400),
+            'adaptive_ttl_enabled' => !empty($options['adaptive_cache_ttl'])
+        ];
+
+        // 这里可以添加设置智能缓存配置的API调用
+        // Notion_API::set_smart_cache_config($smart_cache_config);
+
+        Notion_To_WordPress_Helper::debug_log(
+            '智能缓存配置已应用: ' . json_encode($smart_cache_config),
+            'Smart Cache Config'
+        );
+    }
+
+    /**
+     * 应用缓存预热配置
+     *
+     * @since    1.8.1
+     * @param    array    $options    插件选项
+     */
+    private function apply_cache_preload_config(array $options): void {
+        $preload_config = [
+            'enabled' => !empty($options['cache_preload_enabled']),
+            'max_preload_items' => (int)($options['cache_preload_max_items'] ?? 100),
+            'preload_on_startup' => !empty($options['cache_preload_on_startup']),
+            'smart_preload' => !empty($options['cache_smart_preload']),
+            'preload_popular_pages' => !empty($options['cache_preload_popular_pages'])
+        ];
+
+        // 这里可以添加设置缓存预热配置的API调用
+        // Notion_API::set_cache_preload_config($preload_config);
+
+        Notion_To_WordPress_Helper::debug_log(
+            '缓存预热配置已应用: ' . json_encode($preload_config),
+            'Cache Preload Config'
         );
     }
 
@@ -956,14 +1017,58 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            $cache_stats = Notion_API::get_cache_stats();
+            // 获取增强的缓存统计信息
+            $enhanced_cache_stats = Notion_API::get_enhanced_cache_stats();
+
+            // 添加数据库查询缓存统计
+            $db_cache_stats = Notion_Pages::get_cache_performance_stats();
+
+            // 合并所有缓存统计
+            $combined_stats = array_merge($enhanced_cache_stats, [
+                'database_cache' => $db_cache_stats,
+                'last_updated' => current_time('mysql'),
+                'cache_health_score' => $this->calculate_cache_health_score($enhanced_cache_stats, $db_cache_stats)
+            ]);
+
             wp_send_json_success([
-                'message' => __('缓存统计获取成功', 'notion-to-wordpress'),
-                'stats' => $cache_stats
+                'message' => __('增强缓存统计获取成功', 'notion-to-wordpress'),
+                'stats' => $combined_stats
             ]);
         } catch (Exception $e) {
-            wp_send_json_error(['message' => __('获取缓存统计失败: ', 'notion-to-wordpress') . $e->getMessage()]);
+            wp_send_json_error(['message' => __('获取增强缓存统计失败: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
+    }
+
+    /**
+     * 计算缓存健康评分
+     *
+     * @since    1.8.1
+     * @param    array    $api_cache_stats    API缓存统计
+     * @param    array    $db_cache_stats     数据库缓存统计
+     * @return   int                          健康评分（0-100）
+     */
+    private function calculate_cache_health_score(array $api_cache_stats, array $db_cache_stats): int {
+        $score = 0;
+
+        // API缓存命中率评分（40%权重）
+        $api_hit_rate = (float)str_replace('%', '', $api_cache_stats['overall_hit_rate'] ?? '0');
+        $score += min(40, $api_hit_rate * 0.4);
+
+        // 数据库缓存命中率评分（40%权重）
+        $db_hit_rate = (float)str_replace('%', '', $db_cache_stats['cache_hit_rate'] ?? '0');
+        $score += min(40, $db_hit_rate * 0.4);
+
+        // 缓存操作效率评分（20%权重）
+        $total_operations = $api_cache_stats['total_cache_operations'] ?? 0;
+        $preload_operations = $api_cache_stats['cache_preloads'] ?? 0;
+        $smart_updates = $api_cache_stats['smart_cache_updates'] ?? 0;
+
+        if ($total_operations > 0) {
+            $efficiency_ratio = ($preload_operations + $smart_updates) / $total_operations;
+            $score += min(20, $efficiency_ratio * 100 * 0.2);
+        }
+
+        return min(100, max(0, (int)$score));
     }
 
     /**

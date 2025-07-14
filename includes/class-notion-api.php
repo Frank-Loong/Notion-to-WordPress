@@ -69,7 +69,7 @@ class Notion_API {
      * @access   private
      * @var      int
      */
-    private static int $cache_ttl = 300; // 5分钟
+    private static int $cache_ttl = 1800; // 30分钟，提升缓存效率
 
     /**
      * 缓存时间戳
@@ -81,13 +81,31 @@ class Notion_API {
     private static array $cache_timestamps = [];
 
     /**
+     * 分层缓存TTL配置
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array<string, int>
+     */
+    private static array $cache_ttl_config = [
+        'page_content' => 3600,      // 页面内容缓存：1小时
+        'page_details' => 1800,      // 页面详情缓存：30分钟
+        'database_pages' => 1800,    // 数据库页面列表：30分钟
+        'database_info' => 7200,     // 数据库信息：2小时
+        'image_urls' => 86400,       // 图片URL映射：24小时
+        'block_children' => 3600,    // 子块内容：1小时
+        'user_info' => 7200,         // 用户信息：2小时
+        'default' => 1800            // 默认：30分钟
+    ];
+
+    /**
      * WordPress transients缓存过期时间（秒）
      *
      * @since    1.8.1
      * @access   private
      * @var      int
      */
-    private static int $transient_cache_ttl = 3600; // 1小时
+    private static int $transient_cache_ttl = 7200; // 2小时，延长持久化缓存时间
 
     /**
      * 缓存统计信息
@@ -100,7 +118,26 @@ class Notion_API {
         'memory_hits' => 0,
         'transient_hits' => 0,
         'cache_misses' => 0,
-        'total_requests' => 0
+        'total_requests' => 0,
+        'cache_preloads' => 0,
+        'smart_cache_updates' => 0,
+        'cache_evictions' => 0,
+        'total_cache_operations' => 0
+    ];
+
+    /**
+     * 缓存预热配置
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private static array $cache_preload_config = [
+        'enabled' => true,
+        'max_preload_items' => 100,
+        'preload_on_startup' => true,
+        'smart_preload' => true,
+        'preload_popular_pages' => true
     ];
 
     /**
@@ -694,17 +731,21 @@ class Notion_API {
     }
 
     /**
-     * 多层缓存获取数据的通用方法
+     * 多层缓存获取数据的通用方法（支持智能TTL）
      *
      * @since    1.8.1
      * @param    string    $cache_key     缓存键
      * @param    callable  $data_callback 获取数据的回调函数
-     * @param    string    $cache_type    缓存类型（用于统计）
+     * @param    string    $cache_type    缓存类型（用于统计和TTL选择）
      * @return   mixed                    缓存的数据或回调函数的结果
      */
     private function get_cached_data(string $cache_key, callable $data_callback, string $cache_type = 'general') {
-        $start_time = Notion_To_WordPress_Helper::start_performance_timer('multi_layer_cache');
+        $start_time = Notion_To_WordPress_Helper::start_performance_timer('smart_multi_layer_cache');
         self::$cache_stats['total_requests']++;
+        self::$cache_stats['total_cache_operations']++;
+
+        // 获取智能TTL配置
+        $smart_ttl = $this->get_smart_cache_ttl($cache_type, $cache_key);
 
         // 第一层：检查内存缓存
         if ($this->check_memory_cache($cache_key)) {
@@ -757,15 +798,26 @@ class Notion_API {
 
         $data = $data_callback();
 
-        // 存储到两层缓存
+        // 存储到两层缓存（使用智能TTL）
         $this->store_to_memory_cache($cache_key, $data);
-        set_transient($transient_key, $data, self::$transient_cache_ttl);
+        set_transient($transient_key, $data, $smart_ttl['transient']);
 
-        Notion_To_WordPress_Helper::end_performance_timer('multi_layer_cache', $start_time, [
+        // 记录智能缓存更新
+        self::$cache_stats['smart_cache_updates']++;
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf("智能缓存存储: %s, 内存TTL: %ds, 持久TTL: %ds",
+                   $cache_key, $smart_ttl['memory'], $smart_ttl['transient']),
+            'Smart Cache Storage'
+        );
+
+        Notion_To_WordPress_Helper::end_performance_timer('smart_multi_layer_cache', $start_time, [
             'cache_type' => $cache_type,
             'hit_level' => 'miss',
             'cache_key' => $cache_key,
-            'data_size' => is_array($data) ? count($data) : strlen(serialize($data))
+            'data_size' => is_array($data) ? count($data) : strlen(serialize($data)),
+            'memory_ttl' => $smart_ttl['memory'],
+            'transient_ttl' => $smart_ttl['transient']
         ]);
 
         return $data;
@@ -1204,5 +1256,164 @@ class Notion_API {
         ]);
 
         return $results;
+    }
+
+    /**
+     * 获取智能缓存TTL配置
+     *
+     * @since    1.8.1
+     * @param    string    $cache_type    缓存类型
+     * @param    string    $cache_key     缓存键
+     * @return   array                    包含memory和transient TTL的数组
+     */
+    private function get_smart_cache_ttl(string $cache_type, string $cache_key): array {
+        // 基础TTL配置
+        $base_memory_ttl = self::$cache_ttl_config[$cache_type] ?? self::$cache_ttl_config['default'];
+        $base_transient_ttl = $base_memory_ttl * 2; // 持久化缓存时间是内存缓存的2倍
+
+        // 根据缓存键类型进行智能调整
+        $memory_ttl = $base_memory_ttl;
+        $transient_ttl = $base_transient_ttl;
+
+        // 页面内容类型的特殊处理
+        if (strpos($cache_key, 'page_') === 0) {
+            $memory_ttl = self::$cache_ttl_config['page_content'];
+            $transient_ttl = $memory_ttl * 2;
+        }
+        // 数据库页面列表的特殊处理
+        elseif (strpos($cache_key, 'database_pages_') === 0) {
+            $memory_ttl = self::$cache_ttl_config['database_pages'];
+            $transient_ttl = $memory_ttl * 3; // 数据库页面列表变化较少，延长持久化时间
+        }
+        // 数据库信息的特殊处理
+        elseif (strpos($cache_key, 'database_info_') === 0) {
+            $memory_ttl = self::$cache_ttl_config['database_info'];
+            $transient_ttl = $memory_ttl * 2;
+        }
+        // 图片URL的特殊处理
+        elseif (strpos($cache_key, 'image_') === 0) {
+            $memory_ttl = self::$cache_ttl_config['image_urls'];
+            $transient_ttl = $memory_ttl; // 图片URL很少变化，内存和持久化时间相同
+        }
+
+        // 根据缓存命中率动态调整
+        $hit_rate = $this->calculate_cache_hit_rate();
+        if ($hit_rate > 0.9) {
+            // 命中率很高，延长缓存时间
+            $memory_ttl = (int)($memory_ttl * 1.2);
+            $transient_ttl = (int)($transient_ttl * 1.3);
+        } elseif ($hit_rate < 0.6) {
+            // 命中率较低，缩短缓存时间
+            $memory_ttl = (int)($memory_ttl * 0.8);
+            $transient_ttl = (int)($transient_ttl * 0.9);
+        }
+
+        return [
+            'memory' => max(300, $memory_ttl),      // 最小5分钟
+            'transient' => max(600, $transient_ttl) // 最小10分钟
+        ];
+    }
+
+    /**
+     * 计算当前缓存命中率
+     *
+     * @since    1.8.1
+     * @return   float    缓存命中率（0-1之间）
+     */
+    private function calculate_cache_hit_rate(): float {
+        $total_hits = self::$cache_stats['memory_hits'] + self::$cache_stats['transient_hits'];
+        $total_requests = $total_hits + self::$cache_stats['cache_misses'];
+
+        return $total_requests > 0 ? $total_hits / $total_requests : 0;
+    }
+
+    /**
+     * 缓存预热机制
+     *
+     * @since    1.8.1
+     * @param    array    $preload_items    预加载项目列表
+     */
+    public function cache_preload(array $preload_items = []): void {
+        if (!self::$cache_preload_config['enabled']) {
+            return;
+        }
+
+        $preload_start_time = Notion_To_WordPress_Helper::start_performance_timer('cache_preload');
+        $preloaded_count = 0;
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('开始缓存预热，预加载%d个项目', count($preload_items)),
+            'Cache Preload'
+        );
+
+        foreach ($preload_items as $item) {
+            if ($preloaded_count >= self::$cache_preload_config['max_preload_items']) {
+                break;
+            }
+
+            try {
+                $cache_key = $item['cache_key'] ?? '';
+                $cache_type = $item['cache_type'] ?? 'default';
+                $data_callback = $item['data_callback'] ?? null;
+
+                if (empty($cache_key) || !is_callable($data_callback)) {
+                    continue;
+                }
+
+                // 检查是否已经缓存
+                if (!$this->check_memory_cache($cache_key)) {
+                    // 预加载数据到缓存
+                    $this->get_cached_data($cache_key, $data_callback, $cache_type);
+                    $preloaded_count++;
+                    self::$cache_stats['cache_preloads']++;
+                }
+            } catch (Exception $e) {
+                Notion_To_WordPress_Helper::error_log(
+                    '缓存预热失败: ' . $e->getMessage(),
+                    'Cache Preload Error'
+                );
+            }
+        }
+
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($preload_start_time, 'cache_preload');
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('缓存预热完成：预加载%d个项目，执行时间%.2fms', $preloaded_count, $execution_time),
+            'Cache Preload'
+        );
+    }
+
+    /**
+     * 获取增强的缓存统计信息
+     *
+     * @since    1.8.1
+     * @return   array    增强的缓存统计数据
+     */
+    public static function get_enhanced_cache_stats(): array {
+        $total_requests = self::$cache_stats['memory_hits'] +
+                         self::$cache_stats['transient_hits'] +
+                         self::$cache_stats['cache_misses'];
+
+        $memory_hit_rate = $total_requests > 0 ?
+            round((self::$cache_stats['memory_hits'] / $total_requests) * 100, 2) : 0;
+
+        $transient_hit_rate = $total_requests > 0 ?
+            round((self::$cache_stats['transient_hits'] / $total_requests) * 100, 2) : 0;
+
+        $overall_hit_rate = $total_requests > 0 ?
+            round(((self::$cache_stats['memory_hits'] + self::$cache_stats['transient_hits']) / $total_requests) * 100, 2) : 0;
+
+        return array_merge(self::$cache_stats, [
+            'page_cache_count' => count(self::$page_cache),
+            'database_pages_cache_count' => count(self::$database_pages_cache),
+            'database_info_cache_count' => count(self::$database_info_cache),
+            'total_cache_items' => count(self::$cache_timestamps),
+            'cache_ttl_config' => self::$cache_ttl_config,
+            'transient_cache_ttl' => self::$transient_cache_ttl,
+            'memory_hit_rate' => $memory_hit_rate . '%',
+            'transient_hit_rate' => $transient_hit_rate . '%',
+            'overall_hit_rate' => $overall_hit_rate . '%',
+            'cache_efficiency_score' => min(100, $overall_hit_rate + ($memory_hit_rate * 0.2))
+        ]);
     }
 }

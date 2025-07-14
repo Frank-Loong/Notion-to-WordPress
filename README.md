@@ -19,6 +19,25 @@
 
 ---
 
+## 🖼️ Demo Showcase
+
+<p align="center">
+  <img src="docs/images/demo-overview.gif" alt="Plugin Admin Overview" width="90%"><br/>
+  <em>▲ Intuitive plugin admin panel: configure, sync, and monitor with ease</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-notion-page.gif" alt="Notion Original Page" width="90%"><br/>
+  <em>▲ Write and organize content in Notion — your familiar workspace</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-wordpress-post.gif" alt="WordPress Synced Post" width="90%"><br/>
+  <em>▲ One-click sync: Notion content instantly published to WordPress, pixel-perfect</em>
+</p>
+
+---
+
 ## Highlights
 - **⚡ Lightning-fast import** – manual, one-click refresh, scheduled Cron, or instant Webhook
 - **🧠 Smart incremental sync** – only syncs changed content for optimal performance
