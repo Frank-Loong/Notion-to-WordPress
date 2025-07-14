@@ -33,11 +33,43 @@ class Notion_To_WordPress_Helper {
     private static int $debug_level = self::DEBUG_LEVEL_ERROR;
     
     /**
+     * 初始化标志，避免重复初始化
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      bool
+     */
+    private static bool $initialized = false;
+
+    /**
+     * 日志缓冲区，减少频繁的文件I/O操作
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private static array $log_buffer = [];
+
+    /**
+     * 日志缓冲区大小限制
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      int
+     */
+    private static int $log_buffer_size = 10;
+
+    /**
      * 根据WordPress设置初始化日志级别。
      *
      * @since 1.0.8
      */
     public static function init() {
+        // 避免重复初始化
+        if (self::$initialized) {
+            return;
+        }
+
         // 从选项中获取调试级别
         $options = get_option('notion_to_wordpress_options', []);
         self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
@@ -47,8 +79,10 @@ class Notion_To_WordPress_Helper {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
 
-        // 使用Helper类的方法记录日志，避免直接使用error_log
-        self::debug_log(__('调试级别设置为: ', 'notion-to-wordpress') . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
+        self::$initialized = true;
+
+        // 注册shutdown处理程序，确保缓冲区在脚本结束时被刷新
+        register_shutdown_function([__CLASS__, 'shutdown_handler']);
     }
 
     /**
@@ -89,8 +123,8 @@ class Notion_To_WordPress_Helper {
             error_log($log_prefix . $filtered_content);
         }
 
-        // 总是记录到专用文件，确保用户可以查看日志
-        self::log_to_file($log_prefix . $filtered_content);
+        // 使用缓冲机制减少文件I/O操作
+        self::buffer_log($log_prefix . $filtered_content);
     }
 
     /**
@@ -130,9 +164,10 @@ class Notion_To_WordPress_Helper {
      *
      * @since    1.0.8
      * @access   private
-     * @param    string    $message    要写入文件的日志消息。
+     * @param    string    $message         要写入文件的日志消息。
+     * @param    bool      $add_newline     是否添加换行符（默认true）
      */
-    private static function log_to_file($message) {
+    private static function log_to_file($message, $add_newline = true) {
         // 临时强制启用日志记录用于调试
         // if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
         //     return;
@@ -156,8 +191,9 @@ class Notion_To_WordPress_Helper {
         // 日志文件路径
         $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
         
-        // 写入日志
-        file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
+        // 写入日志，根据参数决定是否添加换行符
+        $content = $add_newline ? $message . PHP_EOL : $message;
+        file_put_contents($log_file, $content, FILE_APPEND | LOCK_EX);
     }
     
     /**
@@ -761,6 +797,51 @@ class Notion_To_WordPress_Helper {
      */
     public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): void {
         self::log_performance($operation, $start_time, $additional_data);
+    }
+
+    /**
+     * 缓冲日志写入，减少文件I/O操作
+     *
+     * @since    1.8.1
+     * @param    string    $log_entry    日志条目
+     */
+    private static function buffer_log(string $log_entry): void {
+        // 添加到缓冲区
+        self::$log_buffer[] = $log_entry;
+
+        // 如果缓冲区满了，或者是错误级别的日志，立即写入
+        if (count(self::$log_buffer) >= self::$log_buffer_size ||
+            strpos($log_entry, 'ERROR') !== false ||
+            strpos($log_entry, 'FATAL') !== false) {
+            self::flush_log_buffer();
+        }
+    }
+
+    /**
+     * 刷新日志缓冲区到文件
+     *
+     * @since    1.8.1
+     */
+    private static function flush_log_buffer(): void {
+        if (empty(self::$log_buffer)) {
+            return;
+        }
+
+        // 批量写入所有缓冲的日志
+        $batch_content = implode("\n", self::$log_buffer) . "\n";
+        self::log_to_file($batch_content, false); // false表示不添加额外的换行
+
+        // 清空缓冲区
+        self::$log_buffer = [];
+    }
+
+    /**
+     * 在脚本结束时自动刷新缓冲区
+     *
+     * @since    1.8.1
+     */
+    public static function shutdown_handler(): void {
+        self::flush_log_buffer();
     }
 
 

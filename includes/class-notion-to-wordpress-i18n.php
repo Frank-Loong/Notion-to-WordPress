@@ -25,17 +25,23 @@ class Notion_To_WordPress_i18n {
     private static $textdomain_loaded = false;
 
     /**
+     * 标记是否已记录过locale信息，避免重复日志
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      bool
+     */
+    private static $locale_logged = false;
+
+    /**
      * 加载插件的文本域
      *
      * @since    1.0.5
      */
     public function load_plugin_textdomain() {
-        // 仅在首次加载时记录日志，避免重复输出
-        $is_first_load = !self::$textdomain_loaded;
-
-        if ($is_first_load) {
-            Notion_To_WordPress_Helper::info_log('Loading textdomain', 'Notion i18n');
-            self::$textdomain_loaded = true;
+        // 如果已经加载过，直接返回，避免重复处理
+        if (self::$textdomain_loaded) {
+            return;
         }
 
         load_plugin_textdomain(
@@ -44,11 +50,7 @@ class Notion_To_WordPress_i18n {
             dirname(dirname(plugin_basename(__FILE__))) . '/languages/'
         );
 
-        // 仅在首次加载时验证语言文件加载状态
-        if ($is_first_load) {
-            $current_locale = get_locale();
-            Notion_To_WordPress_Helper::info_log('Current locale is: ' . $current_locale, 'Notion i18n');
-        }
+        self::$textdomain_loaded = true;
     }
 
     public function maybe_override_locale( $locale, $domain ) {
