@@ -2,11 +2,14 @@
 declare(strict_types=1);
 
 /**
- * 负责处理Notion页面转换和导入的类
- *
+ * Notion 页面处理类。
+ * 负责将 Notion 页面转换为 WordPress 文章，包括内容转换、字段映射和媒体处理。
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
@@ -120,6 +123,37 @@ class Notion_Pages {
         'preload_threshold' => 50,     // 预加载阈值
         'smart_preload' => true,       // 智能预加载
         'preload_recent_posts' => true // 预加载最近文章
+    ];
+
+    /**
+     * 分页处理配置
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array    $pagination_config    分页处理配置
+     */
+    private static array $pagination_config = [
+        'enabled' => true,
+        'default_page_size' => 20,      // 默认每页处理20个页面
+        'max_page_size' => 50,          // 最大每页50个页面
+        'memory_threshold' => 0.7,      // 内存使用率达到70%时启用分页
+        'auto_adjust_size' => true,     // 自动调整页面大小
+        'min_page_size' => 5            // 最小每页5个页面
+    ];
+
+    /**
+     * 分页处理统计
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array    $pagination_stats    分页处理统计
+     */
+    private static array $pagination_stats = [
+        'total_pages_processed' => 0,
+        'total_batches' => 0,
+        'avg_batch_size' => 0,
+        'memory_triggered_pagination' => 0,
+        'auto_size_adjustments' => 0
     ];
 
     /**
@@ -1794,6 +1828,356 @@ class Notion_Pages {
     }
 
     /**
+     * 使用分页处理机制处理页面
+     *
+     * @since    1.8.1
+     * @param    array    $pages    页面数组
+     * @return   array             处理统计
+     */
+    private function process_pages_with_pagination(array $pages): array {
+        $start_time = Notion_To_WordPress_Helper::start_performance_timer('paginated_pages_processing');
+
+        $stats = [
+            'imported' => 0,
+            'updated' => 0,
+            'failed' => 0
+        ];
+
+        // 检查是否需要启用分页处理
+        $should_paginate = $this->should_enable_pagination($pages);
+
+        if (!$should_paginate || !self::$pagination_config['enabled']) {
+            // 不使用分页，直接处理所有页面
+            Notion_To_WordPress_Helper::info_log(
+                sprintf('不使用分页处理，直接处理%d个页面', count($pages)),
+                'Pagination'
+            );
+            return $this->process_pages_batch($pages, 0);
+        }
+
+        // 计算最优页面大小
+        $page_size = $this->calculate_optimal_page_size(count($pages));
+        $batches = array_chunk($pages, $page_size);
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('启用分页处理：%d个页面分为%d批，每批%d个',
+                   count($pages), count($batches), $page_size),
+            'Pagination'
+        );
+
+        // 更新统计
+        self::$pagination_stats['total_pages_processed'] += count($pages);
+        self::$pagination_stats['total_batches'] += count($batches);
+        self::$pagination_stats['avg_batch_size'] = count($pages) / count($batches);
+
+        // 分批处理页面
+        foreach ($batches as $batch_index => $batch) {
+            $batch_start_time = microtime(true);
+
+            Notion_To_WordPress_Helper::info_log(
+                sprintf('开始处理批次%d/%d，包含%d个页面',
+                       $batch_index + 1, count($batches), count($batch)),
+                'Pagination Batch'
+            );
+
+            // 检查内存使用情况
+            $memory_check = Notion_To_WordPress_Helper::check_memory_usage('batch_' . ($batch_index + 1));
+
+            // 处理批次
+            $batch_stats = $this->process_pages_batch($batch, $batch_index);
+
+            // 合并统计
+            $stats['imported'] += $batch_stats['imported'];
+            $stats['updated'] += $batch_stats['updated'];
+            $stats['failed'] += $batch_stats['failed'];
+
+            $batch_time = (microtime(true) - $batch_start_time) * 1000;
+
+            Notion_To_WordPress_Helper::info_log(
+                sprintf('批次%d/%d完成：导入%d，更新%d，失败%d，耗时%.2fms',
+                       $batch_index + 1, count($batches),
+                       $batch_stats['imported'], $batch_stats['updated'], $batch_stats['failed'], $batch_time),
+                'Pagination Batch'
+            );
+
+            // 批次间资源清理和延迟
+            $this->cleanup_between_batches($batch_index, count($batches));
+        }
+
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($start_time, 'paginated_pages_processing');
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('分页处理完成：总计%d个页面，%d批次，执行时间%.2fms',
+                   count($pages), count($batches), $execution_time),
+            'Pagination'
+        );
+
+        return $stats;
+    }
+
+    /**
+     * 判断是否应该启用分页处理
+     *
+     * @since    1.8.1
+     * @param    array    $pages    页面数组
+     * @return   bool              是否启用分页
+     */
+    private function should_enable_pagination(array $pages): bool {
+        $page_count = count($pages);
+
+        // 页面数量超过默认页面大小时启用分页
+        if ($page_count > self::$pagination_config['default_page_size']) {
+            return true;
+        }
+
+        // 检查内存使用情况
+        $memory_check = Notion_To_WordPress_Helper::check_memory_usage('pagination_check');
+        if ($memory_check['usage_ratio'] >= self::$pagination_config['memory_threshold'] * 100) {
+            self::$pagination_stats['memory_triggered_pagination']++;
+            Notion_To_WordPress_Helper::info_log(
+                sprintf('内存使用率%.2f%%超过阈值，启用分页处理', $memory_check['usage_ratio']),
+                'Pagination Memory'
+            );
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 计算最优页面大小
+     *
+     * @since    1.8.1
+     * @param    int    $total_pages    总页面数
+     * @return   int                   最优页面大小
+     */
+    private function calculate_optimal_page_size(int $total_pages): int {
+        $base_size = self::$pagination_config['default_page_size'];
+
+        // 检查内存使用情况
+        $memory_check = Notion_To_WordPress_Helper::check_memory_usage('page_size_calculation');
+        $memory_ratio = $memory_check['usage_ratio'] / 100;
+
+        // 根据内存使用情况调整页面大小
+        if ($memory_ratio > 0.8) {
+            $adjusted_size = max(self::$pagination_config['min_page_size'], (int)($base_size * 0.5));
+        } elseif ($memory_ratio > 0.6) {
+            $adjusted_size = max(self::$pagination_config['min_page_size'], (int)($base_size * 0.7));
+        } elseif ($memory_ratio < 0.3) {
+            $adjusted_size = min(self::$pagination_config['max_page_size'], (int)($base_size * 1.5));
+        } else {
+            $adjusted_size = $base_size;
+        }
+
+        // 确保页面大小在合理范围内
+        $final_size = max(
+            self::$pagination_config['min_page_size'],
+            min(self::$pagination_config['max_page_size'], $adjusted_size)
+        );
+
+        if ($final_size !== $base_size) {
+            self::$pagination_stats['auto_size_adjustments']++;
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('页面大小自动调整：%d → %d（内存使用率：%.2f%%）',
+                       $base_size, $final_size, $memory_ratio * 100),
+                'Pagination Auto-Adjust'
+            );
+        }
+
+        return $final_size;
+    }
+
+    /**
+     * 处理页面批次
+     *
+     * @since    1.8.1
+     * @param    array    $pages        页面数组
+     * @param    int      $batch_index  批次索引
+     * @return   array                  批次处理统计
+     */
+    private function process_pages_batch(array $pages, int $batch_index): array {
+        $stats = [
+            'imported' => 0,
+            'updated' => 0,
+            'failed' => 0
+        ];
+
+        foreach ($pages as $index => $page) {
+            $global_index = ($batch_index * self::$pagination_config['default_page_size']) + $index + 1;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('处理页面%d，ID: %s', $global_index, $page['id'] ?? 'unknown'),
+                'Page Processing'
+            );
+
+            try {
+                // 检查页面是否已存在
+                $existing_post_id = $this->get_post_by_notion_id($page['id']);
+
+                // 导入页面
+                $result = $this->import_notion_page($page);
+
+                if ($result) {
+                    if ($existing_post_id) {
+                        $stats['updated']++;
+                    } else {
+                        $stats['imported']++;
+                    }
+                } else {
+                    $stats['failed']++;
+                }
+
+                // 每处理几个页面检查一次内存
+                if (($index + 1) % 5 === 0) {
+                    Notion_To_WordPress_Helper::check_memory_usage('batch_progress_' . $global_index);
+                }
+
+            } catch (Exception $e) {
+                Notion_To_WordPress_Helper::error_log(
+                    sprintf('处理页面%d异常: %s', $global_index, $e->getMessage()),
+                    'Page Processing Error'
+                );
+                $stats['failed']++;
+            } catch (Error $e) {
+                Notion_To_WordPress_Helper::error_log(
+                    sprintf('处理页面%d错误: %s', $global_index, $e->getMessage()),
+                    'Page Processing Error'
+                );
+                $stats['failed']++;
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 批次间资源清理和延迟
+     *
+     * @since    1.8.1
+     * @param    int    $batch_index    当前批次索引
+     * @param    int    $total_batches  总批次数
+     */
+    private function cleanup_between_batches(int $batch_index, int $total_batches): void {
+        // 检查内存使用情况
+        $memory_check = Notion_To_WordPress_Helper::check_memory_usage('batch_cleanup_' . ($batch_index + 1));
+
+        // 如果内存使用率较高，执行清理
+        if ($memory_check['usage_ratio'] > 60) {
+            // 强制垃圾回收
+            if (function_exists('gc_collect_cycles')) {
+                $collected = gc_collect_cycles();
+                if ($collected > 0) {
+                    Notion_To_WordPress_Helper::debug_log(
+                        sprintf('批次间垃圾回收：回收%d个循环引用', $collected),
+                        'Batch Cleanup'
+                    );
+                }
+            }
+
+            // 清理WordPress对象缓存
+            if (function_exists('wp_cache_flush')) {
+                wp_cache_flush();
+            }
+        }
+
+        // 批次间延迟（除了最后一个批次）
+        if ($batch_index < $total_batches - 1) {
+            $delay = $this->calculate_batch_delay($memory_check['usage_ratio']);
+            if ($delay > 0) {
+                usleep($delay * 1000); // 转换为微秒
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf('批次间延迟%dms', $delay),
+                    'Batch Cleanup'
+                );
+            }
+        }
+    }
+
+    /**
+     * 计算批次间延迟
+     *
+     * @since    1.8.1
+     * @param    float    $memory_usage_ratio    内存使用率
+     * @return   int                            延迟时间（毫秒）
+     */
+    private function calculate_batch_delay(float $memory_usage_ratio): int {
+        // 基础延迟
+        $base_delay = 100; // 100ms
+
+        // 根据内存使用率调整延迟
+        if ($memory_usage_ratio > 80) {
+            return $base_delay * 3; // 300ms
+        } elseif ($memory_usage_ratio > 60) {
+            return $base_delay * 2; // 200ms
+        } elseif ($memory_usage_ratio > 40) {
+            return $base_delay; // 100ms
+        }
+
+        return 0; // 无延迟
+    }
+
+    /**
+     * 获取分页处理统计
+     *
+     * @since    1.8.1
+     * @return   array    分页处理统计数据
+     */
+    public static function get_pagination_stats(): array {
+        return array_merge(self::$pagination_stats, [
+            'config' => self::$pagination_config,
+            'efficiency_score' => self::calculate_pagination_efficiency()
+        ]);
+    }
+
+    /**
+     * 计算分页处理效率
+     *
+     * @since    1.8.1
+     * @return   float    效率评分
+     */
+    private static function calculate_pagination_efficiency(): float {
+        if (self::$pagination_stats['total_batches'] === 0) {
+            return 0;
+        }
+
+        // 基础效率评分
+        $base_score = 70;
+
+        // 根据平均批次大小调整
+        $avg_batch_size = self::$pagination_stats['avg_batch_size'];
+        $optimal_size = self::$pagination_config['default_page_size'];
+
+        if ($avg_batch_size > 0) {
+            $size_efficiency = min(100, ($avg_batch_size / $optimal_size) * 100);
+            $base_score += ($size_efficiency - 70) * 0.3;
+        }
+
+        // 根据自动调整次数调整（适应性加分）
+        if (self::$pagination_stats['auto_size_adjustments'] > 0) {
+            $base_score += min(10, self::$pagination_stats['auto_size_adjustments'] * 2);
+        }
+
+        return round(max(0, min(100, $base_score)), 2);
+    }
+
+    /**
+     * 重置分页处理统计
+     *
+     * @since    1.8.1
+     */
+    public static function reset_pagination_stats(): void {
+        self::$pagination_stats = [
+            'total_pages_processed' => 0,
+            'total_batches' => 0,
+            'avg_batch_size' => 0,
+            'memory_triggered_pagination' => 0,
+            'auto_size_adjustments' => 0
+        ];
+
+        Notion_To_WordPress_Helper::debug_log('分页处理统计已重置', 'Pagination Management');
+    }
+
+    /**
      * 根据Notion页面ID获取WordPress文章
      *
      * @since    1.0.5
@@ -2250,37 +2634,13 @@ class Notion_Pages {
                 Notion_To_WordPress_Helper::debug_log('批量预加载完成', 'Batch Preload');
             }
 
-            foreach ($pages as $index => $page) {
-                error_log('Notion to WordPress: 处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'));
+            // 使用分页处理机制处理页面
+            $batch_stats = $this->process_pages_with_pagination($pages);
 
-                try {
-                    // 检查页面是否已存在
-                    $existing_post_id = $this->get_post_by_notion_id($page['id']);
-                    Notion_To_WordPress_Helper::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
-
-                    Notion_To_WordPress_Helper::debug_log('开始导入单个页面...', 'Pages Import');
-                    $result = $this->import_notion_page($page);
-                    Notion_To_WordPress_Helper::debug_log('单个页面导入结果: ' . ($result ? 'success' : 'failed'), 'Pages Import');
-
-                    if ($result) {
-                        if ($existing_post_id) {
-                            $stats['updated']++;
-                        } else {
-                            $stats['imported']++;
-                        }
-                    } else {
-                        $stats['failed']++;
-                    }
-                } catch (Exception $e) {
-                    Notion_To_WordPress_Helper::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
-                    $stats['failed']++;
-                } catch (Error $e) {
-                    Notion_To_WordPress_Helper::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
-                    $stats['failed']++;
-                }
-
-                Notion_To_WordPress_Helper::debug_log('页面 ' . ($index + 1) . ' 处理完成', 'Pages Import');
-            }
+            // 合并统计信息
+            $stats['imported'] += $batch_stats['imported'];
+            $stats['updated'] += $batch_stats['updated'];
+            $stats['failed'] += $batch_stats['failed'];
 
             Notion_To_WordPress_Helper::info_log('所有页面处理完成，统计: ' . print_r($stats, true), 'Pages Import');
             return $stats;

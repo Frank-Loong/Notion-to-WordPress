@@ -2,13 +2,14 @@
 declare(strict_types=1);
 
 /**
- * 插件的辅助工具类
- *
- * 提供一系列静态方法，用于日志记录、安全过滤、数据处理等。
- *
+ * 辅助工具类。
+ * 提供一系列静态辅助方法，用于日志记录、安全过滤、数据处理和性能监控等。
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 // 如果直接访问此文件，则退出
 if (!defined('WPINC')) {
@@ -794,9 +795,290 @@ class Notion_To_WordPress_Helper {
      * @param string $operation 操作名称
      * @param float $start_time 开始时间
      * @param array $additional_data 额外数据
+     * @return float 执行时间（毫秒）
      */
-    public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): void {
+    public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): float {
+        $execution_time = (microtime(true) - $start_time) * 1000; // 转换为毫秒
         self::log_performance($operation, $start_time, $additional_data);
+        return $execution_time;
+    }
+
+    /**
+     * 内存使用阈值配置
+     *
+     * @since 1.8.1
+     * @var array
+     */
+    private static array $memory_thresholds = [
+        'warning' => 0.7,    // 70%内存使用率警告
+        'critical' => 0.85,  // 85%内存使用率严重警告
+        'emergency' => 0.95  // 95%内存使用率紧急处理
+    ];
+
+    /**
+     * 内存监控统计
+     *
+     * @since 1.8.1
+     * @var array
+     */
+    private static array $memory_stats = [
+        'peak_usage' => 0,
+        'warning_count' => 0,
+        'critical_count' => 0,
+        'emergency_count' => 0,
+        'last_check_time' => 0,
+        'memory_trend' => []
+    ];
+
+    /**
+     * 资源管理配置
+     *
+     * @since 1.8.1
+     * @var array
+     */
+    private static array $resource_config = [
+        'enable_memory_monitoring' => true,
+        'memory_check_interval' => 10, // 每10次操作检查一次
+        'auto_cleanup_enabled' => true,
+        'max_memory_trend_records' => 50,
+        'gc_force_threshold' => 0.8 // 80%内存使用率时强制垃圾回收
+    ];
+
+    /**
+     * 检查内存使用情况
+     *
+     * @since 1.8.1
+     * @param string $operation 当前操作名称
+     * @return array 内存检查结果
+     */
+    public static function check_memory_usage(string $operation = ''): array {
+        if (!self::$resource_config['enable_memory_monitoring']) {
+            return ['status' => 'disabled'];
+        }
+
+        $current_memory = memory_get_usage(true);
+        $peak_memory = memory_get_peak_usage(true);
+        $memory_limit = self::get_memory_limit();
+
+        // 计算内存使用率
+        $usage_ratio = $memory_limit > 0 ? $current_memory / $memory_limit : 0;
+        $peak_ratio = $memory_limit > 0 ? $peak_memory / $memory_limit : 0;
+
+        // 更新统计信息
+        if ($peak_memory > self::$memory_stats['peak_usage']) {
+            self::$memory_stats['peak_usage'] = $peak_memory;
+        }
+
+        // 记录内存趋势
+        self::record_memory_trend($current_memory, $usage_ratio);
+
+        // 检查阈值
+        $status = self::evaluate_memory_status($usage_ratio, $operation);
+
+        $result = [
+            'status' => $status,
+            'current_memory' => $current_memory,
+            'current_memory_formatted' => self::format_bytes($current_memory),
+            'peak_memory' => $peak_memory,
+            'peak_memory_formatted' => self::format_bytes($peak_memory),
+            'memory_limit' => $memory_limit,
+            'memory_limit_formatted' => self::format_bytes($memory_limit),
+            'usage_ratio' => round($usage_ratio * 100, 2),
+            'peak_ratio' => round($peak_ratio * 100, 2),
+            'operation' => $operation,
+            'timestamp' => time()
+        ];
+
+        // 记录内存检查结果
+        if ($status !== 'normal') {
+            self::debug_log(
+                sprintf('内存使用检查 - %s: %s (%.2f%%, %s)',
+                       $operation, $status, $result['usage_ratio'], $result['current_memory_formatted']),
+                'Memory Monitor'
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * 获取内存限制
+     *
+     * @since 1.8.1
+     * @return int 内存限制（字节）
+     */
+    private static function get_memory_limit(): int {
+        $memory_limit = ini_get('memory_limit');
+
+        if ($memory_limit === '-1') {
+            return 0; // 无限制
+        }
+
+        // 解析内存限制字符串
+        $unit = strtoupper(substr($memory_limit, -1));
+        $value = (int)substr($memory_limit, 0, -1);
+
+        switch ($unit) {
+            case 'G':
+                return $value * 1024 * 1024 * 1024;
+            case 'M':
+                return $value * 1024 * 1024;
+            case 'K':
+                return $value * 1024;
+            default:
+                return (int)$memory_limit;
+        }
+    }
+
+    /**
+     * 记录内存使用趋势
+     *
+     * @since 1.8.1
+     * @param int $current_memory 当前内存使用
+     * @param float $usage_ratio 使用率
+     */
+    private static function record_memory_trend(int $current_memory, float $usage_ratio): void {
+        $trend_record = [
+            'memory' => $current_memory,
+            'ratio' => $usage_ratio,
+            'timestamp' => time()
+        ];
+
+        self::$memory_stats['memory_trend'][] = $trend_record;
+
+        // 保持趋势记录数量在限制内
+        if (count(self::$memory_stats['memory_trend']) > self::$resource_config['max_memory_trend_records']) {
+            array_shift(self::$memory_stats['memory_trend']);
+        }
+
+        self::$memory_stats['last_check_time'] = time();
+    }
+
+    /**
+     * 评估内存状态
+     *
+     * @since 1.8.1
+     * @param float $usage_ratio 内存使用率
+     * @param string $operation 当前操作
+     * @return string 内存状态
+     */
+    private static function evaluate_memory_status(float $usage_ratio, string $operation): string {
+        if ($usage_ratio >= self::$memory_thresholds['emergency']) {
+            self::$memory_stats['emergency_count']++;
+            self::handle_emergency_memory_situation($usage_ratio, $operation);
+            return 'emergency';
+        } elseif ($usage_ratio >= self::$memory_thresholds['critical']) {
+            self::$memory_stats['critical_count']++;
+            self::handle_critical_memory_situation($usage_ratio, $operation);
+            return 'critical';
+        } elseif ($usage_ratio >= self::$memory_thresholds['warning']) {
+            self::$memory_stats['warning_count']++;
+            self::handle_warning_memory_situation($usage_ratio, $operation);
+            return 'warning';
+        }
+
+        return 'normal';
+    }
+
+    /**
+     * 处理紧急内存情况
+     *
+     * @since 1.8.1
+     * @param float $usage_ratio 内存使用率
+     * @param string $operation 当前操作
+     */
+    private static function handle_emergency_memory_situation(float $usage_ratio, string $operation): void {
+        self::error_log(
+            sprintf('紧急内存警告！内存使用率达到%.2f%%，操作：%s', $usage_ratio * 100, $operation),
+            'Memory Emergency'
+        );
+
+        // 强制垃圾回收
+        if (function_exists('gc_collect_cycles')) {
+            $collected = gc_collect_cycles();
+            self::debug_log(
+                sprintf('紧急垃圾回收完成，回收%d个循环引用', $collected),
+                'Memory Emergency'
+            );
+        }
+
+        // 清理缓存
+        self::emergency_cache_cleanup();
+    }
+
+    /**
+     * 处理严重内存情况
+     *
+     * @since 1.8.1
+     * @param float $usage_ratio 内存使用率
+     * @param string $operation 当前操作
+     */
+    private static function handle_critical_memory_situation(float $usage_ratio, string $operation): void {
+        self::error_log(
+            sprintf('严重内存警告！内存使用率达到%.2f%%，操作：%s', $usage_ratio * 100, $operation),
+            'Memory Critical'
+        );
+
+        // 执行垃圾回收
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
+        }
+
+        // 建议分页处理
+        self::suggest_pagination($operation);
+    }
+
+    /**
+     * 处理内存警告情况
+     *
+     * @since 1.8.1
+     * @param float $usage_ratio 内存使用率
+     * @param string $operation 当前操作
+     */
+    private static function handle_warning_memory_situation(float $usage_ratio, string $operation): void {
+        self::debug_log(
+            sprintf('内存使用警告：内存使用率达到%.2f%%，操作：%s', $usage_ratio * 100, $operation),
+            'Memory Warning'
+        );
+
+        // 检查是否需要强制垃圾回收
+        if ($usage_ratio >= self::$resource_config['gc_force_threshold']) {
+            if (function_exists('gc_collect_cycles')) {
+                gc_collect_cycles();
+            }
+        }
+    }
+
+    /**
+     * 紧急缓存清理
+     *
+     * @since 1.8.1
+     */
+    private static function emergency_cache_cleanup(): void {
+        // 清理WordPress对象缓存
+        if (function_exists('wp_cache_flush')) {
+            wp_cache_flush();
+        }
+
+        // 清理transients
+        global $wpdb;
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_notion_%'");
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_notion_%'");
+
+        self::info_log('紧急缓存清理完成', 'Memory Emergency');
+    }
+
+    /**
+     * 建议分页处理
+     *
+     * @since 1.8.1
+     * @param string $operation 当前操作
+     */
+    private static function suggest_pagination(string $operation): void {
+        self::info_log(
+            sprintf('建议对操作"%s"使用分页处理以减少内存使用', $operation),
+            'Memory Optimization'
+        );
     }
 
     /**
@@ -844,7 +1126,64 @@ class Notion_To_WordPress_Helper {
         self::flush_log_buffer();
     }
 
+    /**
+     * 获取内存使用统计
+     *
+     * @since 1.8.1
+     * @return array 内存统计数据
+     */
+    public static function get_memory_stats(): array {
+        $current_memory = memory_get_usage(true);
+        $peak_memory = memory_get_peak_usage(true);
+        $memory_limit = self::get_memory_limit();
 
+        $stats = array_merge(self::$memory_stats, [
+            'current_memory' => $current_memory,
+            'current_memory_formatted' => self::format_bytes($current_memory),
+            'peak_memory_formatted' => self::format_bytes(self::$memory_stats['peak_usage']),
+            'memory_limit' => $memory_limit,
+            'memory_limit_formatted' => self::format_bytes($memory_limit),
+            'current_usage_ratio' => $memory_limit > 0 ? round(($current_memory / $memory_limit) * 100, 2) : 0,
+            'peak_usage_ratio' => $memory_limit > 0 ? round((self::$memory_stats['peak_usage'] / $memory_limit) * 100, 2) : 0,
+            'thresholds' => self::$memory_thresholds,
+            'config' => self::$resource_config
+        ]);
+
+        return $stats;
+    }
+
+    /**
+     * 重置内存统计
+     *
+     * @since 1.8.1
+     */
+    public static function reset_memory_stats(): void {
+        self::$memory_stats = [
+            'peak_usage' => 0,
+            'warning_count' => 0,
+            'critical_count' => 0,
+            'emergency_count' => 0,
+            'last_check_time' => 0,
+            'memory_trend' => []
+        ];
+
+        self::debug_log('内存统计已重置', 'Memory Management');
+    }
+
+    /**
+     * 设置资源管理配置
+     *
+     * @since 1.8.1
+     * @param array $config 配置数组
+     */
+    public static function set_resource_config(array $config): void {
+        self::$resource_config = array_merge(self::$resource_config, $config);
+
+        self::debug_log(
+            '资源管理配置已更新: ' . json_encode(self::$resource_config),
+            'Resource Config'
+        );
+    }
 }
 
 // 初始化静态帮助类

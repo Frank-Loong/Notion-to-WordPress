@@ -8,7 +8,7 @@
  * 生成的 ZIP 可直接在 WordPress 后台安装。
  * 
  * @author Frank-Loong
- * @version 1.0.0
+ * @version 1.8.3-test.2
  */
 
 const fs = require('fs');

@@ -3,12 +3,15 @@
 declare(strict_types=1);
 
 /**
- * 插件后台管理页面视图
- *
- * 本文件用于标记插件后台界面相关内容。
- *
+ * 插件主后台页面。
+ * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射等。
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @subpackage Notion_To_WordPress/admin/partials
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 // 如果直接访问本文件，则终止执行。

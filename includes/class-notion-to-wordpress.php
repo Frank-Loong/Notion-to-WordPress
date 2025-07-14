@@ -2,15 +2,14 @@
 declare(strict_types=1);
 
 /**
- * 核心插件类
- *
- * 用于定义国际化、后台特定的钩子和面向公众的站点钩子。
- *
- * 同样，它也用于通过加载所有依赖项、设置区域设置和注册钩子来初始化插件。
- *
+ * 插件核心类。
+ * 负责初始化插件，加载依赖项，定义国际化，以及注册后台和前台的钩子。
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
@@ -94,7 +93,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.8.0-beta.5';
+			$this->version = '1.8.2';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 
@@ -212,6 +211,9 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
+
+		// 性能监控AJAX钩子
+		$this->loader->add_action( 'wp_ajax_refresh_performance_data', $this->admin, 'handle_performance_ajax_public' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );

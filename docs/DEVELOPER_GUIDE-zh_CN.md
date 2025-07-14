@@ -39,7 +39,7 @@ cd Notion-to-WordPress
 npm install
 
 # 3. 验证版本一致性
-npm run validate:version
+npm run version:check
 
 # 4. 构建测试
 npm run build
@@ -55,19 +55,20 @@ npm run build
 
 ```bash
 # 1. 检查版本一致性
-npm run validate:version
+npm run version:check
 
 # 2. 升级版本（如需要）
-npm run version:bump:patch    # 或 minor/major/beta
+npm run version:patch    # 或 minor/major/beta
 
 # 3. 构建生产包
 npm run build
 ```
 
 **常用命令速查：**
-- `npm run version:bump:help` - 查看版本管理帮助
-- `npm run version:bump:check` - 仅检查版本一致性
-- `npm run version:bump:rollback` - 回滚到上一版本
+- `npm run help` - 查看所有可用命令
+- `npm run version:help` - 查看版本管理帮助
+- `npm run version:check` - 仅检查版本一致性
+- `npm run clean` - 清理构建文件
 
 ### ✅ 环境要求
 
@@ -128,8 +129,7 @@ notion-to-wordpress/
 │   └── class-notion-to-wordpress.php
 ├── scripts/                # 自动化脚本
 │   ├── build.js
-│   ├── release.js
-│   └── local-package.js
+│   └── release.js
 ├── languages/              # 国际化文件
 └── notion-to-wordpress.php # 插件入口
 ```
@@ -342,7 +342,7 @@ sequenceDiagram
 git checkout -b feature/your-feature
 
 # 2. 开发和测试
-npm run validate:version
+npm run version:check
 npm run build
 
 # 3. 代码检查
@@ -382,16 +382,18 @@ git merge feature/your-feature
 | 命令 | 功能 | 用途 |
 |------|------|------|
 | `npm run build` | 构建生产包 | 发布前构建 |
-| `npm run validate:config` | 验证配置 | 环境检查 |
-| `npm run validate:github-actions` | 验证CI配置 | 发布前检查 |
+| `npm run build:clean` | 清理构建目录 | 移除旧构建 |
+| `npm run build:verify` | 验证构建结果 | 构建后验证 |
+| `npm run clean` | 清理所有构建文件 | 快速清理 |
 
 ### 📦 开发工作流
 
 | 步骤 | 命令 | 说明 |
 |------|------|------|
-| 1. 检查版本 | `npm run validate:version` | 验证版本一致性 |
-| 2. 升级版本 | `npm run version:bump:patch` | 根据需要升级版本 |
+| 1. 检查版本 | `npm run version:check` | 验证版本一致性 |
+| 2. 升级版本 | `npm run version:patch` | 根据需要升级版本 |
 | 3. 构建打包 | `npm run build` | 生成生产包 |
+| 4. 测试构建 | `npm run build:verify` | 验证构建结果 |
 
 ### 🚀 发布命令
 
@@ -401,30 +403,49 @@ git merge feature/your-feature
 | `npm run release:minor` | 小版本发布 | 包含新功能 |
 | `npm run release:major` | 主版本发布 | 破坏性更改 |
 | `npm run release:beta` | 测试版发布 | 预发布版本 |
-| `npm run test:release:patch` | 预览发布 | 安全预览模式 |
+| `node scripts/release.js custom --version=X.Y.Z --dry-run` | 自定义发布 | 设置特定版本 |
+| `npm run release:dry-run` | 预览发布 | 安全预览模式 |
 | `npm run release:help` | 显示帮助 | 查看选项 |
 
 ### 🔍 版本管理
 
 | 命令 | 功能 | 用途 |
 |------|------|------|
-| `npm run version:bump:check` | 检查版本一致性 | 验证所有文件版本号一致 |
-| `npm run version:bump:patch` | 补丁版本升级 | 1.0.0 → 1.0.1 |
-| `npm run version:bump:minor` | 小版本升级 | 1.0.0 → 1.1.0 |
-| `npm run version:bump:major` | 主版本升级 | 1.0.0 → 2.0.0 |
-| `npm run version:bump:beta` | 测试版本升级 | 1.0.0 → 1.0.1-beta.1 |
-| `npm run version:bump:rollback` | 回滚版本 | 恢复备份 |
-| `npm run version:bump:help` | 显示帮助 | 显示使用说明 |
+| `npm run version:check` | 检查版本一致性 | 验证所有文件版本号一致 |
+| `node scripts/version-bump.js --version=X.Y.Z` | 自定义版本号 | 直接更新所有版本文档 |
+| `npm run version:patch` | 补丁版本升级 | 1.0.0 → 1.0.1 |
+| `npm run version:minor` | 小版本升级 | 1.0.0 → 1.1.0 |
+| `npm run version:major` | 主版本升级 | 1.0.0 → 2.0.0 |
+| `npm run version:beta` | 测试版本升级 | 1.0.0 → 1.0.1-beta.1 |
+| `npm run version:help` | 显示帮助 | 显示使用说明 |
 
-**注意**: 所有版本操作都会自动创建备份，可以使用rollback恢复。
+**注意**：由于 npm 参数传递有限制，自定义版本设置请直接使用 `node` 命令。
 
 ### 🧪 测试命令
 
 | 命令 | 功能 | 用途 |
 |------|------|------|
+| `npm run test` | 运行默认测试 | 快速测试套件 |
 | `npm run test:integration` | 集成测试 | 全面测试 |
-| `php -l *.php` | PHP语法检查 | 代码验证 |
-| `Get-ChildItem includes/ -Filter "*.php" \| ForEach-Object { php -l $_.FullName }` | 批量语法检查（Windows） | 全面验证 |
+| `npm run test:syntax` | 语法检查 | 代码验证 |
+| `npm run test:release` | 测试发布流程 | 安全发布预览 |
+| `npm run validate` | 运行所有验证 | 完整验证套件 |
+| `npm run validate:config` | 验证配置 | 环境检查 |
+| `npm run validate:github-actions` | 验证CI配置 | 发布前检查 |
+| `npm run validate:version` | 验证版本一致性 | 版本检查 |
+
+### 🔧 工具命令
+
+| 命令 | 功能 | 用途 |
+|------|------|------|
+| `npm run help` | 显示所有命令 | 显示分类命令列表 |
+| `npm run clean` | 清理构建文件 | 移除构建目录 |
+| `npm run dev` | 开发环境部署 | 快速构建和部署 |
+| `npm run dev:deploy` | 部署到本地WordPress | 本地环境部署 |
+
+**自定义命令**（请直接使用 `node` 命令）：
+- `node scripts/version-bump.js --version=X.Y.Z` - 设置自定义版本
+- `node scripts/release.js custom --version=X.Y.Z --dry-run` - 自定义发布
 
 ### 📝 单元测试指导
 
@@ -548,7 +569,7 @@ npm run validate:config
 #### 版本不一致
 ```bash
 # 自动修复版本不一致（选择合适的类型）
-npm run version:bump:patch
+npm run version:patch
 
 # 手动检查版本
 # Linux/Mac:
@@ -559,8 +580,8 @@ grep "version" package.json
 Select-String "Version:" notion-to-wordpress.php
 Select-String "version" package.json
 
-# 查看帮助信息（使用任意类型命令）
-npm run version:bump -- --help
+# 查看帮助信息
+npm run version:help
 ```
 
 #### 插件激活失败
@@ -701,7 +722,7 @@ ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 # 1. 发布前检查
 git status                    # 确保工作目录干净
 npm run validate:config       # 验证配置
-npm run test:release:patch    # 预览发布
+npm run release:dry-run       # 预览发布
 
 # 2. 执行发布
 npm run release:patch         # 选择合适类型
@@ -716,13 +737,13 @@ npm run release:patch         # 选择合适类型
 
 ```bash
 # 候选版本
-npm run release:custom -- --version=1.3.0-rc.1
+npm run release:custom -- --version=1.8.1-rc.1
 
 # 热修复版本
-npm run release:custom -- --version=1.2.1-hotfix.1
+npm run release:custom -- --version=1.8.1-hotfix.1
 
 # 预览模式
-npm run release:custom -- --version=1.3.0-rc.1 --dry-run
+npm run release:custom -- --version=1.8.1-rc.1 --dry-run
 ```
 
 ---
@@ -1024,7 +1045,7 @@ cd Notion-to-WordPress
 git checkout -b feature/your-feature-name
 
 # 4. 开发测试
-npm run validate:version
+npm run version:check
 npm run build
 
 # 5. 提交更改
@@ -1187,3 +1208,5 @@ function sync($id) {  // 缺少类型提示和文档
 **[⬆️ 返回顶部](#-notion-to-wordpress-开发者指南) • [🏠 主页](../README-zh_CN.md) • [📚 用户指南](Wiki.zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🇺🇸 English](DEVELOPER_GUIDE.md)**
 
 </div>
+
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-test.2

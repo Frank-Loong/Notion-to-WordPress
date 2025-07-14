@@ -1,11 +1,13 @@
 /**
- * Notion-to-WordPress 插件发布配置
- * 
- * 本文件包含自动化发布系统的所有配置选项。
+ * Notion-to-WordPress 插件发布配置。
+ * 包含自动化发布系统的所有配置选项。
  * 你可以根据项目需求自定义这些设置。
- * 
- * @author Frank-Loong
- * @version 1.0.0
+ * @since      1.8.2
+ * @version    1.8.2
+ * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 const path = require('path');
@@ -106,13 +108,140 @@ const releaseConfig = {
             enforceConsistency: true,
             allowPrerelease: true,
             semverCompliant: true
+        }
+    },
+
+    // ========================================
+    // 文件头部注释配置
+    // ========================================
+    fileHeaders: {
+        // 文件头部注释模板
+        templates: {
+            // PHP文件模板（WordPress标准）
+            php: {
+                template: `<?php
+declare(strict_types=1);
+
+/**
+ * {DESCRIPTION}
+ *
+ * @package    {PACKAGE}
+ * @subpackage {SUBPACKAGE}
+ * @since      {VERSION}
+ * @author     {AUTHOR}
+ * @license    {LICENSE}
+ * @link       {LINK}
+ */
+
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}`,
+                variables: {
+                    DESCRIPTION: '文件描述',
+                    PACKAGE: 'Notion_To_WordPress',
+                    SUBPACKAGE: '',
+                    VERSION: '{VERSION}',
+                    AUTHOR: 'Frank-Loong',
+                    LICENSE: 'GPL-3.0-or-later',
+                    LINK: 'https://github.com/Frank-Loong/Notion-to-WordPress'
+                }
+            },
+
+            // JavaScript文件模板（JSDoc格式）
+            js: {
+                template: `/**
+ * {DESCRIPTION}
+ *
+ * @file       {FILE_NAME}
+ * @package    {PACKAGE}
+ * @since      {VERSION}
+ * @author     {AUTHOR}
+ * @license    {LICENSE}
+ * @link       {LINK}
+ */`,
+                variables: {
+                    DESCRIPTION: '文件描述',
+                    FILE_NAME: '{FILE_NAME}',
+                    PACKAGE: 'Notion_To_WordPress',
+                    VERSION: '{VERSION}',
+                    AUTHOR: 'Frank-Loong',
+                    LICENSE: 'GPL-3.0-or-later',
+                    LINK: 'https://github.com/Frank-Loong/Notion-to-WordPress'
+                }
+            },
+
+            // CSS文件模板
+            css: {
+                template: `/**
+ * {DESCRIPTION}
+ *
+ * @package    {PACKAGE}
+ * @since      {VERSION}
+ * @author     {AUTHOR}
+ * @license    {LICENSE}
+ */`,
+                variables: {
+                    DESCRIPTION: '文件描述',
+                    PACKAGE: 'Notion_To_WordPress',
+                    VERSION: '{VERSION}',
+                    AUTHOR: 'Frank-Loong',
+                    LICENSE: 'GPL-3.0-or-later'
+                }
+            }
         },
 
-        // 备份设置
-        backup: {
-            enabled: true,
-            directory: '.version-backup',
-            keepBackups: 5
+        // 需要添加头部注释的文件规则
+        rules: {
+            // 包含的目录和文件类型
+            include: {
+                directories: [
+                    'includes/',
+                    'admin/',
+                    'assets/js/',
+                    'assets/css/'
+                ],
+                extensions: ['.php', '.js', '.css'],
+                // 特定文件
+                files: []
+            },
+
+            // 排除的文件和目录
+            exclude: {
+                directories: [
+                    'assets/vendor/',
+                    'node_modules/',
+                    'build/',
+                    'languages/'
+                ],
+                files: [
+                    'notion-to-wordpress.php', // 主插件文件有特殊格式
+                    'uninstall.php'
+                ],
+                patterns: [
+                    '*.min.js',
+                    '*.min.css',
+                    'vendor.*',
+                    'third-party.*'
+                ]
+            }
+        },
+
+        // 文件描述映射（可选，用于自动生成描述）
+        descriptions: {
+            'includes/class-notion-to-wordpress.php': '核心插件类',
+            'includes/class-notion-api.php': 'Notion API 接口类',
+            'includes/class-notion-pages.php': 'Notion 页面处理类',
+            'includes/class-notion-to-wordpress-helper.php': '插件辅助工具类',
+            'includes/class-notion-to-wordpress-i18n.php': '国际化处理类',
+            'includes/class-notion-to-wordpress-loader.php': '插件加载器类',
+            'includes/class-notion-to-wordpress-webhook.php': 'Webhook 处理类',
+            'includes/class-notion-concurrent-manager.php': '并发管理类',
+            'admin/class-notion-to-wordpress-admin.php': '后台管理类',
+            'assets/js/anchor-navigation.js': 'Notion 区块锚点导航功能',
+            'assets/js/admin.js': '后台管理界面脚本',
+            'assets/css/admin-modern.css': 'Notion 内容导入器现代化后台样式',
+            'assets/css/public.css': '前台样式文件'
         }
     },
 
@@ -151,15 +280,12 @@ const releaseConfig = {
                 'LICENSE',
                 'README.md',
                 'README-zh_CN.md',
-                'CONTRIBUTING.md',
-                'CONTRIBUTING-zh_CN.md'
             ],
             directories: [
                 'scripts/',
                 '.github/',
                 'node_modules/',
                 'build/',
-                '.version-backup/',
                 'docs/',
                 'wiki/',
                 '.git/',

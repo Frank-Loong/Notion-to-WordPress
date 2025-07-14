@@ -2,11 +2,14 @@
 declare(strict_types=1);
 
 /**
- * 注册所有动作和过滤器的类
- *
+ * 插件加载器类。
+ * 负责注册插件所有的动作（actions）和过滤器（filters），并将其挂载到 WordPress 的钩子系统中。
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {

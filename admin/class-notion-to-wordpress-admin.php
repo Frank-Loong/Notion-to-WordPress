@@ -8,11 +8,14 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * 插件的管理区域功能
- *
+ * 后台管理类。
+ * 负责插件后台设置页面的功能，包括表单处理、选项保存等。
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 class Notion_To_WordPress_Admin {
@@ -52,6 +55,46 @@ class Notion_To_WordPress_Admin {
      * @var      Notion_Pages
      */
     private Notion_Pages $notion_pages;
+
+    /**
+     * 性能配置默认值
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private array $performance_config_defaults = [
+        // 并发管理器配置
+        'concurrent_max_requests' => 25,
+        'concurrent_adaptive_enabled' => true,
+        'concurrent_target_response_time' => 2000,
+        'concurrent_adjustment_threshold' => 0.1,
+
+        // 缓存配置
+        'cache_memory_ttl' => 1800,
+        'cache_transient_ttl' => 3600,
+        'cache_preload_enabled' => true,
+        'cache_preload_max_size' => 100,
+
+        // 分页处理配置
+        'pagination_enabled' => true,
+        'pagination_default_size' => 20,
+        'pagination_max_size' => 50,
+        'pagination_memory_threshold' => 70,
+
+        // 网络配置
+        'network_base_timeout' => 8,
+        'network_connect_timeout' => 3,
+        'network_keepalive_enabled' => true,
+        'network_compression_enabled' => true,
+        'network_adaptive_timeout' => true,
+
+        // 内存管理配置
+        'memory_warning_threshold' => 70,
+        'memory_critical_threshold' => 85,
+        'memory_emergency_threshold' => 95,
+        'memory_monitoring_enabled' => true
+    ];
 
     /**
      * 初始化类并设置其属性
@@ -230,6 +273,26 @@ class Notion_To_WordPress_Admin {
             array($this, 'display_plugin_setup_page'),
             $icon_svg, // 使用自定义SVG图标
             99
+        );
+
+        // 添加性能监控子菜单
+        add_submenu_page(
+            $this->plugin_name,
+            __('性能监控', 'notion-to-wordpress'),
+            __('性能监控', 'notion-to-wordpress'),
+            'manage_options',
+            $this->plugin_name . '-performance',
+            array($this, 'display_performance_page')
+        );
+
+        // 添加性能配置子菜单
+        add_submenu_page(
+            $this->plugin_name,
+            __('性能配置', 'notion-to-wordpress'),
+            __('性能配置', 'notion-to-wordpress'),
+            'manage_options',
+            $this->plugin_name . '-performance-config',
+            array($this, 'display_performance_config_page')
         );
     }
 
@@ -1108,6 +1171,468 @@ class Notion_To_WordPress_Admin {
         } catch (Exception $e) {
             wp_send_json_error(['message' => __('清除缓存失败: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
+    }
+
+    /**
+     * 显示性能监控页面
+     *
+     * @since    1.8.1
+     */
+    public function display_performance_page() {
+        // 处理AJAX请求
+        if (isset($_POST['action']) && $_POST['action'] === 'refresh_performance_data') {
+            $this->handle_performance_ajax();
+            return;
+        }
+
+        // 获取性能数据
+        $performance_data = $this->get_comprehensive_performance_data();
+
+        // 显示性能监控页面
+        include_once plugin_dir_path(__FILE__) . 'partials/performance-monitor-display.php';
+    }
+
+    /**
+     * 显示性能配置页面
+     *
+     * @since    1.8.1
+     */
+    public function display_performance_config_page() {
+        // 处理配置保存
+        if (isset($_POST['save_performance_config'])) {
+            $this->save_performance_config();
+        }
+
+        // 获取当前配置
+        $current_config = $this->get_performance_config();
+
+        // 显示性能配置页面
+        include_once plugin_dir_path(__FILE__) . 'partials/performance-config-display.php';
+    }
+
+    /**
+     * 获取综合性能数据
+     *
+     * @since    1.8.1
+     * @return   array    性能数据
+     */
+    private function get_comprehensive_performance_data(): array {
+        // 获取各模块的性能统计
+        $concurrent_stats = [];
+        $api_stats = [];
+        $memory_stats = [];
+        $pagination_stats = [];
+
+        try {
+            // 尝试获取并发管理器统计
+            if ($this->notion_api && method_exists($this->notion_api, 'get_concurrent_manager')) {
+                $concurrent_manager = $this->notion_api->get_concurrent_manager();
+                if ($concurrent_manager) {
+                    $concurrent_stats = $concurrent_manager->get_comprehensive_performance_report();
+                }
+            }
+
+            // 获取API统计
+            if (class_exists('Notion_API')) {
+                $api_stats = Notion_API::get_comprehensive_api_stats();
+            }
+
+            // 获取内存统计
+            if (class_exists('Notion_To_WordPress_Helper')) {
+                $memory_stats = Notion_To_WordPress_Helper::get_memory_stats();
+            }
+
+            // 获取分页统计
+            if (class_exists('Notion_Pages')) {
+                $pagination_stats = Notion_Pages::get_pagination_stats();
+            }
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '获取性能数据时发生错误: ' . $e->getMessage(),
+                'Performance Monitor'
+            );
+        }
+
+        return [
+            'concurrent' => $concurrent_stats,
+            'api' => $api_stats,
+            'memory' => $memory_stats,
+            'pagination' => $pagination_stats,
+            'timestamp' => time(),
+            'formatted_time' => current_time('Y-m-d H:i:s')
+        ];
+    }
+
+    /**
+     * 获取性能配置
+     *
+     * @since    1.8.1
+     * @return   array    性能配置
+     */
+    private function get_performance_config(): array {
+        $saved_config = get_option('notion_to_wordpress_performance_config', []);
+        return array_merge($this->performance_config_defaults, $saved_config);
+    }
+
+    /**
+     * 保存性能配置
+     *
+     * @since    1.8.1
+     */
+    private function save_performance_config(): void {
+        // 验证nonce
+        if (!isset($_POST['performance_config_nonce']) ||
+            !wp_verify_nonce($_POST['performance_config_nonce'], 'save_performance_config')) {
+            wp_die(__('安全验证失败', 'notion-to-wordpress'));
+        }
+
+        // 验证权限
+        if (!current_user_can('manage_options')) {
+            wp_die(__('权限不足', 'notion-to-wordpress'));
+        }
+
+        $config = [];
+
+        // 处理并发管理器配置
+        $config['concurrent_max_requests'] = intval($_POST['concurrent_max_requests'] ?? 25);
+        $config['concurrent_adaptive_enabled'] = isset($_POST['concurrent_adaptive_enabled']);
+        $config['concurrent_target_response_time'] = intval($_POST['concurrent_target_response_time'] ?? 2000);
+        $config['concurrent_adjustment_threshold'] = floatval($_POST['concurrent_adjustment_threshold'] ?? 0.1);
+
+        // 处理缓存配置
+        $config['cache_memory_ttl'] = intval($_POST['cache_memory_ttl'] ?? 1800);
+        $config['cache_transient_ttl'] = intval($_POST['cache_transient_ttl'] ?? 3600);
+        $config['cache_preload_enabled'] = isset($_POST['cache_preload_enabled']);
+        $config['cache_preload_max_size'] = intval($_POST['cache_preload_max_size'] ?? 100);
+
+        // 处理分页配置
+        $config['pagination_enabled'] = isset($_POST['pagination_enabled']);
+        $config['pagination_default_size'] = intval($_POST['pagination_default_size'] ?? 20);
+        $config['pagination_max_size'] = intval($_POST['pagination_max_size'] ?? 50);
+        $config['pagination_memory_threshold'] = intval($_POST['pagination_memory_threshold'] ?? 70);
+
+        // 处理网络配置
+        $config['network_base_timeout'] = intval($_POST['network_base_timeout'] ?? 8);
+        $config['network_connect_timeout'] = intval($_POST['network_connect_timeout'] ?? 3);
+        $config['network_keepalive_enabled'] = isset($_POST['network_keepalive_enabled']);
+        $config['network_compression_enabled'] = isset($_POST['network_compression_enabled']);
+        $config['network_adaptive_timeout'] = isset($_POST['network_adaptive_timeout']);
+
+        // 处理内存管理配置
+        $config['memory_warning_threshold'] = intval($_POST['memory_warning_threshold'] ?? 70);
+        $config['memory_critical_threshold'] = intval($_POST['memory_critical_threshold'] ?? 85);
+        $config['memory_emergency_threshold'] = intval($_POST['memory_emergency_threshold'] ?? 95);
+        $config['memory_monitoring_enabled'] = isset($_POST['memory_monitoring_enabled']);
+
+        // 保存配置
+        update_option('notion_to_wordpress_performance_config', $config);
+
+        // 应用配置到各个模块
+        $this->apply_performance_config($config);
+
+        // 显示成功消息
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-success is-dismissible"><p>' .
+                 __('性能配置已保存并应用', 'notion-to-wordpress') . '</p></div>';
+        });
+    }
+
+    /**
+     * 应用性能配置到各个模块
+     *
+     * @since    1.8.1
+     * @param    array    $config    性能配置
+     */
+    private function apply_performance_config(array $config): void {
+        try {
+            // 应用并发管理器配置
+            if ($this->notion_api && method_exists($this->notion_api, 'get_concurrent_manager')) {
+                $concurrent_manager = $this->notion_api->get_concurrent_manager();
+                if ($concurrent_manager) {
+                    $concurrent_manager->set_max_concurrent($config['concurrent_max_requests']);
+                    $concurrent_manager->set_adaptive_config([
+                        'enabled' => $config['concurrent_adaptive_enabled'],
+                        'target_response_time' => $config['concurrent_target_response_time'],
+                        'adjustment_threshold' => $config['concurrent_adjustment_threshold']
+                    ]);
+                    $concurrent_manager->set_network_config([
+                        'base_timeout' => $config['network_base_timeout'],
+                        'base_connect_timeout' => $config['network_connect_timeout'],
+                        'enable_keepalive' => $config['network_keepalive_enabled'],
+                        'enable_compression' => $config['network_compression_enabled'],
+                        'adaptive_timeout' => $config['network_adaptive_timeout']
+                    ]);
+                }
+            }
+
+            // 应用API缓存配置
+            if (class_exists('Notion_API')) {
+                Notion_API::set_cache_config([
+                    'memory_ttl' => $config['cache_memory_ttl'],
+                    'transient_ttl' => $config['cache_transient_ttl'],
+                    'preload_enabled' => $config['cache_preload_enabled'],
+                    'preload_max_size' => $config['cache_preload_max_size']
+                ]);
+            }
+
+            // 应用内存管理配置
+            if (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::set_resource_config([
+                    'enable_memory_monitoring' => $config['memory_monitoring_enabled'],
+                    'warning_threshold' => $config['memory_warning_threshold'] / 100,
+                    'critical_threshold' => $config['memory_critical_threshold'] / 100,
+                    'emergency_threshold' => $config['memory_emergency_threshold'] / 100
+                ]);
+            }
+
+            Notion_To_WordPress_Helper::info_log(
+                '性能配置已应用到所有模块',
+                'Performance Config'
+            );
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '应用性能配置时发生错误: ' . $e->getMessage(),
+                'Performance Config'
+            );
+        }
+    }
+
+    /**
+     * 处理性能监控AJAX请求
+     *
+     * @since    1.8.1
+     */
+    private function handle_performance_ajax(): void {
+        // 验证nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'performance_ajax')) {
+            wp_die(json_encode(['error' => '安全验证失败']));
+        }
+
+        // 验证权限
+        if (!current_user_can('manage_options')) {
+            wp_die(json_encode(['error' => '权限不足']));
+        }
+
+        $action_type = $_POST['action_type'] ?? '';
+
+        switch ($action_type) {
+            case 'get_stats':
+                $data = $this->get_comprehensive_performance_data();
+                wp_die(json_encode(['success' => true, 'data' => $data]));
+                break;
+
+            case 'reset_stats':
+                $this->reset_all_performance_stats();
+                wp_die(json_encode(['success' => true, 'message' => '统计数据已重置']));
+                break;
+
+            case 'run_performance_test':
+                $test_results = $this->run_performance_test();
+                wp_die(json_encode(['success' => true, 'data' => $test_results]));
+                break;
+
+            default:
+                wp_die(json_encode(['error' => '未知的操作类型']));
+        }
+    }
+
+    /**
+     * 重置所有性能统计
+     *
+     * @since    1.8.1
+     */
+    private function reset_all_performance_stats(): void {
+        try {
+            // 重置并发管理器统计
+            if ($this->notion_api && method_exists($this->notion_api, 'get_concurrent_manager')) {
+                $concurrent_manager = $this->notion_api->get_concurrent_manager();
+                if ($concurrent_manager) {
+                    $concurrent_manager->reset_stats();
+                    $concurrent_manager->reset_network_stats();
+                }
+            }
+
+            // 重置API统计
+            if (class_exists('Notion_API')) {
+                Notion_API::reset_cache_stats();
+                Notion_API::reset_request_merge_stats();
+            }
+
+            // 重置内存统计
+            if (class_exists('Notion_To_WordPress_Helper')) {
+                Notion_To_WordPress_Helper::reset_memory_stats();
+            }
+
+            // 重置分页统计
+            if (class_exists('Notion_Pages')) {
+                Notion_Pages::reset_pagination_stats();
+                Notion_Pages::reset_image_download_stats();
+            }
+
+            Notion_To_WordPress_Helper::info_log(
+                '所有性能统计已重置',
+                'Performance Reset'
+            );
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '重置性能统计时发生错误: ' . $e->getMessage(),
+                'Performance Reset'
+            );
+        }
+    }
+
+    /**
+     * 运行性能测试
+     *
+     * @since    1.8.1
+     * @return   array    测试结果
+     */
+    private function run_performance_test(): array {
+        $test_start_time = Notion_To_WordPress_Helper::start_performance_timer('performance_test');
+
+        $test_results = [
+            'test_timestamp' => time(),
+            'test_duration' => 0,
+            'api_test' => [],
+            'memory_test' => [],
+            'concurrent_test' => [],
+            'overall_score' => 0,
+            'recommendations' => []
+        ];
+
+        try {
+            // API响应时间测试
+            $api_test_start = microtime(true);
+            if ($this->notion_api) {
+                // 测试基本API连接
+                $test_response = $this->notion_api->test_connection();
+                $api_response_time = (microtime(true) - $api_test_start) * 1000;
+
+                $test_results['api_test'] = [
+                    'connection_success' => !is_wp_error($test_response),
+                    'response_time' => round($api_response_time, 2),
+                    'status' => $api_response_time < 1000 ? 'excellent' :
+                               ($api_response_time < 2000 ? 'good' : 'poor')
+                ];
+            }
+
+            // 内存使用测试
+            $memory_before = memory_get_usage(true);
+            $memory_peak_before = memory_get_peak_usage(true);
+
+            // 模拟一些内存操作
+            $test_data = array_fill(0, 1000, str_repeat('test', 100));
+            unset($test_data);
+
+            $memory_after = memory_get_usage(true);
+            $memory_peak_after = memory_get_peak_usage(true);
+
+            $test_results['memory_test'] = [
+                'memory_before' => Notion_To_WordPress_Helper::format_bytes($memory_before),
+                'memory_after' => Notion_To_WordPress_Helper::format_bytes($memory_after),
+                'memory_used' => Notion_To_WordPress_Helper::format_bytes($memory_after - $memory_before),
+                'peak_increase' => Notion_To_WordPress_Helper::format_bytes($memory_peak_after - $memory_peak_before),
+                'memory_efficiency' => $memory_after <= $memory_before * 1.1 ? 'good' : 'needs_improvement'
+            ];
+
+            // 并发性能测试
+            if ($this->notion_api && method_exists($this->notion_api, 'get_concurrent_manager')) {
+                $concurrent_manager = $this->notion_api->get_concurrent_manager();
+                if ($concurrent_manager) {
+                    $concurrent_stats = $concurrent_manager->get_stats();
+                    $network_stats = $concurrent_manager->get_network_stats();
+
+                    $test_results['concurrent_test'] = [
+                        'max_concurrent' => $concurrent_stats['max_concurrent'] ?? 0,
+                        'current_concurrent' => $concurrent_stats['current_concurrent'] ?? 0,
+                        'success_rate' => $concurrent_stats['success_rate'] ?? 0,
+                        'avg_response_time' => $concurrent_stats['average_response_time'] ?? 0,
+                        'network_quality' => $network_stats['network_quality_score'] ?? 0,
+                        'performance_grade' => $network_stats['performance_grade'] ?? 'N/A'
+                    ];
+                }
+            }
+
+            // 计算综合评分
+            $api_score = isset($test_results['api_test']['response_time']) ?
+                        max(0, 100 - ($test_results['api_test']['response_time'] / 20)) : 50;
+            $memory_score = $test_results['memory_test']['memory_efficiency'] === 'good' ? 90 : 60;
+            $concurrent_score = $test_results['concurrent_test']['network_quality'] ?? 50;
+
+            $test_results['overall_score'] = round(($api_score + $memory_score + $concurrent_score) / 3, 2);
+
+            // 生成建议
+            $test_results['recommendations'] = $this->generate_test_recommendations($test_results);
+
+        } catch (Exception $e) {
+            $test_results['error'] = $e->getMessage();
+            Notion_To_WordPress_Helper::error_log(
+                '性能测试时发生错误: ' . $e->getMessage(),
+                'Performance Test'
+            );
+        }
+
+        $test_results['test_duration'] = Notion_To_WordPress_Helper::end_performance_timer($test_start_time, 'performance_test');
+
+        return $test_results;
+    }
+
+    /**
+     * 生成测试建议
+     *
+     * @since    1.8.1
+     * @param    array    $test_results    测试结果
+     * @return   array                     建议数组
+     */
+    private function generate_test_recommendations(array $test_results): array {
+        $recommendations = [];
+
+        // API性能建议
+        if (isset($test_results['api_test']['response_time'])) {
+            $response_time = $test_results['api_test']['response_time'];
+            if ($response_time > 2000) {
+                $recommendations[] = 'API响应时间较慢，建议检查网络连接或启用缓存';
+            } elseif ($response_time > 1000) {
+                $recommendations[] = 'API响应时间一般，可考虑优化网络配置';
+            }
+        }
+
+        // 内存使用建议
+        if ($test_results['memory_test']['memory_efficiency'] === 'needs_improvement') {
+            $recommendations[] = '内存使用效率需要改善，建议启用内存监控和分页处理';
+        }
+
+        // 并发性能建议
+        if (isset($test_results['concurrent_test']['network_quality'])) {
+            $network_quality = $test_results['concurrent_test']['network_quality'];
+            if ($network_quality < 70) {
+                $recommendations[] = '网络质量较差，建议优化网络配置或增加重试机制';
+            }
+        }
+
+        // 综合评分建议
+        $overall_score = $test_results['overall_score'];
+        if ($overall_score < 60) {
+            $recommendations[] = '整体性能需要改善，建议查看详细配置并进行优化';
+        } elseif ($overall_score < 80) {
+            $recommendations[] = '性能表现良好，可进一步微调配置以获得更佳效果';
+        } else {
+            $recommendations[] = '性能表现优秀，继续保持当前配置';
+        }
+
+        return $recommendations;
+    }
+
+    /**
+     * 公共AJAX处理方法（用于WordPress钩子）
+     *
+     * @since    1.8.1
+     */
+    public function handle_performance_ajax_public() {
+        $this->handle_performance_ajax();
     }
 
     /**
