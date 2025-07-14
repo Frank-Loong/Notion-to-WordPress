@@ -1,11 +1,12 @@
 /**
- * LaTeX 数学公式样式 - KaTeX渲染引擎
- *
- * 支持KaTeX渲染的数学公式和化学公式样式
- * 已从MathJax迁移到KaTeX以获得更好的性能
- *
+ * LaTeX 数学公式样式
+ * 为使用 KaTeX 渲染的 LaTeX 数学公式提供样式，确保在不同设备上正确显示。
  * @since      1.0.7
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 /* 块级公式样式 */

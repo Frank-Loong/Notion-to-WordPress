@@ -1,9 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * 配置集成测试
- * 
- * 本脚本用于测试发布配置与现有发布系统组件的集成情况。
+ * 配置集成测试。
+ * 用于测试发布配置与现有发布系统组件的集成情况。
+ * @since      1.8.2
+ * @version    1.8.3-test.2
+ * @package    Notion_To_WordPress
+ * @subpackage Notion_To_WordPress/scripts
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 const config = require('../release.config.js');

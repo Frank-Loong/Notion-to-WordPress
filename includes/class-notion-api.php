@@ -2,13 +2,17 @@
 declare(strict_types=1);
 
 /**
- * Notion API 交互类
- *
- * 封装了与 Notion API 通信的所有方法，包括获取数据库、页面和块等。
+ * Notion API 交互类。
+ * 封装了与 Notion API 通信的所有方法，包括获取数据库、页面、块等内容。
+ * 处理 API 认证、请求发送、响应解析和错误处理。提供了完整的 Notion API
+ * 功能封装，支持数据库查询、页面操作、内容同步等核心功能。
  *
  * @since      1.0.9
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
@@ -138,6 +142,36 @@ class Notion_API {
         'preload_on_startup' => true,
         'smart_preload' => true,
         'preload_popular_pages' => true
+    ];
+
+    /**
+     * API请求合并统计
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private static array $request_merge_stats = [
+        'total_requests' => 0,
+        'merged_requests' => 0,
+        'merge_ratio' => 0,
+        'saved_api_calls' => 0,
+        'batch_operations' => 0
+    ];
+
+    /**
+     * 请求合并配置
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private static array $request_merge_config = [
+        'enabled' => true,
+        'max_batch_size' => 50,
+        'merge_similar_requests' => true,
+        'priority_requests' => ['page_details', 'page_content'],
+        'delay_non_critical' => true
     ];
 
     /**
@@ -433,30 +467,67 @@ class Notion_API {
     }
 
     /**
-     * 递归填充子块数据
+     * 递归填充子块数据（优化版本）
      *
      * @since    1.8.1
      * @param    array    &$blocks           块数组（引用传递）
      * @param    array    $concurrent_results 并发请求结果
      */
     private function fill_children_data(array &$blocks, array $concurrent_results): void {
+        $fill_start_time = microtime(true);
+        $processed_blocks = 0;
+        $filled_children = 0;
+
         foreach ($blocks as $i => &$block) {
+            $processed_blocks++;
+
             if ($block['has_children'] && isset($block['type']) && $block['type'] !== 'child_database') {
                 $child_id = $block['id'];
+
                 if (isset($concurrent_results[$child_id])) {
                     $child_data = $concurrent_results[$child_id];
-                    // 直接使用Notion API返回的数据结构
-                    if (isset($child_data['results'])) {
+
+                    // 处理API返回的数据结构
+                    if (isset($child_data['results']) && is_array($child_data['results'])) {
                         $child_blocks = $child_data['results'];
-                        // 递归填充子块的子块
-                        $this->fill_children_data($child_blocks, $concurrent_results);
-                        $blocks[$i]['children'] = $child_blocks;
+
+                        // 优化：只有当子块确实有内容时才递归处理
+                        if (!empty($child_blocks)) {
+                            // 递归填充子块的子块
+                            $this->fill_children_data($child_blocks, $concurrent_results);
+                            $blocks[$i]['children'] = $child_blocks;
+                            $filled_children++;
+                        } else {
+                            $blocks[$i]['children'] = [];
+                        }
+                    } else {
+                        // 处理错误情况
+                        if (isset($child_data['error'])) {
+                            Notion_To_WordPress_Helper::debug_log(
+                                sprintf('子块获取失败：%s - %s', $child_id, $child_data['error_message'] ?? 'Unknown error'),
+                                'Fill Children Error'
+                            );
+                        }
+                        $blocks[$i]['children'] = [];
                     }
                 } else {
-                    error_log('Notion to WordPress: 并发获取子块失败: ' . $child_id);
+                    // 未找到对应的并发结果
+                    Notion_To_WordPress_Helper::debug_log(
+                        sprintf('并发结果中未找到子块：%s', $child_id),
+                        'Fill Children Missing'
+                    );
+                    $blocks[$i]['children'] = [];
                 }
             }
         }
+
+        $fill_time = (microtime(true) - $fill_start_time) * 1000;
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('子块填充完成：处理%d个块，填充%d个子块，耗时%.2fms',
+                   $processed_blocks, $filled_children, $fill_time),
+            'Fill Children Performance'
+        );
     }
 
     /**
@@ -1204,7 +1275,7 @@ class Notion_API {
     }
 
     /**
-     * 批量获取页面内容（并发版本）
+     * 批量获取页面内容（智能合并版本）
      *
      * @since    1.8.1
      * @param    array    $page_ids    页面ID数组
@@ -1215,47 +1286,331 @@ class Notion_API {
             return [];
         }
 
-        $start_time = Notion_To_WordPress_Helper::start_performance_timer('concurrent_pages_content');
-        $concurrent_manager = $this->get_concurrent_manager();
+        $start_time = Notion_To_WordPress_Helper::start_performance_timer('smart_concurrent_pages_content');
 
-        // 为每个页面添加获取内容的并发请求
+        // 使用智能请求合并
+        $results = $this->execute_smart_batch_requests($page_ids, 'page_content');
+
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($start_time, 'smart_concurrent_pages_content');
+
+        // 更新请求合并统计
+        self::$request_merge_stats['total_requests'] += count($page_ids);
+        self::$request_merge_stats['batch_operations']++;
+
+        Notion_To_WordPress_Helper::info_log(
+            sprintf('智能批量页面内容获取完成：处理%d个页面，执行时间%.2fms',
+                   count($page_ids), $execution_time),
+            'Smart Batch API'
+        );
+
+        return $results;
+    }
+
+    /**
+     * 执行智能批量请求
+     *
+     * @since    1.8.1
+     * @param    array     $page_ids      页面ID数组
+     * @param    string    $request_type  请求类型
+     * @return   array                    请求结果数组
+     */
+    private function execute_smart_batch_requests(array $page_ids, string $request_type): array {
+        // 检查缓存，分离已缓存和未缓存的页面
+        $cached_results = [];
+        $uncached_page_ids = [];
+
         foreach ($page_ids as $page_id) {
-            $concurrent_manager->add_request(
-                $page_id . '_content',
-                'blocks/' . $page_id . '/children?page_size=100',
-                'GET',
-                [],
-                ['type' => 'page_content', 'page_id' => $page_id]
-            );
-        }
+            $cache_key = $request_type . '_' . $page_id;
 
-        // 执行并发请求
-        $concurrent_results = $concurrent_manager->execute_batch();
-        $results = [];
-
-        // 处理并发请求结果
-        foreach ($concurrent_results as $request_id => $result) {
-            $page_id = str_replace('_content', '', $request_id);
-
-            if (isset($result['error'])) {
-                Notion_To_WordPress_Helper::error_log(
-                    '并发获取页面内容失败: ' . $page_id . ' - ' . ($result['error_message'] ?? 'Unknown error'),
-                    'Concurrent API'
-                );
-                $results[$page_id] = [];
+            if ($this->check_memory_cache($cache_key)) {
+                $cached_results[$page_id] = $this->get_from_memory_cache($cache_key);
             } else {
-                $results[$page_id] = $result['results'] ?? [];
+                // 检查transient缓存
+                $transient_key = 'notion_cache_' . md5($cache_key);
+                $cached_data = get_transient($transient_key);
+
+                if ($cached_data !== false) {
+                    $this->store_to_memory_cache($cache_key, $cached_data);
+                    $cached_results[$page_id] = $cached_data;
+                } else {
+                    $uncached_page_ids[] = $page_id;
+                }
             }
         }
 
-        // 记录性能数据
-        Notion_To_WordPress_Helper::end_performance_timer('concurrent_pages_content', $start_time, [
-            'total_pages' => count($page_ids),
-            'api_requests' => count($page_ids),
-            'concurrent_stats' => $concurrent_manager->get_stats()
-        ]);
+        // 如果所有页面都已缓存，直接返回
+        if (empty($uncached_page_ids)) {
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('智能批量请求：所有%d个页面均已缓存', count($page_ids)),
+                'Smart Batch Cache'
+            );
+            return $cached_results;
+        }
 
-        return $results;
+        // 执行优化的并发请求
+        $api_results = $this->execute_optimized_concurrent_requests($uncached_page_ids, $request_type);
+
+        // 合并缓存结果和API结果
+        $all_results = array_merge($cached_results, $api_results);
+
+        // 记录合并统计
+        $cache_hit_rate = count($page_ids) > 0 ? round((count($cached_results) / count($page_ids)) * 100, 2) : 0;
+        $saved_calls = count($cached_results);
+        self::$request_merge_stats['saved_api_calls'] += $saved_calls;
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('智能批量请求完成：总计%d个页面，缓存命中%d个(%.1f%%)，API请求%d个',
+                   count($page_ids), count($cached_results), $cache_hit_rate, count($uncached_page_ids)),
+            'Smart Batch Performance'
+        );
+
+        return $all_results;
+    }
+
+    /**
+     * 执行优化的并发请求
+     *
+     * @since    1.8.1
+     * @param    array     $page_ids      页面ID数组
+     * @param    string    $request_type  请求类型
+     * @return   array                    API请求结果数组
+     */
+    private function execute_optimized_concurrent_requests(array $page_ids, string $request_type): array {
+        $concurrent_manager = $this->get_concurrent_manager();
+        $api_results = [];
+
+        // 根据请求类型优化批次大小
+        $batch_size = $this->calculate_optimal_batch_size($request_type, count($page_ids));
+        $batches = array_chunk($page_ids, $batch_size);
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('优化并发请求：%d个页面分为%d个批次，每批%d个',
+                   count($page_ids), count($batches), $batch_size),
+            'Optimized Concurrent'
+        );
+
+        foreach ($batches as $batch_index => $batch) {
+            $batch_start_time = microtime(true);
+
+            // 为批次中的每个页面添加请求
+            foreach ($batch as $page_id) {
+                $this->add_optimized_request($concurrent_manager, $page_id, $request_type);
+            }
+
+            // 执行批次请求
+            $batch_results = $concurrent_manager->execute_batch();
+
+            // 处理批次结果
+            $processed_results = $this->process_batch_results($batch_results, $request_type);
+            $api_results = array_merge($api_results, $processed_results);
+
+            $batch_time = (microtime(true) - $batch_start_time) * 1000;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('批次%d/%d完成：处理%d个页面，耗时%.2fms',
+                       $batch_index + 1, count($batches), count($batch), $batch_time),
+                'Batch Processing'
+            );
+
+            // 批次间智能延迟
+            if ($batch_index < count($batches) - 1) {
+                $delay = $this->calculate_smart_batch_delay($batch_time, count($batch));
+                if ($delay > 0) {
+                    usleep($delay * 1000); // 转换为微秒
+                }
+            }
+        }
+
+        return $api_results;
+    }
+
+    /**
+     * 计算最优批次大小
+     *
+     * @since    1.8.1
+     * @param    string    $request_type  请求类型
+     * @param    int       $total_count   总请求数
+     * @return   int                      最优批次大小
+     */
+    private function calculate_optimal_batch_size(string $request_type, int $total_count): int {
+        $base_batch_size = self::$request_merge_config['max_batch_size'];
+
+        // 根据请求类型调整批次大小
+        switch ($request_type) {
+            case 'page_content':
+                // 页面内容请求较重，使用较小批次
+                $batch_size = min(20, $base_batch_size);
+                break;
+            case 'page_details':
+                // 页面详情请求较轻，可以使用较大批次
+                $batch_size = min(30, $base_batch_size);
+                break;
+            case 'block_children':
+                // 子块请求中等，使用中等批次
+                $batch_size = min(25, $base_batch_size);
+                break;
+            default:
+                $batch_size = min(25, $base_batch_size);
+        }
+
+        // 根据总数量进行调整
+        if ($total_count <= 10) {
+            $batch_size = $total_count; // 小量请求不分批
+        } elseif ($total_count <= 50) {
+            $batch_size = min($batch_size, ceil($total_count / 2)); // 分为2批
+        }
+
+        return max(1, $batch_size);
+    }
+
+    /**
+     * 添加优化的请求
+     *
+     * @since    1.8.1
+     * @param    object    $concurrent_manager  并发管理器
+     * @param    string    $page_id            页面ID
+     * @param    string    $request_type       请求类型
+     */
+    private function add_optimized_request($concurrent_manager, string $page_id, string $request_type): void {
+        switch ($request_type) {
+            case 'page_content':
+                $concurrent_manager->add_request(
+                    $page_id . '_content',
+                    'blocks/' . $page_id . '/children?page_size=100',
+                    'GET',
+                    [],
+                    ['type' => 'page_content', 'page_id' => $page_id, 'priority' => 'high']
+                );
+                break;
+            case 'page_details':
+                $concurrent_manager->add_request(
+                    $page_id,
+                    'pages/' . $page_id,
+                    'GET',
+                    [],
+                    ['type' => 'page_details', 'page_id' => $page_id, 'priority' => 'high']
+                );
+                break;
+            case 'block_children':
+                $concurrent_manager->add_request(
+                    $page_id . '_children',
+                    'blocks/' . $page_id . '/children?page_size=100',
+                    'GET',
+                    [],
+                    ['type' => 'block_children', 'page_id' => $page_id, 'priority' => 'medium']
+                );
+                break;
+        }
+    }
+
+    /**
+     * 处理批次结果
+     *
+     * @since    1.8.1
+     * @param    array     $batch_results  批次结果
+     * @param    string    $request_type   请求类型
+     * @return   array                     处理后的结果
+     */
+    private function process_batch_results(array $batch_results, string $request_type): array {
+        $processed_results = [];
+
+        foreach ($batch_results as $request_id => $result) {
+            // 提取页面ID
+            $page_id = $this->extract_page_id_from_request($request_id, $request_type);
+
+            if (isset($result['error'])) {
+                Notion_To_WordPress_Helper::error_log(
+                    sprintf('批量请求失败：%s - %s', $page_id, $result['error_message'] ?? 'Unknown error'),
+                    'Batch Request Error'
+                );
+                $processed_results[$page_id] = [];
+            } else {
+                // 根据请求类型处理结果
+                $processed_data = $this->process_request_result($result, $request_type);
+                $processed_results[$page_id] = $processed_data;
+
+                // 存储到缓存
+                $cache_key = $request_type . '_' . $page_id;
+                $this->store_to_memory_cache($cache_key, $processed_data);
+
+                // 存储到transient缓存
+                $transient_key = 'notion_cache_' . md5($cache_key);
+                $ttl = $this->get_smart_cache_ttl($request_type, $cache_key);
+                set_transient($transient_key, $processed_data, $ttl['transient']);
+            }
+        }
+
+        return $processed_results;
+    }
+
+    /**
+     * 从请求ID提取页面ID
+     *
+     * @since    1.8.1
+     * @param    string    $request_id     请求ID
+     * @param    string    $request_type   请求类型
+     * @return   string                    页面ID
+     */
+    private function extract_page_id_from_request(string $request_id, string $request_type): string {
+        switch ($request_type) {
+            case 'page_content':
+                return str_replace('_content', '', $request_id);
+            case 'page_details':
+                return $request_id;
+            case 'block_children':
+                return str_replace('_children', '', $request_id);
+            default:
+                return $request_id;
+        }
+    }
+
+    /**
+     * 处理请求结果
+     *
+     * @since    1.8.1
+     * @param    array     $result         原始结果
+     * @param    string    $request_type   请求类型
+     * @return   array                     处理后的结果
+     */
+    private function process_request_result(array $result, string $request_type): array {
+        switch ($request_type) {
+            case 'page_content':
+            case 'block_children':
+                return $result['results'] ?? [];
+            case 'page_details':
+                return $result;
+            default:
+                return $result;
+        }
+    }
+
+    /**
+     * 计算智能批次延迟
+     *
+     * @since    1.8.1
+     * @param    float     $batch_time     批次执行时间（毫秒）
+     * @param    int       $batch_size     批次大小
+     * @return   int                       延迟时间（毫秒）
+     */
+    private function calculate_smart_batch_delay(float $batch_time, int $batch_size): int {
+        // 基础延迟：根据批次执行时间动态调整
+        $base_delay = 100; // 基础100ms延迟
+
+        // 如果批次执行时间过长，增加延迟
+        if ($batch_time > 5000) { // 超过5秒
+            $base_delay = 500;
+        } elseif ($batch_time > 2000) { // 超过2秒
+            $base_delay = 300;
+        } elseif ($batch_time > 1000) { // 超过1秒
+            $base_delay = 200;
+        }
+
+        // 根据批次大小调整
+        $size_factor = min(2.0, $batch_size / 10); // 批次越大，延迟越长
+        $adjusted_delay = (int)($base_delay * $size_factor);
+
+        // 确保延迟在合理范围内
+        return max(50, min(1000, $adjusted_delay)); // 50ms到1秒之间
     }
 
     /**
@@ -1415,5 +1770,113 @@ class Notion_API {
             'overall_hit_rate' => $overall_hit_rate . '%',
             'cache_efficiency_score' => min(100, $overall_hit_rate + ($memory_hit_rate * 0.2))
         ]);
+    }
+
+    /**
+     * 获取API请求合并统计
+     *
+     * @since    1.8.1
+     * @return   array    请求合并统计数据
+     */
+    public static function get_request_merge_stats(): array {
+        // 计算合并比率
+        if (self::$request_merge_stats['total_requests'] > 0) {
+            self::$request_merge_stats['merge_ratio'] = round(
+                (self::$request_merge_stats['saved_api_calls'] / self::$request_merge_stats['total_requests']) * 100, 2
+            );
+        }
+
+        return array_merge(self::$request_merge_stats, [
+            'merge_ratio_percent' => self::$request_merge_stats['merge_ratio'] . '%',
+            'efficiency_score' => min(100, self::$request_merge_stats['merge_ratio'] +
+                                     (self::$request_merge_stats['batch_operations'] * 2)),
+            'config' => self::$request_merge_config
+        ]);
+    }
+
+    /**
+     * 重置API请求合并统计
+     *
+     * @since    1.8.1
+     */
+    public static function reset_request_merge_stats(): void {
+        self::$request_merge_stats = [
+            'total_requests' => 0,
+            'merged_requests' => 0,
+            'merge_ratio' => 0,
+            'saved_api_calls' => 0,
+            'batch_operations' => 0
+        ];
+    }
+
+    /**
+     * 设置请求合并配置
+     *
+     * @since    1.8.1
+     * @param    array    $config    配置数组
+     */
+    public static function set_request_merge_config(array $config): void {
+        self::$request_merge_config = array_merge(self::$request_merge_config, $config);
+
+        Notion_To_WordPress_Helper::debug_log(
+            '请求合并配置已更新: ' . json_encode(self::$request_merge_config),
+            'Request Merge Config'
+        );
+    }
+
+    /**
+     * 获取综合API性能统计
+     *
+     * @since    1.8.1
+     * @return   array    综合性能统计
+     */
+    public static function get_comprehensive_api_stats(): array {
+        $cache_stats = self::get_enhanced_cache_stats();
+        $merge_stats = self::get_request_merge_stats();
+
+        // 计算综合性能评分
+        $cache_score = (float)str_replace('%', '', $cache_stats['overall_hit_rate'] ?? '0');
+        $merge_score = $merge_stats['merge_ratio'];
+        $comprehensive_score = round(($cache_score * 0.6) + ($merge_score * 0.4), 2);
+
+        return [
+            'cache_performance' => $cache_stats,
+            'request_merge_performance' => $merge_stats,
+            'comprehensive_score' => $comprehensive_score,
+            'performance_grade' => $comprehensive_score >= 80 ? 'A' :
+                                  ($comprehensive_score >= 60 ? 'B' :
+                                  ($comprehensive_score >= 40 ? 'C' : 'D')),
+            'recommendations' => $this->generate_performance_recommendations($cache_score, $merge_score)
+        ];
+    }
+
+    /**
+     * 生成性能优化建议
+     *
+     * @since    1.8.1
+     * @param    float    $cache_score    缓存评分
+     * @param    float    $merge_score    合并评分
+     * @return   array                    优化建议数组
+     */
+    private function generate_performance_recommendations(float $cache_score, float $merge_score): array {
+        $recommendations = [];
+
+        if ($cache_score < 70) {
+            $recommendations[] = '建议优化缓存策略，提升缓存命中率';
+        }
+
+        if ($merge_score < 30) {
+            $recommendations[] = '建议启用API请求合并，减少API调用次数';
+        }
+
+        if ($cache_score > 90 && $merge_score > 50) {
+            $recommendations[] = '性能表现优秀，可考虑进一步优化并发数';
+        }
+
+        if (empty($recommendations)) {
+            $recommendations[] = '当前性能表现良好，继续保持';
+        }
+
+        return $recommendations;
     }
 }

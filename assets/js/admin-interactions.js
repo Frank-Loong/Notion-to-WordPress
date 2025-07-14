@@ -1,8 +1,12 @@
 /**
  * 管理界面交互脚本
- *
- * @since      1.0.8
- * @package    Notion_To_WordPress
+ * 处理 Notion to WordPress 插件后台页面的所有用户交互，包括表单提交、AJAX 请求、标签页切换和动态内容更新。
+ * @since 1.0.8
+ * @version 1.8.3-test.2
+ * @package Notion_To_WordPress
+ * @author Frank-Loong
+ * @license GPL-3.0-or-later
+ * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 jQuery(document).ready(function($) {

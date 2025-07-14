@@ -1,30 +1,15 @@
 <?php
 
 /**
- * Notion并发请求管理器
- *
- * 实现安全的并发API调用机制，支持智能速率限制和错误处理
- *
- * @link       https://github.com/frankloong/notion-to-wordpress
+ * 并发请求管理器类。
+ * 实现安全的并发 API 调用机制，支持智能速率限制、错误处理、重试机制和性能监控。
  * @since      1.8.1
- *
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/includes
- */
-
-/**
- * Notion并发请求管理器类
- *
- * 提供并发API调用功能，包括：
- * - 请求池管理
- * - 智能速率限制
- * - 错误处理和重试机制
- * - 性能监控
- *
- * @since      1.8.1
- * @package    Notion_To_WordPress
- * @subpackage Notion_To_WordPress/includes
- * @author     Frank Loong <frankloong@gmail.com>
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 class Notion_Concurrent_Manager {
 
@@ -148,6 +133,44 @@ class Notion_Concurrent_Manager {
         'cached_images' => 0,
         'total_download_time' => 0,
         'average_download_time' => 0
+    ];
+
+    /**
+     * 网络连接配置
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private array $network_config = [
+        'base_timeout' => 8,           // 基础超时时间（秒）
+        'base_connect_timeout' => 3,   // 基础连接超时时间（秒）
+        'max_timeout' => 30,           // 最大超时时间（秒）
+        'min_timeout' => 5,            // 最小超时时间（秒）
+        'enable_keepalive' => true,    // 启用TCP Keep-Alive
+        'enable_compression' => true,  // 启用压缩
+        'max_redirects' => 3,          // 最大重定向次数
+        'retry_attempts' => 2,         // 重试次数
+        'adaptive_timeout' => true     // 自适应超时
+    ];
+
+    /**
+     * 网络性能统计
+     *
+     * @since    1.8.1
+     * @access   private
+     * @var      array
+     */
+    private array $network_stats = [
+        'total_connect_time' => 0,
+        'total_transfer_time' => 0,
+        'avg_connect_time' => 0,
+        'avg_transfer_time' => 0,
+        'connection_failures' => 0,
+        'timeout_failures' => 0,
+        'dns_lookup_time' => 0,
+        'ssl_handshake_time' => 0,
+        'network_quality_score' => 100
     ];
 
     /**
@@ -341,20 +364,56 @@ class Notion_Concurrent_Manager {
         $multi_handle = curl_multi_init();
         $curl_handles = [];
 
-        // 初始化所有cURL句柄
+        // 初始化所有cURL句柄（优化版本）
         foreach ($requests as $index => $request) {
             $ch = curl_init();
-            curl_setopt_array($ch, [
+
+            // 计算自适应超时时间
+            $timeout_config = $this->calculate_adaptive_timeout();
+
+            // 优化的cURL配置
+            $curl_options = [
                 CURLOPT_URL => $request['url'],
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 8,
-                CURLOPT_CONNECTTIMEOUT => 3,
-                CURLOPT_HTTPHEADER => [
-                    'Authorization: Bearer ' . $this->api_key,
-                    'Content-Type: application/json',
-                    'Notion-Version: 2022-06-28'
-                ]
-            ]);
+                CURLOPT_TIMEOUT => $timeout_config['timeout'],
+                CURLOPT_CONNECTTIMEOUT => $timeout_config['connect_timeout'],
+                CURLOPT_HTTPHEADER => $this->build_optimized_headers(),
+
+                // 连接复用和性能优化
+                CURLOPT_TCP_KEEPALIVE => $this->network_config['enable_keepalive'] ? 1 : 0,
+                CURLOPT_TCP_KEEPIDLE => 60,
+                CURLOPT_TCP_KEEPINTVL => 30,
+
+                // 压缩支持
+                CURLOPT_ENCODING => $this->network_config['enable_compression'] ? '' : null,
+
+                // 重定向和安全设置
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => $this->network_config['max_redirects'],
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+
+                // 性能监控
+                CURLOPT_VERBOSE => false,
+                CURLOPT_NOPROGRESS => true,
+
+                // User-Agent优化
+                CURLOPT_USERAGENT => $this->get_optimized_user_agent(),
+
+                // DNS缓存
+                CURLOPT_DNS_CACHE_TIMEOUT => 300, // 5分钟DNS缓存
+
+                // 连接池优化
+                CURLOPT_FRESH_CONNECT => false,
+                CURLOPT_FORBID_REUSE => false
+            ];
+
+            // 移除空值选项
+            $curl_options = array_filter($curl_options, function($value) {
+                return $value !== null;
+            });
+
+            curl_setopt_array($ch, $curl_options);
 
             if ($request['args']['method'] === 'POST' && !empty($request['args']['body'])) {
                 curl_setopt($ch, CURLOPT_POST, true);
@@ -372,19 +431,26 @@ class Notion_Concurrent_Manager {
             curl_multi_select($multi_handle);
         } while ($running > 0);
 
-        // 收集响应
+        // 收集响应（增强版本）
         foreach ($curl_handles as $index => $ch) {
             $response_body = curl_multi_getcontent($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $error = curl_error($ch);
 
+            // 收集网络性能数据
+            $network_info = $this->collect_network_performance_data($ch);
+            $this->update_network_stats($network_info, $error);
+
             if ($error) {
+                // 处理网络错误
+                $this->handle_network_error($error, $network_info);
                 $responses[$index] = new WP_Error('curl_error', $error);
             } else {
                 // 模拟WordPress HTTP响应格式
                 $responses[$index] = [
                     'response' => ['code' => $http_code],
-                    'body' => $response_body
+                    'body' => $response_body,
+                    'network_info' => $network_info // 添加网络信息
                 ];
             }
 
@@ -1324,6 +1390,443 @@ class Notion_Concurrent_Manager {
             'error_message' => $item['error_message'],
             'attempts' => $item['attempts'],
             'created_at' => $item['created_at']
+        ];
+    }
+
+    /**
+     * 计算自适应超时时间
+     *
+     * @since    1.8.1
+     * @return   array    超时配置
+     */
+    private function calculate_adaptive_timeout(): array {
+        if (!$this->network_config['adaptive_timeout']) {
+            return [
+                'timeout' => $this->network_config['base_timeout'],
+                'connect_timeout' => $this->network_config['base_connect_timeout']
+            ];
+        }
+
+        // 基于网络质量调整超时时间
+        $quality_score = $this->network_stats['network_quality_score'];
+        $base_timeout = $this->network_config['base_timeout'];
+        $base_connect_timeout = $this->network_config['base_connect_timeout'];
+
+        // 网络质量越差，超时时间越长
+        if ($quality_score < 50) {
+            $timeout_multiplier = 2.0;
+        } elseif ($quality_score < 70) {
+            $timeout_multiplier = 1.5;
+        } elseif ($quality_score < 90) {
+            $timeout_multiplier = 1.2;
+        } else {
+            $timeout_multiplier = 1.0;
+        }
+
+        $adaptive_timeout = min(
+            $this->network_config['max_timeout'],
+            max($this->network_config['min_timeout'], (int)($base_timeout * $timeout_multiplier))
+        );
+
+        $adaptive_connect_timeout = min(
+            $adaptive_timeout / 2,
+            max(2, (int)($base_connect_timeout * $timeout_multiplier))
+        );
+
+        return [
+            'timeout' => $adaptive_timeout,
+            'connect_timeout' => $adaptive_connect_timeout
+        ];
+    }
+
+    /**
+     * 构建优化的HTTP头
+     *
+     * @since    1.8.1
+     * @return   array    HTTP头数组
+     */
+    private function build_optimized_headers(): array {
+        $headers = [
+            'Authorization: Bearer ' . $this->api_key,
+            'Content-Type: application/json',
+            'Notion-Version: 2022-06-28'
+        ];
+
+        // 添加Keep-Alive支持
+        if ($this->network_config['enable_keepalive']) {
+            $headers[] = 'Connection: keep-alive';
+            $headers[] = 'Keep-Alive: timeout=60, max=100';
+        }
+
+        // 添加压缩支持
+        if ($this->network_config['enable_compression']) {
+            $headers[] = 'Accept-Encoding: gzip, deflate, br';
+        }
+
+        // 添加缓存控制
+        $headers[] = 'Cache-Control: no-cache';
+        $headers[] = 'Pragma: no-cache';
+
+        return $headers;
+    }
+
+    /**
+     * 获取优化的User-Agent
+     *
+     * @since    1.8.1
+     * @return   string    User-Agent字符串
+     */
+    private function get_optimized_user_agent(): string {
+        $wp_version = get_bloginfo('version');
+        $plugin_version = '1.8.1'; // 插件版本
+
+        return sprintf(
+            'WordPress/%s Notion-to-WordPress/%s (PHP/%s; %s)',
+            $wp_version,
+            $plugin_version,
+            PHP_VERSION,
+            php_uname('s')
+        );
+    }
+
+    /**
+     * 收集网络性能数据
+     *
+     * @since    1.8.1
+     * @param    resource    $ch    cURL句柄
+     * @return   array              网络性能数据
+     */
+    private function collect_network_performance_data($ch): array {
+        return [
+            'total_time' => curl_getinfo($ch, CURLINFO_TOTAL_TIME),
+            'connect_time' => curl_getinfo($ch, CURLINFO_CONNECT_TIME),
+            'namelookup_time' => curl_getinfo($ch, CURLINFO_NAMELOOKUP_TIME),
+            'pretransfer_time' => curl_getinfo($ch, CURLINFO_PRETRANSFER_TIME),
+            'starttransfer_time' => curl_getinfo($ch, CURLINFO_STARTTRANSFER_TIME),
+            'redirect_time' => curl_getinfo($ch, CURLINFO_REDIRECT_TIME),
+            'size_download' => curl_getinfo($ch, CURLINFO_SIZE_DOWNLOAD),
+            'size_upload' => curl_getinfo($ch, CURLINFO_SIZE_UPLOAD),
+            'speed_download' => curl_getinfo($ch, CURLINFO_SPEED_DOWNLOAD),
+            'speed_upload' => curl_getinfo($ch, CURLINFO_SPEED_UPLOAD),
+            'http_code' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
+            'ssl_verify_result' => curl_getinfo($ch, CURLINFO_SSL_VERIFYRESULT)
+        ];
+    }
+
+    /**
+     * 更新网络统计
+     *
+     * @since    1.8.1
+     * @param    array     $network_info    网络性能数据
+     * @param    string    $error          错误信息
+     */
+    private function update_network_stats(array $network_info, string $error = ''): void {
+        // 更新连接时间统计
+        if (isset($network_info['connect_time'])) {
+            $this->network_stats['total_connect_time'] += $network_info['connect_time'];
+        }
+
+        // 更新传输时间统计
+        if (isset($network_info['total_time'])) {
+            $this->network_stats['total_transfer_time'] += $network_info['total_time'];
+        }
+
+        // 更新DNS查询时间
+        if (isset($network_info['namelookup_time'])) {
+            $this->network_stats['dns_lookup_time'] += $network_info['namelookup_time'];
+        }
+
+        // 更新SSL握手时间
+        if (isset($network_info['pretransfer_time']) && isset($network_info['connect_time'])) {
+            $ssl_time = $network_info['pretransfer_time'] - $network_info['connect_time'];
+            $this->network_stats['ssl_handshake_time'] += max(0, $ssl_time);
+        }
+
+        // 处理错误统计
+        if (!empty($error)) {
+            if (strpos($error, 'timeout') !== false || strpos($error, 'Timeout') !== false) {
+                $this->network_stats['timeout_failures']++;
+            } else {
+                $this->network_stats['connection_failures']++;
+            }
+        }
+
+        // 计算平均值
+        $total_requests = $this->stats['total_requests'];
+        if ($total_requests > 0) {
+            $this->network_stats['avg_connect_time'] = $this->network_stats['total_connect_time'] / $total_requests;
+            $this->network_stats['avg_transfer_time'] = $this->network_stats['total_transfer_time'] / $total_requests;
+        }
+
+        // 更新网络质量评分
+        $this->update_network_quality_score();
+    }
+
+    /**
+     * 处理网络错误
+     *
+     * @since    1.8.1
+     * @param    string    $error         错误信息
+     * @param    array     $network_info  网络信息
+     */
+    private function handle_network_error(string $error, array $network_info): void {
+        Notion_To_WordPress_Helper::error_log(
+            sprintf('网络请求错误: %s, 连接时间: %.3fs, 总时间: %.3fs',
+                   $error,
+                   $network_info['connect_time'] ?? 0,
+                   $network_info['total_time'] ?? 0),
+            'Network Error'
+        );
+
+        // 根据错误类型调整网络配置
+        if (strpos($error, 'timeout') !== false) {
+            $this->adjust_timeout_on_error();
+        } elseif (strpos($error, 'connect') !== false) {
+            $this->adjust_connection_on_error();
+        }
+    }
+
+    /**
+     * 更新网络质量评分
+     *
+     * @since    1.8.1
+     */
+    private function update_network_quality_score(): void {
+        $total_requests = $this->stats['total_requests'];
+        if ($total_requests === 0) {
+            return;
+        }
+
+        // 基础评分
+        $base_score = 100;
+
+        // 根据失败率扣分
+        $failure_rate = ($this->stats['failed_requests'] / $total_requests) * 100;
+        $base_score -= $failure_rate * 2; // 每1%失败率扣2分
+
+        // 根据平均响应时间扣分
+        $avg_response_time = $this->network_stats['avg_transfer_time'];
+        if ($avg_response_time > 2.0) { // 超过2秒
+            $base_score -= ($avg_response_time - 2.0) * 10; // 每超过1秒扣10分
+        }
+
+        // 根据连接时间扣分
+        $avg_connect_time = $this->network_stats['avg_connect_time'];
+        if ($avg_connect_time > 1.0) { // 超过1秒
+            $base_score -= ($avg_connect_time - 1.0) * 15; // 每超过1秒扣15分
+        }
+
+        // 根据超时失败率扣分
+        $timeout_rate = ($this->network_stats['timeout_failures'] / $total_requests) * 100;
+        $base_score -= $timeout_rate * 3; // 每1%超时率扣3分
+
+        // 确保评分在0-100范围内
+        $this->network_stats['network_quality_score'] = max(0, min(100, $base_score));
+    }
+
+    /**
+     * 超时错误时调整配置
+     *
+     * @since    1.8.1
+     */
+    private function adjust_timeout_on_error(): void {
+        if ($this->network_config['adaptive_timeout']) {
+            // 增加基础超时时间
+            $this->network_config['base_timeout'] = min(
+                $this->network_config['max_timeout'],
+                $this->network_config['base_timeout'] + 2
+            );
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('因超时错误调整基础超时时间至%d秒', $this->network_config['base_timeout']),
+                'Network Adaptation'
+            );
+        }
+    }
+
+    /**
+     * 连接错误时调整配置
+     *
+     * @since    1.8.1
+     */
+    private function adjust_connection_on_error(): void {
+        if ($this->network_config['adaptive_timeout']) {
+            // 增加连接超时时间
+            $this->network_config['base_connect_timeout'] = min(
+                $this->network_config['base_timeout'] / 2,
+                $this->network_config['base_connect_timeout'] + 1
+            );
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('因连接错误调整连接超时时间至%d秒', $this->network_config['base_connect_timeout']),
+                'Network Adaptation'
+            );
+        }
+    }
+
+    /**
+     * 获取网络性能统计
+     *
+     * @since    1.8.1
+     * @return   array    网络性能统计数据
+     */
+    public function get_network_stats(): array {
+        return array_merge($this->network_stats, [
+            'config' => $this->network_config,
+            'performance_grade' => $this->calculate_network_performance_grade(),
+            'recommendations' => $this->generate_network_recommendations()
+        ]);
+    }
+
+    /**
+     * 计算网络性能等级
+     *
+     * @since    1.8.1
+     * @return   string    性能等级
+     */
+    private function calculate_network_performance_grade(): string {
+        $score = $this->network_stats['network_quality_score'];
+
+        if ($score >= 90) {
+            return 'A';
+        } elseif ($score >= 80) {
+            return 'B';
+        } elseif ($score >= 70) {
+            return 'C';
+        } elseif ($score >= 60) {
+            return 'D';
+        } else {
+            return 'F';
+        }
+    }
+
+    /**
+     * 生成网络优化建议
+     *
+     * @since    1.8.1
+     * @return   array    优化建议数组
+     */
+    private function generate_network_recommendations(): array {
+        $recommendations = [];
+        $score = $this->network_stats['network_quality_score'];
+        $avg_connect_time = $this->network_stats['avg_connect_time'];
+        $avg_transfer_time = $this->network_stats['avg_transfer_time'];
+        $failure_rate = $this->stats['total_requests'] > 0 ?
+            ($this->stats['failed_requests'] / $this->stats['total_requests']) * 100 : 0;
+
+        if ($score < 70) {
+            $recommendations[] = '网络质量较差，建议检查网络连接';
+        }
+
+        if ($avg_connect_time > 2.0) {
+            $recommendations[] = '连接时间过长，建议启用连接复用或检查DNS设置';
+        }
+
+        if ($avg_transfer_time > 5.0) {
+            $recommendations[] = '传输时间过长，建议启用压缩或增加超时时间';
+        }
+
+        if ($failure_rate > 10) {
+            $recommendations[] = '请求失败率较高，建议增加重试次数或调整超时设置';
+        }
+
+        if ($this->network_stats['timeout_failures'] > 0) {
+            $recommendations[] = '存在超时失败，建议启用自适应超时策略';
+        }
+
+        if (empty($recommendations)) {
+            $recommendations[] = '网络性能良好，继续保持当前配置';
+        }
+
+        return $recommendations;
+    }
+
+    /**
+     * 设置网络配置
+     *
+     * @since    1.8.1
+     * @param    array    $config    网络配置
+     */
+    public function set_network_config(array $config): void {
+        $this->network_config = array_merge($this->network_config, $config);
+
+        Notion_To_WordPress_Helper::debug_log(
+            '网络配置已更新: ' . json_encode($this->network_config),
+            'Network Config'
+        );
+    }
+
+    /**
+     * 重置网络统计
+     *
+     * @since    1.8.1
+     */
+    public function reset_network_stats(): void {
+        $this->network_stats = [
+            'total_connect_time' => 0,
+            'total_transfer_time' => 0,
+            'avg_connect_time' => 0,
+            'avg_transfer_time' => 0,
+            'connection_failures' => 0,
+            'timeout_failures' => 0,
+            'dns_lookup_time' => 0,
+            'ssl_handshake_time' => 0,
+            'network_quality_score' => 100
+        ];
+
+        Notion_To_WordPress_Helper::debug_log('网络统计已重置', 'Network Management');
+    }
+
+    /**
+     * 获取综合性能报告
+     *
+     * @since    1.8.1
+     * @return   array    综合性能报告
+     */
+    public function get_comprehensive_performance_report(): array {
+        return [
+            'concurrent_stats' => $this->get_stats(),
+            'network_stats' => $this->get_network_stats(),
+            'image_download_stats' => $this->get_image_download_queue_status(),
+            'overall_score' => $this->calculate_overall_performance_score(),
+            'summary' => $this->generate_performance_summary()
+        ];
+    }
+
+    /**
+     * 计算综合性能评分
+     *
+     * @since    1.8.1
+     * @return   float    综合评分
+     */
+    private function calculate_overall_performance_score(): float {
+        $concurrent_score = min(100, $this->stats['success_rate']);
+        $network_score = $this->network_stats['network_quality_score'];
+
+        // 加权平均：并发性能50%，网络性能50%
+        return round(($concurrent_score * 0.5) + ($network_score * 0.5), 2);
+    }
+
+    /**
+     * 生成性能摘要
+     *
+     * @since    1.8.1
+     * @return   array    性能摘要
+     */
+    private function generate_performance_summary(): array {
+        $overall_score = $this->calculate_overall_performance_score();
+
+        return [
+            'overall_score' => $overall_score,
+            'performance_level' => $overall_score >= 80 ? 'Excellent' :
+                                  ($overall_score >= 60 ? 'Good' :
+                                  ($overall_score >= 40 ? 'Fair' : 'Poor')),
+            'key_metrics' => [
+                'success_rate' => $this->stats['success_rate'] . '%',
+                'avg_response_time' => round($this->stats['average_response_time'], 2) . 'ms',
+                'network_quality' => $this->network_stats['network_quality_score'],
+                'concurrent_efficiency' => $this->current_concurrent . '/' . $this->max_concurrent
+            ]
         ];
     }
 }

@@ -1,7 +1,12 @@
 /**
- * 懒加载功能实现
- * 
+ * 图片懒加载和渐进式内容加载脚本
+ * 使用 Intersection Observer API 实现图片的延迟加载，并为 Notion 数据库视图提供渐进式加载功能。
  * @since 1.1.1
+ * @version 1.8.3-test.2
+ * @package Notion_To_WordPress
+ * @author Frank-Loong
+ * @license GPL-3.0-or-later
+ * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 (function() {

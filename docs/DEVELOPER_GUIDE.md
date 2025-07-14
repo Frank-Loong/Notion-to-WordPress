@@ -39,7 +39,7 @@ cd Notion-to-WordPress
 npm install
 
 # 3. Verify version consistency
-npm run validate:version
+npm run version:check
 
 # 4. Build test
 npm run build
@@ -48,6 +48,27 @@ npm run build
 # Linux/Mac: ls -la build/notion-to-wordpress-*.zip
 # Windows: Get-ChildItem build/notion-to-wordpress-*.zip
 ```
+
+### ⚡ Quick Development Workflow
+
+**3-Step Daily Development Workflow:**
+
+```bash
+# 1. Check version consistency
+npm run version:check
+
+# 2. Bump version (if needed)
+npm run version:patch    # or minor/major/beta
+
+# 3. Build production package
+npm run build
+```
+
+**Quick Command Reference:**
+- `npm run help` - Show all available commands
+- `npm run version:help` - Show version management help
+- `npm run version:check` - Check version consistency only
+- `npm run clean` - Clean build files
 
 ### ✅ System Requirements
 
@@ -108,8 +129,7 @@ notion-to-wordpress/
 │   └── class-notion-to-wordpress.php
 ├── scripts/                # Automation scripts
 │   ├── build.js
-│   ├── release.js
-│   └── local-package.js
+│   └── release.js
 ├── languages/              # Internationalization files
 └── notion-to-wordpress.php # Plugin entry point
 ```
@@ -322,7 +342,7 @@ sequenceDiagram
 git checkout -b feature/your-feature
 
 # 2. Development and testing
-npm run validate:version
+npm run version:check
 npm run build
 
 # 3. Code checks
@@ -362,16 +382,18 @@ Types:
 | Command | Function | Purpose |
 |---------|----------|---------|
 | `npm run build` | Build production package | Pre-release build |
-| `npm run validate:config` | Validate configuration | Environment check |
-| `npm run validate:github-actions` | Validate CI configuration | Pre-release check |
+| `npm run build:clean` | Clean build directory | Remove old builds |
+| `npm run build:verify` | Verify build results | Post-build validation |
+| `npm run clean` | Clean all build files | Quick cleanup |
 
 ### 📦 Development Workflow
 
 | Step | Command | Description |
 |------|---------|-------------|
-| 1. Check version | `npm run validate:version` | Validate version consistency |
-| 2. Bump version | `npm run version:bump:patch` | Upgrade version as needed |
+| 1. Check version | `npm run version:check` | Validate version consistency |
+| 2. Bump version | `npm run version:patch` | Upgrade version as needed |
 | 3. Build package | `npm run build` | Generate production package |
+| 4. Test build | `npm run build:verify` | Verify build results |
 
 ### 🚀 Release Commands
 
@@ -381,30 +403,49 @@ Types:
 | `npm run release:minor` | Minor release | Contains new features |
 | `npm run release:major` | Major release | Breaking changes |
 | `npm run release:beta` | Beta release | Pre-release version |
-| `npm run test:release:patch` | Preview release | Safe preview mode |
+| `node scripts/release.js custom --version=X.Y.Z --dry-run` | Custom release | Set specific version |
+| `npm run release:dry-run` | Preview release | Safe preview mode |
 | `npm run release:help` | Show help | View options |
 
 ### 🔍 Version Management
 
 | Command | Function | Purpose |
 |---------|----------|---------|
-| `npm run version:bump:check` | Check version consistency | Validate all files have same version |
-| `npm run version:bump:patch` | Patch version upgrade | 1.0.0 → 1.0.1 |
-| `npm run version:bump:minor` | Minor version upgrade | 1.0.0 → 1.1.0 |
-| `npm run version:bump:major` | Major version upgrade | 1.0.0 → 2.0.0 |
-| `npm run version:bump:beta` | Beta version upgrade | 1.0.0 → 1.0.1-beta.1 |
-| `npm run version:bump:rollback` | Rollback version | Restore backup |
-| `npm run version:bump:help` | Show help | Display usage information |
+| `npm run version:check` | Check version consistency | Validate all files have same version |
+| `node scripts/version-bump.js --version=X.Y.Z` | Set custom version | Directly update all version files |
+| `npm run version:patch` | Patch version upgrade | 1.0.0 → 1.0.1 |
+| `npm run version:minor` | Minor version upgrade | 1.0.0 → 1.1.0 |
+| `npm run version:major` | Major version upgrade | 1.0.0 → 2.0.0 |
+| `npm run version:beta` | Beta version upgrade | 1.0.0 → 1.0.1-beta.1 |
+| `npm run version:help` | Show help | Display usage information |
 
-**Note**: All version operations automatically create backups and can be rolled back.
+**Note**: For custom version setting, use `node` command directly due to npm parameter passing limitations.
 
 ### 🧪 Testing Commands
 
 | Command | Function | Purpose |
 |---------|----------|---------|
+| `npm run test` | Run default tests | Quick test suite |
 | `npm run test:integration` | Integration testing | Comprehensive testing |
-| `php -l *.php` | PHP syntax check | Code validation |
-| `Get-ChildItem includes/ -Filter "*.php" \| ForEach-Object { php -l $_.FullName }` | Batch syntax check (Windows) | Full validation |
+| `npm run test:syntax` | Syntax check | Code validation |
+| `npm run test:release` | Test release process | Safe release preview |
+| `npm run validate` | Run all validations | Complete validation suite |
+| `npm run validate:config` | Validate configuration | Environment check |
+| `npm run validate:github-actions` | Validate CI configuration | Pre-release check |
+| `npm run validate:version` | Validate version consistency | Version check |
+
+### 🔧 Utility Commands
+
+| Command | Function | Purpose |
+|---------|----------|---------|
+| `npm run help` | Show all commands | Display categorized command list |
+| `npm run clean` | Clean build files | Remove build directory |
+| `npm run dev` | Development deployment | Quick build and deploy |
+| `npm run dev:deploy` | Deploy to local WordPress | Local environment deployment |
+
+**Custom Commands** (use `node` directly):
+- `node scripts/version-bump.js --version=X.Y.Z` - Set custom version
+- `node scripts/release.js custom --version=X.Y.Z --dry-run` - Custom release
 
 ### 📝 Unit Testing Guide
 
@@ -528,7 +569,7 @@ npm run validate:config
 #### Version Inconsistency
 ```bash
 # Auto-fix version inconsistency (choose appropriate type)
-npm run version:bump:patch
+npm run version:patch
 
 # Manual version check
 # Linux/Mac:
@@ -539,8 +580,8 @@ grep "version" package.json
 Select-String "Version:" notion-to-wordpress.php
 Select-String "version" package.json
 
-# View help information (using any type command)
-npm run version:bump -- --help
+# View help information
+npm run version:help
 ```
 
 #### Plugin Activation Failure
@@ -681,7 +722,7 @@ ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 # 1. Pre-release checks
 git status                    # Ensure clean working directory
 npm run validate:config       # Validate configuration
-npm run test:release:patch    # Preview release
+npm run release:dry-run       # Preview release
 
 # 2. Execute release
 npm run release:patch         # Choose appropriate type
@@ -696,13 +737,13 @@ npm run release:patch         # Choose appropriate type
 
 ```bash
 # Release candidates
-npm run release:custom -- --version=1.3.0-rc.1
+npm run release:custom -- --version=1.8.1-rc.1
 
 # Hotfix versions
-npm run release:custom -- --version=1.2.1-hotfix.1
+npm run release:custom -- --version=1.8.1-hotfix.1
 
 # Preview mode
-npm run release:custom -- --version=1.3.0-rc.1 --dry-run
+npm run release:custom -- --version=1.8.1-rc.1 --dry-run
 ```
 
 ---
@@ -1004,7 +1045,7 @@ cd Notion-to-WordPress
 git checkout -b feature/your-feature-name
 
 # 4. Develop and test
-npm run validate:version
+npm run version:check
 npm run build
 
 # 5. Commit changes
@@ -1167,3 +1208,5 @@ function sync($id) {  // Missing type hints and documentation
 **[⬆️ Back to Top](#-notion-to-wordpress-developer-guide) • [🏠 Home](../README.md) • [📚 User Guide](Wiki.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🇨🇳 中文版](DEVELOPER_GUIDE-zh_CN.md)**
 
 </div>
+
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-test.2

@@ -2,13 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Webhook 处理类
- *
- * 处理来自 Notion 的 Webhook 请求，并触发相应的同步操作。
- *
+ * Webhook 处理类。
+ * 负责注册 REST API 路由以接收来自 Notion 的 Webhook 请求，并根据请求内容触发相应的同步操作。
  * @since      1.1.0
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {

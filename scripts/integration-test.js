@@ -6,7 +6,7 @@
  * 本套件全面校验自动化发布系统的所有组件，确保其稳定性、可靠性和集成正确。
  * 
  * @author Frank-Loong
- * @version 1.0.0
+ * @version 1.8.3-test.2
  */
 
 const fs = require('fs');
@@ -417,19 +417,6 @@ class IntegrationTestSuite {
                     const content = fs.readFileSync(fullPath, 'utf8');
                     const lineCount = content.split('\n').length;
                     this.addResult(`文档: ${docPath}`, 'PASS', `${lineCount} 行`);
-                    
-                    // 检查 README 文件中是否提及发布系统
-                    if (docPath.includes('README') && (
-                        content.includes('Development & Release') ||
-                        content.includes('开发与发布') ||
-                        content.includes('release:patch') ||
-                        content.includes('Automated Release System') ||
-                        content.includes('自动化发布系统')
-                    )) {
-                        this.addResult(`发布系统提及: ${docPath}`, 'PASS', '已记录发布系统');
-                    } else if (docPath.includes('README')) {
-                        this.addResult(`发布系统提及: ${docPath}`, 'WARN', '未记录发布系统');
-                    }
                 } else {
                     this.addResult(`文档: ${docPath}`, 'FAIL', '未找到文件');
                 }

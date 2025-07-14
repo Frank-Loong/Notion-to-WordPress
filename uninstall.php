@@ -2,10 +2,14 @@
 declare(strict_types=1);
 
 /**
- * 插件卸载时运行的代码
- *
+ * 卸载脚本。
+ * 当插件从 WordPress 卸载时，此脚本负责清理所有相关的数据库选项、计划任务和（可选的）内容。
  * @since      1.0.5
+ * @version    1.8.3-test.2
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 // 如果不是WordPress调用，则退出
