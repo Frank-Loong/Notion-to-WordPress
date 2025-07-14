@@ -1846,7 +1846,7 @@ class Notion_API {
             'performance_grade' => $comprehensive_score >= 80 ? 'A' :
                                   ($comprehensive_score >= 60 ? 'B' :
                                   ($comprehensive_score >= 40 ? 'C' : 'D')),
-            'recommendations' => $this->generate_performance_recommendations($cache_score, $merge_score)
+            'recommendations' => self::generate_performance_recommendations($cache_score, $merge_score)
         ];
     }
 
@@ -1858,7 +1858,7 @@ class Notion_API {
      * @param    float    $merge_score    合并评分
      * @return   array                    优化建议数组
      */
-    private function generate_performance_recommendations(float $cache_score, float $merge_score): array {
+    private static function generate_performance_recommendations(float $cache_score, float $merge_score): array {
         $recommendations = [];
 
         if ($cache_score < 70) {

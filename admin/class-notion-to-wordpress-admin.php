@@ -1010,8 +1010,8 @@ class Notion_To_WordPress_Admin {
 
         Notion_To_WordPress_Helper::debug_log(
             '增强缓存设置已应用: transient_cache=' . ($options['enable_transient_cache'] ? 'enabled' : 'disabled') .
-            ', smart_cache=' . ($options['smart_cache_enabled'] ? 'enabled' : 'disabled') .
-            ', preload=' . ($options['cache_preload_enabled'] ? 'enabled' : 'disabled') .
+            ', smart_cache=' . (($options['smart_cache_enabled'] ?? false) ? 'enabled' : 'disabled') .
+            ', preload=' . (($options['cache_preload_enabled'] ?? false) ? 'enabled' : 'disabled') .
             ', ttl=' . ($options['transient_cache_ttl'] ?? 7200) . 's',
             'Enhanced Cache Config'
         );

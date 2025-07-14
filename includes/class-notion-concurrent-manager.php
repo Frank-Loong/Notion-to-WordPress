@@ -23,6 +23,15 @@ class Notion_Concurrent_Manager {
     private int $max_concurrent = 25;
 
     /**
+     * 当前并发请求数
+     *
+     * @since    1.8.3
+     * @access   private
+     * @var      int
+     */
+    private int $current_concurrent = 0;
+
+    /**
      * 请求池
      *
      * @since    1.8.1
@@ -192,6 +201,9 @@ class Notion_Concurrent_Manager {
                                        min($this->adaptive_config['max_concurrent'], (int)$options['concurrent_requests']));
         }
 
+        // 初始化当前并发数
+        $this->current_concurrent = 0;
+
         // 初始化网络监控
         $this->network_monitor['last_check_time'] = time();
         $this->network_monitor['last_adjustment_time'] = time();
@@ -359,6 +371,9 @@ class Notion_Concurrent_Manager {
      * @return   array                响应数组
      */
     private function execute_concurrent_requests(array $requests): array {
+        // 更新当前并发数
+        $this->current_concurrent = count($requests);
+
         // 使用WordPress的并发请求功能
         $responses = [];
         $multi_handle = curl_multi_init();
@@ -459,6 +474,9 @@ class Notion_Concurrent_Manager {
         }
 
         curl_multi_close($multi_handle);
+
+        // 重置当前并发数
+        $this->current_concurrent = 0;
 
         return $responses;
     }
@@ -1800,8 +1818,12 @@ class Notion_Concurrent_Manager {
      * @return   float    综合评分
      */
     private function calculate_overall_performance_score(): float {
-        $concurrent_score = min(100, $this->stats['success_rate']);
-        $network_score = $this->network_stats['network_quality_score'];
+        // 动态计算成功率
+        $total = $this->stats['total_requests'];
+        $success_rate = $total > 0 ? round(($this->stats['successful_requests'] / $total) * 100, 2) : 0;
+
+        $concurrent_score = min(100, $success_rate);
+        $network_score = $this->network_stats['network_quality_score'] ?? 100;
 
         // 加权平均：并发性能50%，网络性能50%
         return round(($concurrent_score * 0.5) + ($network_score * 0.5), 2);
@@ -1816,15 +1838,19 @@ class Notion_Concurrent_Manager {
     private function generate_performance_summary(): array {
         $overall_score = $this->calculate_overall_performance_score();
 
+        // 动态计算成功率
+        $total = $this->stats['total_requests'];
+        $success_rate = $total > 0 ? round(($this->stats['successful_requests'] / $total) * 100, 2) : 0;
+
         return [
             'overall_score' => $overall_score,
             'performance_level' => $overall_score >= 80 ? 'Excellent' :
                                   ($overall_score >= 60 ? 'Good' :
                                   ($overall_score >= 40 ? 'Fair' : 'Poor')),
             'key_metrics' => [
-                'success_rate' => $this->stats['success_rate'] . '%',
+                'success_rate' => $success_rate . '%',
                 'avg_response_time' => round($this->stats['average_response_time'], 2) . 'ms',
-                'network_quality' => $this->network_stats['network_quality_score'],
+                'network_quality' => $this->network_stats['network_quality_score'] ?? 100,
                 'concurrent_efficiency' => $this->current_concurrent . '/' . $this->max_concurrent
             ]
         ];

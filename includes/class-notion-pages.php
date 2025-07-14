@@ -1637,7 +1637,7 @@ class Notion_Pages {
         // 使用现有的批量查询方法进行预加载
         $preloaded_mappings = $this->get_posts_by_notion_ids($notion_ids);
 
-        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($preload_start_time, 'preload_notion_id_cache');
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer('preload_notion_id_cache', $preload_start_time);
 
         Notion_To_WordPress_Helper::info_log(
             sprintf('缓存预加载完成：预加载%d个ID，找到%d个映射，执行时间%.2fms，缓存大小%d',
@@ -1751,7 +1751,7 @@ class Notion_Pages {
         self::$image_download_stats['total_images_processed'] += count($images);
         self::$image_download_stats['images_downloaded_async'] += count($url_to_attachment_map);
 
-        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($start_time, 'download_images_async');
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer('download_images_async', $start_time);
 
         Notion_To_WordPress_Helper::info_log(
             sprintf('异步图片下载完成：处理%d个图片，成功%d个，执行时间%.2fms',
@@ -1904,7 +1904,7 @@ class Notion_Pages {
             $this->cleanup_between_batches($batch_index, count($batches));
         }
 
-        $execution_time = Notion_To_WordPress_Helper::end_performance_timer($start_time, 'paginated_pages_processing');
+        $execution_time = Notion_To_WordPress_Helper::end_performance_timer('paginated_pages_processing', $start_time);
 
         Notion_To_WordPress_Helper::info_log(
             sprintf('分页处理完成：总计%d个页面，%d批次，执行时间%.2fms',
