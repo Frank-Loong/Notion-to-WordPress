@@ -301,6 +301,11 @@ class Notion_To_WordPress_Admin {
         // 向后兼容：根据新的 plugin_language 设置旧的 force_english_ui
         $options['force_english_ui'] = ( $plugin_language === 'en_US' ) ? 1 : 0;
 
+        // 缓存设置
+        $options['enable_transient_cache'] = isset( $_POST['enable_transient_cache'] ) ? 1 : 0;
+        $options['transient_cache_ttl'] = isset( $_POST['transient_cache_ttl'] ) ? max( 300, intval( $_POST['transient_cache_ttl'] ) ) : 3600; // 最小5分钟，默认1小时
+        $options['memory_cache_ttl'] = isset( $_POST['memory_cache_ttl'] ) ? max( 60, intval( $_POST['memory_cache_ttl'] ) ) : 300; // 最小1分钟，默认5分钟
+
         // Field Mapping
         if ( isset( $_POST['field_mapping'] ) && is_array( $_POST['field_mapping'] ) ) {
             $options['field_mapping'] = array_map( 'sanitize_text_field', $_POST['field_mapping'] );
@@ -366,6 +371,9 @@ class Notion_To_WordPress_Admin {
         // 重新初始化调试级别
         Notion_To_WordPress_Helper::init();
 
+        // 应用缓存配置
+        $this->apply_cache_settings( $options );
+
         // 更新 cron
         $this->update_cron_schedule( $options );
         $this->update_log_cleanup_schedule($options);
@@ -393,6 +401,9 @@ class Notion_To_WordPress_Admin {
 
             // 重新初始化调试级别
             Notion_To_WordPress_Helper::init();
+
+            // 应用缓存配置
+            $this->apply_cache_settings($options);
 
             // 更新 cron
             $this->update_cron_schedule($options);
@@ -900,6 +911,97 @@ class Notion_To_WordPress_Admin {
             Notion_To_WordPress_Helper::error_log('测试错误: ' . $e->getMessage(), 'Debug Test');
             Notion_To_WordPress_Helper::error_log('错误堆栈: ' . $e->getTraceAsString(), 'Debug Test');
             wp_send_json_error(['message' => __('测试错误: ', 'notion-to-wordpress') . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 应用缓存设置
+     *
+     * @since    1.8.1
+     * @param    array    $options    插件选项
+     */
+    private function apply_cache_settings(array $options): void {
+        // 设置transient缓存TTL
+        if (isset($options['transient_cache_ttl'])) {
+            Notion_API::set_transient_cache_ttl((int)$options['transient_cache_ttl']);
+        }
+
+        // 如果禁用了transient缓存，清除所有transient缓存
+        if (empty($options['enable_transient_cache'])) {
+            Notion_API::clear_transient_cache();
+            Notion_To_WordPress_Helper::debug_log(
+                '已禁用transient缓存，清除所有transient缓存',
+                'Cache Config'
+            );
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            '缓存设置已应用: transient_cache=' . ($options['enable_transient_cache'] ? 'enabled' : 'disabled') .
+            ', ttl=' . ($options['transient_cache_ttl'] ?? 3600) . 's',
+            'Cache Config'
+        );
+    }
+
+    /**
+     * 获取缓存统计信息的AJAX处理器
+     *
+     * @since    1.8.1
+     */
+    public function handle_get_cache_stats() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
+            return;
+        }
+
+        try {
+            $cache_stats = Notion_API::get_cache_stats();
+            wp_send_json_success([
+                'message' => __('缓存统计获取成功', 'notion-to-wordpress'),
+                'stats' => $cache_stats
+            ]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => __('获取缓存统计失败: ', 'notion-to-wordpress') . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 清除缓存的AJAX处理器
+     *
+     * @since    1.8.1
+     */
+    public function handle_clear_cache() {
+        check_ajax_referer('notion_to_wordpress_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
+            return;
+        }
+
+        try {
+            $cache_type = isset($_POST['cache_type']) ? sanitize_text_field($_POST['cache_type']) : 'all';
+
+            switch ($cache_type) {
+                case 'memory':
+                    Notion_API::clear_page_cache();
+                    $message = __('内存缓存已清除', 'notion-to-wordpress');
+                    break;
+                case 'transient':
+                    Notion_API::clear_transient_cache();
+                    $message = __('Transient缓存已清除', 'notion-to-wordpress');
+                    break;
+                case 'all':
+                default:
+                    Notion_API::clear_page_cache();
+                    Notion_API::clear_transient_cache();
+                    $message = __('所有缓存已清除', 'notion-to-wordpress');
+                    break;
+            }
+
+            wp_send_json_success(['message' => $message]);
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => __('清除缓存失败: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
     }
 

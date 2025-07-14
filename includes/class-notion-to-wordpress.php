@@ -124,6 +124,7 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-loader.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-i18n.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-concurrent-manager.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
