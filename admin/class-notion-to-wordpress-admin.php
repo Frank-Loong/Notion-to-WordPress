@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
  * 后台管理类。
  * 负责插件后台设置页面的功能，包括表单处理、选项保存等。
  * @since      1.0.9
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -1347,15 +1347,31 @@ class Notion_To_WordPress_Admin {
     private function apply_performance_config(array $config): void {
         try {
             // 应用并发管理器配置
+            error_log("DEBUG: apply_performance_config 开始执行");
+
             if ($this->notion_api && method_exists($this->notion_api, 'get_concurrent_manager')) {
+                error_log("DEBUG: notion_api 存在且有 get_concurrent_manager 方法");
                 $concurrent_manager = $this->notion_api->get_concurrent_manager();
                 if ($concurrent_manager) {
+                    error_log("DEBUG: concurrent_manager 获取成功，类型: " . get_class($concurrent_manager));
+
+                    // 检查方法是否存在
+                    if (method_exists($concurrent_manager, 'set_adaptive_config')) {
+                        error_log("DEBUG: set_adaptive_config 方法存在");
+                    } else {
+                        error_log("ERROR: set_adaptive_config 方法不存在！");
+                        error_log("DEBUG: 可用方法: " . implode(', ', get_class_methods($concurrent_manager)));
+                    }
+
                     $concurrent_manager->set_max_concurrent($config['concurrent_max_requests']);
+                    error_log("DEBUG: set_max_concurrent 调用成功");
+
                     $concurrent_manager->set_adaptive_config([
                         'enabled' => $config['concurrent_adaptive_enabled'],
                         'target_response_time' => $config['concurrent_target_response_time'],
                         'adjustment_threshold' => $config['concurrent_adjustment_threshold']
                     ]);
+                    error_log("DEBUG: set_adaptive_config 调用成功");
                     $concurrent_manager->set_network_config([
                         'base_timeout' => $config['network_base_timeout'],
                         'base_connect_timeout' => $config['network_connect_timeout'],
@@ -1368,12 +1384,16 @@ class Notion_To_WordPress_Admin {
 
             // 应用API缓存配置
             if (class_exists('Notion_API')) {
-                Notion_API::set_cache_config([
-                    'memory_ttl' => $config['cache_memory_ttl'],
-                    'transient_ttl' => $config['cache_transient_ttl'],
-                    'preload_enabled' => $config['cache_preload_enabled'],
-                    'preload_max_size' => $config['cache_preload_max_size']
-                ]);
+                // 设置transient缓存TTL
+                Notion_API::set_transient_cache_ttl($config['cache_transient_ttl']);
+
+                // 应用其他缓存设置
+                $cache_options = [
+                    'transient_cache_ttl' => $config['cache_transient_ttl'],
+                    'cache_preload_enabled' => $config['cache_preload_enabled'],
+                    'cache_preload_max_size' => $config['cache_preload_max_size']
+                ];
+                $this->apply_cache_settings($cache_options);
             }
 
             // 应用内存管理配置
@@ -1407,12 +1427,12 @@ class Notion_To_WordPress_Admin {
     private function handle_performance_ajax(): void {
         // 验证nonce
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'performance_ajax')) {
-            wp_die(json_encode(['error' => '安全验证失败']));
+            wp_send_json_error('安全验证失败');
         }
 
         // 验证权限
         if (!current_user_can('manage_options')) {
-            wp_die(json_encode(['error' => '权限不足']));
+            wp_send_json_error('权限不足');
         }
 
         $action_type = $_POST['action_type'] ?? '';
@@ -1420,21 +1440,27 @@ class Notion_To_WordPress_Admin {
         switch ($action_type) {
             case 'get_stats':
                 $data = $this->get_comprehensive_performance_data();
-                wp_die(json_encode(['success' => true, 'data' => $data]));
+                wp_send_json_success($data);
                 break;
 
             case 'reset_stats':
                 $this->reset_all_performance_stats();
-                wp_die(json_encode(['success' => true, 'message' => '统计数据已重置']));
+                wp_send_json_success(['message' => '统计数据已重置']);
                 break;
 
             case 'run_performance_test':
                 $test_results = $this->run_performance_test();
-                wp_die(json_encode(['success' => true, 'data' => $test_results]));
+
+                // 检查是否有错误
+                if (isset($test_results['error'])) {
+                    wp_send_json_error($test_results['error']);
+                } else {
+                    wp_send_json_success($test_results);
+                }
                 break;
 
             default:
-                wp_die(json_encode(['error' => '未知的操作类型']));
+                wp_send_json_error('未知的操作类型');
         }
     }
 
@@ -1575,7 +1601,7 @@ class Notion_To_WordPress_Admin {
             );
         }
 
-        $test_results['test_duration'] = Notion_To_WordPress_Helper::end_performance_timer($test_start_time, 'performance_test');
+        $test_results['test_duration'] = Notion_To_WordPress_Helper::end_performance_timer('performance_test', $test_start_time);
 
         return $test_results;
     }

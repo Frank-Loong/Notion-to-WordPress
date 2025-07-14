@@ -8,7 +8,7 @@ declare(strict_types=1);
  * 功能封装，支持数据库查询、页面操作、内容同步等核心功能。
  *
  * @since      1.0.9
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

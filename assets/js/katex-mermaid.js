@@ -2,7 +2,7 @@
  * KaTeX 和 Mermaid 渲染脚本
  * 负责渲染 Notion 页面中的 LaTeX 数学公式和 Mermaid.js 图表，并提供资源加载失败时的备用方案。
  * @since 1.0.8
- * @version 1.8.3-test.2
+ * @version 1.8.3-beta.1
  * @package Notion_To_WordPress
  * @author Frank-Loong
  * @license GPL-3.0-or-later

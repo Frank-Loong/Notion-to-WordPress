@@ -1209,4 +1209,4 @@ function sync($id) {  // 缺少类型提示和文档
 
 </div>
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-test.2
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.1

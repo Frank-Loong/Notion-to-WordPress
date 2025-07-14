@@ -5,7 +5,7 @@ declare(strict_types=1);
  * 插件核心类。
  * 负责初始化插件，加载依赖项，定义国际化，以及注册后台和前台的钩子。
  * @since      1.0.9
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

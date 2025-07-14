@@ -5,7 +5,7 @@ declare(strict_types=1);
  * 辅助工具类。
  * 提供一系列静态辅助方法，用于日志记录、安全过滤、数据处理和性能监控等。
  * @since      1.0.9
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

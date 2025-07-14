@@ -5,7 +5,7 @@
  * 用于校验打包过程是否正确包含/排除文件。
  * 确保生成的 ZIP 包符合 WordPress 插件规范，并符合大小限制。
  * @since      1.8.2
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/scripts
  * @author     Frank-Loong

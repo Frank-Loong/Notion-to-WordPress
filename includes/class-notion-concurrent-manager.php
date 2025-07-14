@@ -4,7 +4,7 @@
  * 并发请求管理器类。
  * 实现安全的并发 API 调用机制，支持智能速率限制、错误处理、重试机制和性能监控。
  * @since      1.8.1
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/includes
  * @author     Frank-Loong
@@ -871,9 +871,10 @@ class Notion_Concurrent_Manager {
         $success_rate = $total > 0 ? round(($this->stats['successful_requests'] / $total) * 100, 2) : 0;
 
         return array_merge($this->stats, [
-            'success_rate' => $success_rate . '%',
+            'success_rate' => $success_rate,  // 返回数字而不是字符串
+            'success_rate_formatted' => $success_rate . '%',  // 格式化版本
             'max_concurrent' => $this->max_concurrent,
-            'current_concurrent' => $this->max_concurrent,
+            'current_concurrent' => count($this->request_pool),  // 使用实际的当前并发数
             'network_quality' => $this->stats['network_quality_score'],
             'avg_response_time_ms' => round($this->stats['average_response_time'], 2)
         ]);
@@ -1760,6 +1761,21 @@ class Notion_Concurrent_Manager {
     }
 
     /**
+     * 设置自适应并发配置
+     *
+     * @since    1.8.1
+     * @param    array    $config    自适应配置
+     */
+    public function set_adaptive_config(array $config): void {
+        $this->adaptive_config = array_merge($this->adaptive_config, $config);
+
+        Notion_To_WordPress_Helper::debug_log(
+            '自适应并发配置已更新: ' . json_encode($this->adaptive_config),
+            'Adaptive Config'
+        );
+    }
+
+    /**
      * 设置网络配置
      *
      * @since    1.8.1
@@ -1818,15 +1834,23 @@ class Notion_Concurrent_Manager {
      * @return   float    综合评分
      */
     private function calculate_overall_performance_score(): float {
+        error_log("DEBUG: calculate_overall_performance_score 开始执行");
+        error_log("DEBUG: stats 内容: " . json_encode($this->stats));
+        error_log("DEBUG: network_stats 内容: " . json_encode($this->network_stats));
+
         // 动态计算成功率
         $total = $this->stats['total_requests'];
         $success_rate = $total > 0 ? round(($this->stats['successful_requests'] / $total) * 100, 2) : 0;
+
+        error_log("DEBUG: 计算得到 success_rate: $success_rate");
 
         $concurrent_score = min(100, $success_rate);
         $network_score = $this->network_stats['network_quality_score'] ?? 100;
 
         // 加权平均：并发性能50%，网络性能50%
-        return round(($concurrent_score * 0.5) + ($network_score * 0.5), 2);
+        $result = round(($concurrent_score * 0.5) + ($network_score * 0.5), 2);
+        error_log("DEBUG: calculate_overall_performance_score 返回: $result");
+        return $result;
     }
 
     /**
@@ -1836,11 +1860,13 @@ class Notion_Concurrent_Manager {
      * @return   array    性能摘要
      */
     private function generate_performance_summary(): array {
+        error_log("DEBUG: generate_performance_summary 开始执行");
         $overall_score = $this->calculate_overall_performance_score();
 
         // 动态计算成功率
         $total = $this->stats['total_requests'];
         $success_rate = $total > 0 ? round(($this->stats['successful_requests'] / $total) * 100, 2) : 0;
+        error_log("DEBUG: generate_performance_summary 计算得到 success_rate: $success_rate");
 
         return [
             'overall_score' => $overall_score,
@@ -1851,7 +1877,7 @@ class Notion_Concurrent_Manager {
                 'success_rate' => $success_rate . '%',
                 'avg_response_time' => round($this->stats['average_response_time'], 2) . 'ms',
                 'network_quality' => $this->network_stats['network_quality_score'] ?? 100,
-                'concurrent_efficiency' => $this->current_concurrent . '/' . $this->max_concurrent
+                'concurrent_efficiency' => count($this->request_pool) . '/' . $this->max_concurrent
             ]
         ];
     }

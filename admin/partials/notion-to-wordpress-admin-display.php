@@ -6,7 +6,7 @@ declare(strict_types=1);
  * 插件主后台页面。
  * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射等。
  * @since      1.0.9
- * @version    1.8.3-test.2
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/admin/partials
  * @author     Frank-Loong
