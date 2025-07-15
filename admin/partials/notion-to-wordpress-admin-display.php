@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * 插件主后台页面。
- * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射、性能配置等。
+ * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射等。
  * @since      1.0.9
  * @version    1.8.3-beta.2
  * @package    Notion_To_WordPress
@@ -265,6 +265,26 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 <span class="dashicons dashicons-admin-network"></span> <?php esc_html_e('测试连接', 'notion-to-wordpress'); ?>
                             </button>
                         </div>
+
+                        <!-- 同步操作按钮 -->
+                        <div class="notion-wp-sync-actions" style="margin-top: 20px; display: block !important;">
+                            <h3><?php esc_html_e('同步操作', 'notion-to-wordpress'); ?></h3>
+                            <div class="sync-buttons" style="margin-bottom: 15px; display: flex; gap: 20px;">
+                                <button type="button" class="button button-primary" id="notion-manual-import">
+                                    <span class="dashicons dashicons-lightbulb"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
+                                </button>
+                                <button type="button" class="button button-secondary" id="notion-full-import">
+                                    <span class="dashicons dashicons-update"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
+                                </button>
+                                <button type="button" class="button refresh-all-content" id="refresh-all-content">
+                                    <span class="dashicons dashicons-admin-generic"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
+                                </button>
+                            </div>
+                            <div class="sync-info">
+                                <p><strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?></p>
+                                <p><strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -435,7 +455,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             input.name = input.name.replace(/\[\d+\]/, '[' + newIndex + ']');
                                         });
                                         
-                                        // 更新选择名称
+                                        // 更新选择框名称
                                         const selects = fieldTemplate.querySelectorAll('select');
                                         selects.forEach(select => {
                                             select.name = select.name.replace(/\[\d+\]/, '[' + newIndex + ']');
@@ -447,7 +467,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         
                                         container.appendChild(fieldTemplate);
                                         
-                                        // 确保所有删除按钮都可见
+                                        // 确保所有删除按钮可见
                                         document.querySelectorAll('.remove-field').forEach(btn => {
                                             btn.style.display = 'inline-block';
                                         });
@@ -458,12 +478,12 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         if (e.target.classList.contains('remove-field') || e.target.closest('.remove-field')) {
                                             const fieldRow = e.target.closest('.custom-field-mapping');
                                             
-                                            // 如果只有一个字段，则不删除
+                                            // 如果只剩一个字段，则不删除
                                             const fields = container.querySelectorAll('.custom-field-mapping');
                                             if (fields.length > 1) {
                                                 fieldRow.remove();
                                                 
-                                                // 如果只有一个字段，则隐藏删除按钮
+                                                // 如果只剩两个字段，则隐藏删除按钮
                                                 if (fields.length === 2) {
                                                     container.querySelector('.remove-field').style.display = 'none';
                                                 }
