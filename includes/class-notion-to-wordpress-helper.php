@@ -47,9 +47,6 @@ class Notion_To_WordPress_Helper {
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
-
-        // 使用Helper类的方法记录日志，避免直接使用error_log
-        self::debug_log(__('调试级别设置为: ', 'notion-to-wordpress') . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
     }
 
     /**
