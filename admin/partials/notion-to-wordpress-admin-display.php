@@ -276,13 +276,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         <div class="notion-wp-sync-actions" style="margin-top: 20px;">
                             <h3><?php esc_html_e('同步操作', 'notion-to-wordpress'); ?></h3>
                             <div class="sync-buttons" style="margin-bottom: 15px; display: flex; gap: 20px;">
-                                <button type="button" class="button button-primary" id="smart-sync">
+                                <button type="button" class="button button-primary" id="notion-manual-import">
                                     <span class="dashicons dashicons-lightbulb"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
                                 </button>
-                                <button type="button" class="button button-secondary" id="full-sync">
+                                <button type="button" class="button button-secondary" id="notion-full-import">
                                     <span class="dashicons dashicons-update"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
                                 </button>
-                                <button type="button" class="button" id="refresh-all">
+                                <button type="button" class="button refresh-all-content" id="refresh-all-content">
                                     <span class="dashicons dashicons-admin-generic"></span> <?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?>
                                 </button>
                             </div>

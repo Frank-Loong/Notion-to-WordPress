@@ -152,15 +152,15 @@ class Notion_Concurrent_Manager {
      * @var      array
      */
     private array $network_config = [
-        'base_timeout' => 8,           // 基础超时时间（秒）
-        'base_connect_timeout' => 3,   // 基础连接超时时间（秒）
-        'max_timeout' => 30,           // 最大超时时间（秒）
-        'min_timeout' => 5,            // 最小超时时间（秒）
+        'base_timeout' => 5,           // 基础超时时间（秒）- 减少到5秒
+        'base_connect_timeout' => 2,   // 基础连接超时时间（秒）- 减少到2秒
+        'max_timeout' => 10,           // 最大超时时间（秒）- 减少到10秒
+        'min_timeout' => 3,            // 最小超时时间（秒）- 减少到3秒
         'enable_keepalive' => true,    // 启用TCP Keep-Alive
         'enable_compression' => true,  // 启用压缩
-        'max_redirects' => 3,          // 最大重定向次数
-        'retry_attempts' => 2,         // 重试次数
-        'adaptive_timeout' => true     // 自适应超时
+        'max_redirects' => 2,          // 最大重定向次数 - 减少到2次
+        'retry_attempts' => 1,         // 重试次数 - 减少到1次
+        'adaptive_timeout' => false    // 禁用自适应超时以提升速度
     ];
 
     /**
@@ -208,11 +208,12 @@ class Notion_Concurrent_Manager {
         $this->network_monitor['last_check_time'] = time();
         $this->network_monitor['last_adjustment_time'] = time();
 
-        Notion_To_WordPress_Helper::debug_log(
-            '并发管理器初始化，最大并发数: ' . $this->max_concurrent . ' (范围: ' .
-            $this->adaptive_config['min_concurrent'] . '-' . $this->adaptive_config['max_concurrent'] . ')',
-            'Concurrent Manager'
-        );
+        // 禁用初始化日志以提升速度
+        // Notion_To_WordPress_Helper::debug_log(
+        //     '并发管理器初始化，最大并发数: ' . $this->max_concurrent . ' (范围: ' .
+        //     $this->adaptive_config['min_concurrent'] . '-' . $this->adaptive_config['max_concurrent'] . ')',
+        //     'Concurrent Manager'
+        // );
     }
 
     /**
@@ -235,10 +236,11 @@ class Notion_Concurrent_Manager {
             'added_time' => microtime(true)
         ];
 
-        Notion_To_WordPress_Helper::debug_log(
-            '添加请求到池: ' . $request_id . ' -> ' . $endpoint,
-            'Concurrent Manager'
-        );
+        // 禁用请求添加日志以提升速度
+        // Notion_To_WordPress_Helper::debug_log(
+        //     '添加请求到池: ' . $request_id . ' -> ' . $endpoint,
+        //     'Concurrent Manager'
+        // );
     }
 
     /**
@@ -273,15 +275,15 @@ class Notion_Concurrent_Manager {
             $batch_results = $this->execute_concurrent_batch($batch);
             $all_results = array_merge($all_results, $batch_results);
 
-            // 批次间延迟，避免API速率限制
-            if ($batch_index < count($batches) - 1) {
-                $delay = $this->calculate_batch_delay();
-                Notion_To_WordPress_Helper::debug_log(
-                    '批次间延迟: ' . $delay . 'ms',
-                    'Concurrent Manager'
-                );
-                usleep($delay * 1000);
-            }
+            // 禁用批次间延迟以提升速度
+            // if ($batch_index < count($batches) - 1) {
+            //     $delay = $this->calculate_batch_delay();
+            //     Notion_To_WordPress_Helper::debug_log(
+            //         '批次间延迟: ' . $delay . 'ms',
+            //         'Concurrent Manager'
+            //     );
+            //     usleep($delay * 1000);
+            // }
         }
 
         // 记录性能数据
@@ -415,7 +417,8 @@ class Notion_Concurrent_Manager {
                 // User-Agent优化
                 CURLOPT_USERAGENT => $this->get_optimized_user_agent(),
 
-                // DNS缓存
+                // DNS优化配置
+                CURLOPT_DNS_SERVERS => '8.8.8.8,1.1.1.1', // 使用Google和Cloudflare DNS
                 CURLOPT_DNS_CACHE_TIMEOUT => 300, // 5分钟DNS缓存
 
                 // 连接池优化
@@ -746,11 +749,12 @@ class Notion_Concurrent_Manager {
             array_shift($this->network_monitor['response_times']);
         }
 
-        Notion_To_WordPress_Helper::debug_log(
-            sprintf('响应时间统计更新 - 批次: %.2fms, 平均单请求: %.2fms, 总平均: %.2fms',
-                   $batch_response_time, $avg_request_time, $this->stats['average_response_time']),
-            'Performance Monitor'
-        );
+        // 禁用性能监控日志以提升速度
+        // Notion_To_WordPress_Helper::debug_log(
+        //     sprintf('响应时间统计更新 - 批次: %.2fms, 平均单请求: %.2fms, 总平均: %.2fms',
+        //            $batch_response_time, $avg_request_time, $this->stats['average_response_time']),
+        //     'Performance Monitor'
+        // );
     }
 
     /**
@@ -761,9 +765,10 @@ class Notion_Concurrent_Manager {
     private function check_and_adjust_concurrent(): void {
         $current_time = time();
 
-        // 检查是否到了调整时间（每10个请求或每30秒检查一次）
-        if ($this->stats['total_requests'] % $this->adaptive_config['quality_check_interval'] !== 0 &&
-            $current_time - $this->network_monitor['last_adjustment_time'] < 30) {
+        // 禁用频繁的网络质量检查以提升速度
+        // 改为每100个请求或每300秒检查一次
+        if ($this->stats['total_requests'] % 100 !== 0 &&
+            $current_time - $this->network_monitor['last_adjustment_time'] < 300) {
             return;
         }
 
@@ -1050,11 +1055,11 @@ class Notion_Concurrent_Manager {
             $batch_results = $this->execute_image_download_batch($batch);
             $results = array_merge($results, $batch_results);
 
-            // 批次间延迟
-            if ($batch_index < count($batches) - 1) {
-                $delay = $this->calculate_batch_delay();
-                usleep($delay * 1000); // 转换为微秒
-            }
+            // 禁用批次间延迟以提升速度
+            // if ($batch_index < count($batches) - 1) {
+            //     $delay = $this->calculate_batch_delay();
+            //     usleep($delay * 1000); // 转换为微秒
+            // }
         }
 
         $execution_time = Notion_To_WordPress_Helper::end_performance_timer($start_time, 'execute_image_downloads');

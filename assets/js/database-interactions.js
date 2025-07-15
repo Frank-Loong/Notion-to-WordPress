@@ -55,6 +55,7 @@
         initViewportDetection();
         initRecordHover();
         initViewOptimization();
+        optimizeTableColumns();
         initLazyLoading();
         initResponsiveHandlers();
 

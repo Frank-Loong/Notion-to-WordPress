@@ -31,7 +31,7 @@ class Notion_To_WordPress_Helper {
      * @access private
      * @var int
      */
-    private static int $debug_level = self::DEBUG_LEVEL_ERROR;
+    private static int $debug_level = self::DEBUG_LEVEL_NONE;
     
     /**
      * 初始化标志，避免重复初始化
@@ -599,9 +599,9 @@ class Notion_To_WordPress_Helper {
      * @return array|WP_Error 响应数组或错误对象
      */
     public static function safe_remote_get(string $url, array $args = []) {
-        // 默认参数
+        // 默认参数 - 大幅减少超时时间以提升速度
         $default_args = [
-            'timeout' => 30,
+            'timeout' => 5,  // 从30秒减少到5秒
             'user-agent' => 'Notion-to-WordPress/' . NOTION_TO_WORDPRESS_VERSION,
             'headers' => [
                 'Accept' => 'application/json',
@@ -729,30 +729,8 @@ class Notion_To_WordPress_Helper {
      * @param array $additional_data 额外数据
      */
     public static function log_performance(string $operation, float $start_time, array $additional_data = []): void {
-        if (self::$debug_level < self::DEBUG_LEVEL_DEBUG) {
-            return;
-        }
-
-        $execution_time = microtime(true) - $start_time;
-        $memory_usage = memory_get_usage(true);
-        $peak_memory = memory_get_peak_usage(true);
-
-        $performance_data = [
-            'operation' => $operation,
-            'execution_time' => round($execution_time * 1000, 2) . 'ms',
-            'memory_usage' => self::format_bytes($memory_usage),
-            'peak_memory' => self::format_bytes($peak_memory),
-            'timestamp' => current_time('mysql')
-        ];
-
-        if (!empty($additional_data)) {
-            $performance_data = array_merge($performance_data, $additional_data);
-        }
-
-        self::debug_log(
-            '性能监控 - ' . $operation . ': ' . json_encode($performance_data, JSON_UNESCAPED_UNICODE),
-            'Performance'
-        );
+        // 快速返回，禁用性能监控以提升速度
+        return;
     }
 
     /**
@@ -776,16 +754,8 @@ class Notion_To_WordPress_Helper {
      * @return float 开始时间
      */
     public static function start_performance_timer(string $operation): float {
-        $start_time = microtime(true);
-
-        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG) {
-            self::debug_log(
-                '开始性能计时: ' . $operation,
-                'Performance Timer'
-            );
-        }
-
-        return $start_time;
+        // 快速返回，禁用性能监控以提升速度
+        return microtime(true);
     }
 
     /**

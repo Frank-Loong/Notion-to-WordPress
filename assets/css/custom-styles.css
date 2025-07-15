@@ -1515,8 +1515,8 @@ blockquote {
     grid-template-columns: 2fr 1fr 1fr 1fr; /* 默认4列布局 */
     border-bottom: 1px solid #f1f3f4;
     transition: background-color 0.15s ease;
-    align-items: center;
-    min-height: 44px;
+    align-items: stretch; /* 改为stretch确保所有单元格高度一致 */
+    min-height: 44px; /* 统一最小高度 */
     gap: 0; /* 确保没有间隙 */
 }
 
@@ -1541,7 +1541,8 @@ blockquote {
     overflow: visible; /* 允许内容超出时显示 */
     display: flex;
     align-items: center;
-    min-height: 44px;
+    min-height: 44px; /* 保持与行高一致 */
+    height: 100%; /* 确保填满整个行高 */
     box-sizing: border-box; /* 确保边框计算正确 */
 }
 
@@ -1585,6 +1586,14 @@ blockquote {
 
 /* 表格列宽度控制 - 智能Grid布局 */
 /* 标题列始终占2fr，其他列根据内容类型智能分配 */
+
+/* 基础Grid布局设置 */
+.notion-database-table .notion-table-row {
+    display: grid;
+    gap: 0; /* 改为0，避免间隙 */
+    align-items: stretch; /* 改为stretch确保高度一致 */
+    min-height: 44px; /* 统一最小高度 */
+}
 .notion-database-table[data-column-count="1"] .notion-table-row {
     grid-template-columns: 1fr; /* 只有标题列 */
 }
@@ -1609,8 +1618,8 @@ blockquote {
     grid-template-columns: 2fr 1fr 1.2fr 1fr 1fr 1fr; /* 标题列 + 5个属性列 */
 }
 
-/* 通用回退：超过6列时使用动态计算 */
-.notion-database-table .notion-table-row {
+/* 通用回退：超过6列时使用动态计算 - 降低优先级，只在没有特定列数规则时生效 */
+.notion-database-table:not([data-column-count="2"]):not([data-column-count="3"]):not([data-column-count="4"]):not([data-column-count="5"]):not([data-column-count="6"]) .notion-table-row {
     grid-template-columns: 2fr repeat(auto-fit, minmax(120px, 1fr));
 }
 
@@ -2661,15 +2670,18 @@ html {
 }
 
 /* === 表格视图改进：防止单元格内容截断 === */
-.notion-table-cell {
-    white-space: normal; /* 允许换行 */
-    word-break: break-word; /* 长单词/URL自动换行 */
-    text-overflow: clip; /* 取消省略号 */
-    overflow: visible; /* 允许内容超出时显示 */
-}
+/* 这些样式已经在基础.notion-table-cell规则中定义，避免重复 */
 
 .notion-table-cell a {
-    word-break: break-all; /* 链接在任何字符处换行，避免过长 */
+    word-break: break-word; /* 改为break-word，更温和的换行 */
+    text-decoration: none;
+    color: #3b82f6;
+    transition: color 0.2s ease;
+}
+
+.notion-table-cell a:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
 }
 
 /* 空值占位符样式 */

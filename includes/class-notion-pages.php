@@ -215,7 +215,7 @@ class Notion_Pages {
         try {
             // 获取API密钥
             $options = get_option('notion_to_wordpress_options', []);
-            $api_key = $options['api_key'] ?? '';
+            $api_key = $options['notion_api_key'] ?? '';
 
             if (!empty($api_key)) {
                 // 创建专门用于图片下载的并发管理器，使用较小的并发数
@@ -2005,10 +2005,11 @@ class Notion_Pages {
         foreach ($pages as $index => $page) {
             $global_index = ($batch_index * self::$pagination_config['default_page_size']) + $index + 1;
 
-            Notion_To_WordPress_Helper::debug_log(
-                sprintf('处理页面%d，ID: %s', $global_index, $page['id'] ?? 'unknown'),
-                'Page Processing'
-            );
+            // 禁用页面处理日志以提升速度
+            // Notion_To_WordPress_Helper::debug_log(
+            //     sprintf('处理页面%d，ID: %s', $global_index, $page['id'] ?? 'unknown'),
+            //     'Page Processing'
+            // );
 
             try {
                 // 检查页面是否已存在
@@ -2027,8 +2028,8 @@ class Notion_Pages {
                     $stats['failed']++;
                 }
 
-                // 每处理几个页面检查一次内存
-                if (($index + 1) % 5 === 0) {
+                // 减少内存检查频率以提升速度
+                if (($index + 1) % 20 === 0) {
                     Notion_To_WordPress_Helper::check_memory_usage('batch_progress_' . $global_index);
                 }
 
@@ -2577,6 +2578,15 @@ class Notion_Pages {
             Notion_To_WordPress_Helper::info_log('增量同步: ' . ($incremental ? 'yes' : 'no'), 'Pages Import');
 
             // 获取数据库中的所有页面
+            // 如果是增量同步，清除缓存确保获取最新的页面编辑时间
+            if ($incremental) {
+                Notion_API::clear_transient_cache();
+                Notion_To_WordPress_Helper::debug_log(
+                    '增量同步模式：清除缓存确保获取最新的页面编辑时间',
+                    'Incremental Sync'
+                );
+            }
+
             Notion_To_WordPress_Helper::debug_log('调用get_database_pages()', 'Pages Import');
             $pages = $this->notion_api->get_database_pages($this->database_id);
             Notion_To_WordPress_Helper::info_log('获取到页面数量: ' . count($pages), 'Pages Import');
@@ -4224,6 +4234,12 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_table_view(array $records, array $database_info): string {
+        // 调试：表格视图渲染开始
+        Notion_To_WordPress_Helper::debug_log(
+            'render_table_view 开始，记录数量: ' . count($records),
+            'Table Debug'
+        );
+
         // 验证输入参数
         if (empty($records) || !is_array($records)) {
             return '<div class="notion-database-preview notion-empty-table">' .
@@ -4302,6 +4318,22 @@ class Notion_Pages {
         $db_properties = $display_properties;
         $record_id = $record['id'] ?? '';
 
+        // 调试：记录记录的属性
+        if ($row_index <= 1) { // 记录前两行以便对比
+            Notion_To_WordPress_Helper::debug_log(
+                "第{$row_index}行 - 记录属性键: " . json_encode(array_keys($properties)),
+                'Table Debug'
+            );
+            Notion_To_WordPress_Helper::debug_log(
+                "第{$row_index}行 - 显示属性键: " . json_encode(array_keys($db_properties)),
+                'Table Debug'
+            );
+            Notion_To_WordPress_Helper::debug_log(
+                "第{$row_index}行 - 记录完整数据: " . json_encode($record, JSON_UNESCAPED_UNICODE),
+                'Table Debug'
+            );
+        }
+
         $html = '<div class="notion-table-row"
                       role="row"
                       data-record-id="' . esc_attr($record_id) . '"
@@ -4326,9 +4358,24 @@ class Notion_Pages {
             if (isset($properties[$prop_name]) && is_array($properties[$prop_name])) {
                 try {
                     $prop_value = $this->format_property_for_preview($properties[$prop_name], $prop_type);
+
+                    // 调试：记录属性格式化结果
+                    if ($row_index <= 1) {
+                        Notion_To_WordPress_Helper::debug_log(
+                            "第{$row_index}行 - 属性{$prop_name}({$prop_type}): " . json_encode($properties[$prop_name], JSON_UNESCAPED_UNICODE) . " -> " . $prop_value,
+                            'Table Debug'
+                        );
+                    }
                 } catch (Exception $e) {
                     // 属性格式化失败时的回退处理
                     $prop_value = '<span class="notion-error-value" title="' . esc_attr($e->getMessage()) . '">错误</span>';
+
+                    if ($row_index <= 1) {
+                        Notion_To_WordPress_Helper::debug_log(
+                            "第{$row_index}行 - 属性{$prop_name}格式化失败: " . $e->getMessage(),
+                            'Table Debug'
+                        );
+                    }
                 }
             }
 
@@ -4463,6 +4510,12 @@ class Notion_Pages {
         $count = 0;
         $max_display = 5; // 最多显示5个非title属性
 
+        // 调试：记录原始属性顺序
+        Notion_To_WordPress_Helper::debug_log(
+            '原始数据库属性顺序: ' . json_encode(array_keys($properties)),
+            'Table Debug'
+        );
+
         foreach ($properties as $key => $property) {
             // 验证属性结构
             if (!is_array($property) || empty($key)) {
@@ -4484,6 +4537,12 @@ class Notion_Pages {
             $display_properties[$key] = $property;
             $count++;
         }
+
+        // 调试：记录显示属性顺序
+        Notion_To_WordPress_Helper::debug_log(
+            '显示属性顺序: ' . json_encode(array_keys($display_properties)),
+            'Table Debug'
+        );
 
         return $display_properties;
     }
