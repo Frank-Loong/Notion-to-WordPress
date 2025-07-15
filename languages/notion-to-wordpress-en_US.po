@@ -1171,10 +1171,6 @@ msgid "media_handle_sideload 错误: "
 msgstr "media_handle_sideload error: "
 
 #: includes\class-notion-to-wordpress-helper.php
-msgid "调试级别设置为: "
-msgstr "Debug level set to: "
-
-#: includes\class-notion-to-wordpress-helper.php
 msgid "内容已截断，完整内容请查看专用日志文件"
 msgstr "Content truncated, see dedicated log file for full content"
 

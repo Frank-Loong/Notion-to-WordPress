@@ -1171,10 +1171,6 @@ msgid "media_handle_sideload 错误: "
 msgstr ""
 
 #: includes\class-notion-to-wordpress-helper.php
-msgid "调试级别设置为: "
-msgstr ""
-
-#: includes\class-notion-to-wordpress-helper.php
 msgid "内容已截断，完整内容请查看专用日志文件"
 msgstr ""
 
