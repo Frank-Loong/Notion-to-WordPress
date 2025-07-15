@@ -1217,30 +1217,104 @@ class Notion_Pages {
     }
 
     /**
-     * 根据Notion页面ID获取WordPress文章
+     * 根据Notion页面ID获取WordPress文章 - 优化版本
      *
      * @since    1.0.5
      * @param    string    $notion_id    Notion页面ID
      * @return   int                     WordPress文章ID
      */
     private function get_post_by_notion_id($notion_id) {
-        $args = array(
-            'post_type'      => 'any',
-            'post_status'    => 'any',
-            'posts_per_page' => 1,
-            'meta_query'     => array(
-                array(
-                    'key'     => '_notion_page_id',
-                    'value'   => $notion_id,
-                    'compare' => '='
-                )
-            ),
-            'fields' => 'ids' // 仅获取ID以提高性能
+        global $wpdb;
+
+        // 使用直接SQL查询而不是get_posts，减少开销
+        $query = $wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta}
+            WHERE meta_key = '_notion_page_id' AND meta_value = %s
+            LIMIT 1",
+            $notion_id
         );
 
-        $posts = get_posts($args);
-        
-        return !empty($posts) ? $posts[0] : 0;
+        $post_id = $wpdb->get_var($query);
+
+        return $post_id ? (int)$post_id : 0;
+    }
+
+    /**
+     * 批量获取多个Notion页面ID对应的WordPress文章ID
+     *
+     * @since    1.1.2
+     * @param    array    $notion_ids    Notion页面ID数组
+     * @return   array                   [notion_id => post_id] 映射
+     */
+    private function batch_get_posts_by_notion_ids(array $notion_ids): array {
+        if (empty($notion_ids)) {
+            return [];
+        }
+
+        global $wpdb;
+
+        // 准备SQL占位符
+        $placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
+
+        // 执行批量查询
+        $query = $wpdb->prepare(
+            "SELECT post_id, meta_value as notion_id
+            FROM {$wpdb->postmeta}
+            WHERE meta_key = '_notion_page_id'
+            AND meta_value IN ($placeholders)",
+            $notion_ids
+        );
+
+        $results = $wpdb->get_results($query);
+
+        // 构建映射数组
+        $mapping = array_fill_keys($notion_ids, 0); // 默认所有ID映射为0
+
+        foreach ($results as $row) {
+            $mapping[$row->notion_id] = (int)$row->post_id;
+        }
+
+        return $mapping;
+    }
+
+    /**
+     * 批量获取页面同步时间
+     *
+     * @since    1.1.2
+     * @param    array    $notion_ids    Notion页面ID数组
+     * @return   array                   [notion_id => sync_time] 映射
+     */
+    private function batch_get_page_sync_times(array $notion_ids): array {
+        if (empty($notion_ids)) {
+            return [];
+        }
+
+        global $wpdb;
+
+        // 准备SQL占位符
+        $placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
+
+        // 执行批量查询
+        $query = $wpdb->prepare(
+            "SELECT pm1.meta_value as notion_id, pm2.meta_value as sync_time
+            FROM {$wpdb->postmeta} pm1
+            INNER JOIN {$wpdb->postmeta} pm2 ON pm1.post_id = pm2.post_id
+            WHERE pm1.meta_key = '_notion_page_id'
+            AND pm1.meta_value IN ($placeholders)
+            AND pm2.meta_key = '_notion_last_sync_time'",
+            $notion_ids
+        );
+
+        $results = $wpdb->get_results($query);
+
+        // 构建映射数组
+        $mapping = array_fill_keys($notion_ids, ''); // 默认所有ID映射为空字符串
+
+        foreach ($results as $row) {
+            $mapping[$row->notion_id] = $row->sync_time;
+        }
+
+        return $mapping;
     }
 
     /**
@@ -1882,7 +1956,7 @@ class Notion_Pages {
     }
 
     /**
-     * 清理已删除的页面
+     * 清理已删除的页面 - 优化版本
      *
      * @since    1.1.0
      * @param    array    $current_pages    当前Notion数据库中的页面
@@ -1894,45 +1968,43 @@ class Notion_Pages {
             return $page['id'];
         }, $current_pages);
 
-        error_log('Notion to WordPress: 当前Notion页面ID: ' . implode(', ', $current_notion_ids));
+        global $wpdb;
 
-        // 查找所有WordPress中有Notion ID的文章
-        $args = array(
-            'post_type'      => 'any',
-            'post_status'    => 'any',
-            'posts_per_page' => -1,
-            'meta_query'     => array(
-                array(
-                    'key'     => '_notion_page_id',
-                    'compare' => 'EXISTS'
-                )
-            ),
-            'fields' => 'ids'
-        );
+        // 使用单个SQL查询获取所有WordPress文章及其Notion ID
+        $query = "
+            SELECT p.ID as post_id, pm.meta_value as notion_id
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            WHERE pm.meta_key = '_notion_page_id'
+        ";
 
-        $wordpress_posts = get_posts($args);
+        $results = $wpdb->get_results($query);
         $deleted_count = 0;
 
-        error_log('Notion to WordPress: 找到 ' . count($wordpress_posts) . ' 个WordPress文章有Notion ID');
+        Notion_To_WordPress_Helper::debug_log(
+            '找到 ' . count($results) . ' 个WordPress文章有Notion ID',
+            'Cleanup'
+        );
 
-        foreach ($wordpress_posts as $post_id) {
-            $notion_id = get_post_meta($post_id, '_notion_page_id', true);
-
+        foreach ($results as $row) {
             // 如果这个Notion ID不在当前页面列表中，说明已被删除
-            if (!in_array($notion_id, $current_notion_ids)) {
-                error_log('Notion to WordPress: 发现孤儿文章，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id);
+            if (!in_array($row->notion_id, $current_notion_ids)) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '发现孤儿文章，WordPress ID: ' . $row->post_id . ', Notion ID: ' . $row->notion_id,
+                    'Cleanup'
+                );
 
-                $result = wp_delete_post($post_id, true); // true表示彻底删除
+                $result = wp_delete_post($row->post_id, true); // true表示彻底删除
 
                 if ($result) {
                     $deleted_count++;
                     Notion_To_WordPress_Helper::info_log(
-                        '删除孤儿文章成功，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id,
+                        '删除孤儿文章成功，WordPress ID: ' . $row->post_id . ', Notion ID: ' . $row->notion_id,
                         'Cleanup'
                     );
                 } else {
                     Notion_To_WordPress_Helper::error_log(
-                        '删除孤儿文章失败，WordPress ID: ' . $post_id . ', Notion ID: ' . $notion_id
+                        '删除孤儿文章失败，WordPress ID: ' . $row->post_id . ', Notion ID: ' . $row->notion_id
                     );
                 }
             }
@@ -1949,13 +2021,25 @@ class Notion_Pages {
     }
 
     /**
-     * 过滤出需要增量同步的页面
+     * 过滤出需要增量同步的页面 - 优化版本
      *
      * @since    1.1.0
      * @param    array    $pages    所有Notion页面
      * @return   array              需要同步的页面
      */
     private function filter_pages_for_incremental_sync(array $pages): array {
+        if (empty($pages)) {
+            return [];
+        }
+
+        // 提取所有页面ID
+        $notion_ids = array_map(function($page) {
+            return $page['id'];
+        }, $pages);
+
+        // 批量获取同步时间
+        $sync_times = $this->batch_get_page_sync_times($notion_ids);
+
         $pages_to_sync = [];
 
         foreach ($pages as $page) {
@@ -1968,8 +2052,8 @@ class Notion_Pages {
                 continue;
             }
 
-            // 获取本地记录的最后同步时间
-            $local_last_sync = $this->get_page_last_sync_time($page_id);
+            // 获取本地记录的最后同步时间（从批量查询结果中获取）
+            $local_last_sync = $sync_times[$page_id] ?? '';
 
             if (empty($local_last_sync)) {
                 // 新页面，需要同步
@@ -1993,12 +2077,6 @@ class Notion_Pages {
                 $local_timestamp = strtotime($local_last_sync);
             }
 
-            // 添加详细的时间比较日志
-            Notion_To_WordPress_Helper::debug_log(
-                "时间比较 - 页面ID: {$page_id}, Notion编辑时间: {$notion_last_edited} ({$notion_timestamp}), 本地同步时间: {$local_last_sync} ({$local_timestamp})",
-                'Incremental Sync'
-            );
-
             // 使用更宽松的时间比较，允许1秒的误差
             if ($notion_timestamp > $local_timestamp + 1) {
                 // Notion页面更新时间晚于本地同步时间，需要同步
@@ -2007,12 +2085,6 @@ class Notion_Pages {
                     'Incremental Sync'
                 );
                 $pages_to_sync[] = $page;
-            } else {
-                // 页面无变化，跳过
-                Notion_To_WordPress_Helper::debug_log(
-                    "页面无变化跳过: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
-                    'Incremental Sync'
-                );
             }
         }
 
@@ -2042,7 +2114,7 @@ class Notion_Pages {
     }
 
     /**
-     * 更新页面同步时间
+     * 更新页面同步时间 - 优化版本
      *
      * @since    1.1.0
      * @param    string    $page_id              Notion页面ID
@@ -2057,13 +2129,68 @@ class Notion_Pages {
 
         // 更新同步时间戳（统一使用UTC时间）
         $current_utc_time = gmdate('Y-m-d H:i:s');
-        update_post_meta($post_id, '_notion_last_sync_time', $current_utc_time);
-        update_post_meta($post_id, '_notion_last_edited_time', $notion_last_edited);
+
+        // 使用事务包装批量更新
+        global $wpdb;
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            update_post_meta($post_id, '_notion_last_sync_time', $current_utc_time);
+            update_post_meta($post_id, '_notion_last_edited_time', $notion_last_edited);
+            $wpdb->query('COMMIT');
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            throw $e;
+        }
 
         Notion_To_WordPress_Helper::debug_log(
             "更新页面同步时间: {$page_id}, 编辑时间: {$notion_last_edited}",
             'Incremental Sync'
         );
+    }
+
+    /**
+     * 批量更新页面同步时间
+     *
+     * @since    1.1.2
+     * @param    array    $page_updates    [page_id => notion_last_edited] 映射
+     */
+    private function batch_update_page_sync_times(array $page_updates): void {
+        if (empty($page_updates)) {
+            return;
+        }
+
+        // 批量获取WordPress文章ID
+        $notion_ids = array_keys($page_updates);
+        $post_mapping = $this->batch_get_posts_by_notion_ids($notion_ids);
+
+        $current_utc_time = gmdate('Y-m-d H:i:s');
+
+        global $wpdb;
+        $wpdb->query('START TRANSACTION');
+
+        try {
+            foreach ($page_updates as $page_id => $notion_last_edited) {
+                $post_id = $post_mapping[$page_id] ?? 0;
+
+                if ($post_id) {
+                    update_post_meta($post_id, '_notion_last_sync_time', $current_utc_time);
+                    update_post_meta($post_id, '_notion_last_edited_time', $notion_last_edited);
+                }
+            }
+            $wpdb->query('COMMIT');
+
+            Notion_To_WordPress_Helper::debug_log(
+                "批量更新页面同步时间完成，更新了 " . count($page_updates) . " 个页面",
+                'Incremental Sync'
+            );
+        } catch (Exception $e) {
+            $wpdb->query('ROLLBACK');
+            Notion_To_WordPress_Helper::error_log(
+                "批量更新页面同步时间失败: " . $e->getMessage()
+            );
+            throw $e;
+        }
     }
 
     /**
