@@ -5,7 +5,7 @@
  * 用于测试发布配置与现有发布系统组件的集成情况。
  * 
  * @author Frank-Loong
- * @version 1.8.3-beta.2
+ * @version 2.0.0-beta.1
  */
 
 const config = require('../release.config.js');

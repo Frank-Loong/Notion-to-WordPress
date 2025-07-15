@@ -6,18 +6,22 @@ declare(strict_types=1);
  * 封装了与 Notion API 通信的所有方法，包括获取数据库、页面、块等内容。
  * 处理 API 认证、请求发送、响应解析和错误处理。提供了完整的 Notion API
  * 功能封装，支持数据库查询、页面操作、内容同步等核心功能。
- *
  * @since      1.0.9
- * @version    1.8.3-beta.2
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
     exit;
 }
+
+// 加载并发网络管理器和重试机制
+require_once plugin_dir_path(__FILE__) . 'class-notion-concurrent-network-manager.php';
+require_once plugin_dir_path(__FILE__) . 'class-notion-network-retry.php';
 
 class Notion_API {
 
@@ -665,5 +669,411 @@ class Notion_API {
             'total_cache_items' => count(self::$cache_timestamps),
             'cache_ttl' => self::$cache_ttl
         ];
+    }
+
+    // ========================================
+    // 批量并发请求方法
+    // ========================================
+
+    /**
+     * 批量发送API请求（并发处理）
+     *
+     * @since    1.9.0-beta.1
+     * @param    array     $endpoints    API端点数组
+     * @param    string    $method       HTTP方法
+     * @param    array     $data_array   请求数据数组（可选）
+     * @param    int       $max_retries  最大重试次数
+     * @param    int       $base_delay   基础延迟时间（毫秒）
+     * @return   array                   响应结果数组
+     * @throws   Exception               如果批量请求失败
+     */
+    public function batch_send_requests(array $endpoints, string $method = 'GET', array $data_array = [], int $max_retries = 2, int $base_delay = 1000): array {
+        if (empty($endpoints)) {
+            return [];
+        }
+
+        $start_time = microtime(true);
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('开始批量API请求: %d个端点，方法: %s', count($endpoints), $method),
+            'Batch API'
+        );
+
+        try {
+            // 创建并发网络管理器
+            $manager = new Notion_Concurrent_Network_Manager(5); // 最多5个并发请求
+
+            // 添加所有请求到队列
+            foreach ($endpoints as $index => $endpoint) {
+                $url = $this->api_base . $endpoint;
+                $data = $data_array[$index] ?? [];
+
+                $args = [
+                    'method'  => $method,
+                    'headers' => [
+                        'Authorization'  => 'Bearer ' . $this->api_key,
+                        'Content-Type'   => 'application/json',
+                        'Notion-Version' => '2022-06-28'
+                    ],
+                    'timeout' => 30
+                ];
+
+                if (!empty($data) && $method !== 'GET') {
+                    $args['body'] = json_encode($data);
+                }
+
+                $manager->add_request($url, $args);
+            }
+
+            // 执行并发请求（带重试）
+            $responses = $manager->execute_with_retry($max_retries, $base_delay);
+
+            // 处理响应结果
+            $results = [];
+            $success_count = 0;
+            $error_count = 0;
+
+            foreach ($responses as $index => $response) {
+                if (is_wp_error($response)) {
+                    $error_message = $response->get_error_message();
+                    $results[$index] = new Exception("批量请求失败 (#{$index}): " . $error_message);
+                    $error_count++;
+
+                    Notion_To_WordPress_Helper::error_log(
+                        "批量请求失败 (#{$index}): {$error_message}",
+                        'Batch API'
+                    );
+                } else {
+                    $response_code = $response['response']['code'];
+
+                    if ($response_code < 200 || $response_code >= 300) {
+                        $error_body = json_decode($response['body'], true);
+                        $error_message = $error_body['message'] ?? $response['body'];
+                        $results[$index] = new Exception("API错误 (#{$index}, {$response_code}): " . $error_message);
+                        $error_count++;
+
+                        Notion_To_WordPress_Helper::error_log(
+                            "批量请求API错误 (#{$index}): {$response_code} - {$error_message}",
+                            'Batch API'
+                        );
+                    } else {
+                        $body = json_decode($response['body'], true) ?: [];
+                        $results[$index] = $body;
+                        $success_count++;
+                    }
+                }
+            }
+
+            $execution_time = microtime(true) - $start_time;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf(
+                    '批量API请求完成: 成功 %d, 失败 %d, 耗时 %.2f秒',
+                    $success_count,
+                    $error_count,
+                    $execution_time
+                ),
+                'Batch API'
+            );
+
+            return $results;
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '批量API请求异常: ' . $e->getMessage(),
+                'Batch API'
+            );
+            throw $e;
+        }
+    }
+
+    /**
+     * 批量获取页面详情
+     *
+     * @since    1.9.0-beta.1
+     * @param    array    $page_ids    页面ID数组
+     * @return   array                 页面详情数组，键为页面ID
+     */
+    public function batch_get_pages(array $page_ids): array {
+        if (empty($page_ids)) {
+            return [];
+        }
+
+        // 检查缓存，分离已缓存和未缓存的页面
+        $cached_pages = [];
+        $uncached_page_ids = [];
+
+        foreach ($page_ids as $page_id) {
+            if (isset(self::$page_cache[$page_id])) {
+                $cached_pages[$page_id] = self::$page_cache[$page_id];
+            } else {
+                $uncached_page_ids[] = $page_id;
+            }
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf(
+                '批量获取页面: 总计 %d, 缓存命中 %d, 需要请求 %d',
+                count($page_ids),
+                count($cached_pages),
+                count($uncached_page_ids)
+            ),
+            'Batch Pages'
+        );
+
+        // 如果所有页面都已缓存，直接返回
+        if (empty($uncached_page_ids)) {
+            return $cached_pages;
+        }
+
+        // 构建批量请求端点
+        $endpoints = [];
+        foreach ($uncached_page_ids as $page_id) {
+            $endpoints[] = 'pages/' . $page_id;
+        }
+
+        try {
+            // 执行批量请求
+            $responses = $this->batch_send_requests($endpoints);
+
+            // 处理响应并更新缓存
+            $fetched_pages = [];
+            foreach ($responses as $index => $response) {
+                $page_id = $uncached_page_ids[$index];
+
+                if ($response instanceof Exception) {
+                    Notion_To_WordPress_Helper::error_log(
+                        "获取页面失败 ({$page_id}): " . $response->getMessage(),
+                        'Batch Pages'
+                    );
+                    continue;
+                }
+
+                // 更新缓存
+                self::$page_cache[$page_id] = $response;
+                self::$cache_timestamps[$page_id] = time();
+                $fetched_pages[$page_id] = $response;
+            }
+
+            // 合并缓存和新获取的页面
+            return array_merge($cached_pages, $fetched_pages);
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '批量获取页面异常: ' . $e->getMessage(),
+                'Batch Pages'
+            );
+
+            // 返回已缓存的页面
+            return $cached_pages;
+        }
+    }
+
+    /**
+     * 批量获取块内容
+     *
+     * @since    1.9.0-beta.1
+     * @param    array    $block_ids    块ID数组
+     * @return   array                  块内容数组，键为块ID
+     */
+    public function batch_get_block_children(array $block_ids): array {
+        if (empty($block_ids)) {
+            return [];
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('批量获取块内容: %d个块', count($block_ids)),
+            'Batch Blocks'
+        );
+
+        // 构建批量请求端点
+        $endpoints = [];
+        foreach ($block_ids as $block_id) {
+            $endpoints[] = 'blocks/' . $block_id . '/children';
+        }
+
+        try {
+            // 执行批量请求
+            $responses = $this->batch_send_requests($endpoints);
+
+            // 处理响应
+            $block_contents = [];
+            foreach ($responses as $index => $response) {
+                $block_id = $block_ids[$index];
+
+                if ($response instanceof Exception) {
+                    Notion_To_WordPress_Helper::error_log(
+                        "获取块内容失败 ({$block_id}): " . $response->getMessage(),
+                        'Batch Blocks'
+                    );
+                    $block_contents[$block_id] = [];
+                    continue;
+                }
+
+                $block_contents[$block_id] = $response['results'] ?? [];
+            }
+
+            return $block_contents;
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '批量获取块内容异常: ' . $e->getMessage(),
+                'Batch Blocks'
+            );
+
+            // 返回空数组
+            $empty_results = [];
+            foreach ($block_ids as $block_id) {
+                $empty_results[$block_id] = [];
+            }
+            return $empty_results;
+        }
+    }
+
+    /**
+     * 批量查询数据库
+     *
+     * @since    1.9.0-beta.1   
+     * @param    array    $database_ids    数据库ID数组
+     * @param    array    $filters         筛选条件数组（可选）
+     * @return   array                     数据库查询结果数组，键为数据库ID
+     */
+    public function batch_query_databases(array $database_ids, array $filters = []): array {
+        if (empty($database_ids)) {
+            return [];
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('批量查询数据库: %d个数据库', count($database_ids)),
+            'Batch Databases'
+        );
+
+        // 构建批量请求端点和数据
+        $endpoints = [];
+        $data_array = [];
+
+        foreach ($database_ids as $index => $database_id) {
+            $endpoints[] = 'databases/' . $database_id . '/query';
+            $data_array[] = $filters[$index] ?? [];
+        }
+
+        try {
+            // 执行批量POST请求
+            $responses = $this->batch_send_requests($endpoints, 'POST', $data_array);
+
+            // 处理响应
+            $database_results = [];
+            foreach ($responses as $index => $response) {
+                $database_id = $database_ids[$index];
+
+                if ($response instanceof Exception) {
+                    Notion_To_WordPress_Helper::error_log(
+                        "查询数据库失败 ({$database_id}): " . $response->getMessage(),
+                        'Batch Databases'
+                    );
+                    $database_results[$database_id] = [];
+                    continue;
+                }
+
+                $database_results[$database_id] = $response['results'] ?? [];
+            }
+
+            return $database_results;
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '批量查询数据库异常: ' . $e->getMessage(),
+                'Batch Databases'
+            );
+
+            // 返回空数组
+            $empty_results = [];
+            foreach ($database_ids as $database_id) {
+                $empty_results[$database_id] = [];
+            }
+            return $empty_results;
+        }
+    }
+
+    /**
+     * 批量获取数据库信息
+     *
+     * @since    1.9.0-beta.1
+     * @param    array    $database_ids    数据库ID数组
+     * @return   array                     数据库信息数组，键为数据库ID
+     */
+    public function batch_get_databases(array $database_ids): array {
+        if (empty($database_ids)) {
+            return [];
+        }
+
+        // 检查缓存
+        $cached_databases = [];
+        $uncached_database_ids = [];
+
+        foreach ($database_ids as $database_id) {
+            if (isset(self::$database_info_cache[$database_id])) {
+                $cached_databases[$database_id] = self::$database_info_cache[$database_id];
+            } else {
+                $uncached_database_ids[] = $database_id;
+            }
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf(
+                '批量获取数据库信息: 总计 %d, 缓存命中 %d, 需要请求 %d',
+                count($database_ids),
+                count($cached_databases),
+                count($uncached_database_ids)
+            ),
+            'Batch Database Info'
+        );
+
+        // 如果所有数据库都已缓存，直接返回
+        if (empty($uncached_database_ids)) {
+            return $cached_databases;
+        }
+
+        // 构建批量请求端点
+        $endpoints = [];
+        foreach ($uncached_database_ids as $database_id) {
+            $endpoints[] = 'databases/' . $database_id;
+        }
+
+        try {
+            // 执行批量请求
+            $responses = $this->batch_send_requests($endpoints);
+
+            // 处理响应并更新缓存
+            $fetched_databases = [];
+            foreach ($responses as $index => $response) {
+                $database_id = $uncached_database_ids[$index];
+
+                if ($response instanceof Exception) {
+                    Notion_To_WordPress_Helper::error_log(
+                        "获取数据库信息失败 ({$database_id}): " . $response->getMessage(),
+                        'Batch Database Info'
+                    );
+                    continue;
+                }
+
+                // 更新缓存
+                self::$database_info_cache[$database_id] = $response;
+                self::$cache_timestamps[$database_id] = time();
+                $fetched_databases[$database_id] = $response;
+            }
+
+            // 合并缓存和新获取的数据库信息
+            return array_merge($cached_databases, $fetched_databases);
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '批量获取数据库信息异常: ' . $e->getMessage(),
+                'Batch Database Info'
+            );
+
+            // 返回已缓存的数据库信息
+            return $cached_databases;
+        }
     }
 }

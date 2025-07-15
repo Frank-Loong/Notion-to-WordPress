@@ -5,12 +5,13 @@ declare(strict_types=1);
  * Notion 页面处理类。
  * 负责将 Notion 页面转换为 WordPress 文章，包括内容转换、字段映射和媒体处理。
  * @since      1.0.9
- * @version    1.8.3-beta.2
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
     exit;
@@ -31,6 +32,56 @@ class Notion_Pages {
      * @var      array    $processed_blocks    已处理的块ID
      */
     private array $processed_blocks = [];
+
+    /**
+     * 待下载图片队列
+     *
+     * @since    1.9.0-beta.1
+     * @access   private
+     * @var      array    $pending_images    待下载的图片信息
+     */
+    private array $pending_images = [];
+
+    /**
+     * 图片占位符映射
+     *
+     * @since    1.9.0-beta.1
+     * @access   private
+     * @var      array    $image_placeholders    占位符到attachment ID的映射
+     */
+    private array $image_placeholders = [];
+
+    /**
+     * 是否启用异步图片下载模式
+     *
+     * @since    1.9.0-beta.1
+     * @access   private
+     * @var      bool     $async_image_mode      异步图片下载模式标志
+     */
+    private bool $async_image_mode = false;
+
+    /**
+     * 最后一次处理的统计信息
+     *
+     * @since    1.9.0-beta.1
+     * @access   private
+     * @var      array    $last_processing_stats    最后一次处理的统计信息
+     */
+    private array $last_processing_stats = [];
+
+    /**
+     * 检查是否启用并发优化功能
+     *
+     * @since    1.9.0-beta.1
+     * @return   bool    是否启用并发优化
+     */
+    private function is_concurrent_optimization_enabled(): bool {
+        // 从性能配置中读取并发优化设置
+        $performance_config = get_option('notion_to_wordpress_performance_config', []);
+
+        // 默认启用并发优化，除非明确禁用
+        return $performance_config['enable_concurrent_optimization'] ?? true;
+    }
 
     /**
      * Notion API实例
@@ -137,10 +188,58 @@ class Notion_Pages {
             return false;
         }
 
-        // 转换内容为 HTML 并做 KSES 过滤
-        $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+        // 检查是否启用并发优化
+        $concurrent_enabled = $this->is_concurrent_optimization_enabled();
 
-        $content     = Notion_To_WordPress_Helper::custom_kses($raw_content);
+        if ($concurrent_enabled) {
+            // 启用异步图片下载模式
+            $this->enable_async_image_mode();
+            Notion_To_WordPress_Helper::debug_log('并发优化已启用，异步图片下载模式已启用', 'Page Import');
+        } else {
+            Notion_To_WordPress_Helper::debug_log('并发优化已禁用，使用传统模式', 'Page Import');
+        }
+
+        if ($concurrent_enabled) {
+            try {
+                // 转换内容为 HTML（收集图片占位符）
+                $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+
+                // 处理异步图片下载并替换占位符
+                $processed_content = $this->process_async_images($raw_content);
+
+                // 获取图片处理统计
+                $image_stats = $this->get_image_queue_stats(true);
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf(
+                        '并发图片处理完成: 成功 %d 个，失败 %d 个',
+                        $image_stats['successful_downloads'],
+                        $image_stats['failed_downloads']
+                    ),
+                    'Page Import'
+                );
+
+                $content = Notion_To_WordPress_Helper::custom_kses($processed_content);
+
+            } catch (Exception $e) {
+                // 并发处理失败时回退到传统模式
+                Notion_To_WordPress_Helper::error_log(
+                    '并发图片处理失败，回退到传统模式: ' . $e->getMessage(),
+                    'Page Import'
+                );
+
+                // 禁用异步模式并重新处理
+                $this->disable_async_image_mode();
+                $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+                $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
+
+                // 重新启用异步模式以保持状态一致
+                $this->enable_async_image_mode();
+            }
+        } else {
+            // 传统模式：直接处理，不使用并发优化
+            $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+            $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
+        }
         
         $existing_post_id = $this->get_post_by_notion_id($page_id);
 
@@ -162,6 +261,14 @@ class Notion_Pages {
         $notion_last_edited = $page['last_edited_time'] ?? '';
         if ($notion_last_edited) {
             $this->update_page_sync_time($page_id, $notion_last_edited);
+        }
+
+        // 如果启用了并发优化，禁用异步图片下载模式
+        if ($concurrent_enabled) {
+            $this->disable_async_image_mode();
+            Notion_To_WordPress_Helper::debug_log('页面导入完成，异步图片下载模式已禁用', 'Page Import');
+        } else {
+            Notion_To_WordPress_Helper::debug_log('页面导入完成（传统模式）', 'Page Import');
         }
 
         return true;
@@ -468,11 +575,29 @@ class Notion_Pages {
         $html = '';
         $list_wrapper = null;
 
+        // 预处理：识别所有子数据库块并批量获取数据
+        $database_blocks = [];
+        $database_data = [];
+
         foreach ($blocks as $block) {
-            if (in_array($block['id'], $this->processed_blocks)) {
+            if (isset($block['type']) && $block['type'] === 'child_database') {
+                $database_blocks[] = $block;
+            }
+        }
+
+        // 如果有子数据库块，批量获取数据
+        if (!empty($database_blocks)) {
+            $database_data = $this->batch_process_child_databases($database_blocks, $notion_api);
+        }
+
+        // 为这次转换创建本地的已处理块列表，避免跨调用的状态污染
+        $local_processed_blocks = [];
+
+        foreach ($blocks as $block) {
+            if (in_array($block['id'], $local_processed_blocks)) {
                 continue;
             }
-            $this->processed_blocks[] = $block['id'];
+            $local_processed_blocks[] = $block['id'];
 
             $block_type = $block['type'];
             $converter_method = '_convert_block_' . $block_type;
@@ -510,8 +635,13 @@ class Notion_Pages {
 
             if (method_exists($this, $converter_method)) {
                 try {
-                    // 尝试转换块
-                    $block_html = $this->{$converter_method}($block, $notion_api);
+                    // 特殊处理子数据库块，使用预处理的数据
+                    if ($block_type === 'child_database') {
+                        $block_html = $this->_convert_block_child_database_with_data($block, $notion_api, $database_data);
+                    } else {
+                        // 尝试转换块
+                        $block_html = $this->{$converter_method}($block, $notion_api);
+                    }
 
                     // 为所有区块添加 ID 包装，支持锚点跳转
                     // 注意：列表项也需要 ID 以支持锚点跳转
@@ -801,11 +931,14 @@ class Notion_Pages {
             return '<figure class="wp-block-image size-large"><img src="' . esc_url( $url ) . '" alt="' . esc_attr( $caption ) . '"><figcaption>' . esc_html( $caption ) . '</figcaption></figure>';
         }
 
-        // Notion 临时链接 —— 尝试下载到媒体库
-        $attachment_id = $this->download_and_insert_image( $url, $caption );
+        // Notion 临时链接 —— 下载到媒体库（支持异步模式）
+        $attachment_id = $this->download_and_insert_image( $url, $caption, $this->async_image_mode );
 
         if ( is_numeric( $attachment_id ) && $attachment_id > 0 ) {
             return '<figure class="wp-block-image size-large"><img src="' . esc_url( wp_get_attachment_url( $attachment_id ) ) . '" alt="' . esc_attr( $caption ) . '"><figcaption>' . esc_html( $caption ) . '</figcaption></figure>';
+        } elseif ( is_string( $attachment_id ) && strpos( $attachment_id, 'pending_image_' ) === 0 ) {
+            // 异步模式：返回占位符
+            return $attachment_id;
         }
 
         // 下载失败：直接使用原始 Notion URL，并提示可能过期
@@ -828,6 +961,8 @@ class Notion_Pages {
             'www.notion.so',
             'prod-files-secure.s3.us-west-2.amazonaws.com',
             'prod-files-secure.s3.amazonaws.com',
+            'files.notion.com',
+            'notion-static.com'
         ];
         foreach ( $notion_hosts as $nh ) {
             if ( str_contains( $host, $nh ) ) {
@@ -961,7 +1096,25 @@ class Notion_Pages {
             if (isset($block['callout']['icon']['emoji'])) {
                 $icon = $block['callout']['icon']['emoji'];
             } elseif (isset($block['callout']['icon']['external']['url'])) {
+                // 直接使用外链图标，无需下载
                 $icon = '<img src="' . esc_url($block['callout']['icon']['external']['url']) . '" class="notion-callout-icon" alt="icon">';
+            } elseif (isset($block['callout']['icon']['file']['url'])) {
+                // 处理Notion文件图标
+                $icon_url = $block['callout']['icon']['file']['url'];
+                if ( $this->is_notion_temp_url( $icon_url ) ) {
+                    // Notion临时URL需要下载
+                    $attachment_id = $this->download_and_insert_image($icon_url, 'Callout Icon', $this->async_image_mode);
+                    if (is_numeric($attachment_id) && $attachment_id > 0) {
+                        $local_url = wp_get_attachment_url($attachment_id);
+                        $icon = '<img src="' . esc_url($local_url) . '" class="notion-callout-icon" alt="icon">';
+                    } elseif ( is_string( $attachment_id ) && strpos( $attachment_id, 'pending_image_' ) === 0 ) {
+                        // 异步模式占位符
+                        $icon = $attachment_id;
+                    }
+                } else {
+                    // 直接使用外链
+                    $icon = '<img src="' . esc_url($icon_url) . '" class="notion-callout-icon" alt="icon">';
+                }
             }
         }
         return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
@@ -1494,24 +1647,47 @@ class Notion_Pages {
             return;
         }
 
-        $attachment_id = $this->download_and_insert_image($image_url, get_the_title($post_id));
+        // 如果不是Notion临时链接，尝试直接使用外链
+        if ( ! $this->is_notion_temp_url( $image_url ) ) {
+            // 对于外链，我们可以选择直接使用或者仍然下载
+            // 这里提供一个选项，默认直接使用外链以节约资源
+            $use_external_featured_image = apply_filters( 'notion_to_wordpress_use_external_featured_image', true );
 
-        if ( ! is_wp_error($attachment_id) ) {
+            if ( $use_external_featured_image ) {
+                // 直接使用外链作为特色图片（通过自定义字段）
+                update_post_meta( $post_id, '_notion_featured_image_url', esc_url_raw( $image_url ) );
+
+                Notion_To_WordPress_Helper::debug_log(
+                    'Using external featured image URL: ' . $image_url,
+                    'Featured Image'
+                );
+                return;
+            }
+        }
+
+        // Notion临时链接或选择下载外链的情况
+        $attachment_id = $this->download_and_insert_image($image_url, get_the_title($post_id), $this->async_image_mode);
+
+        if ( is_numeric( $attachment_id ) && $attachment_id > 0 ) {
             set_post_thumbnail($post_id, $attachment_id);
-        } else {
+        } elseif ( is_string( $attachment_id ) && strpos( $attachment_id, 'pending_image_' ) === 0 ) {
+            // 异步模式：存储占位符，稍后处理
+            update_post_meta( $post_id, '_notion_featured_image_placeholder', $attachment_id );
+        } elseif ( is_wp_error( $attachment_id ) ) {
             Notion_To_WordPress_Helper::debug_log('Featured image download failed: ' . $attachment_id->get_error_message());
         }
     }
 
     /**
-     * 下载并插入图片到媒体库
+     * 下载并插入图片到媒体库（支持异步模式）
      *
      * @since    1.0.5
      * @param    string    $url       图片URL
      * @param    string    $caption   图片标题
-     * @return   int                  WordPress附件ID
+     * @param    bool      $async     是否使用异步模式
+     * @return   int|string           WordPress附件ID或占位符
      */
-    private function download_and_insert_image( string $url, string $caption = '' ) {
+    private function download_and_insert_image( string $url, string $caption = '', bool $async = false ) {
         // 去掉查询参数用于去重
         $base_url = strtok( $url, '?' );
 
@@ -1520,6 +1696,11 @@ class Notion_Pages {
         if ( $existing ) {
             Notion_To_WordPress_Helper::debug_log( "Image already exists in media library (Attachment ID: {$existing}).", 'Notion Info' );
             return $existing;
+        }
+
+        // 异步模式：收集图片信息，返回占位符
+        if ( $async ) {
+            return $this->collect_image_for_download( $url, $caption );
         }
 
         // 读取插件设置
@@ -1654,11 +1835,20 @@ class Notion_Pages {
      */
     public function import_pages($check_deletions = true, $incremental = true) {
         try {
+            // 开始性能监控
+            $import_start_time = microtime(true);
+            $performance_stats = [
+                'total_time' => 0,
+                'api_calls' => 0,
+                'images_processed' => 0,
+                'concurrent_operations' => 0
+            ];
+
             // 初始化会话级缓存
             self::init_session_cache();
 
             // 添加调试日志
-            Notion_To_WordPress_Helper::info_log('import_pages() 开始执行', 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('import_pages() 开始执行 - 并发优化已启用', 'Pages Import');
             Notion_To_WordPress_Helper::info_log('Database ID: ' . $this->database_id, 'Pages Import');
             Notion_To_WordPress_Helper::info_log('检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Pages Import');
             Notion_To_WordPress_Helper::info_log('增量同步: ' . ($incremental ? 'yes' : 'no'), 'Pages Import');
@@ -1755,12 +1945,29 @@ class Notion_Pages {
 
             Notion_To_WordPress_Helper::info_log('所有页面处理完成，统计: ' . print_r($stats, true), 'Pages Import');
 
+            // 计算性能统计
+            $performance_stats['total_time'] = microtime(true) - $import_start_time;
+
             // 获取会话缓存统计
             $cache_stats = self::get_session_cache_stats();
             Notion_To_WordPress_Helper::debug_log(
                 '会话缓存统计: ' . print_r($cache_stats, true),
                 'Session Cache'
             );
+
+            // 记录性能统计
+            Notion_To_WordPress_Helper::info_log(
+                sprintf(
+                    '并发优化性能统计: 总耗时 %.4f 秒，处理 %d 个页面，平均每页 %.4f 秒',
+                    $performance_stats['total_time'],
+                    $stats['total'],
+                    $performance_stats['total_time'] / max($stats['total'], 1)
+                ),
+                'Performance'
+            );
+
+            // 添加性能统计到返回结果
+            $stats['performance'] = $performance_stats;
 
             // 清理会话级缓存
             self::clear_session_cache();
@@ -2791,9 +2998,17 @@ class Notion_Pages {
             return '';
         }
 
-        // 处理Notion临时URL
-        if ($this->is_notion_temp_url($cover_url)) {
-            $attachment_id = $this->download_and_insert_image($cover_url, __('数据库记录封面', 'notion-to-wordpress'));
+        // 优化：非Notion临时URL直接使用外链
+        if ( ! $this->is_notion_temp_url( $cover_url ) ) {
+            // 直接使用外链，节约服务器存储和网络资源
+            Notion_To_WordPress_Helper::debug_log(
+                '使用外链封面图片: ' . $cover_url,
+                'Record Cover'
+            );
+            // 直接使用外链URL
+        } else {
+            // 处理Notion临时URL
+            $attachment_id = $this->download_and_insert_image($cover_url, __('数据库记录封面', 'notion-to-wordpress'), $this->async_image_mode);
 
             if (is_numeric($attachment_id) && $attachment_id > 0) {
                 $local_url = wp_get_attachment_url($attachment_id);
@@ -2810,6 +3025,9 @@ class Notion_Pages {
                     );
                     return '';
                 }
+            } elseif ( is_string( $attachment_id ) && strpos( $attachment_id, 'pending_image_' ) === 0 ) {
+                // 异步模式：返回占位符
+                return $attachment_id;
             } else {
                 Notion_To_WordPress_Helper::error_log(
                     '封面图片下载失败: ' . $cover_url,
@@ -2884,9 +3102,17 @@ class Notion_Pages {
             return '';
         }
 
-        // 处理Notion临时URL
-        if ($this->is_notion_temp_url($icon_url)) {
-            $attachment_id = $this->download_and_insert_image($icon_url, __('数据库记录图标', 'notion-to-wordpress'));
+        // 优化：非Notion临时URL直接使用外链
+        if ( ! $this->is_notion_temp_url( $icon_url ) ) {
+            // 直接使用外链，节约服务器存储和网络资源
+            Notion_To_WordPress_Helper::debug_log(
+                '使用外链图标: ' . $icon_url,
+                'Record Icon'
+            );
+            // 直接使用外链URL
+        } else {
+            // 处理Notion临时URL
+            $attachment_id = $this->download_and_insert_image($icon_url, __('数据库记录图标', 'notion-to-wordpress'), $this->async_image_mode);
 
             if (is_numeric($attachment_id) && $attachment_id > 0) {
                 $local_url = wp_get_attachment_url($attachment_id);
@@ -2903,6 +3129,9 @@ class Notion_Pages {
                     );
                     return '';
                 }
+            } elseif ( is_string( $attachment_id ) && strpos( $attachment_id, 'pending_image_' ) === 0 ) {
+                // 异步模式：返回占位符
+                return $attachment_id;
             } else {
                 Notion_To_WordPress_Helper::error_log(
                     '图标图片下载失败: ' . $icon_url,
@@ -3108,9 +3337,19 @@ class Notion_Pages {
      * @return string HTML内容
      */
     private function render_database_with_view(array $records, array $database_info, string $view_type): string {
+        // 提取数据库标题
+        $database_title = '';
+        if (isset($database_info['title']) && is_array($database_info['title'])) {
+            foreach ($database_info['title'] as $title_part) {
+                if (isset($title_part['plain_text'])) {
+                    $database_title .= $title_part['plain_text'];
+                }
+            }
+        }
+
         // 记录视图类型
         Notion_To_WordPress_Helper::debug_log(
-            '渲染数据库视图: ' . $view_type . ', 标题: ' . ($database_info['title'] ?? '未知'),
+            '渲染数据库视图: ' . $view_type . ', 标题: ' . ($database_title ?: '未知'),
             'Database View Rendering'
         );
 
@@ -3601,5 +3840,775 @@ class Notion_Pages {
             '初始化会话级缓存',
             'Session Cache'
         );
+    }
+
+    // ========================================
+    // 批量子数据库处理方法
+    // ========================================
+
+    /**
+     * 批量处理子数据库块
+     *
+     * @since    1.9.0-beta.1
+     * @param    array       $database_blocks    数据库块数组
+     * @param    Notion_API  $notion_api         API实例
+     * @return   array                           预处理的数据库数据
+     */
+    private function batch_process_child_databases(array $database_blocks, Notion_API $notion_api): array {
+        if (empty($database_blocks)) {
+            return [];
+        }
+
+        $start_time = microtime(true);
+        $database_ids = [];
+
+        // 提取所有数据库ID
+        foreach ($database_blocks as $block) {
+            $database_ids[] = $block['id'];
+        }
+
+        // 去重数据库ID
+        $unique_database_ids = array_unique($database_ids);
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf(
+                '开始批量处理子数据库: %d个块，%d个唯一数据库ID',
+                count($database_blocks),
+                count($unique_database_ids)
+            ),
+            'Batch Database'
+        );
+
+        $database_data = [];
+
+        try {
+            // 批量获取数据库信息
+            $db_info_start = microtime(true);
+            $database_infos = $notion_api->batch_get_databases($unique_database_ids);
+            $db_info_time = microtime(true) - $db_info_start;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf('批量获取数据库信息耗时: %.4f秒', $db_info_time),
+                'Batch Database Performance'
+            );
+
+            // 批量获取数据库记录
+            $database_records = [];
+            $valid_database_ids = [];
+
+            foreach ($unique_database_ids as $database_id) {
+                if (isset($database_infos[$database_id]) && !($database_infos[$database_id] instanceof Exception)) {
+                    $valid_database_ids[] = $database_id;
+                }
+            }
+
+            if (!empty($valid_database_ids)) {
+                // 为每个数据库准备查询参数（空数组表示获取所有记录）
+                $query_filters = array_fill(0, count($valid_database_ids), []);
+
+                // 批量查询数据库记录
+                $db_records_start = microtime(true);
+                $database_records = $notion_api->batch_query_databases($valid_database_ids, $query_filters);
+                $db_records_time = microtime(true) - $db_records_start;
+
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf('批量查询数据库记录耗时: %.4f秒', $db_records_time),
+                    'Batch Database Performance'
+                );
+            }
+
+            // 组织数据 - 为所有原始数据库ID创建数据映射
+            foreach ($database_ids as $database_id) {
+                $database_data[$database_id] = [
+                    'info' => $database_infos[$database_id] ?? null,
+                    'records' => $database_records[$database_id] ?? []
+                ];
+            }
+
+            $execution_time = microtime(true) - $start_time;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf(
+                    '批量数据库处理完成: %d个块，%d个唯一数据库，总耗时 %.4f秒',
+                    count($database_blocks),
+                    count($unique_database_ids),
+                    $execution_time
+                ),
+                'Batch Database'
+            );
+
+            // 详细性能统计
+            $api_time = ($db_info_time ?? 0) + ($db_records_time ?? 0);
+            $processing_time = $execution_time - $api_time;
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf(
+                    '性能分解: API调用 %.4f秒, 数据处理 %.4f秒',
+                    $api_time,
+                    $processing_time
+                ),
+                'Batch Database Performance'
+            );
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '批量数据库处理异常: ' . $e->getMessage(),
+                'Batch Database'
+            );
+
+            // 返回空数据结构
+            foreach ($database_ids as $database_id) {
+                $database_data[$database_id] = [
+                    'info' => null,
+                    'records' => []
+                ];
+            }
+        }
+
+        return $database_data;
+    }
+
+    /**
+     * 使用预处理数据转换子数据库块
+     *
+     * @since    1.9.0-beta.1
+     * @param    array       $block          数据库块
+     * @param    Notion_API  $notion_api     API实例
+     * @param    array       $database_data  预处理的数据库数据
+     * @return   string                      HTML内容
+     */
+    private function _convert_block_child_database_with_data(array $block, Notion_API $notion_api, array $database_data): string {
+        $database_title = $block['child_database']['title'] ?? '未命名数据库';
+        $database_id = $block['id'];
+
+        // 调试：输出完整的child_database块结构
+        Notion_To_WordPress_Helper::debug_log(
+            'child_database块完整结构: ' . json_encode($block, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+            'Child Database Block Debug'
+        );
+
+        // 记录数据库区块处理开始
+        Notion_To_WordPress_Helper::debug_log(
+            '开始处理数据库区块（批量模式）: ' . $database_id . ', 标题: ' . $database_title,
+            'Database Block'
+        );
+
+        $html = '<div class="notion-child-database">';
+        $html .= '<div class="notion-database-header">';
+        $html .= '<h4 class="notion-database-title">' . esc_html($database_title) . '</h4>';
+
+        // 使用预处理的数据
+        $data = $database_data[$database_id] ?? null;
+
+        if ($data && $data['info'] && !($data['info'] instanceof Exception)) {
+            $database_info = $data['info'];
+
+            Notion_To_WordPress_Helper::info_log(
+                '数据库信息获取成功（批量模式）: ' . $database_id . ', 属性数量: ' . count($database_info['properties'] ?? []),
+                'Database Block'
+            );
+
+            // 调试：输出完整的数据库信息结构
+            Notion_To_WordPress_Helper::debug_log(
+                '数据库完整信息结构: ' . json_encode($database_info, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                'Database Structure Debug'
+            );
+
+            $html .= $this->render_database_properties($database_info);
+
+            // 使用预处理的记录数据渲染预览
+            $html .= $this->render_database_preview_records_with_data($database_id, $database_info, $data['records']);
+        } else {
+            Notion_To_WordPress_Helper::debug_log(
+                '数据库信息为空或获取失败（批量模式），可能是权限问题: ' . $database_id,
+                'Database Block'
+            );
+            $html .= '<p class="notion-database-fallback">数据库内容需要在Notion中查看</p>';
+        }
+
+        $html .= '</div></div>';
+
+        Notion_To_WordPress_Helper::debug_log(
+            '数据库区块处理完成（批量模式）: ' . $database_id,
+            'Database Block'
+        );
+
+        return $html;
+    }
+
+    /**
+     * 使用预处理数据渲染数据库记录预览
+     *
+     * @since    1.9.0-beta.1
+     * @param    string  $database_id     数据库ID
+     * @param    array   $database_info   数据库信息
+     * @param    array   $records         预处理的记录数据
+     * @return   string                   HTML内容
+     */
+    private function render_database_preview_records_with_data(string $database_id, array $database_info, array $records): string {
+        try {
+            if (empty($records)) {
+                Notion_To_WordPress_Helper::debug_log(
+                    '数据库无记录或无权限访问（批量模式）: ' . $database_id,
+                    'Database Block'
+                );
+                return '<div class="notion-database-empty">' . __('暂无记录', 'notion-to-wordpress') . '</div>';
+            }
+
+            // 显示所有记录的预览
+            Notion_To_WordPress_Helper::debug_log(
+                '获取数据库记录成功（批量模式）: ' . $database_id . ', 总记录: ' . count($records),
+                'Database Block'
+            );
+
+            // 检测视图类型
+            $view_type = $this->detect_view_type($database_info);
+
+            // 提取数据库标题用于日志
+            $database_title = '';
+            if (isset($database_info['title']) && is_array($database_info['title'])) {
+                foreach ($database_info['title'] as $title_part) {
+                    if (isset($title_part['plain_text'])) {
+                        $database_title .= $title_part['plain_text'];
+                    }
+                }
+            }
+
+            Notion_To_WordPress_Helper::debug_log(
+                '选择视图类型（批量模式）: ' . $view_type . ' for database: ' . $database_id . ', 标题: ' . $database_title,
+                'Database View'
+            );
+
+            // 实现渐进式加载：先显示基本信息，后续加载详细内容
+            $initial_load_count = min(6, count($records)); // 首次加载最多6条记录
+            $initial_records = array_slice($records, 0, $initial_load_count);
+            $remaining_records = array_slice($records, $initial_load_count);
+
+            // 渲染初始内容
+            $html = $this->render_database_with_view($initial_records, $database_info, $view_type);
+
+            // 如果有剩余记录，添加懒加载容器
+            if (!empty($remaining_records)) {
+                $html .= $this->render_progressive_loading_container($remaining_records, $database_info, $view_type, $database_id);
+            }
+
+            return $html;
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                '数据库记录预览异常（批量模式）: ' . $database_id . ', 错误: ' . $e->getMessage(),
+                'Database Block'
+            );
+            return '<div class="notion-database-preview-error">记录预览暂时无法加载</div>';
+        }
+    }
+
+    /**
+     * 公共方法：转换块为HTML（用于测试）
+     *
+     * @since    1.9.0-beta.1
+     * @param    array       $blocks       Notion块数据
+     * @param    Notion_API  $notion_api   Notion API实例
+     * @return   string                    HTML内容
+     */
+    public function test_convert_blocks_to_html(array $blocks, Notion_API $notion_api): string {
+        return $this->convert_blocks_to_html($blocks, $notion_api);
+    }
+
+    // ========================================
+    // 异步图片下载队列系统
+    // ========================================
+
+    /**
+     * 收集图片信息用于批量下载
+     *
+     * @since    1.9.0-beta.1
+     * @param    string    $url       图片URL
+     * @param    string    $caption   图片标题
+     * @return   string               占位符标识
+     */
+    private function collect_image_for_download( string $url, string $caption = '' ): string {
+        $placeholder_id = 'pending_image_' . count( $this->pending_images );
+
+        $this->pending_images[] = [
+            'url' => $url,
+            'caption' => $caption,
+            'placeholder' => $placeholder_id,
+            'base_url' => strtok( $url, '?' )
+        ];
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf( 'Collected image for batch download: %s (placeholder: %s)', $url, $placeholder_id ),
+            'Async Image'
+        );
+
+        return $placeholder_id;
+    }
+
+    /**
+     * 批量下载所有待处理的图片
+     *
+     * @since    1.9.0-beta.1
+     * @return   array                下载结果映射
+     */
+    private function batch_download_images(): array {
+        if ( empty( $this->pending_images ) ) {
+            return [];
+        }
+
+        $start_time = microtime( true );
+        $total_images = count( $this->pending_images );
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf( 'Starting batch image download: %d images', $total_images ),
+            'Async Image'
+        );
+
+        // 过滤掉已存在的图片
+        $images_to_download = [];
+        foreach ( $this->pending_images as $image_info ) {
+            $existing = $this->get_attachment_by_url( $image_info['base_url'] );
+            if ( $existing ) {
+                $this->image_placeholders[ $image_info['placeholder'] ] = $existing;
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf( 'Image already exists: %s (ID: %d)', $image_info['url'], $existing ),
+                    'Async Image'
+                );
+            } else {
+                $images_to_download[] = $image_info;
+            }
+        }
+
+        if ( empty( $images_to_download ) ) {
+            Notion_To_WordPress_Helper::debug_log(
+                'All images already exist in media library',
+                'Async Image'
+            );
+            return $this->image_placeholders;
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf( 'Need to download %d new images', count( $images_to_download ) ),
+            'Async Image'
+        );
+
+        // 使用WordPress内置的并发下载功能
+        try {
+            // 准备并发下载请求
+            $requests = [];
+            foreach ( $images_to_download as $index => $image_info ) {
+                $requests[ $index ] = [
+                    'url' => $image_info['url'],
+                    'args' => [
+                        'timeout' => 30,
+                        'user-agent' => 'Notion-to-WordPress/1.9.0'
+                    ]
+                ];
+            }
+
+            // 执行并发下载
+            $responses = $this->concurrent_download_images( $requests );
+
+            // 处理下载结果
+            foreach ( $images_to_download as $index => $image_info ) {
+                $response = $responses[ $index ] ?? null;
+
+                if ( is_wp_error( $response ) ) {
+                    Notion_To_WordPress_Helper::error_log(
+                        sprintf( 'Image download failed: %s - %s', $image_info['url'], $response->get_error_message() ),
+                        'Async Image'
+                    );
+                    $this->image_placeholders[ $image_info['placeholder'] ] = null;
+                    continue;
+                }
+
+                // 处理下载的图片数据
+                $attachment_id = $this->process_downloaded_image_response( $image_info, $response );
+                $this->image_placeholders[ $image_info['placeholder'] ] = $attachment_id;
+            }
+
+        } catch ( Exception $e ) {
+            Notion_To_WordPress_Helper::error_log(
+                'Batch image download failed: ' . $e->getMessage(),
+                'Async Image'
+            );
+
+            // 标记所有图片为失败
+            foreach ( $images_to_download as $image_info ) {
+                $this->image_placeholders[ $image_info['placeholder'] ] = null;
+            }
+        }
+
+        $execution_time = microtime( true ) - $start_time;
+        $success_count = count( array_filter( $this->image_placeholders, function( $id ) {
+            return is_numeric( $id ) && $id > 0;
+        } ) );
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf(
+                'Batch image download completed: %d/%d successful, %.4f seconds',
+                $success_count,
+                $total_images,
+                $execution_time
+            ),
+            'Async Image'
+        );
+
+        return $this->image_placeholders;
+    }
+
+    /**
+     * 并发下载图片
+     *
+     * @since    1.9.0-beta.1
+     * @param    array     $requests      请求数组
+     * @return   array                    响应数组
+     */
+    private function concurrent_download_images( array $requests ): array {
+        if ( empty( $requests ) ) {
+            return [];
+        }
+
+        // 使用WordPress的HTTP API进行并发请求
+        $multi_requests = [];
+
+        // 准备并发请求
+        foreach ( $requests as $index => $request ) {
+            $multi_requests[ $index ] = [
+                'url' => $request['url'],
+                'args' => array_merge( $request['args'], [
+                    'blocking' => false, // 非阻塞模式
+                    'timeout' => 30,
+                    'user-agent' => 'Notion-to-WordPress/1.9.0'
+                ] )
+            ];
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf( 'Starting concurrent download of %d images', count( $multi_requests ) ),
+            'Concurrent Download'
+        );
+
+        // 使用cURL多句柄进行并发下载
+        return $this->execute_concurrent_requests( $multi_requests );
+    }
+
+    /**
+     * 执行并发HTTP请求
+     *
+     * @since    1.9.0-beta.1
+     * @param    array     $multi_requests    多个请求
+     * @return   array                        响应数组
+     */
+    private function execute_concurrent_requests( array $multi_requests ): array {
+        $responses = [];
+
+        // 检查是否支持cURL
+        if ( ! function_exists( 'curl_multi_init' ) ) {
+            Notion_To_WordPress_Helper::debug_log(
+                'cURL multi not available, falling back to sequential requests',
+                'Concurrent Download'
+            );
+
+            // 降级到顺序请求
+            foreach ( $multi_requests as $index => $request ) {
+                $response = wp_remote_get( $request['url'], $request['args'] );
+                $responses[ $index ] = $response;
+            }
+            return $responses;
+        }
+
+        // 创建cURL多句柄
+        $multi_handle = curl_multi_init();
+        $curl_handles = [];
+
+        // 添加所有请求到多句柄
+        foreach ( $multi_requests as $index => $request ) {
+            $ch = curl_init();
+
+            curl_setopt_array( $ch, [
+                CURLOPT_URL => $request['url'],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_USERAGENT => 'Notion-to-WordPress/1.9.0',
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+            ] );
+
+            curl_multi_add_handle( $multi_handle, $ch );
+            $curl_handles[ $index ] = $ch;
+        }
+
+        // 执行并发请求
+        $running = null;
+        do {
+            curl_multi_exec( $multi_handle, $running );
+            curl_multi_select( $multi_handle );
+        } while ( $running > 0 );
+
+        // 收集响应
+        foreach ( $curl_handles as $index => $ch ) {
+            $content = curl_multi_getcontent( $ch );
+            $http_code = curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+            $error = curl_error( $ch );
+
+            if ( ! empty( $error ) ) {
+                $responses[ $index ] = new WP_Error( 'curl_error', $error );
+            } else {
+                // 模拟WordPress HTTP API响应格式
+                $responses[ $index ] = [
+                    'body' => $content,
+                    'response' => [
+                        'code' => $http_code,
+                        'message' => ''
+                    ],
+                    'headers' => []
+                ];
+            }
+
+            curl_multi_remove_handle( $multi_handle, $ch );
+            curl_close( $ch );
+        }
+
+        curl_multi_close( $multi_handle );
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf( 'Concurrent download completed: %d responses', count( $responses ) ),
+            'Concurrent Download'
+        );
+
+        return $responses;
+    }
+
+    /**
+     * 处理下载的图片响应并插入到媒体库
+     *
+     * @since    1.9.0-beta.1
+     * @param    array     $image_info    图片信息
+     * @param    array     $response      HTTP响应数据
+     * @return   int|null                 附件ID或null
+     */
+    private function process_downloaded_image_response( array $image_info, array $response ): ?int {
+        try {
+            // 检查响应状态
+            $response_code = wp_remote_retrieve_response_code( $response );
+            if ( $response_code !== 200 ) {
+                throw new Exception( sprintf( 'HTTP error %d', $response_code ) );
+            }
+
+            $body = wp_remote_retrieve_body( $response );
+            if ( empty( $body ) ) {
+                throw new Exception( 'Empty response body' );
+            }
+
+            // 引入WordPress媒体处理函数
+            require_once ABSPATH . 'wp-admin/includes/media.php';
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+
+            // 创建临时文件
+            $tmp_file = wp_tempnam();
+            if ( ! $tmp_file ) {
+                throw new Exception( 'Could not create temporary file' );
+            }
+
+            // 写入图片数据
+            $bytes_written = file_put_contents( $tmp_file, $body );
+            if ( $bytes_written === false ) {
+                unlink( $tmp_file );
+                throw new Exception( 'Could not write image data to temporary file' );
+            }
+
+            // 获取文件名
+            $file_name = basename( parse_url( $image_info['url'], PHP_URL_PATH ) );
+            if ( ! $file_name ) {
+                $file_name = 'notion-image-' . time() . '.jpg';
+            }
+
+            // 准备文件数组
+            $file = [
+                'name'     => $file_name,
+                'tmp_name' => $tmp_file,
+            ];
+
+            // 保存到媒体库
+            $attachment_id = media_handle_sideload( $file, 0, $image_info['caption'] );
+
+            if ( is_wp_error( $attachment_id ) ) {
+                throw new Exception( $attachment_id->get_error_message() );
+            }
+
+            // 存储源URL方便后续去重
+            update_post_meta( $attachment_id, '_notion_original_url', esc_url_raw( $image_info['url'] ) );
+            update_post_meta( $attachment_id, '_notion_base_url', esc_url_raw( $image_info['base_url'] ) );
+
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf( 'Image processed successfully: %s (ID: %d)', $image_info['url'], $attachment_id ),
+                'Async Image'
+            );
+
+            return $attachment_id;
+
+        } catch ( Exception $e ) {
+            Notion_To_WordPress_Helper::error_log(
+                sprintf( 'Failed to process downloaded image: %s - %s', $image_info['url'], $e->getMessage() ),
+                'Async Image'
+            );
+            return null;
+        }
+    }
+
+    /**
+     * 替换HTML内容中的图片占位符
+     *
+     * @since    1.9.0-beta.1
+     * @param    string    $html    包含占位符的HTML内容
+     * @return   string             替换后的HTML内容
+     */
+    private function replace_image_placeholders( string $html ): string {
+        if ( empty( $this->image_placeholders ) ) {
+            return $html;
+        }
+
+        $replacements = 0;
+
+        foreach ( $this->image_placeholders as $placeholder => $attachment_id ) {
+            if ( is_numeric( $attachment_id ) && $attachment_id > 0 ) {
+                // 成功下载的图片，替换为实际的图片HTML
+                $image_url = wp_get_attachment_url( $attachment_id );
+                if ( $image_url ) {
+                    // 查找对应的图片信息
+                    $image_info = null;
+                    foreach ( $this->pending_images as $info ) {
+                        if ( $info['placeholder'] === $placeholder ) {
+                            $image_info = $info;
+                            break;
+                        }
+                    }
+
+                    $caption = $image_info['caption'] ?? '';
+                    $img_html = '<figure class="wp-block-image size-large"><img src="' . esc_url( $image_url ) . '" alt="' . esc_attr( $caption ) . '"><figcaption>' . esc_html( $caption ) . '</figcaption></figure>';
+
+                    $html = str_replace( $placeholder, $img_html, $html );
+                    $replacements++;
+                }
+            } else {
+                // 下载失败的图片，替换为错误提示或移除
+                $html = str_replace( $placeholder, '<!-- Image download failed -->', $html );
+                $replacements++;
+            }
+        }
+
+        if ( $replacements > 0 ) {
+            Notion_To_WordPress_Helper::debug_log(
+                sprintf( 'Replaced %d image placeholders in HTML content', $replacements ),
+                'Async Image'
+            );
+        }
+
+        return $html;
+    }
+
+    /**
+     * 清理图片队列和占位符
+     *
+     * @since    1.9.0-beta.1
+     */
+    private function clear_image_queue(): void {
+        $this->pending_images = [];
+        $this->image_placeholders = [];
+
+        Notion_To_WordPress_Helper::debug_log(
+            'Image queue and placeholders cleared',
+            'Async Image'
+        );
+    }
+
+    /**
+     * 获取图片队列统计信息
+     *
+     * @since    1.9.0-beta.1
+     * @param    bool     $use_last_stats    是否使用最后一次处理的统计
+     * @return   array                       统计信息
+     */
+    public function get_image_queue_stats( bool $use_last_stats = false ): array {
+        // 如果队列已清空但需要统计信息，使用最后一次保存的统计
+        if ( $use_last_stats && empty( $this->pending_images ) && empty( $this->image_placeholders ) && ! empty( $this->last_processing_stats ) ) {
+            return $this->last_processing_stats;
+        }
+
+        return [
+            'pending_count' => count( $this->pending_images ),
+            'placeholder_count' => count( $this->image_placeholders ),
+            'successful_downloads' => count( array_filter( $this->image_placeholders, function( $id ) {
+                return is_numeric( $id ) && $id > 0;
+            } ) ),
+            'failed_downloads' => count( array_filter( $this->image_placeholders, function( $id ) {
+                return $id === null;
+            } ) )
+        ];
+    }
+
+    /**
+     * 启用异步图片下载模式
+     *
+     * @since    1.9.0-beta.1
+     */
+    public function enable_async_image_mode(): void {
+        $this->async_image_mode = true;
+        $this->clear_image_queue();
+
+        Notion_To_WordPress_Helper::debug_log(
+            'Async image download mode enabled',
+            'Async Image'
+        );
+    }
+
+    /**
+     * 禁用异步图片下载模式
+     *
+     * @since    1.9.0-beta.1
+     */
+    public function disable_async_image_mode(): void {
+        $this->async_image_mode = false;
+        $this->clear_image_queue();
+
+        Notion_To_WordPress_Helper::debug_log(
+            'Async image download mode disabled',
+            'Async Image'
+        );
+    }
+
+    /**
+     * 处理异步图片下载并替换占位符
+     *
+     * @since    1.9.0-beta.1
+     * @param    string    $html    包含占位符的HTML内容
+     * @return   string             处理后的HTML内容
+     */
+    public function process_async_images( string $html ): string {
+        if ( ! $this->async_image_mode || empty( $this->pending_images ) ) {
+            return $html;
+        }
+
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf( 'Processing async images: %d pending', count( $this->pending_images ) ),
+            'Async Image'
+        );
+
+        // 批量下载图片
+        $this->batch_download_images();
+
+        // 保存统计信息（在清理前）
+        $this->last_processing_stats = $this->get_image_queue_stats();
+
+        // 替换占位符
+        $processed_html = $this->replace_image_placeholders( $html );
+
+        // 清理队列
+        $this->clear_image_queue();
+
+        return $processed_html;
     }
 }

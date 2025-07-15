@@ -7,7 +7,7 @@
  * 确保生成的 ZIP 包符合 WordPress 插件规范，并符合大小限制。
  * 
  * @author Frank-Loong
- * @version 1.8.3-beta.2
+ * @version 2.0.0-beta.1
  */
 
 const fs = require('fs');

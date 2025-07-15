@@ -5,12 +5,13 @@ declare(strict_types=1);
  * 国际化 (i18n) 类。
  * 负责加载插件的文本域 (text domain)，并根据用户设置覆盖默认语言。
  * @since      1.0.8
- * @version    1.8.3-beta.2
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
     exit;

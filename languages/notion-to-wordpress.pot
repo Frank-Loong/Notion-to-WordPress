@@ -6,7 +6,7 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Notion to WordPress 1.8.3-beta.2\n"
+"Project-Id-Version: Notion to WordPress 2.0.0-beta.1\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-08 17:30+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
