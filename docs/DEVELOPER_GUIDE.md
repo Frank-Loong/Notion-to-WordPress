@@ -737,13 +737,13 @@ npm run release:patch         # Choose appropriate type
 
 ```bash
 # Release candidates
-npm run release:custom -- --version=1.8.1-rc.1
+node scripts/release.js custom --version=1.8.1-rc.1
 
 # Hotfix versions
-npm run release:custom -- --version=1.8.1-hotfix.1
+node scripts/release.js custom --version=1.8.1-hotfix.1
 
 # Preview mode
-npm run release:custom -- --version=1.8.1-rc.1 --dry-run
+node scripts/release.js custom --version=X.Y.Z --dry-run
 ```
 
 ---
