@@ -2,7 +2,7 @@
  * 管理界面交互脚本
  * 处理 Notion to WordPress 插件后台页面的所有用户交互，包括表单提交、AJAX 请求、标签页切换和动态内容更新。
  * @since 1.0.8
- * @version 1.8.3-beta.1
+ * @version 1.8.3-beta.2
  * @package Notion_To_WordPress
  * @author Frank-Loong
  * @license GPL-3.0-or-later
@@ -752,155 +752,6 @@ jQuery(document).ready(function($) {
             }
         });
     }
-
-    // 刷新性能数据
-    $('#refresh-performance-data').on('click', function(e) {
-        e.preventDefault();
-        var button = $(this);
-
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> 刷新中...');
-
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'notion_to_wordpress_refresh_performance_data',
-                nonce: notionToWp.nonce
-            },
-            success: function(response) {
-                var message = response.success ? '性能数据已刷新' : (response.data.message || '刷新失败');
-                var status = response.success ? 'success' : 'error';
-
-                showModal(message, status);
-
-                if (response.success) {
-                    // 重新加载页面以显示最新数据
-                    location.reload();
-                }
-            },
-            error: function() {
-                showModal('网络错误，请稍后重试', 'error');
-            },
-            complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> 刷新数据');
-            }
-        });
-    });
-
-    // 重置性能统计
-    $('#reset-performance-stats').on('click', function(e) {
-        e.preventDefault();
-        var button = $(this);
-
-        if (!confirm('确定要重置所有性能统计数据吗？此操作不可撤销。')) {
-            return;
-        }
-
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> 重置中...');
-
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'notion_to_wordpress_reset_performance_stats',
-                nonce: notionToWp.nonce
-            },
-            success: function(response) {
-                var message = response.success ? '性能统计已重置' : (response.data.message || '重置失败');
-                var status = response.success ? 'success' : 'error';
-
-                showModal(message, status);
-
-                if (response.success) {
-                    // 重新加载页面以显示重置后的数据
-                    location.reload();
-                }
-            },
-            error: function() {
-                showModal('网络错误，请稍后重试', 'error');
-            },
-            complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> 重置统计');
-            }
-        });
-    });
-
-    // 运行性能测试
-    $('#run-performance-test').on('click', function(e) {
-        e.preventDefault();
-        var button = $(this);
-
-        if (!confirm('确定要运行性能测试吗？这可能需要几分钟时间。')) {
-            return;
-        }
-
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> 测试中...');
-
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'notion_to_wordpress_run_performance_test',
-                nonce: notionToWp.nonce
-            },
-            timeout: 120000, // 2分钟超时
-            success: function(response) {
-                var message = response.success ? '性能测试完成' : (response.data.message || '测试失败');
-                var status = response.success ? 'success' : 'error';
-
-                showModal(message, status);
-
-                if (response.success) {
-                    // 重新加载页面以显示测试结果
-                    location.reload();
-                }
-            },
-            error: function() {
-                showModal('网络错误或测试超时，请稍后重试', 'error');
-            },
-            complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-performance"></span> 运行性能测试');
-            }
-        });
-    });
-
-    // 恢复性能配置默认值
-    $('#reset-performance-config').on('click', function(e) {
-        e.preventDefault();
-        var button = $(this);
-
-        if (!confirm('确定要恢复所有性能配置到默认值吗？')) {
-            return;
-        }
-
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> 恢复中...');
-
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'notion_to_wordpress_reset_performance_config',
-                nonce: notionToWp.nonce
-            },
-            success: function(response) {
-                var message = response.success ? '性能配置已恢复默认值' : (response.data.message || '恢复失败');
-                var status = response.success ? 'success' : 'error';
-
-                showModal(message, status);
-
-                if (response.success) {
-                    // 重新加载页面以显示默认配置
-                    location.reload();
-                }
-            },
-            error: function() {
-                showModal('网络错误，请稍后重试', 'error');
-            },
-            complete: function() {
-                button.prop('disabled', false).html('恢复默认值');
-            }
-        });
-    });
 });
 
 // 从 copy_button.js 合并的代码
@@ -953,5 +804,4 @@ jQuery(document).ready(function($) {
             }
         }
     });
-
 })(jQuery);

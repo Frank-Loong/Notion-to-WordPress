@@ -2,7 +2,7 @@
  * 数据库视图交互脚本
  * 为 Notion 数据库的画廊、表格和看板视图提供增强的交互功能，包括响应式布局、懒加载和性能优化。
  * @since 1.1.1
- * @version 1.8.3-beta.1
+ * @version 1.8.3-beta.2
  * @package Notion_To_WordPress
  * @author Frank-Loong
  * @license GPL-3.0-or-later

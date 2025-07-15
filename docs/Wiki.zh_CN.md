@@ -1726,4 +1726,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </div>
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.1
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.2

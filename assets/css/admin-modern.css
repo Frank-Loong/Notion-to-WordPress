@@ -2,7 +2,7 @@
  * 插件后台现代化样式
  * 为 Notion to WordPress 插件后台提供现代化、响应式的用户界面样式。
  * @since      2.0.0
- * @version    1.8.3-beta.1
+ * @version    1.8.3-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -187,7 +187,7 @@ body.wp-admin {
 /* 添加Element Plus全局引用 */
 @import url('https://cdn.jsdelivr.net/npm/element-plus@2.3.2/dist/index.css');
 
-/* 侧边栏样式 - 修复黑色背景问题 */
+/* 侧边栏样式*/
 .ncf-admin-aside {
     background: #f1f1f1;
     color: #333;
@@ -309,7 +309,7 @@ body.wp-admin {
     background: var(--notion-primary-dark);
 }
 
-/* WordPress 暗模式兼容 - 修复黑色背景问题 */
+/* WordPress 暗模式兼容*/
 body.admin-color-dark .ncf-admin-aside {
     background: #f9f9f9;
     color: #333;
@@ -566,25 +566,6 @@ body.admin-color-dark .ncf-admin-aside {
 .notion-wp-tab-content.active {
   display: block !important;
   animation: fadeIn 0.3s ease-in-out;
-}
-
-/* 确保标签页内的notice元素也被正确隐藏 */
-.notion-wp-tab-content:not(.active) .notion-wp-tab-notice {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  height: 0 !important;
-  overflow: hidden !important;
-}
-
-/* 更强的隐藏规则，确保非活动标签页完全隐藏 */
-.notion-wp-tab-content:not(.active) {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  position: absolute !important;
-  left: -9999px !important;
-  top: -9999px !important;
 }
 
 @keyframes fadeIn {

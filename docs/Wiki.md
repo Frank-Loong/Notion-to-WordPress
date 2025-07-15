@@ -1631,7 +1631,7 @@ Title: [Bug] Image download fails during sync - permission error
 Environment Information:
 - WordPress: 6.3.1
 - PHP: 8.0.28
-- Plugin Version: 1.8.2
+- Plugin Version: 1.1.0
 - Theme: Twenty Twenty-Three
 - Server: Apache 2.4
 
@@ -1726,4 +1726,4 @@ We appreciate all community members who contribute to the project:
 
 </div>
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.1
+> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.2

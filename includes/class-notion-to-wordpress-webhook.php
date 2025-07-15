@@ -5,7 +5,7 @@ declare(strict_types=1);
  * Webhook 处理类。
  * 负责注册 REST API 路由以接收来自 Notion 的 Webhook 请求，并根据请求内容触发相应的同步操作。
  * @since      1.1.0
- * @version    1.8.3-beta.1
+ * @version    1.8.3-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
