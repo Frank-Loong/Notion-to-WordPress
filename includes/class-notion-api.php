@@ -348,7 +348,7 @@ class Notion_API {
     }
 
     /**
-     * 获取页面的元数据。
+     * 获取页面的元数据 - 优化版本（会话级缓存）
      *
      * @since    1.0.8
      * @param    string    $page_id    Notion 页面的 ID。
@@ -356,8 +356,18 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_page_metadata(string $page_id): array {
+        // 检查会话级缓存
+        if (isset(self::$page_cache[$page_id])) {
+            return self::$page_cache[$page_id];
+        }
+
         $endpoint = 'pages/' . $page_id;
-        return $this->send_request($endpoint);
+        $result = $this->send_request($endpoint);
+
+        // 存储到会话级缓存
+        self::$page_cache[$page_id] = $result;
+
+        return $result;
     }
 
     /**
@@ -401,15 +411,25 @@ class Notion_API {
     }
 
     /**
-     * 获取单个页面对象
+     * 获取单个页面对象 - 优化版本（会话级缓存）
      *
      * @param string $page_id 页面ID
      * @return array<string, mixed>
      * @throws Exception
      */
     public function get_page(string $page_id): array {
+        // 检查会话级缓存
+        if (isset(self::$page_cache[$page_id])) {
+            return self::$page_cache[$page_id];
+        }
+
         $endpoint = 'pages/' . $page_id;
-        return $this->send_request($endpoint);
+        $result = $this->send_request($endpoint);
+
+        // 存储到会话级缓存
+        self::$page_cache[$page_id] = $result;
+
+        return $result;
     }
 
     /**

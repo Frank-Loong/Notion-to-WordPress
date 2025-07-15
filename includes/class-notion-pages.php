@@ -31,7 +31,7 @@ class Notion_Pages {
      * @var      array    $processed_blocks    已处理的块ID
      */
     private array $processed_blocks = [];
-    
+
     /**
      * Notion API实例
      *
@@ -40,6 +40,18 @@ class Notion_Pages {
      * @var      Notion_API    $notion_api    Notion API实例
      */
     private Notion_API $notion_api;
+
+    /**
+     * 会话级数据库查询缓存
+     * @var array
+     */
+    private static $db_query_cache = [];
+
+    /**
+     * 会话级批量查询缓存
+     * @var array
+     */
+    private static $batch_query_cache = [];
     
     /**
      * 数据库ID
@@ -1217,13 +1229,19 @@ class Notion_Pages {
     }
 
     /**
-     * 根据Notion页面ID获取WordPress文章 - 优化版本
+     * 根据Notion页面ID获取WordPress文章 - 优化版本（会话级缓存）
      *
      * @since    1.0.5
      * @param    string    $notion_id    Notion页面ID
      * @return   int                     WordPress文章ID
      */
     private function get_post_by_notion_id($notion_id) {
+        // 检查会话级缓存
+        $cache_key = 'post_by_notion_id_' . $notion_id;
+        if (isset(self::$db_query_cache[$cache_key])) {
+            return self::$db_query_cache[$cache_key];
+        }
+
         global $wpdb;
 
         // 使用直接SQL查询而不是get_posts，减少开销
@@ -1235,12 +1253,16 @@ class Notion_Pages {
         );
 
         $post_id = $wpdb->get_var($query);
+        $result = $post_id ? (int)$post_id : 0;
 
-        return $post_id ? (int)$post_id : 0;
+        // 存储到会话级缓存
+        self::$db_query_cache[$cache_key] = $result;
+
+        return $result;
     }
 
     /**
-     * 批量获取多个Notion页面ID对应的WordPress文章ID
+     * 批量获取多个Notion页面ID对应的WordPress文章ID - 优化版本（会话级缓存）
      *
      * @since    1.1.2
      * @param    array    $notion_ids    Notion页面ID数组
@@ -1251,34 +1273,59 @@ class Notion_Pages {
             return [];
         }
 
-        global $wpdb;
-
-        // 准备SQL占位符
-        $placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
-
-        // 执行批量查询
-        $query = $wpdb->prepare(
-            "SELECT post_id, meta_value as notion_id
-            FROM {$wpdb->postmeta}
-            WHERE meta_key = '_notion_page_id'
-            AND meta_value IN ($placeholders)",
-            $notion_ids
-        );
-
-        $results = $wpdb->get_results($query);
-
-        // 构建映射数组
-        $mapping = array_fill_keys($notion_ids, 0); // 默认所有ID映射为0
-
-        foreach ($results as $row) {
-            $mapping[$row->notion_id] = (int)$row->post_id;
+        // 检查会话级缓存
+        $cache_key = 'batch_posts_' . md5(serialize($notion_ids));
+        if (isset(self::$batch_query_cache[$cache_key])) {
+            return self::$batch_query_cache[$cache_key];
         }
+
+        // 检查单个缓存，减少需要查询的ID
+        $uncached_ids = [];
+        $mapping = [];
+
+        foreach ($notion_ids as $notion_id) {
+            $single_cache_key = 'post_by_notion_id_' . $notion_id;
+            if (isset(self::$db_query_cache[$single_cache_key])) {
+                $mapping[$notion_id] = self::$db_query_cache[$single_cache_key];
+            } else {
+                $uncached_ids[] = $notion_id;
+                $mapping[$notion_id] = 0; // 默认值
+            }
+        }
+
+        // 如果还有未缓存的ID，执行批量查询
+        if (!empty($uncached_ids)) {
+            global $wpdb;
+
+            // 准备SQL占位符
+            $placeholders = implode(',', array_fill(0, count($uncached_ids), '%s'));
+
+            // 执行批量查询
+            $query = $wpdb->prepare(
+                "SELECT post_id, meta_value as notion_id
+                FROM {$wpdb->postmeta}
+                WHERE meta_key = '_notion_page_id'
+                AND meta_value IN ($placeholders)",
+                $uncached_ids
+            );
+
+            $results = $wpdb->get_results($query);
+
+            // 更新映射和单个缓存
+            foreach ($results as $row) {
+                $mapping[$row->notion_id] = (int)$row->post_id;
+                self::$db_query_cache['post_by_notion_id_' . $row->notion_id] = (int)$row->post_id;
+            }
+        }
+
+        // 存储到批量查询缓存
+        self::$batch_query_cache[$cache_key] = $mapping;
 
         return $mapping;
     }
 
     /**
-     * 批量获取页面同步时间
+     * 批量获取页面同步时间 - 优化版本（会话级缓存）
      *
      * @since    1.1.2
      * @param    array    $notion_ids    Notion页面ID数组
@@ -1287,6 +1334,12 @@ class Notion_Pages {
     private function batch_get_page_sync_times(array $notion_ids): array {
         if (empty($notion_ids)) {
             return [];
+        }
+
+        // 检查会话级缓存
+        $cache_key = 'batch_sync_times_' . md5(serialize($notion_ids));
+        if (isset(self::$batch_query_cache[$cache_key])) {
+            return self::$batch_query_cache[$cache_key];
         }
 
         global $wpdb;
@@ -1313,6 +1366,9 @@ class Notion_Pages {
         foreach ($results as $row) {
             $mapping[$row->notion_id] = $row->sync_time;
         }
+
+        // 存储到会话级缓存
+        self::$batch_query_cache[$cache_key] = $mapping;
 
         return $mapping;
     }
@@ -1598,6 +1654,9 @@ class Notion_Pages {
      */
     public function import_pages($check_deletions = true, $incremental = true) {
         try {
+            // 初始化会话级缓存
+            self::init_session_cache();
+
             // 添加调试日志
             Notion_To_WordPress_Helper::info_log('import_pages() 开始执行', 'Pages Import');
             Notion_To_WordPress_Helper::info_log('Database ID: ' . $this->database_id, 'Pages Import');
@@ -1646,6 +1705,17 @@ class Notion_Pages {
             if (empty($pages)) {
                 // 如果增量同步后没有页面需要处理，返回成功但无操作的结果
                 error_log('Notion to WordPress: 增量同步无页面需要更新');
+
+                // 获取会话缓存统计
+                $cache_stats = self::get_session_cache_stats();
+                Notion_To_WordPress_Helper::debug_log(
+                    '会话缓存统计（无页面更新）: ' . print_r($cache_stats, true),
+                    'Session Cache'
+                );
+
+                // 清理会话级缓存
+                self::clear_session_cache();
+
                 return $stats;
             }
 
@@ -1684,11 +1754,26 @@ class Notion_Pages {
             }
 
             Notion_To_WordPress_Helper::info_log('所有页面处理完成，统计: ' . print_r($stats, true), 'Pages Import');
+
+            // 获取会话缓存统计
+            $cache_stats = self::get_session_cache_stats();
+            Notion_To_WordPress_Helper::debug_log(
+                '会话缓存统计: ' . print_r($cache_stats, true),
+                'Session Cache'
+            );
+
+            // 清理会话级缓存
+            self::clear_session_cache();
+
             return $stats;
 
         } catch (Exception $e) {
             Notion_To_WordPress_Helper::error_log('import_pages() 异常: ' . $e->getMessage(), 'Pages Import');
             Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Pages Import');
+
+            // 异常时也要清理会话级缓存
+            self::clear_session_cache();
+
             return new WP_Error('import_failed', __('导入失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
@@ -3406,9 +3491,11 @@ class Notion_Pages {
      */
     public function get_performance_stats(): array {
         $api_stats = Notion_API::get_cache_stats();
+        $session_stats = self::get_session_cache_stats();
 
         return [
             'api_cache' => $api_stats,
+            'session_cache' => $session_stats,
             'memory_usage' => memory_get_usage(true),
             'peak_memory' => memory_get_peak_usage(true),
             'execution_time' => microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']
@@ -3467,5 +3554,52 @@ class Notion_Pages {
     public function register_ajax_handlers(): void {
         add_action('wp_ajax_notion_get_record_details', [$this, 'ajax_get_record_details']);
         add_action('wp_ajax_nopriv_notion_get_record_details', [$this, 'ajax_get_record_details']);
+    }
+
+    /**
+     * 清理会话级缓存
+     *
+     * @since 1.1.2
+     */
+    public static function clear_session_cache(): void {
+        self::$db_query_cache = [];
+        self::$batch_query_cache = [];
+
+        // 同时清理API缓存
+        Notion_API::clear_page_cache();
+
+        Notion_To_WordPress_Helper::debug_log(
+            '清理会话级缓存完成',
+            'Session Cache'
+        );
+    }
+
+    /**
+     * 获取会话级缓存统计
+     *
+     * @since 1.1.2
+     * @return array
+     */
+    public static function get_session_cache_stats(): array {
+        return [
+            'db_query_cache_count' => count(self::$db_query_cache),
+            'batch_query_cache_count' => count(self::$batch_query_cache),
+            'total_session_cache_items' => count(self::$db_query_cache) + count(self::$batch_query_cache)
+        ];
+    }
+
+    /**
+     * 在同步开始时初始化会话缓存
+     *
+     * @since 1.1.2
+     */
+    public static function init_session_cache(): void {
+        // 清理之前的缓存
+        self::clear_session_cache();
+
+        Notion_To_WordPress_Helper::debug_log(
+            '初始化会话级缓存',
+            'Session Cache'
+        );
     }
 }
