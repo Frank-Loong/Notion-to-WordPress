@@ -5,7 +5,7 @@ declare(strict_types=1);
  * 插件核心类。
  * 负责初始化插件，加载依赖项，定义国际化，以及注册后台和前台的钩子。
  * @since      1.0.9
- * @version    1.8.3-beta.1
+ * @version    1.8.3-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -93,7 +93,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.8.2';
+			$this->version = '1.8.3-beta.2';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 
@@ -123,7 +123,6 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-loader.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-i18n.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-concurrent-manager.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
@@ -211,9 +210,6 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
-
-		// 性能监控AJAX钩子
-		$this->loader->add_action( 'wp_ajax_refresh_performance_data', $this->admin, 'handle_performance_ajax_public' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );

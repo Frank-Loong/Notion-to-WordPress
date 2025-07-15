@@ -7,7 +7,7 @@
  * 保证版本号一致，并支持语义化版本（patch、minor、major、beta）。
  * 
  * @author Frank-Loong
- * @version 1.8.3-beta.1
+ * @version 1.8.3-beta.2
  */
 
 const fs = require('fs');
@@ -34,6 +34,31 @@ class VersionBumper {
                     {
                         regex: /(define\(\s*'NOTION_TO_WORDPRESS_VERSION',\s*')([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(.*\);)/,
                         replacement: '$1{VERSION}$3'
+                    }
+                ]
+            },
+            {
+                path: 'includes/class-notion-to-wordpress.php',
+                patterns: [
+                    {
+                        // 文件头部的 @version 注释
+                        regex: /(\* @version\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    },
+                    {
+                        // 构造函数中的硬编码版本号
+                        regex: /(\$this->version\s*=\s*')([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(';)/,
+                        replacement: '$1{VERSION}$3'
+                    }
+                ]
+            },
+            {
+                path: 'release.config.js',
+                patterns: [
+                    {
+                        // 文件头部的 @version 注释
+                        regex: /(\* @version\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
                     }
                 ]
             },

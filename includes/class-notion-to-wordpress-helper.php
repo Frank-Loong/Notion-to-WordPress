@@ -5,7 +5,7 @@ declare(strict_types=1);
  * 辅助工具类。
  * 提供一系列静态辅助方法，用于日志记录、安全过滤、数据处理和性能监控等。
  * @since      1.0.9
- * @version    1.8.3-beta.1
+ * @version    1.8.3-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -31,34 +31,7 @@ class Notion_To_WordPress_Helper {
      * @access private
      * @var int
      */
-    private static int $debug_level = self::DEBUG_LEVEL_NONE;
-    
-    /**
-     * 初始化标志，避免重复初始化
-     *
-     * @since    1.8.1
-     * @access   private
-     * @var      bool
-     */
-    private static bool $initialized = false;
-
-    /**
-     * 日志缓冲区，减少频繁的文件I/O操作
-     *
-     * @since    1.8.1
-     * @access   private
-     * @var      array
-     */
-    private static array $log_buffer = [];
-
-    /**
-     * 日志缓冲区大小限制
-     *
-     * @since    1.8.1
-     * @access   private
-     * @var      int
-     */
-    private static int $log_buffer_size = 10;
+    private static int $debug_level = self::DEBUG_LEVEL_ERROR;
 
     /**
      * 根据WordPress设置初始化日志级别。
@@ -66,11 +39,6 @@ class Notion_To_WordPress_Helper {
      * @since 1.0.8
      */
     public static function init() {
-        // 避免重复初始化
-        if (self::$initialized) {
-            return;
-        }
-
         // 从选项中获取调试级别
         $options = get_option('notion_to_wordpress_options', []);
         self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
@@ -80,10 +48,8 @@ class Notion_To_WordPress_Helper {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
 
-        self::$initialized = true;
-
-        // 注册shutdown处理程序，确保缓冲区在脚本结束时被刷新
-        register_shutdown_function([__CLASS__, 'shutdown_handler']);
+        // 使用Helper类的方法记录日志，避免直接使用error_log
+        self::debug_log(__('调试级别设置为: ', 'notion-to-wordpress') . self::$debug_level, 'Notion Init', self::DEBUG_LEVEL_INFO);
     }
 
     /**
@@ -124,8 +90,8 @@ class Notion_To_WordPress_Helper {
             error_log($log_prefix . $filtered_content);
         }
 
-        // 使用缓冲机制减少文件I/O操作
-        self::buffer_log($log_prefix . $filtered_content);
+        // 总是记录到专用文件，确保用户可以查看日志
+        self::log_to_file($log_prefix . $filtered_content);
     }
 
     /**
@@ -165,10 +131,9 @@ class Notion_To_WordPress_Helper {
      *
      * @since    1.0.8
      * @access   private
-     * @param    string    $message         要写入文件的日志消息。
-     * @param    bool      $add_newline     是否添加换行符（默认true）
+     * @param    string    $message    要写入文件的日志消息。
      */
-    private static function log_to_file($message, $add_newline = true) {
+    private static function log_to_file($message) {
         // 临时强制启用日志记录用于调试
         // if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
         //     return;
@@ -192,9 +157,8 @@ class Notion_To_WordPress_Helper {
         // 日志文件路径
         $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
         
-        // 写入日志，根据参数决定是否添加换行符
-        $content = $add_newline ? $message . PHP_EOL : $message;
-        file_put_contents($log_file, $content, FILE_APPEND | LOCK_EX);
+        // 写入日志
+        file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
     }
     
     /**
@@ -599,9 +563,9 @@ class Notion_To_WordPress_Helper {
      * @return array|WP_Error 响应数组或错误对象
      */
     public static function safe_remote_get(string $url, array $args = []) {
-        // 默认参数 - 大幅减少超时时间以提升速度
+        // 默认参数
         $default_args = [
-            'timeout' => 5,  // 从30秒减少到5秒
+            'timeout' => 30,
             'user-agent' => 'Notion-to-WordPress/' . NOTION_TO_WORDPRESS_VERSION,
             'headers' => [
                 'Accept' => 'application/json',
@@ -747,367 +711,38 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 开始性能计时 - 已禁用以提升性能
+     * 开始性能计时
      *
      * @since 1.1.1
      * @param string $operation 操作名称
      * @return float 开始时间
      */
     public static function start_performance_timer(string $operation): float {
-        // 性能计时已完全禁用以提升同步速度
-        return microtime(true);
+        $start_time = microtime(true);
+
+        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG) {
+            self::debug_log(
+                '开始性能计时: ' . $operation,
+                'Performance Timer'
+            );
+        }
+
+        return $start_time;
     }
 
     /**
-     * 结束性能计时并记录 - 已禁用以提升性能
+     * 结束性能计时并记录
      *
      * @since 1.1.1
      * @param string $operation 操作名称
      * @param float $start_time 开始时间
      * @param array $additional_data 额外数据
-     * @return float 执行时间（毫秒）
      */
-    public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): float {
-        // 性能计时已完全禁用以提升同步速度
-        return 0.0;
+    public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): void {
+        self::log_performance($operation, $start_time, $additional_data);
     }
 
-    /**
-     * 内存使用阈值配置
-     *
-     * @since 1.8.1
-     * @var array
-     */
-    private static array $memory_thresholds = [
-        'warning' => 0.7,    // 70%内存使用率警告
-        'critical' => 0.85,  // 85%内存使用率严重警告
-        'emergency' => 0.95  // 95%内存使用率紧急处理
-    ];
 
-    /**
-     * 内存监控统计
-     *
-     * @since 1.8.1
-     * @var array
-     */
-    private static array $memory_stats = [
-        'peak_usage' => 0,
-        'warning_count' => 0,
-        'critical_count' => 0,
-        'emergency_count' => 0,
-        'last_check_time' => 0,
-        'memory_trend' => []
-    ];
-
-    /**
-     * 资源管理配置
-     *
-     * @since 1.8.1
-     * @var array
-     */
-    private static array $resource_config = [
-        'enable_memory_monitoring' => true,
-        'memory_check_interval' => 10, // 每10次操作检查一次
-        'auto_cleanup_enabled' => true,
-        'max_memory_trend_records' => 50,
-        'gc_force_threshold' => 0.8 // 80%内存使用率时强制垃圾回收
-    ];
-
-    /**
-     * 检查内存使用情况 - 已禁用以提升性能
-     *
-     * @since 1.8.1
-     * @param string $operation 当前操作名称
-     * @return array 内存检查结果
-     */
-    public static function check_memory_usage(string $operation = ''): array {
-        // 内存监控已完全禁用以提升同步速度
-        return ['status' => 'disabled'];
-    }
-
-    /**
-     * 获取内存限制
-     *
-     * @since 1.8.1
-     * @return int 内存限制（字节）
-     */
-    private static function get_memory_limit(): int {
-        $memory_limit = ini_get('memory_limit');
-
-        if ($memory_limit === '-1') {
-            return 0; // 无限制
-        }
-
-        // 解析内存限制字符串
-        $unit = strtoupper(substr($memory_limit, -1));
-        $value = (int)substr($memory_limit, 0, -1);
-
-        switch ($unit) {
-            case 'G':
-                return $value * 1024 * 1024 * 1024;
-            case 'M':
-                return $value * 1024 * 1024;
-            case 'K':
-                return $value * 1024;
-            default:
-                return (int)$memory_limit;
-        }
-    }
-
-    /**
-     * 记录内存使用趋势
-     *
-     * @since 1.8.1
-     * @param int $current_memory 当前内存使用
-     * @param float $usage_ratio 使用率
-     */
-    private static function record_memory_trend(int $current_memory, float $usage_ratio): void {
-        $trend_record = [
-            'memory' => $current_memory,
-            'ratio' => $usage_ratio,
-            'timestamp' => time()
-        ];
-
-        self::$memory_stats['memory_trend'][] = $trend_record;
-
-        // 保持趋势记录数量在限制内
-        if (count(self::$memory_stats['memory_trend']) > self::$resource_config['max_memory_trend_records']) {
-            array_shift(self::$memory_stats['memory_trend']);
-        }
-
-        self::$memory_stats['last_check_time'] = time();
-    }
-
-    /**
-     * 评估内存状态
-     *
-     * @since 1.8.1
-     * @param float $usage_ratio 内存使用率
-     * @param string $operation 当前操作
-     * @return string 内存状态
-     */
-    private static function evaluate_memory_status(float $usage_ratio, string $operation): string {
-        if ($usage_ratio >= self::$memory_thresholds['emergency']) {
-            self::$memory_stats['emergency_count']++;
-            self::handle_emergency_memory_situation($usage_ratio, $operation);
-            return 'emergency';
-        } elseif ($usage_ratio >= self::$memory_thresholds['critical']) {
-            self::$memory_stats['critical_count']++;
-            self::handle_critical_memory_situation($usage_ratio, $operation);
-            return 'critical';
-        } elseif ($usage_ratio >= self::$memory_thresholds['warning']) {
-            self::$memory_stats['warning_count']++;
-            self::handle_warning_memory_situation($usage_ratio, $operation);
-            return 'warning';
-        }
-
-        return 'normal';
-    }
-
-    /**
-     * 处理紧急内存情况
-     *
-     * @since 1.8.1
-     * @param float $usage_ratio 内存使用率
-     * @param string $operation 当前操作
-     */
-    private static function handle_emergency_memory_situation(float $usage_ratio, string $operation): void {
-        self::error_log(
-            sprintf('紧急内存警告！内存使用率达到%.2f%%，操作：%s', $usage_ratio * 100, $operation),
-            'Memory Emergency'
-        );
-
-        // 强制垃圾回收
-        if (function_exists('gc_collect_cycles')) {
-            $collected = gc_collect_cycles();
-            self::debug_log(
-                sprintf('紧急垃圾回收完成，回收%d个循环引用', $collected),
-                'Memory Emergency'
-            );
-        }
-
-        // 清理缓存
-        self::emergency_cache_cleanup();
-    }
-
-    /**
-     * 处理严重内存情况
-     *
-     * @since 1.8.1
-     * @param float $usage_ratio 内存使用率
-     * @param string $operation 当前操作
-     */
-    private static function handle_critical_memory_situation(float $usage_ratio, string $operation): void {
-        self::error_log(
-            sprintf('严重内存警告！内存使用率达到%.2f%%，操作：%s', $usage_ratio * 100, $operation),
-            'Memory Critical'
-        );
-
-        // 执行垃圾回收
-        if (function_exists('gc_collect_cycles')) {
-            gc_collect_cycles();
-        }
-
-        // 建议分页处理
-        self::suggest_pagination($operation);
-    }
-
-    /**
-     * 处理内存警告情况
-     *
-     * @since 1.8.1
-     * @param float $usage_ratio 内存使用率
-     * @param string $operation 当前操作
-     */
-    private static function handle_warning_memory_situation(float $usage_ratio, string $operation): void {
-        self::debug_log(
-            sprintf('内存使用警告：内存使用率达到%.2f%%，操作：%s', $usage_ratio * 100, $operation),
-            'Memory Warning'
-        );
-
-        // 检查是否需要强制垃圾回收
-        if ($usage_ratio >= self::$resource_config['gc_force_threshold']) {
-            if (function_exists('gc_collect_cycles')) {
-                gc_collect_cycles();
-            }
-        }
-    }
-
-    /**
-     * 紧急缓存清理
-     *
-     * @since 1.8.1
-     */
-    private static function emergency_cache_cleanup(): void {
-        // 清理WordPress对象缓存
-        if (function_exists('wp_cache_flush')) {
-            wp_cache_flush();
-        }
-
-        // 清理transients
-        global $wpdb;
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_notion_%'");
-        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_timeout_notion_%'");
-
-        self::info_log('紧急缓存清理完成', 'Memory Emergency');
-    }
-
-    /**
-     * 建议分页处理
-     *
-     * @since 1.8.1
-     * @param string $operation 当前操作
-     */
-    private static function suggest_pagination(string $operation): void {
-        self::info_log(
-            sprintf('建议对操作"%s"使用分页处理以减少内存使用', $operation),
-            'Memory Optimization'
-        );
-    }
-
-    /**
-     * 缓冲日志写入，减少文件I/O操作
-     *
-     * @since    1.8.1
-     * @param    string    $log_entry    日志条目
-     */
-    private static function buffer_log(string $log_entry): void {
-        // 添加到缓冲区
-        self::$log_buffer[] = $log_entry;
-
-        // 如果缓冲区满了，或者是错误级别的日志，立即写入
-        if (count(self::$log_buffer) >= self::$log_buffer_size ||
-            strpos($log_entry, 'ERROR') !== false ||
-            strpos($log_entry, 'FATAL') !== false) {
-            self::flush_log_buffer();
-        }
-    }
-
-    /**
-     * 刷新日志缓冲区到文件
-     *
-     * @since    1.8.1
-     */
-    private static function flush_log_buffer(): void {
-        if (empty(self::$log_buffer)) {
-            return;
-        }
-
-        // 批量写入所有缓冲的日志
-        $batch_content = implode("\n", self::$log_buffer) . "\n";
-        self::log_to_file($batch_content, false); // false表示不添加额外的换行
-
-        // 清空缓冲区
-        self::$log_buffer = [];
-    }
-
-    /**
-     * 在脚本结束时自动刷新缓冲区
-     *
-     * @since    1.8.1
-     */
-    public static function shutdown_handler(): void {
-        self::flush_log_buffer();
-    }
-
-    /**
-     * 获取内存使用统计
-     *
-     * @since 1.8.1
-     * @return array 内存统计数据
-     */
-    public static function get_memory_stats(): array {
-        $current_memory = memory_get_usage(true);
-        $peak_memory = memory_get_peak_usage(true);
-        $memory_limit = self::get_memory_limit();
-
-        $stats = array_merge(self::$memory_stats, [
-            'current_memory' => $current_memory,
-            'current_memory_formatted' => self::format_bytes($current_memory),
-            'peak_memory_formatted' => self::format_bytes(self::$memory_stats['peak_usage']),
-            'memory_limit' => $memory_limit,
-            'memory_limit_formatted' => self::format_bytes($memory_limit),
-            'current_usage_ratio' => $memory_limit > 0 ? round(($current_memory / $memory_limit) * 100, 2) : 0,
-            'peak_usage_ratio' => $memory_limit > 0 ? round((self::$memory_stats['peak_usage'] / $memory_limit) * 100, 2) : 0,
-            'thresholds' => self::$memory_thresholds,
-            'config' => self::$resource_config
-        ]);
-
-        return $stats;
-    }
-
-    /**
-     * 重置内存统计
-     *
-     * @since 1.8.1
-     */
-    public static function reset_memory_stats(): void {
-        self::$memory_stats = [
-            'peak_usage' => 0,
-            'warning_count' => 0,
-            'critical_count' => 0,
-            'emergency_count' => 0,
-            'last_check_time' => 0,
-            'memory_trend' => []
-        ];
-
-        self::debug_log('内存统计已重置', 'Memory Management');
-    }
-
-    /**
-     * 设置资源管理配置
-     *
-     * @since 1.8.1
-     * @param array $config 配置数组
-     */
-    public static function set_resource_config(array $config): void {
-        self::$resource_config = array_merge(self::$resource_config, $config);
-
-        self::debug_log(
-            '资源管理配置已更新: ' . json_encode(self::$resource_config),
-            'Resource Config'
-        );
-    }
 }
 
 // 初始化静态帮助类

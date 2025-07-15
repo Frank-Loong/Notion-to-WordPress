@@ -1,16 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * 构建校验工具。
- * 用于校验打包过程是否正确包含/排除文件。
+ * 构建校验工具
+ * 
+ * 本工具用于校验打包过程是否正确包含/排除文件。
  * 确保生成的 ZIP 包符合 WordPress 插件规范，并符合大小限制。
- * @since      1.8.2
- * @version    1.8.3-beta.1
- * @package    Notion_To_WordPress
- * @subpackage Notion_To_WordPress/scripts
- * @author     Frank-Loong
- * @license    GPL-3.0-or-later
- * @link       https://github.com/Frank-Loong/Notion-to-WordPress
+ * 
+ * @author Frank-Loong
+ * @version 1.8.3-beta.2
  */
 
 const fs = require('fs');
