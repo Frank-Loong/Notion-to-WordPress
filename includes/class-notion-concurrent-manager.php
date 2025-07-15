@@ -6,7 +6,6 @@
  * @since      1.8.1
  * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
- * @subpackage Notion_To_WordPress/includes
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
@@ -20,7 +19,7 @@ class Notion_Concurrent_Manager {
      * @access   private
      * @var      int
      */
-    private int $max_concurrent = 25;
+    private int $max_concurrent = 3; // 降低默认并发数以提升稳定性
 
     /**
      * 当前并发请求数
@@ -152,15 +151,15 @@ class Notion_Concurrent_Manager {
      * @var      array
      */
     private array $network_config = [
-        'base_timeout' => 5,           // 基础超时时间（秒）- 减少到5秒
-        'base_connect_timeout' => 2,   // 基础连接超时时间（秒）- 减少到2秒
-        'max_timeout' => 10,           // 最大超时时间（秒）- 减少到10秒
-        'min_timeout' => 3,            // 最小超时时间（秒）- 减少到3秒
+        'base_timeout' => 90,          // 进一步增加基础超时时间到90秒
+        'base_connect_timeout' => 30,  // 进一步增加基础连接超时时间到30秒
+        'max_timeout' => 120,          // 进一步增加最大超时时间到120秒
+        'min_timeout' => 60,           // 进一步增加最小超时时间到60秒
         'enable_keepalive' => true,    // 启用TCP Keep-Alive
         'enable_compression' => true,  // 启用压缩
-        'max_redirects' => 2,          // 最大重定向次数 - 减少到2次
-        'retry_attempts' => 1,         // 重试次数 - 减少到1次
-        'adaptive_timeout' => false    // 禁用自适应超时以提升速度
+        'max_redirects' => 5,          // 进一步增加最大重定向次数到5次
+        'retry_attempts' => 3,         // 进一步增加重试次数到3次
+        'adaptive_timeout' => false    // 禁用自适应超时以提升稳定性
     ];
 
     /**
@@ -495,7 +494,8 @@ class Notion_Concurrent_Manager {
     private function prepare_request_args(string $method, array $data = []): array {
         $args = [
             'method' => $method,
-            'timeout' => 30,
+            'timeout' => 120,  // 进一步增加超时时间到120秒
+            'connect_timeout' => 30,  // 进一步增加连接超时时间到30秒
             'headers' => [
                 'Authorization' => 'Bearer ' . $this->api_key,
                 'Content-Type' => 'application/json',
