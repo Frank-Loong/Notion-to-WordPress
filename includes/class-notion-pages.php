@@ -109,22 +109,18 @@ class Notion_Pages {
         }
 
         $page_id  = $page['id'];
-        error_log('Notion to WordPress: 处理页面ID: ' . $page_id);
 
-        error_log('Notion to WordPress: 提取页面元数据...');
         $metadata = $this->extract_page_metadata($page);
-        error_log('Notion to WordPress: 元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'));
-        error_log('Notion to WordPress: 元数据详情: ' . print_r($metadata, true));
+        Notion_To_WordPress_Helper::debug_log('元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'), 'Page Import');
 
         if (empty($metadata['title'])) {
-            error_log('Notion to WordPress: 页面标题为空，跳过导入');
+            Notion_To_WordPress_Helper::debug_log('页面标题为空，跳过导入', 'Page Import');
             return false;
         }
 
         // 获取页面内容
-        error_log('Notion to WordPress: 获取页面内容...');
         $blocks = $this->notion_api->get_page_content($page_id);
-        error_log('Notion to WordPress: 获取到内容块数量: ' . count($blocks));
+        Notion_To_WordPress_Helper::debug_log('获取到内容块数量: ' . count($blocks), 'Page Import');
         if (empty($blocks)) {
             return false;
         }
@@ -594,9 +590,6 @@ class Notion_Pages {
      * @return   string                   包装后的 HTML
      */
     private function wrap_block_with_id(string $block_html, string $block_id, string $block_type): string {
-        // 调试日志：记录函数调用
-        Notion_To_WordPress_Helper::info_log("包装区块 ID: $block_id, 类型: $block_type");
-
         // 确保 ID 和类名安全
         $safe_id = esc_attr('notion-block-' . $block_id);
         $safe_type = esc_attr($block_type);

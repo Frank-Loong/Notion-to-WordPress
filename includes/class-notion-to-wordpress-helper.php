@@ -34,6 +34,22 @@ class Notion_To_WordPress_Helper {
     private static int $debug_level = self::DEBUG_LEVEL_ERROR;
 
     /**
+     * 最大日志文件大小（字节）
+     *
+     * @access private
+     * @var int
+     */
+    private static int $max_log_size = 5242880; // 5MB
+
+    /**
+     * 最大日志文件数量
+     *
+     * @access private
+     * @var int
+     */
+    private static int $max_log_files = 10;
+
+    /**
      * 根据WordPress设置初始化日志级别。
      *
      * @since 1.0.8
@@ -47,10 +63,13 @@ class Notion_To_WordPress_Helper {
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
         }
+
+        // 初始化时执行日志清理
+        self::cleanup_logs();
     }
 
     /**
-     * 统一的日志记录方法。
+     * 优化版的日志记录方法。
      *
      * @since    1.0.8
      * @param    mixed     $data       要记录的数据（字符串、数组或对象）。
@@ -62,32 +81,30 @@ class Notion_To_WordPress_Helper {
         if (self::$debug_level < $level) {
             return;
         }
-        
-        // 获取调用者信息
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-        $caller = isset($backtrace[1]) ? $backtrace[1] : [];
+
+        // 简化版调用者信息 - 不使用昂贵的debug_backtrace
         $caller_info = '';
-        
-        if (!empty($caller)) {
-            $caller_info = ' [' . (isset($caller['class']) ? $caller['class'] . '::' : '') . 
-                          (isset($caller['function']) ? $caller['function'] : 'unknown') . ']';
-        }
-        
+
         // 格式化日志前缀
         $log_prefix = date('Y-m-d H:i:s') . ' ' . $prefix . $caller_info . ': ';
-        
-        // 准备日志内容
+
+        // 准备日志内容 - 限制大小
         $log_content = is_array($data) || is_object($data) ? print_r($data, true) : $data;
+
+        // 限制日志内容大小，避免超大日志
+        if (strlen($log_content) > 10000) {
+            $log_content = substr($log_content, 0, 10000) . '... [日志内容已截断]';
+        }
 
         // 过滤敏感内容，保护用户隐私
         $filtered_content = self::filter_sensitive_content($log_content, $level);
 
-        // 仅在最高调试级别且WP_DEBUG启用时才写入WordPress error_log，避免污染
-        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG && defined('WP_DEBUG') && WP_DEBUG === true) {
+        // 仅在ERROR级别或WP_DEBUG启用时才写入WordPress error_log
+        if ($level === self::DEBUG_LEVEL_ERROR && defined('WP_DEBUG') && WP_DEBUG === true) {
             error_log($log_prefix . $filtered_content);
         }
 
-        // 总是记录到专用文件，确保用户可以查看日志
+        // 写入专用日志文件
         self::log_to_file($log_prefix . $filtered_content);
     }
 
@@ -124,38 +141,88 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 将日志消息写入到专用文件。
+     * 将日志消息写入到专用文件，优化版本。
      *
      * @since    1.0.8
      * @access   private
      * @param    string    $message    要写入文件的日志消息。
      */
     private static function log_to_file($message) {
-        // 临时强制启用日志记录用于调试
-        // if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
-        //     return;
-        // }
-
-        $upload_dir = wp_upload_dir();
-        $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
-        
-        // 确保日志目录存在并受保护
-        if (!file_exists($log_dir)) {
-            wp_mkdir_p($log_dir);
-            
-            // 创建.htaccess文件以保护日志
-            $htaccess_content = "Options -Indexes\nRequire all denied";
-            file_put_contents($log_dir . '/.htaccess', $htaccess_content);
-            
-            // 创建index.php文件以防止目录列表
-            file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
+        // 如果完全禁用日志，则直接返回
+        if (self::$debug_level === self::DEBUG_LEVEL_NONE) {
+            return;
         }
-        
-        // 日志文件路径
-        $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
-        
-        // 写入日志
-        file_put_contents($log_file, $message . PHP_EOL, FILE_APPEND);
+
+        static $log_dir = null;
+        static $log_file = null;
+
+        // 只在第一次调用时初始化目录和文件路径
+        if ($log_dir === null) {
+            $upload_dir = wp_upload_dir();
+            $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+
+            // 确保日志目录存在并受保护
+            if (!file_exists($log_dir)) {
+                wp_mkdir_p($log_dir);
+
+                // 创建.htaccess文件以保护日志
+                $htaccess_content = "Options -Indexes\nRequire all denied";
+                file_put_contents($log_dir . '/.htaccess', $htaccess_content);
+
+                // 创建index.php文件以防止目录列表被直接访问，提升安全性
+                file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
+            }
+        }
+
+        // 只在第一次调用或日期变更时更新日志文件路径
+        if ($log_file === null || strpos($log_file, date('Y-m-d')) === false) {
+            $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
+
+            // 检查日志文件大小，如果超过限制则进行轮转
+            if (file_exists($log_file) && filesize($log_file) > self::$max_log_size) {
+                self::rotate_log_file($log_file);
+            }
+        }
+
+        // 写入日志 - 使用锁定以防止并发写入问题
+        $fp = fopen($log_file, 'a');
+        if ($fp) {
+            flock($fp, LOCK_EX);
+            fwrite($fp, $message . PHP_EOL);
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
+    }
+
+    /**
+     * 轮转日志文件
+     *
+     * @since    2.0.0
+     * @access   private
+     * @param    string    $log_file    日志文件路径
+     */
+    private static function rotate_log_file($log_file) {
+        // 如果文件不存在，直接返回
+        if (!file_exists($log_file)) {
+            return;
+        }
+
+        // 获取不带扩展名的文件名
+        $path_info = pathinfo($log_file);
+        $base_name = $path_info['dirname'] . '/' . $path_info['filename'];
+
+        // 移动现有的轮转日志
+        for ($i = self::$max_log_files - 1; $i > 0; $i--) {
+            $old_file = $base_name . '.' . $i . '.log';
+            $new_file = $base_name . '.' . ($i + 1) . '.log';
+
+            if (file_exists($old_file)) {
+                @rename($old_file, $new_file);
+            }
+        }
+
+        // 移动当前日志文件
+        @rename($log_file, $base_name . '.1.log');
     }
     
     /**
@@ -445,6 +512,57 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
+     * 清理过期和过大的日志文件
+     *
+     * @since    2.0.0
+     * @access   private
+     */
+    private static function cleanup_logs() {
+        $upload_dir = wp_upload_dir();
+        $log_dir = $upload_dir['basedir'] . '/notion-to-wordpress-logs';
+
+        if (!is_dir($log_dir)) {
+            return;
+        }
+
+        $files = glob($log_dir . '/*.log');
+        if (empty($files)) {
+            return;
+        }
+
+        // 按修改时间排序，最新的在前
+        usort($files, function($a, $b) {
+            return filemtime($b) - filemtime($a);
+        });
+
+        $current_time = time();
+        $retention_days = 7; // 保留7天的日志
+        $retention_seconds = $retention_days * DAY_IN_SECONDS;
+
+        foreach ($files as $index => $file) {
+            $file_mod_time = filemtime($file);
+            $file_size = filesize($file);
+
+            // 删除过期的日志文件
+            if (($current_time - $file_mod_time) > $retention_seconds) {
+                @unlink($file);
+                continue;
+            }
+
+            // 删除超过最大数量的日志文件
+            if ($index >= self::$max_log_files) {
+                @unlink($file);
+                continue;
+            }
+
+            // 如果文件过大，进行轮转
+            if ($file_size > self::$max_log_size) {
+                self::rotate_log_file($file);
+            }
+        }
+    }
+
+    /**
      * 执行日志清理任务。
      *
      * @since 2.0.0
@@ -682,19 +800,6 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 记录性能指标 - 已禁用以提升性能
-     *
-     * @since 1.1.1
-     * @param string $operation 操作名称
-     * @param float $start_time 开始时间
-     * @param array $additional_data 额外数据
-     */
-    public static function log_performance(string $operation, float $start_time, array $additional_data = []): void {
-        // 性能监控已完全禁用以提升同步速度
-        return;
-    }
-
-    /**
      * 格式化字节数
      *
      * @since 1.1.1
@@ -708,35 +813,27 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 开始性能计时
+     * 开始性能计时 - 简化版，不记录日志
      *
-     * @since 1.1.1
+     * @since 2.0.0
      * @param string $operation 操作名称
      * @return float 开始时间
      */
     public static function start_performance_timer(string $operation): float {
-        $start_time = microtime(true);
-
-        if (self::$debug_level >= self::DEBUG_LEVEL_DEBUG) {
-            self::debug_log(
-                '开始性能计时: ' . $operation,
-                'Performance Timer'
-            );
-        }
-
-        return $start_time;
+        return microtime(true);
     }
 
     /**
-     * 结束性能计时并记录
+     * 结束性能计时 - 简化版，不记录日志
      *
-     * @since 1.1.1
+     * @since 2.0.0
      * @param string $operation 操作名称
      * @param float $start_time 开始时间
      * @param array $additional_data 额外数据
      */
     public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): void {
-        self::log_performance($operation, $start_time, $additional_data);
+        // 性能监控已完全禁用以提升同步速度
+        return;
     }
 
 
