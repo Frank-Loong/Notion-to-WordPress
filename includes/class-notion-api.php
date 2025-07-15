@@ -191,6 +191,9 @@ class Notion_API {
      */
     public function __construct(string $api_key) {
         $this->api_key = $api_key;
+
+        // 添加HTTP请求过滤器来优化cURL配置
+        add_filter('http_request_args', [$this, 'optimize_http_request_args'], 10, 2);
     }
 
     /**
@@ -238,17 +241,56 @@ class Notion_API {
                 'Content-Type'   => 'application/json',
                 'Notion-Version' => '2022-06-28'
             ],
-            'timeout' => 30
+            'timeout' => 30,
+            'connect_timeout' => 10,
+            'user-agent' => 'Notion-to-WordPress/' . NOTION_TO_WORDPRESS_VERSION,
+            'sslverify' => true,
+            'httpversion' => '1.1'
         ];
 
         if (!empty($data) && $method !== 'GET') {
             $args['body'] = json_encode($data);
         }
 
-        $response = wp_remote_request($url, $args);
+        // 添加重试机制处理DNS超时问题 - 减少重试次数以提升速度
+        $max_retries = 1;  // 从3次减少到1次
+        $retry_delay = 1; // 秒
+        $last_error = null;
+
+        for ($retry = 0; $retry < $max_retries; $retry++) {
+            if ($retry > 0) {
+                Notion_To_WordPress_Helper::debug_log(
+                    "API请求重试 (第{$retry}次): {$endpoint}",
+                    'API Retry'
+                );
+                sleep($retry_delay);
+                $retry_delay *= 2; // 指数退避
+            }
+
+            $response = wp_remote_request($url, $args);
+
+            if (!is_wp_error($response)) {
+                // 请求成功，跳出重试循环
+                break;
+            }
+
+            $last_error = $response;
+            $error_message = $response->get_error_message();
+
+            // 记录重试日志
+            Notion_To_WordPress_Helper::error_log(
+                "API请求失败 (第" . ($retry + 1) . "次尝试): {$error_message}",
+                'API Error'
+            );
+
+            // 如果不是网络相关错误，不重试
+            if (!$this->is_retryable_error($error_message)) {
+                break;
+            }
+        }
 
         if (is_wp_error($response)) {
-            throw new Exception(__('API请求失败: ', 'notion-to-wordpress') . $response->get_error_message());
+            throw new Exception(__('API请求失败: ', 'notion-to-wordpress') . $last_error->get_error_message());
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
@@ -260,6 +302,37 @@ class Notion_API {
 
         $body = wp_remote_retrieve_body($response);
         return json_decode($body, true) ?: [];
+    }
+
+    /**
+     * 判断错误是否可以重试
+     *
+     * @since    1.8.3
+     * @param    string    $error_message    错误消息
+     * @return   bool                        是否可以重试
+     */
+    private function is_retryable_error(string $error_message): bool {
+        $retryable_patterns = [
+            'timeout',
+            'timed out',
+            'resolving timed out',
+            'connection timeout',
+            'dns',
+            'network',
+            'temporary failure',
+            'curl error 28',
+            'curl error 6',
+            'curl error 7'
+        ];
+
+        $error_lower = strtolower($error_message);
+        foreach ($retryable_patterns as $pattern) {
+            if (strpos($error_lower, $pattern) !== false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -315,13 +388,15 @@ class Notion_API {
                 $data['start_cursor'] = $start_cursor;
             }
             
-            error_log('Notion to WordPress: 发送API请求到: ' . $endpoint);
+            // 禁用API请求日志以提升速度
+            // error_log('Notion to WordPress: 发送API请求到: ' . $endpoint);
             $response = $this->send_request($endpoint, 'POST', $data);
-            error_log('Notion to WordPress: API响应状态: ' . (isset($response['results']) ? 'success' : 'no results'));
+            // error_log('Notion to WordPress: API响应状态: ' . (isset($response['results']) ? 'success' : 'no results'));
 
             if (isset($response['results'])) {
                 $all_results = array_merge($all_results, $response['results']);
-                error_log('Notion to WordPress: 当前批次页面数: ' . count($response['results']) . ', 总计: ' . count($all_results));
+                // 禁用批次日志以提升速度
+                // error_log('Notion to WordPress: 当前批次页面数: ' . count($response['results']) . ', 总计: ' . count($all_results));
             }
 
             $has_more = $response['has_more'] ?? false;
@@ -1878,5 +1953,59 @@ class Notion_API {
         }
 
         return $recommendations;
+    }
+
+    /**
+     * 优化HTTP请求参数，特别针对Notion API请求
+     *
+     * @since    1.8.3
+     * @param    array     $args    HTTP请求参数
+     * @param    string    $url     请求URL
+     * @return   array              优化后的请求参数
+     */
+    public function optimize_http_request_args(array $args, string $url): array {
+        // 只对Notion API请求进行优化
+        if (strpos($url, 'api.notion.com') === false) {
+            return $args;
+        }
+
+        // 添加DNS和连接优化配置
+        if (!isset($args['curl'])) {
+            $args['curl'] = [];
+        }
+
+        // DNS优化配置
+        $args['curl'][CURLOPT_DNS_SERVERS] = '8.8.8.8,1.1.1.1';
+        $args['curl'][CURLOPT_DNS_CACHE_TIMEOUT] = 300; // 5分钟DNS缓存
+
+        // 连接优化
+        $args['curl'][CURLOPT_TCP_KEEPALIVE] = 1;
+        $args['curl'][CURLOPT_TCP_KEEPIDLE] = 60;
+        $args['curl'][CURLOPT_TCP_KEEPINTVL] = 30;
+        $args['curl'][CURLOPT_FRESH_CONNECT] = false;
+        $args['curl'][CURLOPT_FORBID_REUSE] = false;
+
+        // 压缩支持
+        $args['curl'][CURLOPT_ENCODING] = '';
+
+        // 超时优化 - 大幅减少超时时间以提升速度
+        if (!isset($args['timeout'])) {
+            $args['timeout'] = 5;  // 从30秒减少到5秒
+        }
+        if (!isset($args['connect_timeout'])) {
+            $args['connect_timeout'] = 2;  // 从10秒减少到2秒
+        }
+
+        // SSL优化
+        $args['curl'][CURLOPT_SSL_VERIFYPEER] = true;
+        $args['curl'][CURLOPT_SSL_VERIFYHOST] = 2;
+
+        // 禁用优化日志以提升速度
+        // Notion_To_WordPress_Helper::debug_log(
+        //     'HTTP请求已优化: ' . $url,
+        //     'HTTP Optimization'
+        // );
+
+        return $args;
     }
 }
