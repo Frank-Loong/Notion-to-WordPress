@@ -737,13 +737,13 @@ npm run release:patch         # 选择合适类型
 
 ```bash
 # 候选版本
-npm run release:custom -- --version=1.8.1-rc.1
+node scripts/release.js custom --version=1.8.1-rc.1
 
 # 热修复版本
-npm run release:custom -- --version=1.8.1-hotfix.1
+node scripts/release.js custom --version=1.8.1-hotfix.1
 
 # 预览模式
-npm run release:custom -- --version=1.8.1-rc.1 --dry-run
+node scripts/release.js custom --version=X.Y.Z --dry-run
 ```
 
 ---
