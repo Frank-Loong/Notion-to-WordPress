@@ -119,19 +119,6 @@ class Notion_API {
      */
     private function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
         $url = $this->api_base . $endpoint;
-
-        // 特别记录数据库区块相关的API调用
-        if (strpos($endpoint, 'blocks/') !== false && strpos($endpoint, 'children') !== false) {
-            $block_id = str_replace(['blocks/', '/children'], '', explode('?', $endpoint)[0]);
-            if ($block_id === '22a75443-76be-819a-8e2b-d82f3a78dc47') {
-                error_log('Notion to WordPress: 检测到问题区块API调用: ' . $endpoint);
-                Notion_To_WordPress_Helper::error_log(
-                    '检测到问题区块API调用: ' . $endpoint . ', 调用栈: ' . wp_debug_backtrace_summary(),
-                    'Database Block'
-                );
-            }
-        }
-
         $args = [
             'method'  => $method,
             'headers' => [
@@ -176,8 +163,6 @@ class Notion_API {
     public function get_database_pages(string $database_id, array $filter = [], bool $with_details = false): array {
         $start_time = Notion_To_WordPress_Helper::start_performance_timer('get_database_pages');
 
-        error_log('Notion to WordPress: get_database_pages() 开始，Database ID: ' . $database_id);
-
         // 生成缓存键
         $cache_key = $database_id . '_' . md5(serialize($filter)) . '_' . ($with_details ? 'detailed' : 'basic');
 
@@ -214,14 +199,15 @@ class Notion_API {
             if ($start_cursor) {
                 $data['start_cursor'] = $start_cursor;
             }
-            
-            error_log('Notion to WordPress: 发送API请求到: ' . $endpoint);
+
             $response = $this->send_request($endpoint, 'POST', $data);
-            error_log('Notion to WordPress: API响应状态: ' . (isset($response['results']) ? 'success' : 'no results'));
 
             if (isset($response['results'])) {
                 $all_results = array_merge($all_results, $response['results']);
-                error_log('Notion to WordPress: 当前批次页面数: ' . count($response['results']) . ', 总计: ' . count($all_results));
+                Notion_To_WordPress_Helper::debug_log(
+                    '获取数据库页面批次: ' . count($response['results']) . ', 总计: ' . count($all_results),
+                    'Database Pages'
+                );
             }
 
             $has_more = $response['has_more'] ?? false;
@@ -261,16 +247,14 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_page_content(string $block_id): array {
-        error_log('Notion to WordPress: get_page_content() 开始，Block ID: ' . $block_id);
+        Notion_To_WordPress_Helper::debug_log('获取页面内容开始，Block ID: ' . $block_id, 'Page Content');
 
         $blocks = $this->get_block_children($block_id);
-        error_log('Notion to WordPress: 获取到顶级块数量: ' . count($blocks));
 
         foreach ($blocks as $i => $block) {
             if ($block['has_children']) {
                 // 特殊处理：数据库区块不尝试获取子内容，避免API 404错误
                 if (isset($block['type']) && $block['type'] === 'child_database') {
-                    error_log('Notion to WordPress: 跳过数据库区块子内容获取: ' . $block['id']);
                     Notion_To_WordPress_Helper::debug_log(
                         '在API层跳过数据库区块子内容获取: ' . $block['id'],
                         'Database Block'
@@ -279,7 +263,6 @@ class Notion_API {
                     continue;
                 }
 
-                error_log('Notion to WordPress: 处理子块，Block ID: ' . $block['id']);
                 try {
                     $blocks[$i]['children'] = $this->get_page_content($block['id']);
                 } catch (Exception $e) {
@@ -287,7 +270,6 @@ class Notion_API {
                     if (strpos($e->getMessage(), '404') !== false &&
                         strpos($e->getMessage(), 'Make sure the relevant pages and databases are shared') !== false) {
 
-                        error_log('Notion to WordPress: 子块获取失败(数据库权限问题)，跳过: ' . $block['id']);
                         Notion_To_WordPress_Helper::debug_log(
                             '子块获取失败(数据库权限问题)，跳过: ' . $block['id'] . ', 错误: ' . $e->getMessage(),
                             'Database Block'
@@ -301,7 +283,6 @@ class Notion_API {
             }
         }
 
-        error_log('Notion to WordPress: get_page_content() 完成，返回块数量: ' . count($blocks));
         return $blocks;
     }
 
