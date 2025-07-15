@@ -721,7 +721,7 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 记录性能指标
+     * 记录性能指标 - 已禁用以提升性能
      *
      * @since 1.1.1
      * @param string $operation 操作名称
@@ -729,7 +729,7 @@ class Notion_To_WordPress_Helper {
      * @param array $additional_data 额外数据
      */
     public static function log_performance(string $operation, float $start_time, array $additional_data = []): void {
-        // 快速返回，禁用性能监控以提升速度
+        // 性能监控已完全禁用以提升同步速度
         return;
     }
 
@@ -747,19 +747,19 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
-     * 开始性能计时
+     * 开始性能计时 - 已禁用以提升性能
      *
      * @since 1.1.1
      * @param string $operation 操作名称
      * @return float 开始时间
      */
     public static function start_performance_timer(string $operation): float {
-        // 快速返回，禁用性能监控以提升速度
+        // 性能计时已完全禁用以提升同步速度
         return microtime(true);
     }
 
     /**
-     * 结束性能计时并记录
+     * 结束性能计时并记录 - 已禁用以提升性能
      *
      * @since 1.1.1
      * @param string $operation 操作名称
@@ -768,9 +768,8 @@ class Notion_To_WordPress_Helper {
      * @return float 执行时间（毫秒）
      */
     public static function end_performance_timer(string $operation, float $start_time, array $additional_data = []): float {
-        $execution_time = (microtime(true) - $start_time) * 1000; // 转换为毫秒
-        self::log_performance($operation, $start_time, $additional_data);
-        return $execution_time;
+        // 性能计时已完全禁用以提升同步速度
+        return 0.0;
     }
 
     /**
@@ -815,60 +814,15 @@ class Notion_To_WordPress_Helper {
     ];
 
     /**
-     * 检查内存使用情况
+     * 检查内存使用情况 - 已禁用以提升性能
      *
      * @since 1.8.1
      * @param string $operation 当前操作名称
      * @return array 内存检查结果
      */
     public static function check_memory_usage(string $operation = ''): array {
-        if (!self::$resource_config['enable_memory_monitoring']) {
-            return ['status' => 'disabled'];
-        }
-
-        $current_memory = memory_get_usage(true);
-        $peak_memory = memory_get_peak_usage(true);
-        $memory_limit = self::get_memory_limit();
-
-        // 计算内存使用率
-        $usage_ratio = $memory_limit > 0 ? $current_memory / $memory_limit : 0;
-        $peak_ratio = $memory_limit > 0 ? $peak_memory / $memory_limit : 0;
-
-        // 更新统计信息
-        if ($peak_memory > self::$memory_stats['peak_usage']) {
-            self::$memory_stats['peak_usage'] = $peak_memory;
-        }
-
-        // 记录内存趋势
-        self::record_memory_trend($current_memory, $usage_ratio);
-
-        // 检查阈值
-        $status = self::evaluate_memory_status($usage_ratio, $operation);
-
-        $result = [
-            'status' => $status,
-            'current_memory' => $current_memory,
-            'current_memory_formatted' => self::format_bytes($current_memory),
-            'peak_memory' => $peak_memory,
-            'peak_memory_formatted' => self::format_bytes($peak_memory),
-            'memory_limit' => $memory_limit,
-            'memory_limit_formatted' => self::format_bytes($memory_limit),
-            'usage_ratio' => round($usage_ratio * 100, 2),
-            'peak_ratio' => round($peak_ratio * 100, 2),
-            'operation' => $operation,
-            'timestamp' => time()
-        ];
-
-        // 记录内存检查结果
-        if ($status !== 'normal') {
-            self::debug_log(
-                sprintf('内存使用检查 - %s: %s (%.2f%%, %s)',
-                       $operation, $status, $result['usage_ratio'], $result['current_memory_formatted']),
-                'Memory Monitor'
-            );
-        }
-
-        return $result;
+        // 内存监控已完全禁用以提升同步速度
+        return ['status' => 'disabled'];
     }
 
     /**

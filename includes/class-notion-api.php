@@ -241,8 +241,8 @@ class Notion_API {
                 'Content-Type'   => 'application/json',
                 'Notion-Version' => '2022-06-28'
             ],
-            'timeout' => 30,
-            'connect_timeout' => 10,
+            'timeout' => 120,  // 进一步增加到120秒以提升网络稳定性
+            'connect_timeout' => 30,  // 进一步增加到30秒
             'user-agent' => 'Notion-to-WordPress/' . NOTION_TO_WORDPRESS_VERSION,
             'sslverify' => true,
             'httpversion' => '1.1'
@@ -252,9 +252,9 @@ class Notion_API {
             $args['body'] = json_encode($data);
         }
 
-        // 添加重试机制处理DNS超时问题 - 减少重试次数以提升速度
-        $max_retries = 1;  // 从3次减少到1次
-        $retry_delay = 1; // 秒
+        // 优化重试机制以提升网络稳定性
+        $max_retries = 2;  // 增加到2次重试
+        $retry_delay = 2; // 增加到2秒
         $last_error = null;
 
         for ($retry = 0; $retry < $max_retries; $retry++) {
@@ -500,7 +500,7 @@ class Notion_API {
         if (!empty($all_child_block_ids)) {
             error_log('Notion to WordPress: 开始超级并发获取所有子块，总数量: ' . count($all_child_block_ids));
 
-            $concurrent_manager = new Notion_Concurrent_Manager($this->api_key, 15); // 提升到15个并发
+            $concurrent_manager = new Notion_Concurrent_Manager($this->api_key, 3); // 降低到3个并发以提升稳定性
 
             // 添加所有子块请求到并发池
             foreach ($all_child_block_ids as $child_id) {
@@ -1232,7 +1232,7 @@ class Notion_API {
     public function get_concurrent_manager(): Notion_Concurrent_Manager {
         if ($this->concurrent_manager === null) {
             $options = get_option('notion_to_wordpress_options', []);
-            $max_concurrent = isset($options['concurrent_requests']) ? (int)$options['concurrent_requests'] : 3;
+            $max_concurrent = isset($options['concurrent_requests']) ? (int)$options['concurrent_requests'] : 2; // 降低默认并发数
 
             $this->concurrent_manager = new Notion_Concurrent_Manager($this->api_key, $max_concurrent);
 
@@ -1335,16 +1335,14 @@ class Notion_API {
         // 合并缓存结果和API结果
         $all_results = array_merge($cached_results, $api_results);
 
-        // 记录性能数据
+        // 性能监控已禁用以提升同步速度
         $cache_hit_rate = count($page_ids) > 0 ? round((count($cached_results) / count($page_ids)) * 100, 2) : 0;
 
-        Notion_To_WordPress_Helper::end_performance_timer('concurrent_pages_details', $start_time, [
-            'total_pages' => count($page_ids),
-            'cached_pages' => count($cached_results),
-            'api_requests' => count($uncached_page_ids),
-            'cache_hit_rate' => $cache_hit_rate . '%',
-            'concurrent_stats' => $concurrent_manager->get_stats()
-        ]);
+        // 简化日志记录
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('并发页面详情获取完成：总计%d页面，缓存命中率%.1f%%', count($page_ids), $cache_hit_rate),
+            'Concurrent Pages'
+        );
 
         return $all_results;
     }

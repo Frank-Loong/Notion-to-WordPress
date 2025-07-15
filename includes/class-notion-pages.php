@@ -218,11 +218,11 @@ class Notion_Pages {
             $api_key = $options['notion_api_key'] ?? '';
 
             if (!empty($api_key)) {
-                // 创建专门用于图片下载的并发管理器，使用较小的并发数
-                $this->image_download_manager = new Notion_Concurrent_Manager($api_key, 8);
+                // 创建专门用于图片下载的并发管理器，使用更小的并发数
+                $this->image_download_manager = new Notion_Concurrent_Manager($api_key, 2);
 
                 Notion_To_WordPress_Helper::debug_log(
-                    '图片下载管理器初始化成功，并发数：8',
+                    '图片下载管理器初始化成功，并发数：2',
                     'Image Download Manager'
                 );
             } else {
@@ -266,22 +266,15 @@ class Notion_Pages {
         }
 
         $page_id  = $page['id'];
-        error_log('Notion to WordPress: 处理页面ID: ' . $page_id);
-
-        error_log('Notion to WordPress: 提取页面元数据...');
+        // 简化日志记录以提升性能
         $metadata = $this->extract_page_metadata($page);
-        error_log('Notion to WordPress: 元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'));
-        error_log('Notion to WordPress: 元数据详情: ' . print_r($metadata, true));
 
         if (empty($metadata['title'])) {
-            error_log('Notion to WordPress: 页面标题为空，跳过导入');
             return false;
         }
 
         // 获取页面内容
-        error_log('Notion to WordPress: 获取页面内容...');
         $blocks = $this->notion_api->get_page_content($page_id);
-        error_log('Notion to WordPress: 获取到内容块数量: ' . count($blocks));
         if (empty($blocks)) {
             return false;
         }
@@ -778,7 +771,7 @@ class Notion_Pages {
         }
 
         // 对于已有合适容器的区块，直接在现有 div 上添加 ID，避免双层嵌套
-        if (in_array($block_type, ['callout', 'bookmark', 'toggle', 'equation', 'child_database', 'child_page', 'column', 'column_list'])) {
+        if (in_array($block_type, ['callout', 'bookmark', 'toggle', 'equation', 'child_database', 'child_page', 'column', 'column_list', 'embed', 'video', 'file', 'pdf'])) {
             // 查找第一个 <div> 标签并添加 ID
             if (preg_match('/^<div\s+class="([^"]*)"([^>]*)>/', $block_html, $matches)) {
                 // 已有 class 属性
@@ -1538,18 +1531,11 @@ class Notion_Pages {
         $cache_hit_rate = count($notion_ids) > 0 ?
             round((count($notion_ids) - count($uncached_ids)) / count($notion_ids) * 100, 2) : 0;
 
-        $execution_time = Notion_To_WordPress_Helper::end_performance_timer('get_posts_by_notion_ids', $start_time, [
-            'total_ids' => count($notion_ids),
-            'uncached_ids' => count($uncached_ids),
-            'found_posts' => $found_count,
-            'cache_hit_rate' => $cache_hit_rate . '%',
-            'cache_size' => count(self::$notion_id_cache)
-        ]);
-
-        // 记录详细的性能统计
+        // 性能监控已禁用以提升同步速度
+        // 记录简化的统计信息
         Notion_To_WordPress_Helper::debug_log(
-            sprintf('智能批量查询完成 - 查询%d个ID，找到%d个文章，缓存命中率%.1f%%，缓存大小%d，执行时间%.2fms',
-                   count($notion_ids), $found_count, $cache_hit_rate, count(self::$notion_id_cache), $execution_time),
+            sprintf('智能批量查询完成 - 查询%d个ID，找到%d个文章，缓存命中率%.1f%%',
+                   count($notion_ids), $found_count, $cache_hit_rate),
             'Smart Batch Performance'
         );
 
@@ -1835,7 +1821,7 @@ class Notion_Pages {
      * @return   array             处理统计
      */
     private function process_pages_with_pagination(array $pages): array {
-        $start_time = Notion_To_WordPress_Helper::start_performance_timer('paginated_pages_processing');
+        // 性能监控已禁用以提升同步速度
 
         $stats = [
             'imported' => 0,
@@ -1880,8 +1866,7 @@ class Notion_Pages {
                 'Pagination Batch'
             );
 
-            // 检查内存使用情况
-            $memory_check = Notion_To_WordPress_Helper::check_memory_usage('batch_' . ($batch_index + 1));
+            // 内存监控已禁用以提升同步速度
 
             // 处理批次
             $batch_stats = $this->process_pages_batch($batch, $batch_index);
@@ -1904,11 +1889,11 @@ class Notion_Pages {
             $this->cleanup_between_batches($batch_index, count($batches));
         }
 
-        $execution_time = Notion_To_WordPress_Helper::end_performance_timer('paginated_pages_processing', $start_time);
+        // 性能监控已禁用以提升同步速度
 
         Notion_To_WordPress_Helper::info_log(
-            sprintf('分页处理完成：总计%d个页面，%d批次，执行时间%.2fms',
-                   count($pages), count($batches), $execution_time),
+            sprintf('分页处理完成：总计%d个页面，%d批次',
+                   count($pages), count($batches)),
             'Pagination'
         );
 
@@ -1930,16 +1915,8 @@ class Notion_Pages {
             return true;
         }
 
-        // 检查内存使用情况
-        $memory_check = Notion_To_WordPress_Helper::check_memory_usage('pagination_check');
-        if ($memory_check['usage_ratio'] >= self::$pagination_config['memory_threshold'] * 100) {
-            self::$pagination_stats['memory_triggered_pagination']++;
-            Notion_To_WordPress_Helper::info_log(
-                sprintf('内存使用率%.2f%%超过阈值，启用分页处理', $memory_check['usage_ratio']),
-                'Pagination Memory'
-            );
-            return true;
-        }
+        // 内存监控已禁用以提升同步速度
+        // 简化分页逻辑，不再基于内存使用率
 
         return false;
     }
@@ -1954,9 +1931,8 @@ class Notion_Pages {
     private function calculate_optimal_page_size(int $total_pages): int {
         $base_size = self::$pagination_config['default_page_size'];
 
-        // 检查内存使用情况
-        $memory_check = Notion_To_WordPress_Helper::check_memory_usage('page_size_calculation');
-        $memory_ratio = $memory_check['usage_ratio'] / 100;
+        // 内存监控已禁用以提升同步速度
+        $memory_ratio = 0.5; // 使用固定的中等内存使用率
 
         // 根据内存使用情况调整页面大小
         if ($memory_ratio > 0.8) {
@@ -2059,31 +2035,28 @@ class Notion_Pages {
      * @param    int    $total_batches  总批次数
      */
     private function cleanup_between_batches(int $batch_index, int $total_batches): void {
-        // 检查内存使用情况
-        $memory_check = Notion_To_WordPress_Helper::check_memory_usage('batch_cleanup_' . ($batch_index + 1));
+        // 内存监控已禁用以提升同步速度
+        // 简化清理逻辑，始终执行基本清理
 
-        // 如果内存使用率较高，执行清理
-        if ($memory_check['usage_ratio'] > 60) {
-            // 强制垃圾回收
-            if (function_exists('gc_collect_cycles')) {
-                $collected = gc_collect_cycles();
-                if ($collected > 0) {
-                    Notion_To_WordPress_Helper::debug_log(
-                        sprintf('批次间垃圾回收：回收%d个循环引用', $collected),
-                        'Batch Cleanup'
-                    );
-                }
+        // 强制垃圾回收
+        if (function_exists('gc_collect_cycles')) {
+            $collected = gc_collect_cycles();
+            if ($collected > 0) {
+                Notion_To_WordPress_Helper::debug_log(
+                    sprintf('批次间垃圾回收：回收%d个循环引用', $collected),
+                    'Batch Cleanup'
+                );
             }
+        }
 
-            // 清理WordPress对象缓存
-            if (function_exists('wp_cache_flush')) {
-                wp_cache_flush();
-            }
+        // 清理WordPress对象缓存
+        if (function_exists('wp_cache_flush')) {
+            wp_cache_flush();
         }
 
         // 批次间延迟（除了最后一个批次）
         if ($batch_index < $total_batches - 1) {
-            $delay = $this->calculate_batch_delay($memory_check['usage_ratio']);
+            $delay = $this->calculate_batch_delay(50); // 使用固定的中等内存使用率
             if ($delay > 0) {
                 usleep($delay * 1000); // 转换为微秒
                 Notion_To_WordPress_Helper::debug_log(
@@ -4611,7 +4584,7 @@ class Notion_Pages {
             return;
         }
 
-        $start_time = Notion_To_WordPress_Helper::start_performance_timer('batch_update_custom_fields');
+        // 性能监控已禁用以提升同步速度
         $total_updates = 0;
 
         foreach ($updates as $post_id => $fields) {
@@ -4625,10 +4598,11 @@ class Notion_Pages {
             }
         }
 
-        Notion_To_WordPress_Helper::end_performance_timer('batch_update_custom_fields', $start_time, [
-            'posts_updated' => count($updates),
-            'total_field_updates' => $total_updates
-        ]);
+        // 简化日志记录
+        Notion_To_WordPress_Helper::debug_log(
+            sprintf('批量更新自定义字段完成：%d个文章，%d个字段更新', count($updates), $total_updates),
+            'Batch Update'
+        );
 
         Notion_To_WordPress_Helper::debug_log(
             sprintf('批量更新自定义字段完成：%d个文章，%d个字段', count($updates), $total_updates),
