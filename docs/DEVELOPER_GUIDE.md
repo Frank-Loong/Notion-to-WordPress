@@ -1209,4 +1209,4 @@ function sync($id) {  // Missing type hints and documentation
 
 </div>
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.8.3-beta.2
+> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1

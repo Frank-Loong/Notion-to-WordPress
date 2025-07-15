@@ -5,12 +5,13 @@ declare(strict_types=1);
  * 插件核心类。
  * 负责初始化插件，加载依赖项，定义国际化，以及注册后台和前台的钩子。
  * @since      1.0.9
- * @version    1.8.3-beta.2
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
     exit;
@@ -93,7 +94,7 @@ class Notion_To_WordPress {
 		if ( defined( 'NOTION_TO_WORDPRESS_VERSION' ) ) {
 			$this->version = NOTION_TO_WORDPRESS_VERSION;
 		} else {
-			$this->version = '1.8.3-beta.2';
+			$this->version = '2.0.0-beta.1';
 		}
 		$this->plugin_name = 'notion-to-wordpress';
 

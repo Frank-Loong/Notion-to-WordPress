@@ -7,7 +7,7 @@
  * 并符合发布系统的要求。
  * 
  * @author Frank-Loong
- * @version 1.8.3-beta.2
+ * @version 2.0.0-beta.1
  */
 
 const fs = require('fs');
