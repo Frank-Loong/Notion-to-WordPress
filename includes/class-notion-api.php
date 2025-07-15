@@ -239,42 +239,40 @@ class Notion_API {
     }
 
     /**
-     * 递归获取一个块的所有子块内容。
+     * 递归获取一个块的所有子块内容，优化版本。
      *
      * @since    1.0.8
      * @param    string    $block_id    块或页面的 ID。
+     * @param    int       $depth       当前递归深度，用于限制递归层数。
+     * @param    int       $max_depth   最大递归深度，默认为3层。
      * @return   array<string, mixed>                 子块对象数组。
      * @throws   Exception             如果 API 请求失败。
      */
-    public function get_page_content(string $block_id): array {
-        Notion_To_WordPress_Helper::debug_log('获取页面内容开始，Block ID: ' . $block_id, 'Page Content');
+    public function get_page_content(string $block_id, int $depth = 0, int $max_depth = 3): array {
+        // 检查递归深度限制 - 降低到3层以减少API调用
+        if ($depth >= $max_depth) {
+            return [];
+        }
 
         $blocks = $this->get_block_children($block_id);
 
         foreach ($blocks as $i => $block) {
             if ($block['has_children']) {
-                // 特殊处理：数据库区块不尝试获取子内容，避免API 404错误
-                if (isset($block['type']) && $block['type'] === 'child_database') {
-                    Notion_To_WordPress_Helper::debug_log(
-                        '在API层跳过数据库区块子内容获取: ' . $block['id'],
-                        'Database Block'
-                    );
-                    // 不设置children，保持has_children为true但不尝试获取子内容
+                // 跳过已知会导致404错误的块类型
+                if (isset($block['type']) && in_array($block['type'], [
+                    'child_database',
+                    'child_page',
+                    'link_preview',
+                    'unsupported'
+                ])) {
                     continue;
                 }
 
                 try {
-                    $blocks[$i]['children'] = $this->get_page_content($block['id']);
+                    $blocks[$i]['children'] = $this->get_page_content($block['id'], $depth + 1, $max_depth);
                 } catch (Exception $e) {
-                    // 特殊处理：如果是数据库权限相关的404错误，跳过这个子块但不影响整个页面
-                    if (strpos($e->getMessage(), '404') !== false &&
-                        strpos($e->getMessage(), 'Make sure the relevant pages and databases are shared') !== false) {
-
-                        Notion_To_WordPress_Helper::debug_log(
-                            '子块获取失败(数据库权限问题)，跳过: ' . $block['id'] . ', 错误: ' . $e->getMessage(),
-                            'Database Block'
-                        );
-                        // 不设置children，但继续处理其他子块
+                    // 快速跳过404错误，不记录详细日志
+                    if (strpos($e->getMessage(), '404') !== false) {
                         continue;
                     }
                     // 对于其他类型的错误，重新抛出
@@ -296,65 +294,42 @@ class Notion_API {
      * @throws Exception 如果 API 请求失败。
      */
     private function get_block_children(string $block_id): array {
-        error_log('Notion to WordPress: get_block_children() 开始，Block ID: ' . $block_id);
-
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
 
         while ($has_more) {
+            // 使用最大页面大小以减少API调用次数
             $endpoint = 'blocks/' . $block_id . '/children?page_size=100';
             if ($start_cursor) {
                 $endpoint .= '&start_cursor=' . $start_cursor;
             }
-
-            error_log('Notion to WordPress: 请求子块，endpoint: ' . $endpoint);
 
             try {
                 $response = $this->send_request($endpoint, 'GET');
 
                 if (isset($response['results'])) {
                     $all_results = array_merge($all_results, $response['results']);
-                    error_log('Notion to WordPress: 获取到子块数量: ' . count($response['results']) . ', 总计: ' . count($all_results));
-
-                    // 记录每个子块的类型，特别关注数据库区块
-                    foreach ($response['results'] as $block) {
-                        if (isset($block['type']) && $block['type'] === 'child_database') {
-                            error_log('Notion to WordPress: 发现数据库区块: ' . $block['id'] . ', 父块: ' . $block_id);
-                            Notion_To_WordPress_Helper::debug_log(
-                                '在get_block_children中发现数据库区块: ' . $block['id'] . ', 父块: ' . $block_id,
-                                'Database Block'
-                            );
-                        }
-                    }
                 }
 
                 $has_more = $response['has_more'] ?? false;
                 $start_cursor = $response['next_cursor'] ?? null;
 
             } catch (Exception $e) {
-                error_log('Notion to WordPress: get_block_children() 异常: ' . $e->getMessage() . ', Block ID: ' . $block_id);
-                Notion_To_WordPress_Helper::error_log(
-                    'get_block_children异常: ' . $e->getMessage() . ', Block ID: ' . $block_id,
-                    'Database Block'
-                );
-
-                // 特殊处理：只对数据库区块相关的404错误进行优雅处理
-                if (strpos($e->getMessage(), '404') !== false &&
-                    strpos($e->getMessage(), 'Make sure the relevant pages and databases are shared') !== false) {
-
-                    Notion_To_WordPress_Helper::debug_log(
-                        '检测到数据库权限相关的404错误，跳过并继续处理: ' . $block_id,
-                        'Database Block'
-                    );
-                    break; // 跳出循环，返回已获取的结果
+                // 快速跳过404错误，不记录详细日志
+                if (strpos($e->getMessage(), '404') !== false) {
+                    break;
                 }
 
-                throw $e; // 对于其他错误，重新抛出异常
+                // 对于其他错误，记录并重新抛出
+                Notion_To_WordPress_Helper::error_log(
+                    'get_block_children异常: ' . $e->getMessage(),
+                    'API Error'
+                );
+                throw $e;
             }
         }
 
-        error_log('Notion to WordPress: get_block_children() 完成，返回总块数: ' . count($all_results));
         return $all_results;
     }
 
@@ -515,14 +490,25 @@ class Notion_API {
     }
 
     /**
-     * 批量为页面添加详细信息
+     * 批量为页面添加详细信息 - 优化版本
      *
      * @since 1.1.1
      * @param array<string, mixed> $pages 页面数组
      * @return array<string, mixed> 包含详细信息的页面数组
      */
     private function enrich_pages_with_details(array $pages): array {
+        // 对于大量页面，跳过详细信息获取以提高性能
+        if (count($pages) > 20) {
+            Notion_To_WordPress_Helper::debug_log(
+                '页面数量过多(' . count($pages) . ')，跳过详细信息获取以提高性能',
+                'Performance Optimization'
+            );
+            return $pages;
+        }
+
         $enriched_pages = [];
+        $failed_count = 0;
+        $max_failures = 5; // 最多允许5次失败
 
         foreach ($pages as $page) {
             $page_id = $page['id'] ?? '';
@@ -531,19 +517,32 @@ class Notion_API {
                 continue;
             }
 
-            // 获取页面详细信息
-            $page_details = $this->get_page_details($page_id);
-
-            if (!empty($page_details)) {
-                // 合并基本信息和详细信息
-                $enriched_page = array_merge($page, [
-                    'cover' => $page_details['cover'] ?? null,
-                    'icon' => $page_details['icon'] ?? null,
-                    'url' => $page_details['url'] ?? $page['url'] ?? null,
-                ]);
-                $enriched_pages[] = $enriched_page;
-            } else {
+            // 如果失败次数过多，跳过剩余页面的详细信息获取
+            if ($failed_count >= $max_failures) {
                 $enriched_pages[] = $page;
+                continue;
+            }
+
+            try {
+                // 获取页面详细信息
+                $page_details = $this->get_page_details($page_id);
+
+                if (!empty($page_details)) {
+                    // 合并基本信息和详细信息
+                    $enriched_page = array_merge($page, [
+                        'cover' => $page_details['cover'] ?? null,
+                        'icon' => $page_details['icon'] ?? null,
+                        'url' => $page_details['url'] ?? $page['url'] ?? null,
+                    ]);
+                    $enriched_pages[] = $enriched_page;
+                } else {
+                    $enriched_pages[] = $page;
+                    $failed_count++;
+                }
+            } catch (Exception $e) {
+                // 快速跳过失败的页面，不记录详细日志
+                $enriched_pages[] = $page;
+                $failed_count++;
             }
         }
 
