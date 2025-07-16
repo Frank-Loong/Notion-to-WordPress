@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 /**
  * 网络错误重试机制类。
+ * 
  * 提供智能的网络错误重试功能，支持指数退避策略和错误类型分类。
+ * 
  * @since      1.9.0-beta.1
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress

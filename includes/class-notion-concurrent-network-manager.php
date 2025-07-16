@@ -2,9 +2,11 @@
 declare(strict_types=1);
 
 /**
- * 并发网络请求管理器类。
+ * 并发网络请求管理器类
+ * 
  * 基于PHP cURL multi-handle技术，提供批量HTTP请求处理能力。
  * 支持并发请求、错误处理、超时控制、重试机制和进度监控。
+ * 
  * @since      1.9.0-beta.1
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress

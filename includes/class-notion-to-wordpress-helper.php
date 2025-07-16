@@ -2,8 +2,10 @@
 declare(strict_types=1);
 
 /**
- * 辅助工具类。
+ * 辅助工具类
+ * 
  * 提供一系列静态辅助方法，用于日志记录、安全过滤、数据处理和性能监控等。
+ * 
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -23,8 +25,9 @@ class Notion_To_WordPress_Helper {
      */
     const DEBUG_LEVEL_NONE = 0;    // 不记录任何日志
     const DEBUG_LEVEL_ERROR = 1;   // 只记录错误
-    const DEBUG_LEVEL_INFO = 2;    // 记录错误和信息
-    const DEBUG_LEVEL_DEBUG = 3;   // 记录所有内容，包括详细调试信息
+    const DEBUG_LEVEL_WARNING = 2; // 记录警告
+    const DEBUG_LEVEL_INFO = 3;    // 记录错误、警告和信息
+    const DEBUG_LEVEL_DEBUG = 4;   // 记录所有内容，包括详细调试信息
     
     /**
      * 当前日志记录级别。
@@ -249,6 +252,17 @@ class Notion_To_WordPress_Helper {
     }
 
     /**
+     * 记录警告级别的日志消息。
+     *
+     * @since    2.0.0-beta.1
+     * @param    mixed     $data       要记录的数据。
+     * @param    string    $prefix     日志前缀。
+     */
+    public static function warning_log($data, $prefix = 'Notion Warning') {
+        self::debug_log($data, $prefix, self::DEBUG_LEVEL_WARNING);
+    }
+
+    /**
      * 生成一个安全的、唯一的令牌。
      *
      * @since    1.0.8
@@ -300,6 +314,145 @@ class Notion_To_WordPress_Helper {
         return implode('', array_map(function($text_part) {
             return $text_part['plain_text'] ?? '';
         }, $rich_text));
+    }
+
+    /**
+     * 完整的 Rich Text 处理方法
+     *
+     * 支持所有格式化功能：粗体、斜体、删除线、下划线、代码、颜色、链接、公式等
+     *
+     * @since    2.0.0-beta.1
+     * @param    array     $rich_text    富文本数组
+     * @return   string                  格式化的HTML文本
+     */
+    public static function extract_rich_text_complete(array $rich_text): string {
+        if (empty($rich_text)) {
+            return '';
+        }
+
+        $result = '';
+
+        foreach ($rich_text as $text) {
+            // 处理行内公式 - 恢复到旧版本逻辑
+            if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
+                $expr_raw = $text['equation']['expression'] ?? '';
+
+                // 保留化学公式的特殊处理（确保\ce前缀）
+                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
+                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
+                }
+
+                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+                $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
+                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
+            } else {
+                // 对纯文本内容进行转义
+                $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
+            }
+
+            if (empty($content)) {
+                continue;
+            }
+
+            $annotations = isset($text['annotations']) ? $text['annotations'] : array();
+            $href = isset($text['href']) ? $text['href'] : '';
+
+            // 应用格式化
+            if (!empty($annotations)) {
+                if ( isset( $annotations['bold'] ) && $annotations['bold'] ) {
+                    $content = '<strong>' . $content . '</strong>';
+                }
+
+                if ( isset( $annotations['italic'] ) && $annotations['italic'] ) {
+                    $content = '<em>' . $content . '</em>';
+                }
+
+                if ( isset( $annotations['strikethrough'] ) && $annotations['strikethrough'] ) {
+                    $content = '<del>' . $content . '</del>';
+                }
+
+                if ( isset( $annotations['underline'] ) && $annotations['underline'] ) {
+                    $content = '<u>' . $content . '</u>';
+                }
+
+                if ( isset( $annotations['code'] ) && $annotations['code'] ) {
+                    $content = '<code>' . $content . '</code>';
+                }
+
+                // 处理颜色
+                if ( isset( $annotations['color'] ) && $annotations['color'] !== 'default' ) {
+                    $content = '<span class="notion-color-' . esc_attr( $annotations['color'] ) . '">' . $content . '</span>';
+                }
+            }
+
+            // 处理链接
+            if (!empty($href)) {
+                // 检测是否为 Notion 锚点链接
+                if (self::is_notion_anchor_link($href)) {
+                    // 转换为本地锚点链接，不添加 target="_blank"
+                    $local_href = self::convert_notion_anchor_to_local($href);
+                    $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
+                } else {
+                    // 外部链接保持原有处理方式
+                    $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
+                }
+            }
+
+            $result .= $content;
+        }
+
+        return $result;
+    }
+
+    /**
+     * 检测是否为 Notion 锚点链接
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $href    链接地址
+     * @return   bool              是否为 Notion 锚点链接
+     */
+    public static function is_notion_anchor_link(string $href): bool {
+        // 检测是否为 Notion 页面内链接，支持多种格式：
+        // 1. https://www.notion.so/page-title-123abc#456def
+        // 2. https://notion.so/123abc#456def
+        // 3. #456def (相对锚点)
+        return (bool) preg_match('/(?:notion\.so.*)?#[a-f0-9-]{8,}/', $href);
+    }
+
+    /**
+     * 将 Notion 锚点链接转换为本地锚点
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $href    原始链接地址
+     * @return   string             转换后的本地锚点链接
+     */
+    public static function convert_notion_anchor_to_local(string $href): string {
+        // 提取区块 ID 并转换为本地锚点
+        if (preg_match('/#([a-f0-9-]{8,})/', $href, $matches)) {
+            $block_id = $matches[1];
+
+            // 调试日志：记录原始 ID
+            self::debug_log("锚点链接原始 ID: $block_id", 'Anchor Link');
+
+            // 如果是32位无连字符格式，转换为36位带连字符格式
+            if (strlen($block_id) === 32 && strpos($block_id, '-') === false) {
+                // 将32位 ID 转换为标准的36位 UUID 格式
+                $formatted_id = substr($block_id, 0, 8) . '-' .
+                               substr($block_id, 8, 4) . '-' .
+                               substr($block_id, 12, 4) . '-' .
+                               substr($block_id, 16, 4) . '-' .
+                               substr($block_id, 20, 12);
+
+                self::debug_log("锚点链接转换后 ID: $formatted_id", 'Anchor Link');
+                return '#notion-block-' . $formatted_id;
+            }
+
+            // 如果已经是正确格式，直接使用
+            return '#notion-block-' . $block_id;
+        }
+        // 如果无法提取有效的区块 ID，记录警告并返回原始链接
+        self::warning_log('无法从锚点链接中提取有效的区块 ID: ' . $href);
+        return $href;
     }
 
     /**
