@@ -2,8 +2,10 @@
 declare(strict_types=1);
 
 /**
- * 插件核心类。
+ * 插件核心类
+ * 
  * 负责初始化插件，加载依赖项，定义国际化，以及注册后台和前台的钩子。
+ * 
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -126,6 +128,7 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-database-renderer.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
 
 		$this->loader = new Notion_To_WordPress_Loader();
@@ -444,6 +447,14 @@ class Notion_To_WordPress {
 			$this->version
 		);
 
+		// 新的数据库渲染器样式
+		wp_enqueue_style(
+			$this->plugin_name . '-database',
+			Notion_To_WordPress_Helper::plugin_url('assets/css/notion-database.css'),
+			array(),
+			$this->version
+		);
+
 		// ---------------- 公式相关（KaTeX） ----------------
 		// 允许通过过滤器自定义CDN前缀
 		$cdn_prefix = apply_filters( 'ntw_cdn_prefix', 'https://cdn.jsdelivr.net' );
@@ -511,15 +522,6 @@ class Notion_To_WordPress {
 			$this->plugin_name . '-lazy-loading',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/lazy-loading.js'),
 			array(),
-			$this->version,
-			true
-		);
-
-		// 数据库交互功能脚本
-		wp_enqueue_script(
-			$this->plugin_name . '-database-interactions',
-			Notion_To_WordPress_Helper::plugin_url('assets/js/database-interactions.js'),
-			array('jquery'),
 			$this->version,
 			true
 		);

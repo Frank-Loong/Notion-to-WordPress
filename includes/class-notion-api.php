@@ -2,10 +2,12 @@
 declare(strict_types=1);
 
 /**
- * Notion API 交互类。
+ * Notion API 交互类
+ * 
  * 封装了与 Notion API 通信的所有方法，包括获取数据库、页面、块等内容。
  * 处理 API 认证、请求发送、响应解析和错误处理。提供了完整的 Notion API
  * 功能封装，支持数据库查询、页面操作、内容同步等核心功能。
+ * 
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -110,9 +112,7 @@ class Notion_API {
 
     /**
      * 向 Notion API 发送请求。
-     *
      * 这是一个通用的私有方法，用于处理所有类型的 API 请求。
-     *
      * @since    1.0.8
      * @access   private
      * @param    string    $endpoint    API 端点，不包含基础 URL。
@@ -248,12 +248,12 @@ class Notion_API {
      * @since    1.0.8
      * @param    string    $block_id    块或页面的 ID。
      * @param    int       $depth       当前递归深度，用于限制递归层数。
-     * @param    int       $max_depth   最大递归深度，默认为3层。
-     * @return   array<string, mixed>                 子块对象数组。
+     * @param    int       $max_depth   最大递归深度，默认为5层。
+     * @return   array<string, mixed>   子块对象数组。
      * @throws   Exception             如果 API 请求失败。
      */
-    public function get_page_content(string $block_id, int $depth = 0, int $max_depth = 3): array {
-        // 检查递归深度限制 - 降低到3层以减少API调用
+    public function get_page_content(string $block_id, int $depth = 0, int $max_depth = 5): array {
+        // 检查递归深度限制 - 降低到5层以减少API调用
         if ($depth >= $max_depth) {
             return [];
         }

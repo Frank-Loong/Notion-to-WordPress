@@ -599,8 +599,8 @@ class Notion_To_WordPress_Admin {
             $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
 
-            // 执行导入
-            $result = $notion_pages->import_pages();
+            // 执行导入 - 强制刷新模式：检查删除，不使用增量同步，强制刷新所有内容
+            $result = $notion_pages->import_pages(true, false, true);
 
             // 更新最后同步时间
             update_option( 'notion_to_wordpress_last_sync', current_time( 'mysql' ) );

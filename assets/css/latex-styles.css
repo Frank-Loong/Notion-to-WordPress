@@ -106,20 +106,15 @@
     font-family: inherit !important;
 }
 
-/* 确保有标签的公式有足够的右边距 */
-.katex-display:has(.tag) {
-    padding-right: 5em;
-}
-
 /* 对于不支持:has()的浏览器，使用通用样式 */
 .katex-display {
-    position: relative;
-    padding-right: 4em;
+    position: relative !important;
+    padding-right: 6em;
 }
 
 /* 确保公式内容不会与标签重叠 */
 .katex-display .katex-html {
-    max-width: calc(100% - 5em);
+    max-width: calc(100% - 8em);
     display: inline-block;
 }
 
