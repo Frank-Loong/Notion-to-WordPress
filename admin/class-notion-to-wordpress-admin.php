@@ -6,7 +6,7 @@ declare(strict_types=1);
  * 后台管理类。
  * 负责插件后台设置页面的功能，包括表单处理、选项保存等。
  * @since      1.0.9
- * @version    1.8.3-beta.2
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
