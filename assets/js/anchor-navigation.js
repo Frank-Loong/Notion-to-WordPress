@@ -1,6 +1,8 @@
 /**
  * Notion 区块锚点导航脚本
+ *
  * 实现平滑滚动到 Notion 区块锚点，并处理固定头部的偏移，确保目标区块可见。
+ *
  * @since 1.1.1
  * @version 2.0.0-beta.1
  * @package Notion_To_WordPress
@@ -10,7 +12,7 @@
  */
 
 (function($) {
-'use strict';
+    'use strict';
 
 // 判断是否有 jQuery 可用
 const hasJQuery = typeof $ === 'function' && typeof $.fn !== 'undefined';

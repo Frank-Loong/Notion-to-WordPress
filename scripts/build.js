@@ -4,7 +4,7 @@
  * Notion-to-WordPress WordPress 插件打包工具
  * 
  * 本工具用于生成符合 WordPress 标准的插件 ZIP 包，
- * 自动排除开发文件，仅包含运行所需内容。
+ * 自动排除开发文件，仅包含运行所需内容，
  * 生成的 ZIP 可直接在 WordPress 后台安装。
  * 
  * @author Frank-Loong

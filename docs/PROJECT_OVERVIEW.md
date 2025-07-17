@@ -263,6 +263,6 @@
 
 **[⬆️ Back to Top](#-notion-to-wordpress---project-overview--feature-comparison) • [🏠 Home](../README.md) • [📚 Read the Docs](../docs/Wiki.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版](PROJECT_OVERVIEW-zh_CN.md)**
 
-</div>
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+</div>
