@@ -1,6 +1,8 @@
 /**
  * LaTeX 数学公式样式
+ *
  * 为使用 KaTeX 渲染的 LaTeX 数学公式提供样式，确保在不同设备上正确显示。
+ *
  * @since      1.0.7
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress

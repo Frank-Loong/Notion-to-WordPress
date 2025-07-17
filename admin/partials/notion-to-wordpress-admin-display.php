@@ -1,10 +1,11 @@
 <?php
-// 声明严格类型
 declare(strict_types=1);
 
 /**
- * 插件主后台页面。
+ * 插件主后台页面
+ * 
  * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射等。
+ * 
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -14,9 +15,9 @@ declare(strict_types=1);
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
-// 如果直接访问本文件，则终止执行。
-if (!defined('WPINC')) {
-    die;
+// 如果直接访问本文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
 }
 
 // 一次性获取所有选项

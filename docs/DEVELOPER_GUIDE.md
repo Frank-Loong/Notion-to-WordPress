@@ -1207,6 +1207,6 @@ function sync($id) {  // Missing type hints and documentation
 
 **[⬆️ Back to Top](#-notion-to-wordpress-developer-guide) • [🏠 Home](../README.md) • [📚 User Guide](Wiki.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🇨🇳 中文版](DEVELOPER_GUIDE-zh_CN.md)**
 
-</div>
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+</div>

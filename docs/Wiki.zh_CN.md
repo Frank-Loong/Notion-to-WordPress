@@ -1698,8 +1698,6 @@ document.addEventListener('DOMContentLoaded', function() {
 - **WordPress 社区** - 提供了强大的插件开发框架
 - **Notion 开发团队** - 提供了优秀的 API 接口
 
----
-
 ### 📞 联系方式
 
 **项目维护者：** Frank Loong
@@ -1714,16 +1712,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 *感谢您阅读 Notion to WordPress 用户指南！*
 
+**🎉 如果这份指南对您有帮助，请考虑：**
+
+⭐ 给项目点个 Star
+
+🔄 分享给其他需要的用户
+
+💬 在社区中分享您的使用经验
+
+🐛 报告文档中的错误或改进建议
+
 **[⬆️ 返回顶部](#-notion-to-wordpress---用户指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
 
----
-
-**🎉 如果这份指南对您有帮助，请考虑：**
-- ⭐ 给项目点个 Star
-- 🔄 分享给其他需要的用户
-- 💬 在社区中分享您的使用经验
-- 🐛 报告文档中的错误或改进建议
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>
-
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1

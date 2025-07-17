@@ -2,8 +2,10 @@
 declare(strict_types=1);
 
 /**
- * 卸载脚本。
+ * 卸载脚本
+ * 
  * 当插件从 WordPress 卸载时，此脚本负责清理所有相关的数据库选项、计划任务和（可选的）内容。
+ * 
  * @since      1.0.5
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -12,8 +14,8 @@ declare(strict_types=1);
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
-// 如果不是WordPress调用，则退出
-if (!defined('WP_UNINSTALL_PLUGIN')) {
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
     exit;
 }
 

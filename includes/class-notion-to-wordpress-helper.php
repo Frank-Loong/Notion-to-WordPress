@@ -15,8 +15,8 @@ declare(strict_types=1);
  */
 
 // 如果直接访问此文件，则退出
-if (!defined('WPINC')) {
-    die;
+if (!defined('ABSPATH')) {
+    exit;
 }
 
 class Notion_To_WordPress_Helper {

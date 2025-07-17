@@ -1,10 +1,11 @@
 <?php
-// 声明严格类型
 declare(strict_types=1);
 
 /**
- * 后台管理类。
+ * 后台管理类
+ * 
  * 负责插件后台设置页面的功能，包括表单处理、选项保存等。
+ * 
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -12,6 +13,7 @@ declare(strict_types=1);
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
 // 如果直接访问此文件，则退出
 if (!defined('ABSPATH')) {
     exit;

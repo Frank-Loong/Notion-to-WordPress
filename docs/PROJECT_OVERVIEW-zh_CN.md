@@ -263,6 +263,6 @@
 
 **[⬆️ 返回顶部](#-notion-to-wordpress---项目概览与功能对比) • [🏠 主页](../README-zh_CN.md) • [📚 阅读文档](Wiki.zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English](PROJECT_OVERVIEW.md)**
 
-</div>
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+</div>

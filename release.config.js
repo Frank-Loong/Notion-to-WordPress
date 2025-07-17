@@ -1,7 +1,8 @@
 /**
- * Notion-to-WordPress 插件发布配置。
- * 包含自动化发布系统的所有配置选项。
- * 你可以根据项目需求自定义这些设置。
+ * Notion-to-WordPress 插件发布配置
+ * 
+ * 包含自动化发布系统的所有配置选项，可以根据项目需求自定义这些设置。
+ * 
  * @since      1.8.2
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress

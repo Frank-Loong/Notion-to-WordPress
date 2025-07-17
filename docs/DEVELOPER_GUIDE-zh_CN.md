@@ -1207,6 +1207,6 @@ function sync($id) {  // 缺少类型提示和文档
 
 **[⬆️ 返回顶部](#-notion-to-wordpress-开发者指南) • [🏠 主页](../README-zh_CN.md) • [📚 用户指南](Wiki.zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🇺🇸 English](DEVELOPER_GUIDE.md)**
 
-</div>
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+</div>

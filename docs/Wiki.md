@@ -1698,8 +1698,6 @@ We appreciate all community members who contribute to the project:
 - **WordPress Community** - Provided powerful plugin development framework
 - **Notion Development Team** - Provided excellent API interface
 
----
-
 ### 📞 Contact Information
 
 **Project Maintainer:** Frank Loong
@@ -1714,16 +1712,18 @@ We appreciate all community members who contribute to the project:
 
 *Thank you for reading the Notion to WordPress User Guide!*
 
+**🎉 If this guide helped you, please consider:**
+
+⭐ Give the project a Star
+
+🔄 Share with other users who need it
+
+💬 Share your usage experience in the community
+
+🐛 Report errors or improvement suggestions in documentation
+
 **[⬆️ Back to Top](#-notion-to-wordpress---complete-user-guide) • [🏠 Home](../README.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版本](Wiki.zh_CN.md)**
 
----
-
-**🎉 If this guide helped you, please consider:**
-- ⭐ Give the project a Star
-- 🔄 Share with other users who need it
-- 💬 Share your usage experience in the community
-- 🐛 Report errors or improvement suggestions in documentation
+ © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>
-
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
