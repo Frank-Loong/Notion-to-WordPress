@@ -2,10 +2,11 @@
 declare(strict_types=1);
 
 /**
- * Notion 页面处理类
- * 
- * 负责将 Notion 页面转换为 WordPress 文章，包括内容转换、字段映射和媒体处理。
- * 
+ * Notion 页面导入协调器类
+ *
+ * 重构后的主协调器类，通过依赖注入整合所有专门类，保持向后兼容的公共接口。
+ * 实现服务协调和流程管理，确保所有现有调用代码无需修改。
+ *
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -21,8 +22,44 @@ if (!defined('ABSPATH')) {
 
 class Notion_Pages {
 
+    // ==================== 核心依赖服务 ====================
+
     /**
-     * 存储已导入的块ID，防止重复处理
+     * Notion API 实例
+     *
+     * @since 2.0.0-beta.1
+     * @var Notion_API
+     */
+    public Notion_API $notion_api;
+
+    /**
+     * 数据库ID
+     *
+     * @since 2.0.0-beta.1
+     * @var string
+     */
+    private string $database_id;
+
+    /**
+     * 字段映射配置
+     *
+     * @since 2.0.0-beta.1
+     * @var array
+     */
+    private array $field_mapping;
+
+    /**
+     * 自定义字段映射
+     *
+     * @since 2.0.0-beta.1
+     * @var array
+     */
+    private array $custom_field_mappings = [];
+
+    // ==================== 向后兼容属性 ====================
+
+    /**
+     * 存储已导入的块ID，防止重复处理（向后兼容）
      *
      * @since    1.0.5
      * @access   private
@@ -30,41 +67,32 @@ class Notion_Pages {
      */
     private array $processed_blocks = [];
 
-    /**
-     * 待下载图片队列
-     *
-     * @since    1.9.0-beta.1
-     * @access   private
-     * @var      array    $pending_images    待下载的图片信息
-     */
-    private array $pending_images = [];
+    // ==================== 向后兼容的遗留属性 ====================
 
     /**
-     * 图片占位符映射
-     *
-     * @since    1.9.0-beta.1
-     * @access   private
-     * @var      array    $image_placeholders    占位符到attachment ID的映射
+     * 会话级数据库查询缓存（向后兼容）
+     * @deprecated 2.0.0-beta.1 使用 Notion_Cache_Manager 代替
+     * @var array
      */
-    private array $image_placeholders = [];
+    private static $db_query_cache = [];
 
     /**
-     * 是否启用异步图片下载模式
-     *
-     * @since    1.9.0-beta.1
-     * @access   private
-     * @var      bool     $async_image_mode      异步图片下载模式标志
+     * 会话级批量查询缓存（向后兼容）
+     * @deprecated 2.0.0-beta.1 使用 Notion_Cache_Manager 代替
+     * @var array
      */
-    private bool $async_image_mode = false;
+    private static $batch_query_cache = [];
 
     /**
-     * 最后一次处理的统计信息
+     * 最后一次处理的统计信息（向后兼容）
      *
      * @since    1.9.0-beta.1
      * @access   private
      * @var      array    $last_processing_stats    最后一次处理的统计信息
      */
     private array $last_processing_stats = [];
+
+    // ==================== 辅助方法 ====================
 
     /**
      * 检查是否启用并发优化功能
@@ -79,54 +107,6 @@ class Notion_Pages {
         // 默认启用并发优化，除非明确禁用
         return $performance_config['enable_concurrent_optimization'] ?? true;
     }
-
-    /**
-     * Notion API实例
-     *
-     * @since    1.0.8
-     * @access   private
-     * @var      Notion_API    $notion_api    Notion API实例
-     */
-    private Notion_API $notion_api;
-
-    /**
-     * 会话级数据库查询缓存
-     * @var array
-     */
-    private static $db_query_cache = [];
-
-    /**
-     * 会话级批量查询缓存
-     * @var array
-     */
-    private static $batch_query_cache = [];
-    
-    /**
-     * 数据库ID
-     *
-     * @since    1.0.8
-     * @access   private
-     * @var      string    $database_id    Notion数据库ID
-     */
-    private string $database_id;
-    
-    /**
-     * 字段映射
-     *
-     * @since    1.0.8
-     * @access   private
-     * @var      array    $field_mapping    字段映射配置
-     */
-    private array $field_mapping;
-
-    /**
-     * 自定义字段映射
-     *
-     * @since    1.1.0
-     * @access   private
-     * @var      array    $custom_field_mappings    自定义字段映射配置
-     */
-    private array $custom_field_mappings = [];
 
     /**
      * 构造函数
@@ -153,24 +133,24 @@ class Notion_Pages {
     }
 
     /**
-     * 从Notion页面导入到WordPress
+     * 从Notion页面导入到WordPress（主协调器方法）
      *
      * @since    1.0.5
      * @param    array     $page         Notion页面数据
-     * @param    object    $notion_api   Notion API实例
      * @return   boolean                 导入是否成功
      */
     public function import_notion_page(array $page): bool {
-        Notion_To_WordPress_Helper::debug_log('import_notion_page() 开始执行', 'Page Import');
+        Notion_To_WordPress_Helper::debug_log('import_notion_page() 开始执行（主协调器）', 'Page Import');
 
         if (empty($page) || !isset($page['id'])) {
             Notion_To_WordPress_Helper::error_log('页面数据为空或缺少ID', 'Page Import');
             return false;
         }
 
-        $page_id  = $page['id'];
+        $page_id = $page['id'];
 
-        $metadata = $this->extract_page_metadata($page);
+        // 使用元数据提取器提取页面元数据
+        $metadata = Notion_Metadata_Extractor::extract_page_metadata($page, $this->field_mapping, $this->custom_field_mappings);
         Notion_To_WordPress_Helper::debug_log('元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'), 'Page Import');
 
         if (empty($metadata['title'])) {
@@ -190,7 +170,7 @@ class Notion_Pages {
 
         if ($concurrent_enabled) {
             // 启用异步图片下载模式
-            $this->enable_async_image_mode();
+            Notion_Image_Processor::enable_async_image_mode();
             Notion_To_WordPress_Helper::debug_log('并发优化已启用，异步图片下载模式已启用', 'Page Import');
         } else {
             Notion_To_WordPress_Helper::debug_log('并发优化已禁用，使用传统模式', 'Page Import');
@@ -199,18 +179,18 @@ class Notion_Pages {
         if ($concurrent_enabled) {
             try {
                 // 转换内容为 HTML（收集图片占位符）
-                $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+                $raw_content = Notion_Content_Converter::convert_blocks_to_html($blocks, $this->notion_api);
 
                 // 处理异步图片下载并替换占位符
-                $processed_content = $this->process_async_images($raw_content);
+                $processed_content = Notion_Image_Processor::process_async_images($raw_content);
 
                 // 获取图片处理统计
-                $image_stats = $this->get_image_queue_stats(true);
+                $image_stats = Notion_Image_Processor::get_performance_stats();
                 Notion_To_WordPress_Helper::debug_log(
                     sprintf(
                         '并发图片处理完成: 成功 %d 个，失败 %d 个',
-                        $image_stats['successful_downloads'],
-                        $image_stats['failed_downloads']
+                        $image_stats['success_count'],
+                        $image_stats['error_count']
                     ),
                     'Page Import'
                 );
@@ -225,44 +205,44 @@ class Notion_Pages {
                 );
 
                 // 禁用异步模式并重新处理
-                $this->disable_async_image_mode();
-                $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+                Notion_Image_Processor::disable_async_image_mode();
+                $raw_content = Notion_Content_Converter::convert_blocks_to_html($blocks, $this->notion_api);
                 $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
 
                 // 重新启用异步模式以保持状态一致
-                $this->enable_async_image_mode();
+                Notion_Image_Processor::enable_async_image_mode();
             }
         } else {
             // 传统模式：直接处理，不使用并发优化
-            $raw_content = $this->convert_blocks_to_html($blocks, $this->notion_api);
+            $raw_content = Notion_Content_Converter::convert_blocks_to_html($blocks, $this->notion_api);
             $content = Notion_To_WordPress_Helper::custom_kses($raw_content);
         }
         
-        $existing_post_id = $this->get_post_by_notion_id($page_id);
+        $existing_post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page_id);
 
         // 获取文章作者
         $author_id = $this->get_author_id();
 
         // 创建或更新文章
-        $post_id = $this->create_or_update_post($metadata, $content, $author_id, $page_id, $existing_post_id);
+        $post_id = Notion_To_WordPress_Integrator::create_or_update_post($metadata, $content, $author_id, $page_id, $existing_post_id);
 
         if (is_wp_error($post_id)) {
             return false;
         }
 
         // 分类 / 标签 / 特色图
-        $this->apply_taxonomies($post_id, $metadata);
-        $this->apply_featured_image($post_id, $metadata);
+        Notion_To_WordPress_Integrator::apply_taxonomies($post_id, $metadata);
+        Notion_To_WordPress_Integrator::apply_featured_image($post_id, $metadata);
 
         // 更新同步时间戳
         $notion_last_edited = $page['last_edited_time'] ?? '';
         if ($notion_last_edited) {
-            $this->update_page_sync_time($page_id, $notion_last_edited);
+            Notion_Sync_Manager::update_page_sync_time($page_id, $notion_last_edited);
         }
 
         // 如果启用了并发优化，禁用异步图片下载模式
         if ($concurrent_enabled) {
-            $this->disable_async_image_mode();
+            Notion_Image_Processor::disable_async_image_mode();
             Notion_To_WordPress_Helper::debug_log('页面导入完成，异步图片下载模式已禁用', 'Page Import');
         } else {
             Notion_To_WordPress_Helper::debug_log('页面导入完成（传统模式）', 'Page Import');
@@ -279,228 +259,21 @@ class Notion_Pages {
      * @return   array              页面元数据
      */
     private function extract_page_metadata($page) {
-        $metadata = [];
-        $props    = $page['properties'] ?? [];
-
-        // 获取保存的选项，包括字段映射
-        $options = get_option( 'notion_to_wordpress_options', [] );
-
-        /*
-         * 默认字段映射。即使用户在后台保存设置时遗漏了某些字段（例如密码映射），
-         * 依旧可以通过与默认值合并来保证关键字段存在，避免导入过程出错。
-         */
-        $default_mapping = [
-            'title'          => 'Title,标题',
-            'status'         => 'Status,状态',
-            'post_type'      => 'Type,类型',
-            'date'           => 'Date,日期',
-            'excerpt'        => 'Summary,摘要,Excerpt',
-            'featured_image' => 'Featured Image,特色图片',
-            'categories'     => 'Categories,分类,Category',
-            'tags'           => 'Tags,标签,Tag',
-            // 新增：密码字段映射，支持密码保护文章
-            'password'       => 'Password,密码',
-        ];
-
-        // 合并用户自定义映射，保持默认键不丢失
-        $field_mapping_saved = $options['field_mapping'] ?? [];
-        $field_mapping       = array_merge( $default_mapping, $field_mapping_saved );
-
-        // 将逗号分隔的字符串转换为数组
-        foreach ( $field_mapping as $key => $value ) {
-            $field_mapping[ $key ] = array_map( 'trim', explode( ',', $value ) );
-        }
-
-        $metadata['title'] = '';
-        if (isset($field_mapping['title']) && is_array($field_mapping['title'])) {
-            $metadata['title'] = $this->get_property_value( $props, $field_mapping['title'], 'title', 'plain_text' );
-        }
-
-        // 兼容新版 Notion "Status" 属性（类型为 status）以及旧版 select
-        $status_val = '';
-        if (isset($field_mapping['status']) && is_array($field_mapping['status'])) {
-            $status_val = $this->get_property_value( $props, $field_mapping['status'], 'select', 'name' );
-            if ( ! $status_val ) {
-                $status_val = $this->get_property_value( $props, $field_mapping['status'], 'status', 'name' );
-            }
-        }
-
-        // 获取密码字段
-        $password_val = '';
-        if (isset($field_mapping['password']) && is_array($field_mapping['password'])) {
-            $password_val = $this->get_property_value( $props, $field_mapping['password'], 'rich_text', 'plain_text' );
-            if ( ! $password_val ) {
-                // 也尝试从其他类型获取密码
-                $password_val = $this->get_property_value( $props, $field_mapping['password'], 'title', 'plain_text' );
-            }
-        }
-
-        // 处理文章状态和密码
-        if ( $status_val ) {
-            // 使用规范化函数来统一处理状态映射
-            $metadata['status'] = Notion_To_WordPress_Helper::normalize_post_status(trim($status_val));
-        } else {
-            $metadata['status'] = 'draft';
-        }
-
-        // 如果有密码，设置为加密文章
-        if ( !empty($password_val) ) {
-            $metadata['password'] = trim($password_val);
-            // 有密码的文章应该是已发布状态，否则密码无效
-            if ( $metadata['status'] === 'draft' ) {
-                $metadata['status'] = 'publish';
-            }
-        }
-
-        // 添加详细调试日志
-        Notion_To_WordPress_Helper::debug_log(
-            sprintf('Notion页面状态: %s, 密码: %s, 转换为WordPress状态: %s, 密码保护: %s',
-                $status_val ?: 'null',
-                !empty($password_val) ? '***' : 'null',
-                $metadata['status'],
-                !empty($metadata['password']) ? '是' : '否'
-            ),
-            'Notion Status',
-            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+        // 委托给元数据提取器
+        return Notion_Metadata_Extractor::extract_page_metadata(
+            $page,
+            $this->field_mapping ?? [],
+            $this->custom_field_mappings ?? []
         );
 
-        $metadata['post_type'] = 'post';
-        if (isset($field_mapping['post_type']) && is_array($field_mapping['post_type'])) {
-            $metadata['post_type'] = $this->get_property_value( $props, $field_mapping['post_type'], 'select', 'name' ) ?? 'post';
-        }
 
-        $metadata['date'] = '';
-        if (isset($field_mapping['date']) && is_array($field_mapping['date'])) {
-            $metadata['date'] = $this->get_property_value( $props, $field_mapping['date'], 'date', 'start' );
-        }
-
-        $metadata['excerpt'] = '';
-        if (isset($field_mapping['excerpt']) && is_array($field_mapping['excerpt'])) {
-            $metadata['excerpt'] = $this->get_property_value( $props, $field_mapping['excerpt'], 'rich_text', 'plain_text' );
-        }
-
-        $metadata['featured_image'] = '';
-        if (isset($field_mapping['featured_image']) && is_array($field_mapping['featured_image'])) {
-            $metadata['featured_image'] = $this->get_property_value( $props, $field_mapping['featured_image'], 'files', 'url' );
-        }
-        
-
-
-        // 处理分类和标签
-        if (isset($field_mapping['categories']) && is_array($field_mapping['categories'])) {
-            $categories_prop = $this->get_property_value( $props, $field_mapping['categories'], 'multi_select' );
-            if ( $categories_prop ) {
-                $categories = [];
-                foreach ( $categories_prop as $category ) {
-                    $term = get_term_by( 'name', $category['name'], 'category' );
-                    if ( ! $term ) {
-                        $term_data = wp_create_term( $category['name'], 'category' );
-                        if ( ! is_wp_error( $term_data ) ) {
-                            $categories[] = $term_data['term_id'];
-                        }
-                    } else {
-                        $categories[] = $term->term_id;
-                    }
-                }
-                $metadata['categories'] = array_filter( $categories );
-            }
-        }
-
-        if (isset($field_mapping['tags']) && is_array($field_mapping['tags'])) {
-            $tags_prop = $this->get_property_value( $props, $field_mapping['tags'], 'multi_select' );
-            if ( $tags_prop ) {
-                $tags = [];
-                foreach ( $tags_prop as $tag ) {
-                    $tags[] = $tag['name'];
-                }
-                $metadata['tags'] = $tags;
-            }
-        }
-        
-        // 处理自定义字段映射
-        $custom_field_mappings = $this->custom_field_mappings ?? [];
-        if (!empty($custom_field_mappings)) {
-            $metadata['custom_fields'] = [];
-            
-            foreach ($custom_field_mappings as $mapping) {
-                $notion_property = $mapping['notion_property'];
-                $wp_field = $mapping['wp_field'];
-                $field_type = $mapping['field_type'];
-                
-                if (empty($notion_property) || empty($wp_field)) {
-                    continue;
-                }
-                
-                // 将Notion属性名转换为数组
-                $property_names = array_map('trim', explode(',', $notion_property));
-                
-                // 根据字段类型获取属性值
-                $value = null;
-                
-                switch ($field_type) {
-                    case 'text':
-                        $value = $this->get_property_value($props, $property_names, 'rich_text', 'plain_text');
-                        break;
-                        
-                    case 'number':
-                        $value = $this->get_property_value($props, $property_names, 'number');
-                        break;
-                        
-                    case 'date':
-                        $value = $this->get_property_value($props, $property_names, 'date', 'start');
-                        break;
-                        
-                    case 'checkbox':
-                        $value = $this->get_property_value($props, $property_names, 'checkbox');
-                        break;
-                        
-                    case 'select':
-                        $value = $this->get_property_value($props, $property_names, 'select', 'name');
-                        break;
-                        
-                    case 'multi_select':
-                        $multi_select_values = $this->get_property_value($props, $property_names, 'multi_select');
-                        if ($multi_select_values) {
-                            $value = array_map(function($item) {
-                                return $item['name'];
-                            }, $multi_select_values);
-                            $value = implode(',', $value);
-                        }
-                        break;
-                        
-                    case 'url':
-                        $value = $this->get_property_value($props, $property_names, 'url');
-                        break;
-                        
-                    case 'email':
-                        $value = $this->get_property_value($props, $property_names, 'email');
-                        break;
-                        
-                    case 'phone':
-                        $value = $this->get_property_value($props, $property_names, 'phone_number');
-                        break;
-                        
-                    case 'rich_text':
-                        $rich_text = $this->get_property_value($props, $property_names, 'rich_text');
-                        if ($rich_text) {
-                            $value = $this->extract_rich_text($rich_text);
-                        }
-                        break;
-                }
-                
-                if ($value !== null) {
-                    $metadata['custom_fields'][$wp_field] = $value;
-                }
-            }
-        }
-
-        return $metadata;
     }
 
     /**
      * 从属性列表中安全地获取一个值
      *
      * @since 1.0.5
+     * @deprecated 2.0.0-beta.1 使用 Notion_Metadata_Extractor::get_property_value() 代替
      * @access private
      * @param array $props 属性列表
      * @param array $names 可能的属性名称
@@ -532,6 +305,7 @@ class Notion_Pages {
      * 从属性值中提取具体数据
      *
      * @since 1.0.9
+     * @deprecated 2.0.0-beta.1 使用 Notion_Metadata_Extractor::extract_property_value() 代替
      * @param mixed $prop 属性值
      * @param string $type 属性类型
      * @param string|null $key 要提取的键名
@@ -569,128 +343,8 @@ class Notion_Pages {
      * @return   string                  HTML内容
      */
     private function convert_blocks_to_html(array $blocks, Notion_API $notion_api): string {
-        $html = '';
-        $list_wrapper = null;
-
-        // 预处理：识别所有子数据库块并批量获取数据
-        $database_blocks = [];
-        $database_data = [];
-
-        foreach ($blocks as $block) {
-            if (isset($block['type']) && $block['type'] === 'child_database') {
-                $database_blocks[] = $block;
-            }
-        }
-
-        // 如果有子数据库块，使用新的批量处理器
-        if (!empty($database_blocks)) {
-            $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
-        }
-
-        // 为这次转换创建本地的已处理块列表，避免跨调用的状态污染
-        $local_processed_blocks = [];
-
-        foreach ($blocks as $block) {
-            if (in_array($block['id'], $local_processed_blocks)) {
-                continue;
-            }
-            $local_processed_blocks[] = $block['id'];
-
-            $block_type = $block['type'];
-            $converter_method = '_convert_block_' . $block_type;
-
-            // -------- 列表块处理（含待办 to_do） --------
-            $is_standard_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item']);
-            $is_todo_item         = ($block_type === 'to_do');
-            $is_list_item         = $is_standard_list_item || $is_todo_item;
-
-            if ($is_standard_list_item) {
-                // 无序/有序列表
-                $current_list_tag = ($block_type === 'bulleted_list_item') ? 'ul' : 'ol';
-                if ($list_wrapper !== $current_list_tag) {
-                    if ($list_wrapper !== null) {
-                        // 关闭之前的列表（包括 todo 列表）
-                        $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                    }
-                    $html .= '<' . $current_list_tag . '>';
-                    $list_wrapper = $current_list_tag;
-                }
-            } elseif ($is_todo_item) {
-                // 待办事项列表，统一使用 ul，并带有 class 方便样式
-                if ($list_wrapper !== 'todo') {
-                    if ($list_wrapper !== null) {
-                        $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                    }
-                    $html .= '<ul class="notion-to-do-list">';
-                    $list_wrapper = 'todo';
-                }
-            } elseif ($list_wrapper !== null) {
-                // 当前块非列表项，关闭现有列表
-                $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                $list_wrapper = null;
-            }
-
-            if (method_exists($this, $converter_method)) {
-                try {
-                    // 特殊处理子数据库块，使用预处理的数据
-                    if ($block_type === 'child_database') {
-                        $block_html = $this->_convert_block_child_database_with_data($block, $notion_api, $database_data);
-                    } else {
-                        // 尝试转换块
-                        $block_html = $this->{$converter_method}($block, $notion_api);
-                    }
-
-                    // 为所有区块添加 ID 包装，支持锚点跳转
-                    // 注意：列表项也需要 ID 以支持锚点跳转
-                    $block_html = $this->wrap_block_with_id($block_html, $block['id'], $block_type);
-
-                    $html .= $block_html;
-
-                    // 特别记录数据库区块的成功转换
-                    if ($block_type === 'child_database') {
-                        Notion_To_WordPress_Helper::info_log(
-                            '数据库区块转换成功: ' . ($block['id'] ?? 'unknown'),
-                            'Database Block'
-                        );
-                    }
-
-                    // 注释掉主循环中的子块处理，避免与块转换器中的子块处理重复
-                    // 子块处理现在由各个块转换器方法负责
-                    // if (isset($block['has_children']) && $block['has_children'] && !$is_list_item && $block_type !== 'child_database') {
-                    //     $html .= $this->_convert_child_blocks($block, $notion_api);
-                    // }
-                } catch (Exception $e) {
-                    // 记录错误并添加注释
-                    if ($block_type === 'child_database') {
-                        Notion_To_WordPress_Helper::error_log(
-                            '数据库区块转换失败: ' . ($block['id'] ?? 'unknown') . ', 错误: ' . $e->getMessage(),
-                            'Database Block'
-                        );
-                    } else {
-                        Notion_To_WordPress_Helper::error_log('Notion块转换错误: ' . $e->getMessage(), 'Block Convert');
-                    }
-                    $html .= '<!-- 块转换错误: ' . esc_html($block_type) . ' -->';
-                }
-            } else {
-                // 未知块类型，添加调试注释
-                if ($block_type === 'child_database') {
-                    Notion_To_WordPress_Helper::error_log(
-                        '数据库区块转换方法不存在: ' . ($block['id'] ?? 'unknown'),
-                        'Database Block'
-                    );
-                } else {
-                    Notion_To_WordPress_Helper::debug_log('未支持的Notion块类型: ' . $block_type, 'Block Convert');
-                }
-                $html .= '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
-            }
-        }
-
-        // 确保所有列表都正确关闭
-        if ($list_wrapper !== null) {
-            $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-        }
-
-        return $html;
+        // 委托给内容转换器
+        return Notion_Content_Converter::convert_blocks_to_html($blocks, $notion_api);
     }
     
     /**
@@ -730,57 +384,8 @@ class Notion_Pages {
      * @return   string                   包装后的 HTML
      */
     private function wrap_block_with_id(string $block_html, string $block_id, string $block_type): string {
-        // 确保 ID 和类名安全
-        $safe_id = esc_attr('notion-block-' . $block_id);
-        $safe_type = esc_attr($block_type);
-
-        // 对于列表项，直接在 <li> 元素上添加 ID，避免破坏列表结构
-        if (in_array($block_type, ['bulleted_list_item', 'numbered_list_item', 'to_do'])) {
-            // 检查是否已有 class 属性
-            if (preg_match('/^<li\s+class="([^"]*)"([^>]*)>/', $block_html, $matches)) {
-                // 已有 class，合并类名
-                $existing_class = $matches[1];
-                $other_attrs = $matches[2];
-                $new_class = 'notion-block notion-' . $safe_type . ' ' . $existing_class;
-                return '<li id="' . $safe_id . '" class="' . $new_class . '"' . $other_attrs . '>' .
-                       substr($block_html, strlen($matches[0]));
-            } else {
-                // 没有 class，直接添加
-                $pattern = '/^<li(\s[^>]*)?>/';
-                $replacement = '<li id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '"$1>';
-                return preg_replace($pattern, $replacement, $block_html);
-            }
-        }
-
-        // 对于已有合适容器的区块，直接在现有 div 上添加 ID，避免双层嵌套
-        if (in_array($block_type, ['callout', 'bookmark', 'toggle', 'equation', 'child_database', 'child_page', 'column', 'column_list'])) {
-            // 查找第一个 <div> 标签并添加 ID
-            if (preg_match('/^<div\s+class="([^"]*)"([^>]*)>/', $block_html, $matches)) {
-                // 已有 class 属性
-                $existing_class = $matches[1];
-                $other_attrs = $matches[2];
-
-                // 构建新的类名，避免重复
-                $classes = array_filter(array_unique(array_merge(
-                    ['notion-block', 'notion-' . $safe_type],
-                    explode(' ', $existing_class)
-                )));
-                $new_class = implode(' ', $classes);
-
-                $replacement = '<div id="' . $safe_id . '" class="' . $new_class . '"' . $other_attrs . '>';
-                return preg_replace('/^<div\s+class="[^"]*"[^>]*>/', $replacement, $block_html);
-            } elseif (preg_match('/^<div([^>]*)>/', $block_html, $matches)) {
-                // 没有 class 属性
-                $other_attrs = $matches[1];
-                $replacement = '<div id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '"' . $other_attrs . '>';
-                return preg_replace('/^<div[^>]*>/', $replacement, $block_html);
-            }
-        }
-
-        // 对于其他区块，使用 div 包装
-        $wrapped_html = '<div id="' . $safe_id . '" class="notion-block notion-' . $safe_type . '">' . $block_html . '</div>';
-        Notion_To_WordPress_Helper::info_log("区块包装完成: $block_id -> " . substr($wrapped_html, 0, 100) . "...");
-        return $wrapped_html;
+        // 委托给内容转换器
+        return Notion_Content_Converter::wrap_block_with_id($block_html, $block_id, $block_type);
     }
 
     // --- Block Converters ---
@@ -1390,29 +995,8 @@ class Notion_Pages {
      * @return   int                     WordPress文章ID
      */
     private function get_post_by_notion_id($notion_id) {
-        // 检查会话级缓存
-        $cache_key = 'post_by_notion_id_' . $notion_id;
-        if (isset(self::$db_query_cache[$cache_key])) {
-            return self::$db_query_cache[$cache_key];
-        }
-
-        global $wpdb;
-
-        // 使用直接SQL查询而不是get_posts，减少开销
-        $query = $wpdb->prepare(
-            "SELECT post_id FROM {$wpdb->postmeta}
-            WHERE meta_key = '_notion_page_id' AND meta_value = %s
-            LIMIT 1",
-            $notion_id
-        );
-
-        $post_id = $wpdb->get_var($query);
-        $result = $post_id ? (int)$post_id : 0;
-
-        // 存储到会话级缓存
-        self::$db_query_cache[$cache_key] = $result;
-
-        return $result;
+        // 委托给WordPress集成器
+        return Notion_To_WordPress_Integrator::get_post_by_notion_id($notion_id);
     }
 
     /**
@@ -1429,8 +1013,9 @@ class Notion_Pages {
 
         // 检查会话级缓存
         $cache_key = 'batch_posts_' . md5(serialize($notion_ids));
-        if (isset(self::$batch_query_cache[$cache_key])) {
-            return self::$batch_query_cache[$cache_key];
+        $cached_result = Notion_Cache_Manager::get_batch_cache_value($cache_key);
+        if ($cached_result !== null) {
+            return $cached_result;
         }
 
         // 检查单个缓存，减少需要查询的ID
@@ -1439,8 +1024,9 @@ class Notion_Pages {
 
         foreach ($notion_ids as $notion_id) {
             $single_cache_key = 'post_by_notion_id_' . $notion_id;
-            if (isset(self::$db_query_cache[$single_cache_key])) {
-                $mapping[$notion_id] = self::$db_query_cache[$single_cache_key];
+            $cached_value = Notion_Cache_Manager::get_db_cache_value($single_cache_key);
+            if ($cached_value !== null) {
+                $mapping[$notion_id] = $cached_value;
             } else {
                 $uncached_ids[] = $notion_id;
                 $mapping[$notion_id] = 0; // 默认值
@@ -1468,11 +1054,18 @@ class Notion_Pages {
             // 更新映射和单个缓存
             foreach ($results as $row) {
                 $mapping[$row->notion_id] = (int)$row->post_id;
-                self::$db_query_cache['post_by_notion_id_' . $row->notion_id] = (int)$row->post_id;
+                $single_cache_key = 'post_by_notion_id_' . $row->notion_id;
+                Notion_Cache_Manager::set_db_cache_value($single_cache_key, (int)$row->post_id);
+
+                // 保持向后兼容的本地缓存
+                self::$db_query_cache[$single_cache_key] = (int)$row->post_id;
             }
         }
 
         // 存储到批量查询缓存
+        Notion_Cache_Manager::set_batch_cache_value($cache_key, $mapping);
+
+        // 保持向后兼容的本地缓存
         self::$batch_query_cache[$cache_key] = $mapping;
 
         return $mapping;
@@ -1486,57 +1079,18 @@ class Notion_Pages {
      * @return   array                   [notion_id => sync_time] 映射
      */
     private function batch_get_page_sync_times(array $notion_ids): array {
-        if (empty($notion_ids)) {
-            return [];
-        }
-
-        // 检查会话级缓存
-        $cache_key = 'batch_sync_times_' . md5(serialize($notion_ids));
-        if (isset(self::$batch_query_cache[$cache_key])) {
-            return self::$batch_query_cache[$cache_key];
-        }
-
-        global $wpdb;
-
-        // 准备SQL占位符
-        $placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
-
-        // 执行批量查询
-        $query = $wpdb->prepare(
-            "SELECT pm1.meta_value as notion_id, pm2.meta_value as sync_time
-            FROM {$wpdb->postmeta} pm1
-            INNER JOIN {$wpdb->postmeta} pm2 ON pm1.post_id = pm2.post_id
-            WHERE pm1.meta_key = '_notion_page_id'
-            AND pm1.meta_value IN ($placeholders)
-            AND pm2.meta_key = '_notion_last_sync_time'",
-            $notion_ids
-        );
-
-        $results = $wpdb->get_results($query);
-
-        // 构建映射数组
-        $mapping = array_fill_keys($notion_ids, ''); // 默认所有ID映射为空字符串
-
-        foreach ($results as $row) {
-            $mapping[$row->notion_id] = $row->sync_time;
-        }
-
-        // 存储到会话级缓存
-        self::$batch_query_cache[$cache_key] = $mapping;
-
-        return $mapping;
+        // 委托给同步管理器
+        return Notion_Sync_Manager::batch_get_sync_times($notion_ids);
     }
 
     /**
      * 获取合适的文章作者 ID
+     *
+     * @deprecated 2.0.0-beta.1 使用 Notion_To_WordPress_Integrator::get_default_author_id() 代替
      */
     private function get_author_id(): int {
-        $author_id = get_current_user_id();
-        if ($author_id) {
-            return $author_id;
-        }
-        $admins = get_users(['role' => 'administrator', 'number' => 1]);
-        return !empty($admins) ? (int) $admins[0]->ID : 1;
+        // 委托给WordPress集成器
+        return Notion_To_WordPress_Integrator::get_default_author_id();
     }
 
     /**
@@ -1545,94 +1099,38 @@ class Notion_Pages {
      * @return int|WP_Error
      */
     private function create_or_update_post(array $metadata, string $content, int $author_id, string $page_id, int $existing_post_id = 0) {
-        $post_data = [
-            'post_title'   => wp_strip_all_tags($metadata['title']),
-            'post_content' => $content,
-            'post_status'  => $metadata['status'] ?? 'draft',
-            'post_author'  => $author_id,
-            'post_type'    => $metadata['post_type'] ?? 'post',
-            'post_excerpt' => isset($metadata['excerpt']) ? wp_strip_all_tags($metadata['excerpt']) : '',
-            'meta_input'   => [
-                '_notion_page_id' => $page_id,
-            ],
-        ];
-
-        // 处理文章密码 - 确保密码保护正确应用
-        if ( !empty($metadata['password']) ) {
-            $post_data['post_password'] = $metadata['password'];
-            
-            // 确保有密码的文章处于发布状态，否则密码保护无效
-            if ($post_data['post_status'] === 'draft') {
-                $post_data['post_status'] = 'publish';
-                Notion_To_WordPress_Helper::debug_log(
-                    '文章有密码但状态为草稿，已自动调整为已发布状态以使密码生效',
-                    'Post Status',
-                    Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
-                );
-            }
-        }
-
-        // 记录最终的文章数据
-        Notion_To_WordPress_Helper::debug_log(
-            sprintf('文章数据: 标题=%s, 状态=%s, 类型=%s, 密码=%s', 
-                $post_data['post_title'],
-                $post_data['post_status'],
-                $post_data['post_type'],
-                !empty($post_data['post_password']) ? '已设置' : '无'
-            ),
-            'Post Data',
-            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
-        );
-
-        if (isset($metadata['date'])) {
-            $post_data['post_date'] = $metadata['date'];
-        }
-
-        $post_id = 0;
-        if ($existing_post_id) {
-            $post_data['ID'] = $existing_post_id;
-            $post_id = wp_update_post($post_data, true);
-        } else {
-            $post_id = wp_insert_post($post_data, true);
-        }
-
-        // 如果创建/更新成功，处理自定义字段
-        if (!is_wp_error($post_id) && $post_id > 0 && !empty($metadata['custom_fields'])) {
-            $this->apply_custom_fields($post_id, $metadata['custom_fields']);
-        }
-
-        return $post_id;
+        // 委托给WordPress集成器
+        return Notion_To_WordPress_Integrator::create_or_update_post($metadata, $content, $author_id, $page_id, $existing_post_id);
     }
 
     /**
      * 应用自定义字段
+     *
+     * @deprecated 2.0.0-beta.1 使用 Notion_To_WordPress_Integrator::apply_custom_fields() 代替
      */
     private function apply_custom_fields(int $post_id, array $custom_fields): void {
-        foreach ($custom_fields as $field_name => $field_value) {
-            update_post_meta($post_id, $field_name, $field_value);
-            Notion_To_WordPress_Helper::debug_log("应用自定义字段: {$field_name} = {$field_value}", 'Notion Info', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO);
-        }
+        // 委托给WordPress集成器
+        Notion_To_WordPress_Integrator::apply_custom_fields($post_id, $custom_fields);
     }
 
     /**
      * 设置分类与标签
+     *
+     * @deprecated 2.0.0-beta.1 使用 Notion_To_WordPress_Integrator::apply_taxonomies() 代替
      */
     private function apply_taxonomies(int $post_id, array $metadata): void {
-        if (!empty($metadata['categories'])) {
-            wp_set_post_categories($post_id, $metadata['categories']);
-        }
-        if (!empty($metadata['tags'])) {
-            wp_set_post_tags($post_id, $metadata['tags']);
-        }
+        // 委托给WordPress集成器
+        Notion_To_WordPress_Integrator::apply_taxonomies($post_id, $metadata);
     }
 
     /**
      * 处理特色图片
+     *
+     * @deprecated 2.0.0-beta.1 使用 Notion_To_WordPress_Integrator::apply_featured_image() 代替
      */
     private function apply_featured_image(int $post_id, array $metadata): void {
-        if (!empty($metadata['featured_image'])) {
-            $this->set_featured_image($post_id, $metadata['featured_image']);
-        }
+        // 委托给WordPress集成器
+        Notion_To_WordPress_Integrator::apply_featured_image($post_id, $metadata);
     }
 
     /**
@@ -1827,7 +1325,7 @@ class Notion_Pages {
     }
 
     /**
-     * 导入所有Notion页面
+     * 导入所有Notion页面（主协调器方法）
      *
      * @since    1.0.8
      * @param    bool    $check_deletions    是否检查删除的页面
@@ -1847,10 +1345,10 @@ class Notion_Pages {
             ];
 
             // 初始化会话级缓存
-            self::init_session_cache();
+            Notion_Cache_Manager::init_session_cache();
 
             // 添加调试日志
-            Notion_To_WordPress_Helper::info_log('import_pages() 开始执行 - 并发优化已启用', 'Pages Import');
+            Notion_To_WordPress_Helper::info_log('import_pages() 开始执行（主协调器）', 'Pages Import');
             Notion_To_WordPress_Helper::info_log('Database ID: ' . $this->database_id, 'Pages Import');
             Notion_To_WordPress_Helper::info_log('检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Pages Import');
             Notion_To_WordPress_Helper::info_log('增量同步: ' . ($incremental ? 'yes' : 'no'), 'Pages Import');
@@ -1920,7 +1418,7 @@ class Notion_Pages {
 
                 try {
                     // 检查页面是否已存在
-                    $existing_post_id = $this->get_post_by_notion_id($page['id']);
+                    $existing_post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page['id']);
                     Notion_To_WordPress_Helper::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
 
                     Notion_To_WordPress_Helper::debug_log('开始导入单个页面...', 'Pages Import');
@@ -2396,17 +1894,13 @@ class Notion_Pages {
      * 获取页面最后同步时间
      *
      * @since    1.1.0
+     * @deprecated 2.0.0-beta.1 使用 Notion_Sync_Manager::get_page_last_sync_time() 代替
      * @param    string    $page_id    Notion页面ID
      * @return   string                最后同步时间
      */
     private function get_page_last_sync_time(string $page_id): string {
-        $post_id = $this->get_post_by_notion_id($page_id);
-
-        if (!$post_id) {
-            return '';
-        }
-
-        return get_post_meta($post_id, '_notion_last_sync_time', true) ?: '';
+        // 委托给同步管理器
+        return Notion_Sync_Manager::get_page_last_sync_time($page_id);
     }
 
     /**
@@ -2417,7 +1911,7 @@ class Notion_Pages {
      * @param    string    $notion_last_edited   Notion最后编辑时间
      */
     private function update_page_sync_time(string $page_id, string $notion_last_edited): void {
-        $post_id = $this->get_post_by_notion_id($page_id);
+        $post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page_id);
 
         if (!$post_id) {
             return;
@@ -2449,44 +1943,13 @@ class Notion_Pages {
      * 批量更新页面同步时间
      *
      * @since    1.1.2
+     * @deprecated 2.0.0-beta.1 使用 Notion_Sync_Manager::batch_update_page_sync_times() 代替
      * @param    array    $page_updates    [page_id => notion_last_edited] 映射
      */
     private function batch_update_page_sync_times(array $page_updates): void {
-        if (empty($page_updates)) {
-            return;
-        }
+        // 委托给同步管理器
+        Notion_Sync_Manager::batch_update_page_sync_times($page_updates);
 
-        // 批量获取WordPress文章ID
-        $notion_ids = array_keys($page_updates);
-        $post_mapping = $this->batch_get_posts_by_notion_ids($notion_ids);
-
-        $current_utc_time = gmdate('Y-m-d H:i:s');
-
-        global $wpdb;
-        $wpdb->query('START TRANSACTION');
-
-        try {
-            foreach ($page_updates as $page_id => $notion_last_edited) {
-                $post_id = $post_mapping[$page_id] ?? 0;
-
-                if ($post_id) {
-                    update_post_meta($post_id, '_notion_last_sync_time', $current_utc_time);
-                    update_post_meta($post_id, '_notion_last_edited_time', $notion_last_edited);
-                }
-            }
-            $wpdb->query('COMMIT');
-
-            Notion_To_WordPress_Helper::debug_log(
-                "批量更新页面同步时间完成，更新了 " . count($page_updates) . " 个页面",
-                'Incremental Sync'
-            );
-        } catch (Exception $e) {
-            $wpdb->query('ROLLBACK');
-            Notion_To_WordPress_Helper::error_log(
-                "批量更新页面同步时间失败: " . $e->getMessage()
-            );
-            throw $e;
-        }
     }
 
     /**
@@ -2637,12 +2100,13 @@ class Notion_Pages {
      * @return array
      */
     public function get_performance_stats(): array {
-        $api_stats = Notion_API::get_cache_stats();
-        $session_stats = self::get_session_cache_stats();
+        // 使用统一的缓存管理器获取统计
+        $cache_stats = Notion_Cache_Manager::get_cache_stats();
 
         return [
-            'api_cache' => $api_stats,
-            'session_cache' => $session_stats,
+            'api_cache' => $cache_stats['api_cache'],
+            'session_cache' => $cache_stats['session_cache'],
+            'total_cache_items' => $cache_stats['total_cache_items'],
             'memory_usage' => memory_get_usage(true),
             'peak_memory' => memory_get_peak_usage(true),
             'execution_time' => microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']
@@ -2709,16 +2173,12 @@ class Notion_Pages {
      * @since 1.1.2
      */
     public static function clear_session_cache(): void {
+        // 委托给缓存管理器
+        Notion_Cache_Manager::clear_session_cache();
+
+        // 保持向后兼容的本地缓存清理
         self::$db_query_cache = [];
         self::$batch_query_cache = [];
-
-        // 同时清理API缓存
-        Notion_API::clear_page_cache();
-
-        Notion_To_WordPress_Helper::debug_log(
-            '清理会话级缓存完成',
-            'Session Cache'
-        );
     }
 
     /**
@@ -2728,11 +2188,8 @@ class Notion_Pages {
      * @return array
      */
     public static function get_session_cache_stats(): array {
-        return [
-            'db_query_cache_count' => count(self::$db_query_cache),
-            'batch_query_cache_count' => count(self::$batch_query_cache),
-            'total_session_cache_items' => count(self::$db_query_cache) + count(self::$batch_query_cache)
-        ];
+        // 委托给缓存管理器
+        return Notion_Cache_Manager::get_session_cache_stats();
     }
 
     /**
@@ -2741,13 +2198,8 @@ class Notion_Pages {
      * @since 1.1.2
      */
     public static function init_session_cache(): void {
-        // 清理之前的缓存
-        self::clear_session_cache();
-
-        Notion_To_WordPress_Helper::debug_log(
-            '初始化会话级缓存',
-            'Session Cache'
-        );
+        // 委托给缓存管理器
+        Notion_Cache_Manager::init_session_cache();
     }
 
     /**
@@ -2829,7 +2281,8 @@ class Notion_Pages {
      * @return   string                    HTML内容
      */
     public function test_convert_blocks_to_html(array $blocks, Notion_API $notion_api): string {
-        return $this->convert_blocks_to_html($blocks, $notion_api);
+        // 委托给内容转换器
+        return Notion_Content_Converter::test_convert_blocks_to_html($blocks, $notion_api);
     }
 
     // ========================================
@@ -3271,15 +2724,11 @@ class Notion_Pages {
      * 启用异步图片下载模式
      *
      * @since    1.9.0-beta.1
+     * @deprecated 2.0.0-beta.1 使用 Notion_Image_Processor::enable_async_image_mode() 代替
      */
     public function enable_async_image_mode(): void {
-        $this->async_image_mode = true;
-        $this->clear_image_queue();
-
-        Notion_To_WordPress_Helper::debug_log(
-            'Async image download mode enabled',
-            'Async Image'
-        );
+        // 委托给图片处理器
+        Notion_Image_Processor::enable_async_image_mode();
     }
 
     /**
@@ -3288,13 +2737,8 @@ class Notion_Pages {
      * @since    1.9.0-beta.1
      */
     public function disable_async_image_mode(): void {
-        $this->async_image_mode = false;
-        $this->clear_image_queue();
-
-        Notion_To_WordPress_Helper::debug_log(
-            'Async image download mode disabled',
-            'Async Image'
-        );
+        // 委托给图片处理器
+        Notion_Image_Processor::disable_async_image_mode();
     }
 
     /**
@@ -3305,27 +2749,9 @@ class Notion_Pages {
      * @return   string             处理后的HTML内容
      */
     public function process_async_images( string $html ): string {
-        if ( ! $this->async_image_mode || empty( $this->pending_images ) ) {
-            return $html;
-        }
-
-        Notion_To_WordPress_Helper::debug_log(
-            sprintf( 'Processing async images: %d pending', count( $this->pending_images ) ),
-            'Async Image'
-        );
-
-        // 批量下载图片
-        $this->batch_download_images();
-
-        // 保存统计信息（在清理前）
-        $this->last_processing_stats = $this->get_image_queue_stats();
-
-        // 替换占位符
-        $processed_html = $this->replace_image_placeholders( $html );
-
-        // 清理队列
-        $this->clear_image_queue();
-
-        return $processed_html;
+        // 委托给图片处理器
+        return Notion_Image_Processor::process_async_images($html);
     }
+
+    // ==================== 向后兼容的委托方法 ====================
 }
