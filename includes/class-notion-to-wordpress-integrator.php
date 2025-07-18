@@ -443,4 +443,92 @@ class Notion_To_WordPress_Integrator {
         $users = get_users(['role' => 'administrator', 'number' => 1]);
         return !empty($users) ? $users[0]->ID : 1;
     }
+
+    /**
+     * 初始化特色图像显示支持
+     *
+     * @since 2.0.0-beta.1
+     */
+    public static function init_featured_image_support(): void {
+        // 添加钩子支持外部特色图像显示
+        add_filter('post_thumbnail_html', [self::class, 'filter_post_thumbnail_html'], 10, 5);
+        add_filter('get_post_metadata', [self::class, 'filter_thumbnail_id'], 10, 4);
+    }
+
+    /**
+     * 过滤特色图像HTML输出，支持外部链接
+     *
+     * @since 2.0.0-beta.1
+     * @param string $html 原始HTML
+     * @param int $post_id 文章ID
+     * @param int $post_thumbnail_id 特色图像ID
+     * @param string|array $size 图像尺寸
+     * @param string|array $attr 图像属性
+     * @return string 过滤后的HTML
+     */
+    public static function filter_post_thumbnail_html(string $html, int $post_id, int $post_thumbnail_id, $size, $attr): string {
+        // 如果已经有特色图像，直接返回
+        if (!empty($html) && $post_thumbnail_id > 0) {
+            return $html;
+        }
+
+        // 检查是否有外部特色图像URL
+        $external_url = get_post_meta($post_id, '_notion_featured_image_url', true);
+        if (empty($external_url)) {
+            return $html;
+        }
+
+        // 生成外部图像的HTML
+        $alt_text = get_the_title($post_id);
+        $class = 'attachment-' . (is_array($size) ? implode('x', $size) : $size) . ' size-' . (is_array($size) ? implode('x', $size) : $size);
+
+        // 处理属性
+        $attributes = '';
+        if (is_array($attr)) {
+            foreach ($attr as $key => $value) {
+                if ($key !== 'alt' && $key !== 'class') {
+                    $attributes .= ' ' . esc_attr($key) . '="' . esc_attr($value) . '"';
+                }
+            }
+        }
+
+        return sprintf(
+            '<img src="%s" alt="%s" class="%s" loading="lazy"%s>',
+            esc_url($external_url),
+            esc_attr($alt_text),
+            esc_attr($class),
+            $attributes
+        );
+    }
+
+    /**
+     * 过滤缩略图ID，为外部图像提供虚拟ID
+     *
+     * @since 2.0.0-beta.1
+     * @param mixed $value 元数据值
+     * @param int $object_id 对象ID
+     * @param string $meta_key 元数据键
+     * @param bool $single 是否返回单个值
+     * @return mixed 过滤后的值
+     */
+    public static function filter_thumbnail_id($value, int $object_id, string $meta_key, bool $single) {
+        // 只处理特色图像相关的元数据
+        if ($meta_key !== '_thumbnail_id') {
+            return $value;
+        }
+
+        // 如果已经有特色图像ID，不做处理
+        if (!empty($value)) {
+            return $value;
+        }
+
+        // 检查是否有外部特色图像URL
+        $external_url = get_post_meta($object_id, '_notion_featured_image_url', true);
+        if (!empty($external_url)) {
+            // 返回一个虚拟的ID，表示存在外部特色图像
+            return $single ? -1 : [-1];
+        }
+
+        return $value;
+    }
 }
