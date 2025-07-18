@@ -205,7 +205,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                     </button>
                                                     <button type="button" class="button button-secondary copy-to-clipboard"
                                                         data-clipboard-target="#verification_token"
-                                                        onclick="window.copyTextToClipboard(document.getElementById('verification_token').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
+                                                        data-copy-type="verification_token"
                                                         title="<?php esc_attr_e('复制令牌', 'notion-to-wordpress'); ?>">
                                                         <span class="dashicons dashicons-clipboard"></span>
                                                     </button>
@@ -218,7 +218,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                     <input type="text" id="webhook_url" value="<?php echo esc_url($webhook_url); ?>" class="regular-text" readonly>
                                                     <button type="button" class="button button-secondary copy-to-clipboard" 
                                                         data-clipboard-target="#webhook_url" 
-                                                        onclick="window.copyTextToClipboard(document.getElementById('webhook_url').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
+                                                        data-copy-type="webhook_url"
                                                         title="<?php esc_attr_e('复制 URL', 'notion-to-wordpress'); ?>">
                                                         <span class="dashicons dashicons-clipboard"></span>
                                                     </button>
@@ -735,7 +735,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
                         <div class="author-info">
                             <div class="author-avatar">
-                                <img src="https://s21.ax1x.com/2024/10/11/pAYE3WQ.jpg" alt="Frank-Loong" onerror="this.style.display='none'">
+                                <img src="<?php echo esc_url(plugin_dir_url(dirname(dirname(__FILE__))) . 'assets/avatar.svg'); ?>" alt="Frank-Loong" onerror="this.style.display='none'">
                             </div>
                             <div class="author-details">
                                 <h3>Frank-Loong</h3>

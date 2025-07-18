@@ -22,7 +22,9 @@ jQuery(document).ready(function($) {
     // 验证必要的安全参数
     if (!notionToWp || !notionToWp.ajax_url || typeof notionToWp.ajax_url !== 'string' || !notionToWp.nonce || typeof notionToWp.nonce !== 'string') {
       console.error(notionToWp.i18n.security_missing || '安全验证参数缺失或无效');
-      return;
+      // 安全检查失败，禁用所有AJAX功能
+      $('.notion-wp-admin-page').addClass('security-check-failed');
+      return false;
     }
 
     // 记录页面加载时的原始语言设置，用于检测变化
@@ -742,8 +744,6 @@ jQuery(document).ready(function($) {
             }
         });
     });
-
-
 
     // 添加CSS样式
     $('<style>')
