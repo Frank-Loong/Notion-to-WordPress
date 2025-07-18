@@ -299,7 +299,7 @@ class Notion_To_WordPress_Webhook {
 
         try {
             // 获取页面数据并导入（强制同步，不进行增量检测）
-            $page = $this->notion_pages->notion_api->get_page($page_id);
+            $page = $this->notion_pages->get_page_data($page_id);
 
             // 记录强制同步日志
             Notion_To_WordPress_Helper::info_log('Webhook强制同步页面: ' . $page_id, 'Notion Webhook');

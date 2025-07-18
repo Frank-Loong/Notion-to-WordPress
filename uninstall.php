@@ -169,7 +169,10 @@ function notion_to_wordpress_delete_plugin_attachments() {
         }
 
         // 记录删除的附件数量
-        error_log("Notion to WordPress: 已删除 " . count($all_attachment_ids) . " 个插件相关附件");
+        // 注意：在卸载过程中，Helper类可能不可用，使用WordPress内置日志
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Notion to WordPress: 已删除 " . count($all_attachment_ids) . " 个插件相关附件");
+        }
     }
 
     // 清理可能的孤立meta数据
