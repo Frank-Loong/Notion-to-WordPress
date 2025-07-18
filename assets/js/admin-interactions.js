@@ -590,7 +590,14 @@ jQuery(document).ready(function($) {
         e.preventDefault(); // 阻止默认的表单提交
 
         var $form = $(this);
-        var $submitButton = $form.find('input[type="submit"], button[type="submit"], .button-primary');
+        // 精确查找保存设置按钮，避免影响其他按钮
+        var $submitButton = $('#notion-save-settings');
+
+        // 如果没有找到保存按钮，尝试备用选择器
+        if ($submitButton.length === 0) {
+            $submitButton = $form.find('input[type="submit"][name="submit"]');
+        }
+
         var originalButtonText = $submitButton.val() || $submitButton.text();
 
         // 防止重复提交
@@ -616,20 +623,35 @@ jQuery(document).ready(function($) {
         // 获取当前webhook设置值（用户选择的新值）
         var newWebhookEnabled = $('#webhook_enabled').is(':checked');
 
-        // 禁用按钮并显示加载状态
-        $submitButton.prop('disabled', true).val(notionToWp.i18n.saving);
+        // 禁用按钮并显示加载状态（只针对保存按钮）
+        $submitButton.prop('disabled', true);
 
-        // 使用serialize()方法获取表单数据，确保正确的格式
-        var formData = $form.serialize();
+        // 根据按钮类型设置文本
+        if ($submitButton.is('input')) {
+            $submitButton.val(notionToWp.i18n.saving);
+        } else {
+            $submitButton.text(notionToWp.i18n.saving);
+        }
 
-        // 添加AJAX action
-        formData += '&action=save_notion_settings';
+        var formData = new FormData(this);
+        formData.set('action', 'save_notion_settings'); // 确保action正确
+
+        // 确保nonce字段存在
+        if (!formData.has('notion_to_wordpress_options_nonce')) {
+            var nonceField = $form.find('input[name="notion_to_wordpress_options_nonce"]');
+            if (nonceField.length) {
+                formData.set('notion_to_wordpress_options_nonce', nonceField.val());
+            }
+        }
+
+
 
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
             data: formData,
-            dataType: 'json',
+            processData: false, // 告诉jQuery不要处理数据
+            contentType: false, // 告诉jQuery不要设置contentType
             success: function(response) {
                 if (response.success) {
                     // 检查语言设置是否发生变化（比较原始值和用户选择的新值）
@@ -686,18 +708,33 @@ jQuery(document).ready(function($) {
                         console.log('Notion to WordPress: Updated original values - language:', originalLanguage, 'webhook:', originalWebhookEnabled);
 
                         // 恢复按钮状态
-                        $submitButton.prop('disabled', false).val(originalButtonText);
+                        $submitButton.prop('disabled', false);
+                        if ($submitButton.is('input')) {
+                            $submitButton.val(originalButtonText);
+                        } else {
+                            $submitButton.text(originalButtonText);
+                        }
                     }
                 } else {
                     showModal(response.data.message || notionToWp.i18n.unknown_error, 'error');
                     // 恢复按钮状态
-                    $submitButton.prop('disabled', false).val(originalButtonText);
+                    $submitButton.prop('disabled', false);
+                    if ($submitButton.is('input')) {
+                        $submitButton.val(originalButtonText);
+                    } else {
+                        $submitButton.text(originalButtonText);
+                    }
                 }
             },
             error: function() {
                 showModal(notionToWp.i18n.unknown_error, 'error');
                 // 恢复按钮状态
-                $submitButton.prop('disabled', false).val(originalButtonText);
+                $submitButton.prop('disabled', false);
+                if ($submitButton.is('input')) {
+                    $submitButton.val(originalButtonText);
+                } else {
+                    $submitButton.text(originalButtonText);
+                }
             },
             complete: function() {
                 // 注意：如果语言发生变化，按钮状态恢复会在页面刷新前处理
@@ -706,16 +743,7 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // 直接监听保存按钮点击事件（备用方案）
-    $(document).on('click', '.button-primary[value*="保存"], button:contains("保存所有设置")', function(e) {
-        e.preventDefault();
 
-        // 直接查找表单并触发提交
-        var $form = $('#notion-to-wordpress-settings-form');
-        if ($form.length) {
-            $form.trigger('submit');
-        }
-    });
 
     // 添加CSS样式
     $('<style>')

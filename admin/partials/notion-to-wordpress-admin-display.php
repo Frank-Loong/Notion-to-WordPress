@@ -268,7 +268,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </div>
 
                         <!-- 同步操作按钮 -->
-                        <div class="notion-wp-sync-actions" style="margin-top: 20px; display: block !important;">
+                        <div class="notion-wp-sync-actions" style="margin-top: 20px;">
                             <h3><?php esc_html_e('同步操作', 'notion-to-wordpress'); ?></h3>
                             <div class="sync-buttons" style="margin-bottom: 15px; display: flex; gap: 20px;">
                                 <button type="button" class="button button-primary" id="notion-manual-import">
@@ -284,7 +284,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             <div class="sync-info">
                                 <p><strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?></p>
                                 <p><strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?></p>
-                                <p><strong><?php esc_html_e('刷新全部内容', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('强制刷新所有内容，忽略时间戳', 'notion-to-wordpress'); ?></p>
                             </div>
                         </div>
                     </div>
@@ -804,7 +803,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
                 <div class="notion-wp-actions-bar">
 
-                    <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
+                    <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false, array('id' => 'notion-save-settings')); ?>
                 </div>
             </form>
         </div>
