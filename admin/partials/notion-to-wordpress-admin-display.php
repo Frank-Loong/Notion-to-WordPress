@@ -803,7 +803,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
                 <div class="notion-wp-actions-bar">
 
-                    <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false, array('id' => 'notion-save-settings')); ?>
+                    <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
                 </div>
             </form>
         </div>

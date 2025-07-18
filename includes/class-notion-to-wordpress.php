@@ -250,6 +250,9 @@ class Notion_To_WordPress {
 		// 同样保护摘要中的公式
 		$this->loader->add_filter( 'the_excerpt', $this, 'protect_formulas_from_wpautop', 8 );
 		$this->loader->add_filter( 'the_excerpt', $this, 'restore_formulas_after_wpautop', 12 );
+
+		// 初始化特色图像支持
+		$this->loader->add_action( 'init', 'Notion_To_WordPress_Integrator', 'init_featured_image_support' );
 	}
 
 	/**
