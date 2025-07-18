@@ -171,14 +171,35 @@ class Notion_Content_Converter {
      * 为块添加 ID 包装，支持锚点跳转
      *
      * @since 2.0.0-beta.1
-     * @param string $block_html 块的 HTML 内容
+     * @param mixed $block_html 块的 HTML 内容（可能是字符串或数组）
      * @param string $block_id 块 ID
      * @param string $block_type 块类型
      * @return string 包装后的 HTML
      */
-    public static function wrap_block_with_id(string $block_html, string $block_id, string $block_type): string {
+    public static function wrap_block_with_id($block_html, string $block_id, string $block_type): string {
+        // 类型安全检查：确保 block_html 是字符串
+        if (!is_string($block_html)) {
+            if (is_array($block_html)) {
+                // 如果是数组，尝试转换为字符串
+                Notion_To_WordPress_Helper::error_log(
+                    "块转换返回了数组而不是字符串: {$block_type} (ID: {$block_id})",
+                    'Block Conversion Error'
+                );
+                $block_html = '<!-- 块转换错误：返回了数组 -->';
+            } else {
+                // 其他类型，强制转换为字符串
+                Notion_To_WordPress_Helper::error_log(
+                    "块转换返回了非字符串类型: {$block_type} (ID: {$block_id}) - 类型: " . gettype($block_html),
+                    'Block Conversion Error'
+                );
+                $block_html = '<!-- 块转换错误：类型不匹配 -->';
+            }
+        }
+
         // 确保 ID 和类名安全
-        $safe_id = esc_attr('notion-block-' . $block_id);
+        // 将UUID格式的ID转换为不带连字符的格式，以匹配锚点链接
+        $clean_id = str_replace('-', '', $block_id);
+        $safe_id = esc_attr($clean_id);
         $safe_class = esc_attr('notion-block notion-' . $block_type);
 
         // 为块添加包装 div，包含 ID 和类名
@@ -302,6 +323,12 @@ class Notion_Content_Converter {
             }
         }
 
+        // 特殊处理Mermaid图表
+        if ($language === 'mermaid') {
+            // Mermaid代码不应该被HTML转义
+            return '<pre class="mermaid">' . $code_content . '</pre>';
+        }
+
         $escaped_code = esc_html($code_content);
         return '<pre><code class="language-' . esc_attr($language) . '">' . $escaped_code . '</code></pre>';
     }
@@ -369,9 +396,8 @@ class Notion_Content_Converter {
             }
         }
 
-        $child_content = self::_convert_child_blocks($block, $notion_api);
-
-        return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . $child_content . '</div></div>';
+        // callout块不应该处理子块，避免重复嵌套
+        return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
     }
 
     /**
@@ -491,34 +517,39 @@ class Notion_Content_Converter {
 
         $caption = self::extract_rich_text($block['embed']['caption'] ?? []);
 
-        // 检查是否为常见的嵌入类型
+        // 根据URL类型处理不同的嵌入
         if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
-            // YouTube 视频
-            $video_id = self::extract_youtube_id($url);
+            // YouTube视频
+            $video_id = '';
+            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
             if ($video_id) {
-                $html = '<div class="notion-embed notion-youtube">';
-                $html .= '<iframe src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" ';
-                $html .= 'frameborder="0" allowfullscreen></iframe>';
-                if (!empty($caption)) {
-                    $html .= '<div class="notion-embed-caption">' . $caption . '</div>';
-                }
-                $html .= '</div>';
-                return $html;
+                return '<div class="notion-embed notion-embed-youtube"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
             }
-        } elseif (strpos($url, 'twitter.com') !== false || strpos($url, 'x.com') !== false) {
-            // Twitter/X 嵌入
-            $html = '<div class="notion-embed notion-twitter">';
-            $html .= '<blockquote class="twitter-tweet"><a href="' . esc_url($url) . '">查看推文</a></blockquote>';
-            if (!empty($caption)) {
-                $html .= '<div class="notion-embed-caption">' . $caption . '</div>';
+        } elseif (strpos($url, 'vimeo.com') !== false) {
+            // Vimeo视频
+            $video_id = '';
+            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
+                $video_id = $matches[2];
             }
-            $html .= '</div>';
-            return $html;
+            if ($video_id) {
+                return '<div class="notion-embed notion-embed-vimeo"><iframe src="https://player.vimeo.com/video/' . esc_attr($video_id) . '" width="560" height="315" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
+            }
+        } elseif (strpos($url, 'bilibili.com') !== false) {
+            // Bilibili视频
+            $video_id = '';
+            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return '<div class="notion-embed notion-embed-bilibili"><iframe src="//player.bilibili.com/player.html?bvid=' . esc_attr($video_id) . '&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" width="560" height="315"></iframe></div>';
+            }
         }
 
-        // 通用嵌入
+        // 通用网页嵌入
         $html = '<div class="notion-embed">';
-        $html .= '<iframe src="' . esc_url($url) . '" frameborder="0"></iframe>';
+        $html .= '<iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0"></iframe>';
         if (!empty($caption)) {
             $html .= '<div class="notion-embed-caption">' . $caption . '</div>';
         }
@@ -534,18 +565,48 @@ class Notion_Content_Converter {
         $type = isset($block['video']['type']) ? $block['video']['type'] : '';
         $url = '';
 
-        if ($type === 'external' && isset($block['video']['external']['url'])) {
-            $url = $block['video']['external']['url'];
-        } elseif ($type === 'file' && isset($block['video']['file']['url'])) {
-            $url = $block['video']['file']['url'];
+        if ($type === 'external') {
+            $url = isset($block['video']['external']['url']) ? $block['video']['external']['url'] : '';
+        } elseif ($type === 'file') {
+            $url = isset($block['video']['file']['url']) ? $block['video']['file']['url'] : '';
         }
 
         if (empty($url)) {
-            return '<!-- 视频URL为空 -->';
+            return '<!-- 无效的视频URL -->';
         }
 
-        $caption = self::extract_rich_text($block['video']['caption'] ?? []);
+        // 处理不同的视频平台
+        if (strpos($url, 'youtube.com') !== false || strpos($url, 'youtu.be') !== false) {
+            // YouTube视频
+            $video_id = '';
+            if (preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return '<div class="notion-video notion-video-youtube"><iframe width="560" height="315" src="https://www.youtube.com/embed/' . esc_attr($video_id) . '" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>';
+            }
+        } elseif (strpos($url, 'vimeo.com') !== false) {
+            // Vimeo视频
+            $video_id = '';
+            if (preg_match('/vimeo\.com\/(?:channels\/(?:\w+\/)?|groups\/([^\/]*)\/videos\/|)(\d+)(?:|\/\?)/', $url, $matches)) {
+                $video_id = $matches[2];
+            }
+            if ($video_id) {
+                return '<div class="notion-video notion-video-vimeo"><iframe src="https://player.vimeo.com/video/' . esc_attr($video_id) . '" width="560" height="315" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>';
+            }
+        } elseif (strpos($url, 'bilibili.com') !== false) {
+            // Bilibili视频
+            $video_id = '';
+            if (preg_match('/bilibili\.com\/video\/([^\/\?&]+)/', $url, $matches)) {
+                $video_id = $matches[1];
+            }
+            if ($video_id) {
+                return '<div class="notion-video notion-video-bilibili"><iframe src="//player.bilibili.com/player.html?bvid=' . esc_attr($video_id) . '&page=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" width="560" height="315"></iframe></div>';
+            }
+        }
 
+        // 对于其他视频文件，使用HTML5 video标签
+        $caption = self::extract_rich_text($block['video']['caption'] ?? []);
         $html = '<div class="notion-video">';
         $html .= '<video controls>';
         $html .= '<source src="' . esc_url($url) . '">';
@@ -644,7 +705,7 @@ class Notion_Content_Converter {
         $caption = self::extract_rich_text($pdf_data['caption'] ?? []);
 
         $html = '<div class="notion-pdf">';
-        $html .= '<iframe src="' . esc_url($url) . '" type="application/pdf"></iframe>';
+        $html .= '<iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" type="application/pdf"></iframe>';
         $html .= '<div class="notion-pdf-fallback">';
         $html .= '<a href="' . esc_url($url) . '" target="_blank">查看PDF文档</a>';
         $html .= '</div>';
@@ -730,14 +791,23 @@ class Notion_Content_Converter {
 
         // 从预处理的数据中获取渲染结果
         if (isset($database_data[$database_id])) {
-            $rendered_content = $database_data[$database_id];
+            $data = $database_data[$database_id];
 
-            if (!empty($rendered_content)) {
-                Notion_To_WordPress_Helper::info_log(
-                    "子数据库批量渲染成功: {$database_title} (ID: {$database_id})",
-                    'Child Database Batch'
+            if (!empty($data) && is_array($data) && isset($data['info']) && isset($data['records'])) {
+                // 调用适当的渲染方法将原始数据转换为HTML字符串
+                $rendered_content = Notion_Database_Renderer::render_database_preview_records_with_data(
+                    $database_id,
+                    $data['info'],
+                    $data['records']
                 );
-                return $rendered_content;
+
+                if (!empty($rendered_content)) {
+                    Notion_To_WordPress_Helper::info_log(
+                        "子数据库批量渲染成功: {$database_title} (ID: {$database_id})",
+                        'Child Database Batch'
+                    );
+                    return $rendered_content;
+                }
             }
         }
 

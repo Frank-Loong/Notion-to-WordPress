@@ -685,8 +685,8 @@ ini_set('memory_limit', '512M');
 // 2. Optimize batch size
 // Settings → Performance Optimization → Batch Size: 5-10
 
-// 3. Enable object cache
-// Install Redis or Memcached
+// 3. Use real-time data queries
+// Plugin uses direct database queries for data consistency
 ```
 
 #### Q6: Chinese characters display as garbled text
@@ -844,16 +844,22 @@ if ( ! wp_verify_nonce( $_POST['nonce'], 'notion_sync_action' ) ) {
 
 ### ⚡ Performance Optimization
 
-#### Caching Strategy
-```php
-// Use WordPress object cache
-$cache_key = 'notion_pages_' . md5( $database_id );
-$pages = wp_cache_get( $cache_key );
+#### Real-time Data Query Strategy
 
-if ( false === $pages ) {
-    $pages = $this->fetch_notion_pages( $database_id );
-    wp_cache_set( $cache_key, $pages, '', HOUR_IN_SECONDS );
-}
+**Why Real-time Queries?**
+- **Data Consistency**: Always reflects the current database state
+- **Incremental Sync Accuracy**: Enables precise change detection
+- **Simplified Architecture**: Eliminates cache invalidation complexity
+- **Debugging Ease**: No cache-related issues to troubleshoot
+
+```php
+// Direct database queries ensure data consistency
+// Use batch queries for optimal performance
+$pages = $this->fetch_notion_pages_batch( $database_ids );
+
+// Leverage WordPress built-in optimizations
+$post_ids = wp_list_pluck( $posts, 'ID' );
+$meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
 ```
 
 #### Database Optimization
@@ -1128,7 +1134,7 @@ function sync($id) {  // Missing type hints and documentation
 
 **Performance Review Focus**:
 - Avoid N+1 query problems
-- Use caching appropriately
+- Use batch queries for optimal performance
 - Optimize database queries
 - Control memory usage
 - Handle long operations asynchronously

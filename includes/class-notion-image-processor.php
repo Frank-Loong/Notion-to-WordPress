@@ -108,7 +108,7 @@ class Notion_Image_Processor {
      * @since 2.0.0-beta.1
      * @param string $url 图片URL
      * @param string $caption 图片说明
-     * @return string 占位符字符串
+     * @return string 占位符字符串或直接HTML
      */
     public static function collect_image_for_download(string $url, string $caption = ''): string {
         if (!self::$async_image_mode) {
@@ -116,12 +116,22 @@ class Notion_Image_Processor {
             return self::generate_direct_image_html($url, $caption);
         }
 
+        // 检查是否为Notion临时URL，只有临时URL才需要下载
+        if (!self::is_notion_temp_url($url)) {
+            // 外部永久链接，直接生成HTML，不下载
+            Notion_To_WordPress_Helper::debug_log(
+                "外部永久链接，直接引用: {$url}",
+                'Image Processing'
+            );
+            return self::generate_direct_image_html($url, $caption);
+        }
+
         // 生成唯一占位符
         $placeholder = 'pending_image_' . md5($url . time() . rand());
-        
+
         // 提取基础URL（去除查询参数）
         $base_url = strtok($url, '?');
-        
+
         // 添加到待下载队列
         self::$pending_images[] = [
             'url' => $url,
@@ -134,7 +144,7 @@ class Notion_Image_Processor {
         self::$performance_stats['total_images']++;
 
         Notion_To_WordPress_Helper::debug_log(
-            "图片已添加到下载队列: {$url} -> {$placeholder}",
+            "Notion临时链接图片已添加到下载队列: {$url} -> {$placeholder}",
             'Async Image'
         );
 
@@ -624,6 +634,22 @@ class Notion_Image_Processor {
         $html .= '</figure>';
 
         return $html;
+    }
+
+    /**
+     * 检查是否为Notion临时URL
+     *
+     * @since 2.0.0-beta.1
+     * @param string $url 图片URL
+     * @return bool 是否为临时URL
+     */
+    private static function is_notion_temp_url(string $url): bool {
+        // Notion临时链接通常包含特定的域名和参数
+        return strpos($url, 'secure.notion-static.com') !== false ||
+               strpos($url, 'prod-files-secure') !== false ||
+               strpos($url, 'X-Amz-Algorithm') !== false ||
+               strpos($url, 'notion.so') !== false ||
+               strpos($url, 'amazonaws.com') !== false;
     }
 
     /**

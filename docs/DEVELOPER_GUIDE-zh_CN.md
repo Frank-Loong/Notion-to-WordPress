@@ -685,8 +685,8 @@ ini_set('memory_limit', '512M');
 // 2. 优化批处理大小
 // 设置 → 性能优化 → 批处理大小: 5-10
 
-// 3. 启用对象缓存
-// 安装Redis或Memcached
+// 3. 使用实时数据查询
+// 插件使用直接数据库查询确保数据一致性
 ```
 
 #### Q6: 中文字符显示乱码
@@ -844,16 +844,22 @@ if ( ! wp_verify_nonce( $_POST['nonce'], 'notion_sync_action' ) ) {
 
 ### ⚡ 性能优化
 
-#### 缓存策略
-```php
-// 使用WordPress对象缓存
-$cache_key = 'notion_pages_' . md5( $database_id );
-$pages = wp_cache_get( $cache_key );
+#### 实时数据查询策略
 
-if ( false === $pages ) {
-    $pages = $this->fetch_notion_pages( $database_id );
-    wp_cache_set( $cache_key, $pages, '', HOUR_IN_SECONDS );
-}
+**为什么使用实时查询？**
+- **数据一致性**: 始终反映当前数据库状态
+- **增量同步精度**: 实现精确的变更检测
+- **架构简化**: 消除缓存失效的复杂性
+- **调试便利**: 无缓存相关问题需要排查
+
+```php
+// 直接数据库查询确保数据一致性
+// 使用批量查询优化性能
+$pages = $this->fetch_notion_pages_batch( $database_ids );
+
+// 利用WordPress内置优化
+$post_ids = wp_list_pluck( $posts, 'ID' );
+$meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
 ```
 
 #### 数据库优化
@@ -1128,7 +1134,7 @@ function sync($id) {  // 缺少类型提示和文档
 
 **性能审查重点**:
 - 避免N+1查询问题
-- 合理使用缓存
+- 使用批量查询优化
 - 优化数据库查询
 - 控制内存使用
 - 异步处理长时间操作

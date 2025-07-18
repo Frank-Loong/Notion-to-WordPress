@@ -1257,4 +1257,73 @@ class Notion_Database_Renderer {
 
         return null;
     }
+
+    /**
+     * 渲染子数据库（标准版本）
+     *
+     * 为_convert_block_child_database方法提供标准的子数据库渲染功能。
+     * 获取数据库信息和记录，然后调用现有的渲染逻辑。
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param string $database_title 数据库标题
+     * @param Notion_API $notion_api API实例
+     * @return string HTML内容
+     */
+    public static function render_child_database(string $database_id, string $database_title, Notion_API $notion_api): string {
+        try {
+            Notion_To_WordPress_Helper::debug_log(
+                "开始渲染子数据库: {$database_title} (ID: {$database_id})",
+                'Child Database'
+            );
+
+            // 获取数据库信息
+            $database_info = $notion_api->get_database($database_id);
+            if (empty($database_info)) {
+                Notion_To_WordPress_Helper::warning_log(
+                    "无法获取数据库信息: {$database_title} (ID: {$database_id})",
+                    'Child Database'
+                );
+                return '<div class="notion-database-empty">' . sprintf(__('数据库 "%s" 信息获取失败', 'notion-to-wordpress'), esc_html($database_title)) . '</div>';
+            }
+
+            // 获取数据库记录（使用with_details=true获取完整信息）
+            $records = $notion_api->get_database_pages($database_id, [], true);
+            if (empty($records)) {
+                Notion_To_WordPress_Helper::debug_log(
+                    "数据库无记录或无权限访问: {$database_title} (ID: {$database_id})",
+                    'Child Database'
+                );
+                return '<div class="notion-database-empty">' . sprintf(__('数据库 "%s" 暂无记录', 'notion-to-wordpress'), esc_html($database_title)) . '</div>';
+            }
+
+            // 调用现有的渲染逻辑
+            $rendered_content = self::render_database_preview_records_with_data($database_id, $database_info, $records);
+
+            if (!empty($rendered_content)) {
+                Notion_To_WordPress_Helper::info_log(
+                    "子数据库渲染成功: {$database_title} (ID: {$database_id}), 记录数: " . count($records),
+                    'Child Database'
+                );
+                return $rendered_content;
+            } else {
+                Notion_To_WordPress_Helper::warning_log(
+                    "子数据库渲染结果为空: {$database_title} (ID: {$database_id})",
+                    'Child Database'
+                );
+                return '<div class="notion-database-empty">' . sprintf(__('数据库 "%s" 渲染失败', 'notion-to-wordpress'), esc_html($database_title)) . '</div>';
+            }
+
+        } catch (Exception $e) {
+            Notion_To_WordPress_Helper::error_log(
+                "子数据库渲染异常: {$database_title} (ID: {$database_id}) - " . $e->getMessage(),
+                'Child Database'
+            );
+            Notion_To_WordPress_Helper::error_log(
+                "异常堆栈: " . $e->getTraceAsString(),
+                'Child Database'
+            );
+            return '<div class="notion-database-error">' . sprintf(__('数据库 "%s" 加载失败: %s', 'notion-to-wordpress'), esc_html($database_title), esc_html($e->getMessage())) . '</div>';
+        }
+    }
 }

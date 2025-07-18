@@ -174,7 +174,6 @@ class Notion_API {
         );
 
         Notion_To_WordPress_Helper::end_performance_timer('get_database_pages', $start_time, [
-            'cache_hit' => false,
             'database_id' => $database_id,
             'with_details' => $with_details,
             'records_count' => count($all_results),
@@ -489,50 +488,6 @@ class Notion_API {
         return $enriched_pages;
     }
 
-    /**
-     * 清除页面缓存 - 向后兼容方法（API缓存已移除）
-     *
-     * @since 1.1.1
-     * @param string|null $page_id 特定页面ID，为null时清除所有缓存
-     */
-    public static function clear_page_cache(?string $page_id = null): void {
-        // 委托给缓存管理器清理会话级缓存
-        Notion_Cache_Manager::clear_api_cache($page_id);
-
-        Notion_To_WordPress_Helper::debug_log(
-            'API缓存清理请求（API缓存已移除，仅清理会话级缓存）',
-            'Cache Management'
-        );
-    }
-
-    // 注意：is_cache_valid方法已移除，因为API缓存已被移除以支持增量同步
-
-    /**
-     * 清理过期缓存 - 向后兼容方法（API缓存已移除）
-     *
-     * @since 1.1.1
-     */
-    public static function cleanup_expired_cache(): void {
-        // 委托给缓存管理器清理会话级缓存
-        Notion_Cache_Manager::cleanup_expired_cache();
-
-        Notion_To_WordPress_Helper::debug_log(
-            'API缓存清理请求（API缓存已移除，仅清理会话级缓存）',
-            'Cache Cleanup'
-        );
-    }
-
-    /**
-     * 获取缓存统计信息 - 向后兼容方法（API缓存已移除）
-     *
-     * @since 1.1.1
-     * @return array
-     */
-    public static function get_cache_stats(): array {
-        // 委托给缓存管理器获取会话级缓存统计
-        return Notion_Cache_Manager::get_session_cache_stats();
-    }
-
     // ========================================
     // 批量并发请求方法
     // ========================================
@@ -661,36 +616,15 @@ class Notion_API {
             return [];
         }
 
-        // 检查缓存，分离已缓存和未缓存的页面
-        $cached_pages = [];
-        $uncached_page_ids = [];
-
-        foreach ($page_ids as $page_id) {
-            if (isset(self::$page_cache[$page_id])) {
-                $cached_pages[$page_id] = self::$page_cache[$page_id];
-            } else {
-                $uncached_page_ids[] = $page_id;
-            }
-        }
-
+        // 禁用缓存，直接进行API请求以确保数据实时性
         Notion_To_WordPress_Helper::debug_log(
-            sprintf(
-                '批量获取页面: 总计 %d, 缓存命中 %d, 需要请求 %d',
-                count($page_ids),
-                count($cached_pages),
-                count($uncached_page_ids)
-            ),
+            sprintf('批量获取页面（无缓存）: 总计 %d', count($page_ids)),
             'Batch Pages'
         );
 
-        // 如果所有页面都已缓存，直接返回
-        if (empty($uncached_page_ids)) {
-            return $cached_pages;
-        }
-
         // 构建批量请求端点
         $endpoints = [];
-        foreach ($uncached_page_ids as $page_id) {
+        foreach ($page_ids as $page_id) {
             $endpoints[] = 'pages/' . $page_id;
         }
 
@@ -698,10 +632,10 @@ class Notion_API {
             // 执行批量请求
             $responses = $this->batch_send_requests($endpoints);
 
-            // 处理响应并更新缓存
+            // 处理响应（无缓存）
             $fetched_pages = [];
             foreach ($responses as $index => $response) {
-                $page_id = $uncached_page_ids[$index];
+                $page_id = $page_ids[$index];
 
                 if ($response instanceof Exception) {
                     Notion_To_WordPress_Helper::error_log(
@@ -711,14 +645,10 @@ class Notion_API {
                     continue;
                 }
 
-                // 更新缓存
-                self::$page_cache[$page_id] = $response;
-                self::$cache_timestamps[$page_id] = time();
                 $fetched_pages[$page_id] = $response;
             }
 
-            // 合并缓存和新获取的页面
-            return array_merge($cached_pages, $fetched_pages);
+            return $fetched_pages;
 
         } catch (Exception $e) {
             Notion_To_WordPress_Helper::error_log(
@@ -726,8 +656,7 @@ class Notion_API {
                 'Batch Pages'
             );
 
-            // 返回已缓存的页面
-            return $cached_pages;
+            return [];
         }
     }
 
@@ -869,36 +798,15 @@ class Notion_API {
             return [];
         }
 
-        // 检查缓存
-        $cached_databases = [];
-        $uncached_database_ids = [];
-
-        foreach ($database_ids as $database_id) {
-            if (isset(self::$database_info_cache[$database_id])) {
-                $cached_databases[$database_id] = self::$database_info_cache[$database_id];
-            } else {
-                $uncached_database_ids[] = $database_id;
-            }
-        }
-
+        // 禁用缓存，直接进行API请求以确保数据实时性
         Notion_To_WordPress_Helper::debug_log(
-            sprintf(
-                '批量获取数据库信息: 总计 %d, 缓存命中 %d, 需要请求 %d',
-                count($database_ids),
-                count($cached_databases),
-                count($uncached_database_ids)
-            ),
+            sprintf('批量获取数据库信息（无缓存）: 总计 %d', count($database_ids)),
             'Batch Database Info'
         );
 
-        // 如果所有数据库都已缓存，直接返回
-        if (empty($uncached_database_ids)) {
-            return $cached_databases;
-        }
-
         // 构建批量请求端点
         $endpoints = [];
-        foreach ($uncached_database_ids as $database_id) {
+        foreach ($database_ids as $database_id) {
             $endpoints[] = 'databases/' . $database_id;
         }
 
@@ -906,10 +814,10 @@ class Notion_API {
             // 执行批量请求
             $responses = $this->batch_send_requests($endpoints);
 
-            // 处理响应并更新缓存
+            // 处理响应（无缓存）
             $fetched_databases = [];
             foreach ($responses as $index => $response) {
-                $database_id = $uncached_database_ids[$index];
+                $database_id = $database_ids[$index];
 
                 if ($response instanceof Exception) {
                     Notion_To_WordPress_Helper::error_log(
@@ -919,14 +827,10 @@ class Notion_API {
                     continue;
                 }
 
-                // 更新缓存
-                self::$database_info_cache[$database_id] = $response;
-                self::$cache_timestamps[$database_id] = time();
                 $fetched_databases[$database_id] = $response;
             }
 
-            // 合并缓存和新获取的数据库信息
-            return array_merge($cached_databases, $fetched_databases);
+            return $fetched_databases;
 
         } catch (Exception $e) {
             Notion_To_WordPress_Helper::error_log(
@@ -934,8 +838,8 @@ class Notion_API {
                 'Batch Database Info'
             );
 
-            // 返回已缓存的数据库信息
-            return $cached_databases;
+            // 返回空数组
+            return [];
         }
     }
 }
