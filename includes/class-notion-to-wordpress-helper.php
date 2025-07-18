@@ -86,11 +86,8 @@ class Notion_To_WordPress_Helper {
             return;
         }
 
-        // 简化版调用者信息 - 不使用昂贵的debug_backtrace
-        $caller_info = '';
-
         // 格式化日志前缀
-        $log_prefix = date('Y-m-d H:i:s') . ' ' . $prefix . $caller_info . ': ';
+        $log_prefix = date('Y-m-d H:i:s') . ' ' . $prefix . ': ';
 
         // 准备日志内容 - 限制大小
         $log_content = is_array($data) || is_object($data) ? print_r($data, true) : $data;
@@ -333,18 +330,10 @@ class Notion_To_WordPress_Helper {
         $result = '';
 
         foreach ($rich_text as $text) {
-            // 处理行内公式 - 恢复到旧版本逻辑
+            // 处理行内公式 - 使用统一的公式处理方法
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr_raw = $text['equation']['expression'] ?? '';
-
-                // 保留化学公式的特殊处理（确保\ce前缀）
-                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
-                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
-                }
-
-                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
-                $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
-                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
+                $content = self::process_math_expression($expr_raw, 'inline');
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
@@ -402,6 +391,35 @@ class Notion_To_WordPress_Helper {
         }
 
         return $result;
+    }
+
+    /**
+     * 统一处理数学公式表达式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $expression 数学表达式
+     * @param string $type 类型：'inline' 或 'block'
+     * @return string 处理后的HTML
+     */
+    public static function process_math_expression(string $expression, string $type = 'inline'): string {
+        if (empty($expression)) {
+            return $type === 'block' ? '<!-- 空的数学公式 -->' : '';
+        }
+
+        // 保留化学公式的特殊处理（确保\ce前缀）
+        if (strpos($expression, 'ce{') !== false && strpos($expression, '\\ce{') === false) {
+            $expression = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expression);
+        }
+
+        // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+        $expr_escaped = str_replace('\\', '\\\\', $expression);
+
+        // 根据类型返回不同的HTML结构
+        if ($type === 'block') {
+            return '<div class="notion-equation notion-equation-block">$$' . $expr_escaped . '$$</div>';
+        } else {
+            return '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
+        }
     }
 
     /**

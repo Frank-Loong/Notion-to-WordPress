@@ -64,7 +64,6 @@ class Notion_Content_Converter {
             // -------- 列表块处理（含待办 to_do） --------
             $is_standard_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item']);
             $is_todo_item         = ($block_type === 'to_do');
-            $is_list_item         = $is_standard_list_item || $is_todo_item;
 
             if ($is_standard_list_item) {
                 // 无序/有序列表
@@ -197,9 +196,8 @@ class Notion_Content_Converter {
         }
 
         // 确保 ID 和类名安全
-        // 将UUID格式的ID转换为不带连字符的格式，以匹配锚点链接
-        $clean_id = str_replace('-', '', $block_id);
-        $safe_id = esc_attr($clean_id);
+        // 保持UUID格式的连字符，生成完整的notion-block-前缀ID，以匹配锚点链接
+        $safe_id = esc_attr('notion-block-' . $block_id);
         $safe_class = esc_attr('notion-block notion-' . $block_type);
 
         // 为块添加包装 div，包含 ID 和类名
@@ -396,8 +394,20 @@ class Notion_Content_Converter {
             }
         }
 
-        // callout块不应该处理子块，避免重复嵌套
-        return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
+        // 处理子块内容（标注块可以包含子内容）
+        $child_content = self::_convert_child_blocks($block, $notion_api);
+
+        $html = '<div class="notion-callout">';
+        $html .= $icon;
+        $html .= '<div class="notion-callout-content">';
+        $html .= $text;
+        if (!empty($child_content)) {
+            $html .= $child_content;
+        }
+        $html .= '</div>';
+        $html .= '</div>';
+
+        return $html;
     }
 
     /**
@@ -423,15 +433,8 @@ class Notion_Content_Converter {
     private static function _convert_block_equation(array $block, Notion_API $notion_api): string {
         $expression = $block['equation']['expression'] ?? '';
 
-        if (empty($expression)) {
-            return '<!-- 空的数学公式 -->';
-        }
-
-        // 使用 KaTeX 或 MathJax 渲染数学公式
-        // 这里使用简单的包装，实际渲染由前端JavaScript处理
-        return '<div class="notion-equation" data-math="' . esc_attr($expression) . '">' .
-               '<span class="math-fallback">$' . esc_html($expression) . '$</span>' .
-               '</div>';
+        // 使用Helper类的统一公式处理方法
+        return Notion_To_WordPress_Helper::process_math_expression($expression, 'block');
     }
 
     /**
@@ -704,10 +707,12 @@ class Notion_Content_Converter {
 
         $caption = self::extract_rich_text($pdf_data['caption'] ?? []);
 
-        $html = '<div class="notion-pdf">';
-        $html .= '<iframe src="' . esc_url($url) . '" width="100%" height="500" frameborder="0" type="application/pdf"></iframe>';
+        $html = '<div class="notion-pdf notion-embed">';
+        $html .= '<div class="notion-pdf-container">';
+        $html .= '<iframe src="' . esc_url($url) . '" width="100%" frameborder="0" type="application/pdf"></iframe>';
+        $html .= '</div>';
         $html .= '<div class="notion-pdf-fallback">';
-        $html .= '<a href="' . esc_url($url) . '" target="_blank">查看PDF文档</a>';
+        $html .= '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">查看PDF文档</a>';
         $html .= '</div>';
         if (!empty($caption)) {
             $html .= '<div class="notion-pdf-caption">' . $caption . '</div>';
@@ -826,82 +831,8 @@ class Notion_Content_Converter {
      * 提取富文本内容（与原有实现保持一致）
      */
     private static function extract_rich_text($rich_text): string {
-        if (empty($rich_text)) {
-            return '';
-        }
-
-        $result = '';
-
-        foreach ($rich_text as $text) {
-            // 处理行内公式
-            if (isset($text['type']) && $text['type'] === 'equation') {
-                $expr_raw = $text['equation']['expression'] ?? '';
-
-                // 保留化学公式的特殊处理（确保\ce前缀）
-                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
-                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
-                }
-
-                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
-                $expr_escaped = str_replace('\\', '\\\\', $expr_raw);
-                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
-            } else {
-                // 对纯文本内容进行转义
-                $content = isset($text['plain_text']) ? esc_html($text['plain_text']) : '';
-            }
-
-            if (empty($content)) {
-                continue;
-            }
-
-            $annotations = isset($text['annotations']) ? $text['annotations'] : array();
-            $href = isset($text['href']) ? $text['href'] : '';
-
-            // 应用格式化
-            if (!empty($annotations)) {
-                if (isset($annotations['bold']) && $annotations['bold']) {
-                    $content = '<strong>' . $content . '</strong>';
-                }
-
-                if (isset($annotations['italic']) && $annotations['italic']) {
-                    $content = '<em>' . $content . '</em>';
-                }
-
-                if (isset($annotations['strikethrough']) && $annotations['strikethrough']) {
-                    $content = '<del>' . $content . '</del>';
-                }
-
-                if (isset($annotations['underline']) && $annotations['underline']) {
-                    $content = '<u>' . $content . '</u>';
-                }
-
-                if (isset($annotations['code']) && $annotations['code']) {
-                    $content = '<code>' . $content . '</code>';
-                }
-
-                // 处理颜色
-                if (isset($annotations['color']) && $annotations['color'] !== 'default') {
-                    $content = '<span class="notion-color-' . esc_attr($annotations['color']) . '">' . $content . '</span>';
-                }
-            }
-
-            // 处理链接
-            if (!empty($href)) {
-                // 检测是否为 Notion 锚点链接
-                if (self::is_notion_anchor_link($href)) {
-                    // 转换为本地锚点链接，不添加 target="_blank"
-                    $local_href = self::convert_notion_anchor_to_local($href);
-                    $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
-                } else {
-                    // 外部链接保持原有处理方式
-                    $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
-                }
-            }
-
-            $result .= $content;
-        }
-
-        return $result;
+        // 使用Helper类的统一处理方法，避免重复代码
+        return Notion_To_WordPress_Helper::extract_rich_text_complete($rich_text);
     }
 
     /**
@@ -917,28 +848,7 @@ class Notion_Content_Converter {
 
 
 
-    /**
-     * 检测是否为 Notion 锚点链接
-     */
-    private static function is_notion_anchor_link(string $href): bool {
-        // Notion 锚点链接通常包含页面ID和块ID
-        return preg_match('/^https:\/\/www\.notion\.so\/.*#[a-f0-9-]+$/i', $href) === 1;
-    }
 
-    /**
-     * 将 Notion 锚点链接转换为本地锚点
-     */
-    private static function convert_notion_anchor_to_local(string $href): string {
-        // 提取锚点部分（#后面的内容）
-        if (preg_match('/#([a-f0-9-]+)$/i', $href, $matches)) {
-            $block_id = $matches[1];
-            // 转换为本地锚点格式
-            return '#notion-block-' . $block_id;
-        }
-
-        // 如果无法解析，返回原链接
-        return $href;
-    }
 
     // ==================== 单个块转换方法 ====================
 
