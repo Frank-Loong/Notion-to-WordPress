@@ -274,17 +274,45 @@ class Notion_Text_Processor {
     public static function generate_summary(string $text, int $sentence_count = 2): string {
         // 清理文本
         $text = self::sanitize_text($text);
-        
+
         // 分割句子
         $sentences = preg_split('/[.!?。！？]+/', $text, -1, PREG_SPLIT_NO_EMPTY);
-        
+
         if (empty($sentences)) {
             return '';
         }
-        
+
         // 取前几句作为摘要
         $summary_sentences = array_slice($sentences, 0, $sentence_count);
-        
+
         return implode('。', $summary_sentences) . '。';
+    }
+
+    /**
+     * 统一处理数学公式表达式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $expression 数学表达式
+     * @param string $type 类型：'inline' 或 'block'
+     * @return string 处理后的HTML
+     */
+    public static function process_math_expression(string $expression, string $type = 'inline'): string {
+        if (empty($expression)) {
+            return '';
+        }
+
+        // 保留化学公式的特殊处理（确保\ce前缀）
+        if (strpos($expression, 'ce{') !== false && strpos($expression, '\\ce{') === false) {
+            $expression = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expression);
+        }
+
+        // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+        $expr_escaped = str_replace('\\', '\\\\', $expression);
+
+        if ($type === 'block') {
+            return '<div class="notion-equation notion-equation-block">$$' . $expr_escaped . '$$</div>';
+        } else {
+            return '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
+        }
     }
 }

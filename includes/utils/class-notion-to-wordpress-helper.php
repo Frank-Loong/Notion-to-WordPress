@@ -287,19 +287,7 @@ class Notion_To_WordPress_Helper {
         return Notion_HTTP_Client::generate_token($length);
     }
 
-    /**
-     * 统一处理数学公式表达式
-     *
-     * @since 2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 使用 Notion_Text_Processor::process_math_expression() 代替
-     * @param string $expression 数学表达式
-     * @param string $type 类型：'inline' 或 'block'
-     * @return string 处理后的HTML
-     */
-    public static function process_math_expression(string $expression, string $type = 'inline'): string {
-        // 委托给专门的文本处理器
-        return Notion_Text_Processor::process_math_expression($expression, $type);
-    }
+
 
     /**
      * 完整的 Rich Text 处理方法
