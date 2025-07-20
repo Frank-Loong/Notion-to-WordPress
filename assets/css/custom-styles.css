@@ -448,13 +448,12 @@ blockquote {
 .notion-callout-icon {
     margin-right: 8px;
     font-size: 1.2em;
-    flex-shrink: 0; /* 防止图标被压缩 */
+    flex-shrink: 0;
 }
 
-/* 标注块内容容器 */
 .notion-callout-content {
     flex: 1;
-    min-width: 0; /* 允许内容收缩 */
+    min-width: 0;
 }
 
 /* 标注块内的子内容样式 */
@@ -582,7 +581,12 @@ blockquote {
     margin: 1em 0;
 }
 
-
+/* PDF 嵌入样式 */
+.notion-page-content iframe[src$=".pdf"] {
+    width: 100%;
+    height: 600px;
+    border: 1px solid #e1e1e1;
+}
 
 /* 表格内容区块 */
 .notion-toc-placeholder {
@@ -595,16 +599,27 @@ blockquote {
 
 /* 移动设备响应式样式*/
 @media (max-width: 768px) {
-    .notion-page-content iframe {
-        height: 300px;
+    .notion-page-content iframe,
+    .notion-page-content iframe[src$=".pdf"] {
+        height: 400px;
     }
-
+    
     .notion-page-content table {
         font-size: 0.9em;
     }
-
+    
     .notion-callout {
         padding: 12px;
+        margin: 0.8em 0;
+    }
+    
+    .notion-callout-icon {
+        margin-right: 8px;
+        font-size: 1.1em;
+    }
+    
+    .notion-callout-content {
+        width: 100%;
     }
 
     /* 分栏响应式：移动端变为单列 */
@@ -759,8 +774,6 @@ blockquote {
     margin: 0 0.2em;
 }
 
-
-
 /* 针对某些主题可能的样式冲突进行修复 */
 .katex-display {
     overflow-x: auto;
@@ -880,101 +893,61 @@ blockquote {
     max-width: 100%;
 }
 
-/* PDF嵌入样式 - 与其他嵌入内容保持一致 */
+/* PDF预览样式 */
 .notion-pdf {
-    margin: 2em auto;
-    max-width: 100%;
+    margin: 20px 0;
     border: 1px solid #e1e1e1;
     border-radius: 8px;
     overflow: hidden;
     background: #fff;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* PDF容器 - 响应式设计 */
-.notion-pdf-container {
+.pdf-preview-container {
+    background: #f5f5f5;
+    min-height: 600px;
     position: relative;
-    width: 100%;
-    padding-bottom: 75%; /* 4:3 宽高比 */
-    height: 0;
-    overflow: hidden;
 }
 
-.notion-pdf-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
+.pdf-preview-container object,
+.pdf-preview-container embed {
     width: 100%;
-    height: 100%;
+    height: 600px;
     border: none;
 }
 
-/* PDF fallback链接样式 */
-.notion-pdf-fallback {
-    padding: 1em;
-    text-align: center;
+.pdf-actions {
+    padding: 15px;
     background: #f9f9f9;
     border-top: 1px solid #e1e1e1;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
 
-.notion-pdf-fallback a {
-    display: inline-block;
+.pdf-download-btn, .pdf-open-btn {
     background: #0073aa;
     color: white !important;
-    padding: 0.75em 1.5em;
+    padding: 8px 16px;
     border-radius: 4px;
     text-decoration: none;
-    font-size: 0.9em;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
-.notion-pdf-fallback a:hover {
+.pdf-open-btn {
+    background: #666;
+}
+
+.pdf-download-btn:hover {
     background: #005a87 !important;
     color: white !important;
-    text-decoration: none;
 }
 
-/* PDF标题样式 */
-.notion-pdf-caption {
-    padding: 0.75em 1em;
-    font-size: 0.9em;
-    color: #666;
-    text-align: center;
-    font-style: italic;
-    background: #fafafa;
-    border-top: 1px solid #e1e1e1;
-}
-
-/* PDF响应式样式 */
-@media (max-width: 768px) {
-    .notion-pdf {
-        margin: 1.5em auto;
-        border-radius: 4px;
-    }
-
-    .notion-pdf-container {
-        padding-bottom: 80%; /* 移动端稍高一些 */
-    }
-
-    .notion-pdf-fallback {
-        padding: 0.75em;
-    }
-
-    .notion-pdf-fallback a {
-        padding: 0.6em 1.2em;
-        font-size: 0.85em;
-    }
-}
-
-@media (max-width: 480px) {
-    .notion-pdf {
-        margin: 1em auto;
-    }
-
-    .notion-pdf-container {
-        padding-bottom: 85%;
-    }
+.pdf-open-btn:hover {
+    background: #444 !important;
+    color: white !important;
 }
 
 .notion-pdf-caption {
@@ -1185,7 +1158,7 @@ blockquote {
     .notion-record-property {
         font-size: 10px;
     }
-}
+    }
 
 @media (max-width: 480px) {
     .notion-database-record {
@@ -1234,7 +1207,7 @@ blockquote {
 
 .notion-record-icon-emoji {
     font-size: 16px;
-}
+    }
 
 .notion-record-icon-image {
     width: 16px;
@@ -1253,7 +1226,7 @@ blockquote {
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 4px;
-}
+    }
 
 /* 文件缩略图样式 */
 .notion-file-thumbnail {
@@ -1267,13 +1240,13 @@ blockquote {
     transition: all 0.2s ease;
     min-width: 80px;
     max-width: 120px;
-}
+    }
 
 .notion-file-thumbnail:hover {
     background: #f1f3f4;
     border-color: #cbd5e0;
     transform: translateY(-1px);
-}
+    }
 
 .notion-file-thumbnail img {
     width: 60px;
@@ -1289,7 +1262,7 @@ blockquote {
     text-align: center;
     word-break: break-word;
     line-height: 1.2;
-}
+    }
 
 /* 文件链接样式 */
 .notion-file-link {
@@ -1307,7 +1280,7 @@ blockquote {
     background: #f1f3f4;
     border-color: #cbd5e0;
     transform: translateY(-1px);
-}
+    }
 
 .notion-file-link a {
     display: flex;
@@ -1324,7 +1297,7 @@ blockquote {
 .notion-file-icon {
     margin-right: 4px;
     font-size: 12px;
-}
+    }
 
 .notion-file-name {
     max-width: 100px;
@@ -1339,7 +1312,7 @@ blockquote {
     align-items: center;
     padding: 6px 8px;
     background: #e2e8f0;
-    color: #718096;
+        color: #718096;
     border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
@@ -1358,7 +1331,7 @@ blockquote {
 .notion-property-value a:hover {
     color: #0256cc;
     text-decoration: underline;
-}
+    }
 
 /* ================ 移动端响应式优化 ================ */
 
@@ -1434,14 +1407,14 @@ blockquote {
         opacity: 1;
         transform: scale(1);
     }
-}
+    }
 
 /* 悬停动画增强 */
-.notion-database-record {
+    .notion-database-record {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
+    }
 
-.notion-database-record:hover {
+    .notion-database-record:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
 }
@@ -1569,7 +1542,7 @@ blockquote {
 .notion-database-record:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
+    }
 
 .notion-database-record:focus {
     outline: 2px solid #0366d6;
@@ -1586,7 +1559,7 @@ blockquote {
     background: #f8f9fa;
     border-top: 1px solid #e2e8f0;
     margin-top: 12px;
-}
+    }
 
 .notion-expanded-details {
     padding: 16px;
@@ -1652,7 +1625,7 @@ blockquote {
 
 .notion-toast-show {
     transform: translateX(0);
-}
+    }
 
 /* ================ 响应式优化 ================ */
 
@@ -1704,7 +1677,7 @@ html {
 .notion-block-highlight {
     background-color: rgba(255, 235, 59, 0.3) !important;
     border-radius: 4px;
-    animation: notion-anchor-highlight 2s ease-out;
+    animation: notion-anchor-highlight 1s ease-out;
 }
 
 @keyframes notion-anchor-highlight {
@@ -1732,7 +1705,7 @@ html {
         0% {
             background-color: rgba(255, 235, 59, 0.7);
             box-shadow: 0 0 0 2px rgba(255, 235, 59, 0.4);
-        }
+    }
         100% {
             background-color: rgba(255, 235, 59, 0.2);
             box-shadow: none;
@@ -1810,7 +1783,7 @@ html {
     border-radius: 6px;
     color: #6c757d;
     margin: 16px 0;
-}
+    }
 
 .notion-empty-gallery {
     min-height: 200px;

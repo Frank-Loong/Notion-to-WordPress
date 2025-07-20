@@ -38,7 +38,7 @@ class Notion_Sync_Manager {
      * @return array 需要同步的页面
      */
     public static function filter_pages_for_incremental_sync(array $pages): array {
-        Notion_To_WordPress_Helper::info_log(
+        Notion_Logger::info_log(
             "开始增量同步过滤，输入页面数量: " . count($pages),
             'Incremental Sync Debug'
         );
@@ -56,7 +56,7 @@ class Notion_Sync_Manager {
         $sync_times = self::batch_get_sync_times($notion_ids);
 
         // 调试：输出同步时间查询结果
-        Notion_To_WordPress_Helper::info_log(
+        Notion_Logger::info_log(
             "批量查询同步时间结果: " . print_r($sync_times, true),
             'Incremental Sync Debug'
         );
@@ -68,14 +68,14 @@ class Notion_Sync_Manager {
             $notion_last_edited = $page['last_edited_time'] ?? '';
 
             // 调试：输出每个页面的详细信息
-            Notion_To_WordPress_Helper::info_log(
+            Notion_Logger::info_log(
                 "检查页面: {$page_id}, Notion编辑时间: {$notion_last_edited}",
                 'Incremental Sync Debug'
             );
 
             if (empty($notion_last_edited)) {
                 // 如果没有编辑时间，默认需要同步
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "页面无编辑时间，需要同步: {$page_id}",
                     'Incremental Sync Debug'
                 );
@@ -87,14 +87,14 @@ class Notion_Sync_Manager {
             $local_last_sync = $sync_times[$page_id] ?? '';
 
             // 调试：输出本地同步时间
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "页面 {$page_id} 本地同步时间: '{$local_last_sync}'",
                 'Incremental Sync Debug'
             );
 
             if (empty($local_last_sync)) {
                 // 新页面，需要同步
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "新页面需要同步: {$page_id}",
                     'Incremental Sync'
                 );
@@ -106,26 +106,26 @@ class Notion_Sync_Manager {
             $should_sync = self::should_sync_page($notion_last_edited, $local_last_sync);
 
             // 调试：输出时间比较结果
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "页面 {$page_id} 时间比较: Notion={$notion_last_edited}, Local={$local_last_sync}, 需要同步={$should_sync}",
                 'Incremental Sync Debug'
             );
 
             if ($should_sync) {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "页面有更新需要同步: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
                     'Incremental Sync'
                 );
                 $pages_to_sync[] = $page;
             } else {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "页面无需同步: {$page_id}, Notion: {$notion_last_edited}, Local: {$local_last_sync}",
                     'Incremental Sync Debug'
                 );
             }
         }
 
-        Notion_To_WordPress_Helper::info_log(
+        Notion_Logger::info_log(
             sprintf('增量同步检测完成，总页面: %d, 需要同步: %d', count($pages), count($pages_to_sync)),
             'Incremental Sync'
         );
@@ -155,7 +155,7 @@ class Notion_Sync_Manager {
         }
 
         // 调试：输出时间戳转换结果
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "时间戳比较详情: Notion时间戳={$notion_timestamp}, 本地时间戳={$local_timestamp}, 容错误差=" . self::$timestamp_tolerance . ", 比较结果=" . ($notion_timestamp > $local_timestamp + self::$timestamp_tolerance ? 'true' : 'false'),
             'Time Comparison Debug'
         );
@@ -195,7 +195,7 @@ class Notion_Sync_Manager {
             throw $e;
         }
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "更新页面同步时间: {$page_id}, 编辑时间: {$notion_last_edited}",
             'Incremental Sync'
         );
@@ -232,13 +232,13 @@ class Notion_Sync_Manager {
             }
             $wpdb->query('COMMIT');
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "批量更新页面同步时间完成，更新了 " . count($page_updates) . " 个页面",
                 'Incremental Sync'
             );
         } catch (Exception $e) {
             $wpdb->query('ROLLBACK');
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "批量更新页面同步时间失败: " . $e->getMessage()
             );
             throw $e;
@@ -258,7 +258,7 @@ class Notion_Sync_Manager {
         }
 
         // 禁用缓存，直接执行数据库查询以确保数据实时性
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量获取同步时间（无缓存）: %d个页面', count($notion_ids)),
             'Sync Times Query'
         );
@@ -291,7 +291,7 @@ class Notion_Sync_Manager {
         }
 
         // 不使用缓存，直接返回结果
-        Notion_To_WordPress_Helper::info_log(
+        Notion_Logger::info_log(
             "查询完成，返回同步时间映射: " . count($mapping) . " 个记录",
             'Sync Times Query'
         );
@@ -396,7 +396,7 @@ class Notion_Sync_Manager {
         }
 
         // 禁用缓存，直接执行批量数据库查询以确保数据实时性
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量获取文章ID映射（无缓存）: %d个页面', count($notion_ids)),
             'Batch Posts Query'
         );

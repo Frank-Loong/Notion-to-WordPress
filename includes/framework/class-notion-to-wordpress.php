@@ -58,13 +58,13 @@ class Notion_To_WordPress {
 	protected Notion_API $notion_api;
 
 	/**
-	 * Notion页面处理器实例。
+	 * Notion导入协调器实例。
 	 *
 	 * @since    1.0.6
 	 * @access   protected
-	 * @var      Notion_Pages    $notion_pages    Notion页面处理器实例。
+	 * @var      Notion_Import_Coordinator    $notion_pages    Notion导入协调器实例。
 	 */
-	protected Notion_Pages $notion_pages;
+	protected Notion_Import_Coordinator $notion_pages;
 
 	/**
 	 * 后台区域处理器实例。
@@ -110,31 +110,60 @@ class Notion_To_WordPress {
 	/**
 	 * 加载此插件所需的依赖项。
 	 *
-	 * 包括构成插件的以下文件：
+	 * 按照分层架构加载以下文件：
 	 *
+	 * Core层 - 基础设施服务：
+	 * - Notion_Logger. 日志记录服务。
+	 * - Notion_Security. 安全验证服务。
+	 * - Notion_Text_Processor. 文本处理服务。
+	 * - Notion_HTTP_Client. HTTP客户端服务。
+	 *
+	 * Framework层 - 框架管理服务：
 	 * - Notion_To_WordPress_Loader. 协调插件的钩子。
 	 * - Notion_To_WordPress_i18n. 定义国际化功能。
-	 * - Notion_To_WordPress_Admin. 定义后台区域的所有钩子。
-	 * - Notion_API. 定义面向公众的站点的所有钩子。
-	 * - Notion_Pages. 处理页面处理。
-	 * - Notion_To_WordPress_Webhook. 处理 Webhook 请求。
+	 *
+	 * Services层 - 业务逻辑服务：
+	 * - Notion_API. API接口服务。
+	 * - Notion_Content_Converter. 内容转换服务。
+	 * - Notion_Database_Renderer. 数据库渲染服务。
+	 * - Notion_Image_Processor. 图片处理服务。
+	 * - Notion_Metadata_Extractor. 元数据提取服务。
+	 * - Notion_Sync_Manager. 同步管理服务。
+	 *
+	 * Handlers层 - 协调器服务：
+	 * - Notion_Import_Coordinator. 导入协调器（原Notion_Pages）。
+	 * - Notion_To_WordPress_Integrator. 集成协调器。
+	 * - Notion_To_WordPress_Webhook. Webhook处理器。
 	 *
 	 * @since    1.0.5
 	 * @access   private
 	 */
 	private function load_dependencies() {
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-loader.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-i18n.php' );
+		// Core层 - 基础设施服务
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/core/class-notion-logger.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/core/class-notion-security.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/core/class-notion-text-processor.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/core/class-notion-http-client.php' );
+
+		// Framework层 - 框架管理服务
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/framework/class-notion-to-wordpress-loader.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/framework/class-notion-to-wordpress-i18n.php' );
+
+		// Admin层 - 后台管理
 		require_once Notion_To_WordPress_Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-metadata-extractor.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-sync-manager.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-content-converter.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-integrator.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-image-processor.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-api.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-pages.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-database-renderer.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/class-notion-to-wordpress-webhook.php' );
+
+		// Services层 - 业务逻辑服务
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-metadata-extractor.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-sync-manager.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-content-converter.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-image-processor.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-api.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-database-renderer.php' );
+
+		// Handlers层 - 协调器服务
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/handlers/class-notion-import-coordinator.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/handlers/class-notion-to-wordpress-integrator.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/handlers/class-notion-to-wordpress-webhook.php' );
 
 		$this->loader = new Notion_To_WordPress_Loader();
 	}
@@ -142,13 +171,16 @@ class Notion_To_WordPress {
 	/**
 	 * 实例化核心对象。
 	 *
-	 * 创建API处理器、页面处理器和后台处理器的实例。
+	 * 创建API处理器、导入协调器和后台处理器的实例。
 	 * 将所需的依赖项传递给它们中的每一个。
 	 *
 	 * @since 1.0.6
 	 * @access private
 	 */
 	private function instantiate_objects() {
+		// 初始化日志记录器
+		Notion_Logger::init();
+
 		// 获取选项
 		$options       = get_option( 'notion_to_wordpress_options', array() );
 		$api_key       = $options['notion_api_key'] ?? '';
@@ -158,8 +190,8 @@ class Notion_To_WordPress {
 		// 实例化API处理器
 		$this->notion_api = new Notion_API( $api_key );
 
-		// 实例化页面处理器
-		$this->notion_pages = new Notion_Pages( $this->notion_api, $database_id, $field_mapping );
+		// 实例化导入协调器（原页面处理器）
+		$this->notion_pages = new Notion_Import_Coordinator( $this->notion_api, $database_id, $field_mapping );
 
 		// 实例化后台处理器
 		$this->admin = new Notion_To_WordPress_Admin(
@@ -316,7 +348,7 @@ class Notion_To_WordPress {
 		$database_id = $options['notion_database_id'] ?? '';
 
 		if (empty($database_id)) {
-			Notion_To_WordPress_Helper::error_log( 'Cron import failed: Database ID is not set.' );
+			Notion_Logger::error_log( 'Cron import failed: Database ID is not set.' );
 			return;
 		}
 
@@ -346,9 +378,9 @@ class Notion_To_WordPress {
 			$result = $this->notion_pages->import_pages($check_deletions, $incremental);
 
 			if (is_wp_error($result)) {
-				Notion_To_WordPress_Helper::error_log('Cron import failed: ' . $result->get_error_message());
+				Notion_Logger::error_log('Cron import failed: ' . $result->get_error_message());
 			} else {
-				Notion_To_WordPress_Helper::info_log(
+				Notion_Logger::info_log(
 					sprintf('定时同步完成 - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d',
 						$result['total'] ?? 0,
 						$result['imported'] ?? 0,
@@ -360,7 +392,7 @@ class Notion_To_WordPress {
 				);
 			}
 		} catch ( Exception $e ) {
-			Notion_To_WordPress_Helper::error_log( 'Notion import error: ' . $e->getMessage() );
+			Notion_Logger::error_log( 'Notion import error: ' . $e->getMessage() );
 		}
 	}
 
@@ -538,7 +570,7 @@ class Notion_To_WordPress {
 		wp_enqueue_script(
 			$this->plugin_name . '-anchor-navigation',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/anchor-navigation.js'),
-			array('jquery'),
+			array(),
 			$this->version,
 			true
 		);
@@ -579,11 +611,7 @@ class Notion_To_WordPress {
 		return $schedules;
 	}
 
-	private function _convert_block_equation( array $block ): string {
-		$expression = $block['equation']['expression'] ?? '';
-		// 保持原始 LaTeX，避免对反斜杠做二次转义
-		return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
-	}
+
 
 	/**
 	 * 保护公式内容不被wpautop处理

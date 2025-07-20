@@ -71,7 +71,7 @@ class Notion_To_WordPress_i18n {
             }
 
             if ( $plugin_language !== 'auto' ) {
-                Notion_To_WordPress_Helper::debug_log('Overriding locale to: ' . $plugin_language . ' for domain: ' . $domain, 'Notion i18n');
+                Notion_Logger::debug_log('Overriding locale to: ' . $plugin_language . ' for domain: ' . $domain, 'Notion i18n');
                 return $plugin_language;
             }
         }
@@ -102,9 +102,9 @@ class Notion_To_WordPress_i18n {
 
             if ( file_exists( $mo_file ) ) {
                 load_textdomain( 'notion-to-wordpress', $mo_file );
-                Notion_To_WordPress_Helper::debug_log('Force loaded ' . $plugin_language . ' translations from: ' . $mo_file, 'Notion i18n');
+                Notion_Logger::debug_log('Force loaded ' . $plugin_language . ' translations from: ' . $mo_file, 'Notion i18n');
             } else {
-                Notion_To_WordPress_Helper::error_log('Translation file not found: ' . $mo_file, 'Notion i18n');
+                Notion_Logger::error_log('Translation file not found: ' . $mo_file, 'Notion i18n');
             }
         }
     }

@@ -123,10 +123,31 @@ docker-compose up -d wordpress
 ```
 notion-to-wordpress/
 ├── admin/                  # 后台管理界面
-├── includes/               # 核心功能类
-│   ├── class-notion-api.php
-│   ├── class-notion-pages.php
-│   └── class-notion-to-wordpress.php
+├── includes/               # 核心功能类（分层架构）
+│   ├── core/              # Core层 - 基础设施服务
+│   │   ├── class-notion-logger.php
+│   │   ├── class-notion-security.php
+│   │   ├── class-notion-text-processor.php
+│   │   └── class-notion-http-client.php
+│   ├── services/          # Services层 - 业务逻辑服务
+│   │   ├── class-notion-api.php
+│   │   ├── class-notion-content-converter.php
+│   │   ├── class-notion-database-renderer.php
+│   │   ├── class-notion-image-processor.php
+│   │   ├── class-notion-metadata-extractor.php
+│   │   └── class-notion-sync-manager.php
+│   ├── handlers/          # Handlers层 - 协调器服务
+│   │   ├── class-notion-import-coordinator.php  # (原Notion_Pages)
+│   │   ├── class-notion-to-wordpress-integrator.php
+│   │   └── class-notion-to-wordpress-webhook.php
+│   ├── utils/             # Utils层 - 工具支持服务
+│   │   ├── class-notion-to-wordpress-helper.php
+│   │   ├── class-notion-network-retry.php
+│   │   └── class-notion-concurrent-network-manager.php
+│   └── framework/         # Framework层 - 框架管理服务
+│       ├── class-notion-to-wordpress.php
+│       ├── class-notion-to-wordpress-loader.php
+│       └── class-notion-to-wordpress-i18n.php
 ├── scripts/                # 自动化脚本
 │   ├── build.js
 │   └── release.js
@@ -138,12 +159,13 @@ notion-to-wordpress/
 
 ```mermaid
 classDiagram
+    %% Framework层
     class Notion_To_WordPress {
         -version: string
         -plugin_name: string
         -loader: Notion_To_WordPress_Loader
         -notion_api: Notion_API
-        -notion_pages: Notion_Pages
+        -notion_pages: Notion_Import_Coordinator
         -admin: Notion_To_WordPress_Admin
         +__construct()
         +load_dependencies()
@@ -152,6 +174,7 @@ classDiagram
         +cron_import_pages()
     }
 
+    %% Services层
     class Notion_API {
         -api_key: string
         -api_base: string
@@ -161,7 +184,8 @@ classDiagram
         +send_request()
     }
 
-    class Notion_Pages {
+    %% Handlers层
+    class Notion_Import_Coordinator {
         -notion_api: Notion_API
         -database_id: string
         -field_mapping: array
@@ -175,20 +199,21 @@ classDiagram
         -plugin_name: string
         -version: string
         -notion_api: Notion_API
-        -notion_pages: Notion_Pages
+        -notion_pages: Notion_Import_Coordinator
         +handle_manual_import()
         +handle_test_connection()
         +handle_refresh_all()
     }
 
     class Notion_To_WordPress_Webhook {
-        -notion_pages: Notion_Pages
+        -notion_pages: Notion_Import_Coordinator
         +handle_webhook()
         +handle_specific_event()
         +handle_page_updated()
         +handle_database_updated()
     }
 
+    %% Utils层
     class Notion_To_WordPress_Helper {
         +custom_kses()
         +normalize_post_status()
@@ -197,14 +222,24 @@ classDiagram
         +debug_log()
     }
 
+    %% Core层
+    class Notion_Logger {
+        +init()
+        +info_log()
+        +error_log()
+        +debug_log()
+    }
+
+    %% 关系
     Notion_To_WordPress --> Notion_API
-    Notion_To_WordPress --> Notion_Pages
+    Notion_To_WordPress --> Notion_Import_Coordinator
     Notion_To_WordPress --> Notion_To_WordPress_Admin
     Notion_To_WordPress_Admin --> Notion_API
-    Notion_To_WordPress_Admin --> Notion_Pages
-    Notion_Pages --> Notion_API
-    Notion_To_WordPress_Webhook --> Notion_Pages
-    Notion_Pages --> Notion_To_WordPress_Helper
+    Notion_To_WordPress_Admin --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_API
+    Notion_To_WordPress_Webhook --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_To_WordPress_Helper
+    Notion_Import_Coordinator --> Notion_Logger
 ```
 
 ### 🔄 数据流向
@@ -223,29 +258,29 @@ Notion API → API通信层 → 数据转换 → 同步引擎 → WordPress数�
 sequenceDiagram
     participant U as 用户/管理员
     participant A as Admin界面
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
     participant WP as WordPress数据库
 
     U->>A: 点击智能同步按钮
-    A->>P: import_pages(check_deletions=true, incremental=true)
-    P->>API: get_database_pages()
-    API-->>P: 返回所有页面列表
-    P->>P: filter_pages_for_incremental_sync()
-    Note over P: 比较last_edited_time<br/>筛选需要更新的页面
+    A->>IC: import_pages(check_deletions=true, incremental=true)
+    IC->>API: get_database_pages()
+    API-->>IC: 返回所有页面列表
+    IC->>IC: filter_pages_for_incremental_sync()
+    Note over IC: 比较last_edited_time<br/>筛选需要更新的页面
 
     loop 处理每个需要同步的页面
-        P->>API: get_page(page_id)
-        API-->>P: 返回页面详情
-        P->>API: get_page_content(page_id)
-        API-->>P: 返回页面内容块
-        P->>P: convert_blocks_to_html()
-        P->>WP: create_or_update_post()
-        WP-->>P: 返回文章ID
-        P->>P: update_page_sync_time()
+        IC->>API: get_page(page_id)
+        API-->>IC: 返回页面详情
+        IC->>API: get_page_content(page_id)
+        API-->>IC: 返回页面内容块
+        IC->>IC: convert_blocks_to_html()
+        IC->>WP: create_or_update_post()
+        WP-->>IC: 返回文章ID
+        IC->>IC: update_page_sync_time()
     end
 
-    P-->>A: 返回同步结果统计
+    IC-->>A: 返回同步结果统计
     A-->>U: 显示同步完成信息
 ```
 
@@ -255,7 +290,7 @@ sequenceDiagram
 sequenceDiagram
     participant C as WordPress Cron
     participant M as Notion_To_WordPress
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
     participant WP as WordPress数据库
 
@@ -263,30 +298,30 @@ sequenceDiagram
     M->>M: cron_import_pages()
     Note over M: 获取配置选项<br/>incremental=true<br/>check_deletions=true
 
-    M->>P: import_pages(check_deletions=true, incremental=true)
-    P->>API: get_database_pages()
-    API-->>P: 返回所有页面列表
+    M->>IC: import_pages(check_deletions=true, incremental=true)
+    IC->>API: get_database_pages()
+    API-->>IC: 返回所有页面列表
 
     alt 增量同步模式
-        P->>P: filter_pages_for_incremental_sync()
-        Note over P: 只处理有更新的页面
+        IC->>IC: filter_pages_for_incremental_sync()
+        Note over IC: 只处理有更新的页面
     else 全量同步模式
-        Note over P: 处理所有页面
+        Note over IC: 处理所有页面
     end
 
     loop 处理页面
-        P->>API: get_page(page_id)
-        P->>API: get_page_content(page_id)
-        P->>WP: create_or_update_post()
-        P->>P: update_page_sync_time()
+        IC->>API: get_page(page_id)
+        IC->>API: get_page_content(page_id)
+        IC->>WP: create_or_update_post()
+        IC->>IC: update_page_sync_time()
     end
 
     alt 检查删除选项开启
-        P->>P: check_and_delete_removed_pages()
-        P->>WP: 删除已移除的文章
+        IC->>IC: check_and_delete_removed_pages()
+        IC->>WP: 删除已移除的文章
     end
 
-    P-->>M: 返回同步结果
+    IC-->>M: 返回同步结果
     M->>M: 更新last_sync_time
 ```
 
@@ -296,7 +331,7 @@ sequenceDiagram
 sequenceDiagram
     participant N as Notion
     participant W as Webhook处理器
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
     participant WP as WordPress数据库
 
@@ -311,14 +346,14 @@ sequenceDiagram
         W->>W: handle_page_updated(page_id)
         W->>API: get_page(page_id)
         API-->>W: 返回页面数据
-        W->>P: import_notion_page(page)
-        Note over W,P: 强制同步，忽略时间戳
+        W->>IC: import_notion_page(page)
+        Note over W,IC: 强制同步，忽略时间戳
         P->>WP: create_or_update_post()
 
     else 数据库更新事件
         W->>W: handle_database_updated()
         Note over W: 根据配置执行<br/>增量或全量同步
-        W->>P: import_pages(check_deletions, incremental)
+        W->>IC: import_pages(check_deletions, incremental)
         P->>API: get_database_pages()
         P->>WP: 批量处理页面
 

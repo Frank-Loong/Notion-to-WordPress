@@ -21,9 +21,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-// 加载并发网络管理器和重试机制
-require_once plugin_dir_path(__FILE__) . 'class-notion-concurrent-network-manager.php';
-require_once plugin_dir_path(__FILE__) . 'class-notion-network-retry.php';
+// 加载并发网络管理器和重试机制（Utils层）
+require_once plugin_dir_path(__FILE__) . '../utils/class-notion-concurrent-network-manager.php';
+require_once plugin_dir_path(__FILE__) . '../utils/class-notion-network-retry.php';
 
 class Notion_API {
 
@@ -124,9 +124,8 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_database_pages(string $database_id, array $filter = [], bool $with_details = false): array {
-        $start_time = Notion_To_WordPress_Helper::start_performance_timer('get_database_pages');
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '获取数据库页面（实时）: ' . $database_id . ', 详细信息: ' . ($with_details ? '是' : '否'),
             'Database Pages'
         );
@@ -153,7 +152,7 @@ class Notion_API {
 
             if (isset($response['results'])) {
                 $all_results = array_merge($all_results, $response['results']);
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '获取数据库页面批次: ' . count($response['results']) . ', 总计: ' . count($all_results),
                     'Database Pages'
                 );
@@ -168,17 +167,12 @@ class Notion_API {
             $all_results = $this->enrich_pages_with_details($all_results);
         }
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '数据库页面获取完成，总数: ' . count($all_results) . ', 详细信息: ' . ($with_details ? '是' : '否'),
             'Database Pages'
         );
 
-        Notion_To_WordPress_Helper::end_performance_timer('get_database_pages', $start_time, [
-            'database_id' => $database_id,
-            'with_details' => $with_details,
-            'records_count' => count($all_results),
-            'api_calls' => $with_details ? count($all_results) + 1 : 1
-        ]);
+
 
         return $all_results;
     }
@@ -267,7 +261,7 @@ class Notion_API {
                 }
 
                 // 对于其他错误，记录并重新抛出
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     'get_block_children异常: ' . $e->getMessage(),
                     'API Error'
                 );
@@ -304,7 +298,7 @@ class Notion_API {
         $endpoint = 'pages/' . $page_id;
         $result = $this->send_request($endpoint);
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '获取页面元数据（实时）: ' . $page_id,
             'Page Metadata'
         );
@@ -363,7 +357,7 @@ class Notion_API {
         $endpoint = 'pages/' . $page_id;
         $result = $this->send_request($endpoint);
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '获取页面数据（实时）: ' . $page_id,
             'Page Data'
         );
@@ -382,14 +376,14 @@ class Notion_API {
             try {
                 $database_info = $this->get_database($database_id);
 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '数据库信息获取成功（实时）: ' . $database_id,
                     'Database Info'
                 );
 
                 return $database_info;
             } catch (Exception $e) {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '数据库信息获取失败: ' . $e->getMessage(),
                     'Database Info'
                 );
@@ -408,19 +402,19 @@ class Notion_API {
             try {
                 $page_data = $this->get_page($page_id);
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '获取页面详情（实时）: ' . $page_id,
                 'Page Details'
             );
 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '页面详情获取成功: ' . $page_id . ', 包含cover: ' . (isset($page_data['cover']) ? '是' : '否') . ', 包含icon: ' . (isset($page_data['icon']) ? '是' : '否'),
                     'Page Details'
                 );
 
                 return $page_data;
             } catch (Exception $e) {
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     '页面详情获取失败: ' . $page_id . ', 错误: ' . $e->getMessage(),
                     'Page Details'
                 );
@@ -438,7 +432,7 @@ class Notion_API {
     private function enrich_pages_with_details(array $pages): array {
         // 对于大量页面，跳过详细信息获取以提高性能
         if (count($pages) > 20) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '页面数量过多(' . count($pages) . ')，跳过详细信息获取以提高性能',
                 'Performance Optimization'
             );
@@ -511,7 +505,7 @@ class Notion_API {
 
         $start_time = microtime(true);
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('开始批量API请求: %d个端点，方法: %s', count($endpoints), $method),
             'Batch API'
         );
@@ -556,7 +550,7 @@ class Notion_API {
                     $results[$index] = new Exception("批量请求失败 (#{$index}): " . $error_message);
                     $error_count++;
 
-                    Notion_To_WordPress_Helper::error_log(
+                    Notion_Logger::error_log(
                         "批量请求失败 (#{$index}): {$error_message}",
                         'Batch API'
                     );
@@ -569,7 +563,7 @@ class Notion_API {
                         $results[$index] = new Exception("API错误 (#{$index}, {$response_code}): " . $error_message);
                         $error_count++;
 
-                        Notion_To_WordPress_Helper::error_log(
+                        Notion_Logger::error_log(
                             "批量请求API错误 (#{$index}): {$response_code} - {$error_message}",
                             'Batch API'
                         );
@@ -583,7 +577,7 @@ class Notion_API {
 
             $execution_time = microtime(true) - $start_time;
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 sprintf(
                     '批量API请求完成: 成功 %d, 失败 %d, 耗时 %.2f秒',
                     $success_count,
@@ -596,7 +590,7 @@ class Notion_API {
             return $results;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '批量API请求异常: ' . $e->getMessage(),
                 'Batch API'
             );
@@ -617,7 +611,7 @@ class Notion_API {
         }
 
         // 禁用缓存，直接进行API请求以确保数据实时性
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量获取页面（无缓存）: 总计 %d', count($page_ids)),
             'Batch Pages'
         );
@@ -638,7 +632,7 @@ class Notion_API {
                 $page_id = $page_ids[$index];
 
                 if ($response instanceof Exception) {
-                    Notion_To_WordPress_Helper::error_log(
+                    Notion_Logger::error_log(
                         "获取页面失败 ({$page_id}): " . $response->getMessage(),
                         'Batch Pages'
                     );
@@ -651,7 +645,7 @@ class Notion_API {
             return $fetched_pages;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '批量获取页面异常: ' . $e->getMessage(),
                 'Batch Pages'
             );
@@ -672,7 +666,7 @@ class Notion_API {
             return [];
         }
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量获取块内容: %d个块', count($block_ids)),
             'Batch Blocks'
         );
@@ -693,7 +687,7 @@ class Notion_API {
                 $block_id = $block_ids[$index];
 
                 if ($response instanceof Exception) {
-                    Notion_To_WordPress_Helper::error_log(
+                    Notion_Logger::error_log(
                         "获取块内容失败 ({$block_id}): " . $response->getMessage(),
                         'Batch Blocks'
                     );
@@ -707,7 +701,7 @@ class Notion_API {
             return $block_contents;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '批量获取块内容异常: ' . $e->getMessage(),
                 'Batch Blocks'
             );
@@ -734,7 +728,7 @@ class Notion_API {
             return [];
         }
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量查询数据库: %d个数据库', count($database_ids)),
             'Batch Databases'
         );
@@ -758,7 +752,7 @@ class Notion_API {
                 $database_id = $database_ids[$index];
 
                 if ($response instanceof Exception) {
-                    Notion_To_WordPress_Helper::error_log(
+                    Notion_Logger::error_log(
                         "查询数据库失败 ({$database_id}): " . $response->getMessage(),
                         'Batch Databases'
                     );
@@ -772,7 +766,7 @@ class Notion_API {
             return $database_results;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '批量查询数据库异常: ' . $e->getMessage(),
                 'Batch Databases'
             );
@@ -799,7 +793,7 @@ class Notion_API {
         }
 
         // 禁用缓存，直接进行API请求以确保数据实时性
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量获取数据库信息（无缓存）: 总计 %d', count($database_ids)),
             'Batch Database Info'
         );
@@ -820,7 +814,7 @@ class Notion_API {
                 $database_id = $database_ids[$index];
 
                 if ($response instanceof Exception) {
-                    Notion_To_WordPress_Helper::error_log(
+                    Notion_Logger::error_log(
                         "获取数据库信息失败 ({$database_id}): " . $response->getMessage(),
                         'Batch Database Info'
                     );
@@ -833,7 +827,7 @@ class Notion_API {
             return $fetched_databases;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '批量获取数据库信息异常: ' . $e->getMessage(),
                 'Batch Database Info'
             );

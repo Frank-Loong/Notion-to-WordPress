@@ -128,7 +128,7 @@ class Notion_Network_Retry {
                 if ($attempt > 0) {
                     self::$retry_stats['successful_retries']++;
                     
-                    Notion_To_WordPress_Helper::debug_log(
+                    Notion_Logger::debug_log(
                         sprintf(
                             '重试成功：第 %d 次尝试成功，总耗时: %.2f秒',
                             $attempt + 1,
@@ -147,7 +147,7 @@ class Notion_Network_Retry {
                 if (self::is_permanent_error($e)) {
                     self::$retry_stats['permanent_errors']++;
                     
-                    Notion_To_WordPress_Helper::debug_log(
+                    Notion_Logger::debug_log(
                         sprintf(
                             '检测到永久性错误，停止重试: %s',
                             $e->getMessage()
@@ -162,7 +162,7 @@ class Notion_Network_Retry {
                 if ($attempt >= $max_retries) {
                     self::$retry_stats['failed_retries']++;
                     
-                    Notion_To_WordPress_Helper::error_log(
+                    Notion_Logger::error_log(
                         sprintf(
                             '重试失败：已达到最大重试次数 %d，最后错误: %s',
                             $max_retries,
@@ -178,7 +178,7 @@ class Notion_Network_Retry {
                 $delay = $base_delay * pow(2, $attempt);
                 self::$retry_stats['total_delay_time'] += $delay;
                 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     sprintf(
                         '重试 %d/%d 失败: %s，%d毫秒后重试',
                         $attempt + 1,
@@ -332,7 +332,7 @@ class Notion_Network_Retry {
             'total_delay_time' => 0
         ];
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '重试统计信息已重置',
             'Network Retry'
         );
@@ -348,7 +348,7 @@ class Notion_Network_Retry {
         if (!in_array($error_code, self::$temporary_errors)) {
             self::$temporary_errors[] = $error_code;
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "添加临时性错误类型: {$error_code}",
                 'Network Retry'
             );
@@ -365,7 +365,7 @@ class Notion_Network_Retry {
         if (!in_array($error_code, self::$permanent_errors)) {
             self::$permanent_errors[] = $error_code;
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "添加永久性错误类型: {$error_code}",
                 'Network Retry'
             );
@@ -474,7 +474,7 @@ class Notion_Network_Retry {
         $error_type = self::get_error_type_description($exception);
 
         if ($delay > 0) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 sprintf(
                     '[%s] 重试 %d/%d: %s，%d毫秒后重试',
                     $error_type,
@@ -486,7 +486,7 @@ class Notion_Network_Retry {
                 'Network Retry'
             );
         } else {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 sprintf(
                     '[%s] 重试失败: %s',
                     $error_type,

@@ -22,21 +22,21 @@ if (!defined('ABSPATH')) {
 class Notion_To_WordPress_Webhook {
 
     /**
-     * Notion Pages 实例
+     * Notion导入协调器实例
      *
      * @since    1.1.0
      * @access   private
-     * @var      Notion_Pages    $notion_pages    Notion Pages 实例
+     * @var      Notion_Import_Coordinator    $notion_pages    Notion导入协调器实例
      */
-    private Notion_Pages $notion_pages;
+    private Notion_Import_Coordinator $notion_pages;
 
     /**
      * 构造函数
      *
      * @since    1.1.0
-     * @param    Notion_Pages    $notion_pages    Notion Pages 实例
+     * @param    Notion_Import_Coordinator    $notion_pages    Notion导入协调器实例
      */
-    public function __construct(Notion_Pages $notion_pages) {
+    public function __construct(Notion_Import_Coordinator $notion_pages) {
         $this->notion_pages = $notion_pages;
     }
 
@@ -101,7 +101,7 @@ class Notion_To_WordPress_Webhook {
             $opt['webhook_verify_token'] = $verification_token;
             update_option('notion_to_wordpress_options', $opt, false);
 
-            Notion_To_WordPress_Helper::info_log('Webhook 接收到 verification_token: ' . $verification_token, 'Notion Webhook');
+            Notion_Logger::info_log('Webhook 接收到 verification_token: ' . $verification_token, 'Notion Webhook');
 
             // 将 token 回显，方便直接复制
             return new WP_REST_Response(['verification_token' => $verification_token], 200);
@@ -113,7 +113,7 @@ class Notion_To_WordPress_Webhook {
         }
         
         // 记录请求
-        Notion_To_WordPress_Helper::debug_log('收到 Webhook 请求: ' . json_encode($body), 'Notion Webhook', Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO);
+        Notion_Logger::debug_log('收到 Webhook 请求: ' . json_encode($body), 'Notion Webhook');
 
         // 验证请求体
         if (empty($body)) {
@@ -129,7 +129,7 @@ class Notion_To_WordPress_Webhook {
         // 处理不同类型的事件
         if (preg_match('/^(page|block|database)\./', $event_type)) {
             // 记录触发的事件类型
-            Notion_To_WordPress_Helper::info_log('触发同步，事件类型: ' . $event_type, 'Notion Webhook');
+            Notion_Logger::info_log('触发同步，事件类型: ' . $event_type, 'Notion Webhook');
 
             try {
                 // 先快速响应webhook，避免超时
@@ -150,17 +150,17 @@ class Notion_To_WordPress_Webhook {
 
                 // 在后台处理同步
                 $result = $this->handle_specific_event($event_type, $body);
-                Notion_To_WordPress_Helper::info_log('Webhook处理完成: ' . $result, 'Notion Webhook');
+                Notion_Logger::info_log('Webhook处理完成: ' . $result, 'Notion Webhook');
 
                 return $response;
             } catch (Exception $e) {
-                Notion_To_WordPress_Helper::error_log('Webhook 同步失败: ' . $e->getMessage());
+                Notion_Logger::error_log('Webhook 同步失败: ' . $e->getMessage());
                 return new WP_REST_Response(['status' => 'error', 'message' => __('同步过程中出错: ', 'notion-to-wordpress') . $e->getMessage()], 500);
             }
         }
 
         // 其他事件暂时忽略
-        Notion_To_WordPress_Helper::info_log('忽略事件类型: ' . $event_type, 'Notion Webhook');
+        Notion_Logger::info_log('忽略事件类型: ' . $event_type, 'Notion Webhook');
         return new WP_REST_Response(['status' => 'ignored', 'event_type' => $event_type], 200);
     }
 
@@ -208,7 +208,7 @@ class Notion_To_WordPress_Webhook {
         $page_id = $this->extract_page_id($body);
 
         // 添加调试日志
-        Notion_To_WordPress_Helper::info_log('处理事件: ' . $event_type . ', 页面ID: ' . $page_id, 'Notion Webhook');
+        Notion_Logger::info_log('处理事件: ' . $event_type . ', 页面ID: ' . $page_id, 'Notion Webhook');
 
         switch ($event_type) {
             case 'page.deleted':
@@ -250,19 +250,19 @@ class Notion_To_WordPress_Webhook {
      * @return   string                处理结果消息
      */
     private function handle_page_deleted(string $page_id): string {
-        Notion_To_WordPress_Helper::info_log('开始处理页面删除事件，页面ID: ' . $page_id, 'Notion Webhook');
+        Notion_Logger::info_log('开始处理页面删除事件，页面ID: ' . $page_id, 'Notion Webhook');
 
         if (empty($page_id)) {
-            Notion_To_WordPress_Helper::error_log('页面ID为空，无法处理删除事件');
+            Notion_Logger::error_log('页面ID为空，无法处理删除事件');
             return __('页面ID为空，无法处理删除事件', 'notion-to-wordpress');
         }
 
         // 查找对应的WordPress文章
         $post_id = $this->get_wordpress_post_by_notion_id($page_id);
-        Notion_To_WordPress_Helper::info_log('查找WordPress文章结果，页面ID: ' . $page_id . ', 文章ID: ' . $post_id, 'Notion Webhook');
+        Notion_Logger::info_log('查找WordPress文章结果，页面ID: ' . $page_id . ', 文章ID: ' . $post_id, 'Notion Webhook');
 
         if (!$post_id) {
-            Notion_To_WordPress_Helper::info_log('未找到对应的WordPress文章，页面ID: ' . $page_id, 'Notion Webhook');
+            Notion_Logger::info_log('未找到对应的WordPress文章，页面ID: ' . $page_id, 'Notion Webhook');
             return __('未找到对应的WordPress文章', 'notion-to-wordpress');
         }
 
@@ -270,10 +270,10 @@ class Notion_To_WordPress_Webhook {
         $result = wp_delete_post($post_id, true); // true表示彻底删除，不放入回收站
 
         if ($result) {
-            Notion_To_WordPress_Helper::info_log('已删除WordPress文章，文章ID: ' . $post_id . '，对应Notion页面ID: ' . $page_id, 'Notion Webhook');
+            Notion_Logger::info_log('已删除WordPress文章，文章ID: ' . $post_id . '，对应Notion页面ID: ' . $page_id, 'Notion Webhook');
             return sprintf(__('已删除对应的WordPress文章 (ID: %d)', 'notion-to-wordpress'), $post_id);
         } else {
-            Notion_To_WordPress_Helper::error_log('删除WordPress文章失败，文章ID: ' . $post_id);
+            Notion_Logger::error_log('删除WordPress文章失败，文章ID: ' . $post_id);
             return __('删除WordPress文章失败', 'notion-to-wordpress');
         }
     }
@@ -302,7 +302,7 @@ class Notion_To_WordPress_Webhook {
             $page = $this->notion_pages->get_page_data($page_id);
 
             // 记录强制同步日志
-            Notion_To_WordPress_Helper::info_log('Webhook强制同步页面: ' . $page_id, 'Notion Webhook');
+            Notion_Logger::info_log('Webhook强制同步页面: ' . $page_id, 'Notion Webhook');
 
             $result = $this->notion_pages->import_notion_page($page);
 
@@ -312,7 +312,7 @@ class Notion_To_WordPress_Webhook {
                 return __('页面同步失败', 'notion-to-wordpress');
             }
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log('单页面同步失败: ' . $e->getMessage());
+            Notion_Logger::error_log('单页面同步失败: ' . $e->getMessage());
             // 回退到配置的同步方式（不检查删除）
             $this->notion_pages->import_pages(false, (bool)$webhook_incremental);
             $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
@@ -340,7 +340,7 @@ class Notion_To_WordPress_Webhook {
      * @return   string                处理结果消息
      */
     private function handle_page_content_updated(string $page_id): string {
-        Notion_To_WordPress_Helper::info_log('处理页面内容更新事件（强制同步）: ' . $page_id, 'Notion Webhook');
+        Notion_Logger::info_log('处理页面内容更新事件（强制同步）: ' . $page_id, 'Notion Webhook');
 
         if (empty($page_id)) {
             // 如果没有具体页面ID，执行增量同步（不检查删除）
@@ -354,38 +354,38 @@ class Notion_To_WordPress_Webhook {
 
         try {
             // 强制同步页面内容，不进行增量检测
-            Notion_To_WordPress_Helper::info_log('开始获取页面数据: ' . $page_id, 'Notion Webhook');
+            Notion_Logger::info_log('开始获取页面数据: ' . $page_id, 'Notion Webhook');
 
-            // 检查Pages对象是否存在
+            // 检查导入协调器对象是否存在
             if (!$this->notion_pages) {
-                Notion_To_WordPress_Helper::error_log('Notion Pages对象不存在');
-                return __('Notion Pages对象不存在', 'notion-to-wordpress');
+                Notion_Logger::error_log('Notion导入协调器对象不存在');
+                return __('Notion导入协调器对象不存在', 'notion-to-wordpress');
             }
 
-            Notion_To_WordPress_Helper::info_log('调用get_page_data方法: ' . $page_id, 'Notion Webhook');
+            Notion_Logger::info_log('调用get_page_data方法: ' . $page_id, 'Notion Webhook');
             $page = $this->notion_pages->get_page_data($page_id);
-            Notion_To_WordPress_Helper::info_log('get_page_data方法调用完成', 'Notion Webhook');
+            Notion_Logger::info_log('get_page_data方法调用完成', 'Notion Webhook');
 
             if (empty($page)) {
-                Notion_To_WordPress_Helper::error_log('获取页面数据失败，页面为空: ' . $page_id);
+                Notion_Logger::error_log('获取页面数据失败，页面为空: ' . $page_id);
                 return __('获取页面数据失败', 'notion-to-wordpress');
             }
 
-            Notion_To_WordPress_Helper::info_log('强制同步页面内容: ' . $page_id, 'Notion Webhook');
+            Notion_Logger::info_log('强制同步页面内容: ' . $page_id, 'Notion Webhook');
 
             $result = $this->notion_pages->import_notion_page($page);
 
-            Notion_To_WordPress_Helper::info_log('页面内容同步结果: ' . ($result ? 'success' : 'failed'), 'Notion Webhook');
+            Notion_Logger::info_log('页面内容同步结果: ' . ($result ? 'success' : 'failed'), 'Notion Webhook');
 
             if ($result) {
                 return sprintf(__('已强制同步页面内容: %s', 'notion-to-wordpress'), $page_id);
             } else {
-                Notion_To_WordPress_Helper::error_log('页面内容同步失败，import_notion_page返回false');
+                Notion_Logger::error_log('页面内容同步失败，import_notion_page返回false');
                 return __('页面内容同步失败', 'notion-to-wordpress');
             }
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log('页面内容同步异常: ' . $e->getMessage());
-            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString());
+            Notion_Logger::error_log('页面内容同步异常: ' . $e->getMessage());
+            Notion_Logger::error_log('异常堆栈: ' . $e->getTraceAsString());
 
             // 回退到增量同步（不检查删除）
             $options = get_option('notion_to_wordpress_options', []);
@@ -395,8 +395,8 @@ class Notion_To_WordPress_Webhook {
             $sync_type = $webhook_incremental ? '增量同步' : '全量同步';
             return sprintf(__('页面内容同步失败，已执行%s', 'notion-to-wordpress'), $sync_type);
         } catch (Error $e) {
-            Notion_To_WordPress_Helper::error_log('页面内容同步致命错误: ' . $e->getMessage());
-            Notion_To_WordPress_Helper::error_log('错误堆栈: ' . $e->getTraceAsString());
+            Notion_Logger::error_log('页面内容同步致命错误: ' . $e->getMessage());
+            Notion_Logger::error_log('错误堆栈: ' . $e->getTraceAsString());
             return __('页面内容同步发生致命错误', 'notion-to-wordpress');
         }
     }

@@ -43,8 +43,8 @@ define( 'NOTION_TO_WORDPRESS_VERSION', '2.0.0-beta.1' );
 /**
  * 核心依赖加载
  */
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-notion-to-wordpress-helper.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/class-notion-to-wordpress.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-to-wordpress-helper.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**
  * 插件激活时运行的代码

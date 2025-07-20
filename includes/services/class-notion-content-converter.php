@@ -3,10 +3,16 @@ declare(strict_types=1);
 
 /**
  * Notion 内容转换器类
- * 
+ *
  * 专门处理 Notion 块到 HTML 的转换功能，支持各种 Notion 块类型（段落、标题、
- * 列表、图片、数据库等）到 HTML 的转换。设计为静态方法以提升性能。
- * 
+ * 列表、图片、数据库等）到 HTML 的转换。
+ *
+ * 设计模式：静态工具类
+ * - 所有方法均为静态方法，无状态管理
+ * - 专注于数据转换，不涉及业务逻辑
+ * - 统一使用 Notion_Logger 进行日志记录
+ * - 统一的错误处理和异常管理
+ *
  * @since      2.0.0-beta.1
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -28,9 +34,10 @@ class Notion_Content_Converter {
      * @since 2.0.0-beta.1
      * @param array $blocks Notion 块数组
      * @param Notion_API $notion_api Notion API 实例
+     * @param string $state_id 状态管理器ID，用于图片处理状态隔离
      * @return string HTML 内容
      */
-    public static function convert_blocks_to_html(array $blocks, Notion_API $notion_api): string {
+    public static function convert_blocks_to_html(array $blocks, Notion_API $notion_api, string $state_id = null): string {
         $html = '';
         $list_wrapper = null;
 
@@ -109,22 +116,23 @@ class Notion_Content_Converter {
 
                     // 特别记录数据库区块的成功转换
                     if ($block_type === 'child_database') {
-                        Notion_To_WordPress_Helper::info_log(
+                        Notion_Logger::info_log(
                             '数据库区块转换成功: ' . ($block['id'] ?? 'unknown'),
                             'Database Block'
                         );
                     }
 
                 } catch (Exception $e) {
-                    Notion_To_WordPress_Helper::error_log(
-                        "转换块失败 [{$block_type}]: " . $e->getMessage()
+                    Notion_Logger::error_log(
+                        "转换块失败 [{$block_type}]: " . $e->getMessage(),
+                        'Block Converter'
                     );
                     // 继续处理其他块，不中断整个转换过程
                     $html .= '<!-- 块转换失败: ' . esc_html($block_type) . ' -->';
                 }
             } else {
                 // 未知块类型，记录并跳过
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "未知块类型: {$block_type}",
                     'Block Converter'
                 );
@@ -157,8 +165,9 @@ class Notion_Content_Converter {
             try {
                 $child_blocks = $notion_api->get_block_children($block['id']);
             } catch (Exception $e) {
-                Notion_To_WordPress_Helper::error_log(
-                    "获取子块失败: " . $e->getMessage()
+                Notion_Logger::error_log(
+                    "获取子块失败: " . $e->getMessage(),
+                    'Block Children'
                 );
             }
         }
@@ -180,14 +189,14 @@ class Notion_Content_Converter {
         if (!is_string($block_html)) {
             if (is_array($block_html)) {
                 // 如果是数组，尝试转换为字符串
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "块转换返回了数组而不是字符串: {$block_type} (ID: {$block_id})",
                     'Block Conversion Error'
                 );
                 $block_html = '<!-- 块转换错误：返回了数组 -->';
             } else {
                 // 其他类型，强制转换为字符串
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "块转换返回了非字符串类型: {$block_type} (ID: {$block_id}) - 类型: " . gettype($block_html),
                     'Block Conversion Error'
                 );
@@ -357,6 +366,7 @@ class Notion_Content_Converter {
         }
 
         // 检查是否启用了异步图片模式
+        // 注意：这里使用默认状态ID，因为方法签名限制
         if (Notion_Image_Processor::is_async_image_mode_enabled()) {
             // 异步模式：收集图片信息并返回占位符
             return Notion_Image_Processor::collect_image_for_download($url, $caption);
@@ -379,35 +389,14 @@ class Notion_Content_Converter {
     private static function _convert_block_callout(array $block, Notion_API $notion_api): string {
         $text = self::extract_rich_text($block['callout']['rich_text']);
         $icon = '';
-
-        // 处理图标
         if (isset($block['callout']['icon'])) {
-            $icon_data = $block['callout']['icon'];
-            if ($icon_data['type'] === 'emoji') {
-                $icon = '<span class="notion-callout-icon">' . esc_html($icon_data['emoji']) . '</span>';
-            } elseif ($icon_data['type'] === 'external') {
-                $icon_url = esc_url($icon_data['external']['url']);
-                $icon = '<img class="notion-callout-icon" src="' . $icon_url . '" alt="icon">';
-            } elseif ($icon_data['type'] === 'file') {
-                $icon_url = esc_url($icon_data['file']['url']);
-                $icon = '<img class="notion-callout-icon" src="' . $icon_url . '" alt="icon">';
+            if (isset($block['callout']['icon']['emoji'])) {
+                $icon = $block['callout']['icon']['emoji'];
+            } elseif (isset($block['callout']['icon']['external']['url'])) {
+                $icon = '<img src="' . esc_url($block['callout']['icon']['external']['url']) . '" class="notion-callout-icon" alt="icon">';
             }
         }
-
-        // 处理子块内容（标注块可以包含子内容）
-        $child_content = self::_convert_child_blocks($block, $notion_api);
-
-        $html = '<div class="notion-callout">';
-        $html .= $icon;
-        $html .= '<div class="notion-callout-content">';
-        $html .= $text;
-        if (!empty($child_content)) {
-            $html .= $child_content;
-        }
-        $html .= '</div>';
-        $html .= '</div>';
-
-        return $html;
+        return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
     }
 
     /**
@@ -433,8 +422,16 @@ class Notion_Content_Converter {
     private static function _convert_block_equation(array $block, Notion_API $notion_api): string {
         $expression = $block['equation']['expression'] ?? '';
 
-        // 使用Helper类的统一公式处理方法
-        return Notion_To_WordPress_Helper::process_math_expression($expression, 'block');
+        // 保留化学公式的特殊处理（确保\ce前缀）
+        if (strpos($expression, 'ce{') !== false && strpos($expression, '\\\\ce{') === false) {
+            $expression = preg_replace('/(?<!\\\\\\\\)ce\\{/', '\\\\ce{', $expression);
+        }
+
+        // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+        $expression = str_replace( '\\\\', '\\\\\\\\', $expression );
+
+        // 使用旧版本的简单类名，确保JavaScript能正确识别
+        return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
     }
 
     /**
@@ -448,7 +445,7 @@ class Notion_Content_Converter {
             try {
                 $rows = $notion_api->get_block_children($block['id']);
             } catch (Exception $e) {
-                Notion_To_WordPress_Helper::error_log("获取表格行失败: " . $e->getMessage());
+                Notion_Logger::error_log("获取表格行失败: " . $e->getMessage(), 'Table Block');
                 return '<!-- 表格加载失败 -->';
             }
         } else {
@@ -707,9 +704,8 @@ class Notion_Content_Converter {
 
         $caption = self::extract_rich_text($pdf_data['caption'] ?? []);
 
-        $html = '<div class="notion-pdf notion-embed">';
-        $html .= '<div class="notion-pdf-container">';
-        $html .= '<iframe src="' . esc_url($url) . '" width="100%" frameborder="0" type="application/pdf"></iframe>';
+        $html = '<div class="notion-pdf-container">';
+        $html .= '<iframe src="' . esc_url($url) . '" width="100%" height="600" frameborder="0" type="application/pdf" style="max-width: 100%; height: 600px;"></iframe>';
         $html .= '</div>';
         $html .= '<div class="notion-pdf-fallback">';
         $html .= '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer">查看PDF文档</a>';
@@ -717,7 +713,6 @@ class Notion_Content_Converter {
         if (!empty($caption)) {
             $html .= '<div class="notion-pdf-caption">' . $caption . '</div>';
         }
-        $html .= '</div>';
 
         return $html;
     }
@@ -756,7 +751,7 @@ class Notion_Content_Converter {
         $database_id = $block['id'];
 
         // 调试：输出完整的child_database块结构
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             'child_database块完整结构: ' . json_encode($block, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
             'Child Database Block Debug'
         );
@@ -766,20 +761,20 @@ class Notion_Content_Converter {
             $rendered_content = Notion_Database_Renderer::render_child_database($database_id, $database_title, $notion_api);
 
             if (!empty($rendered_content)) {
-                Notion_To_WordPress_Helper::info_log(
+                Notion_Logger::info_log(
                     "子数据库渲染成功: {$database_title} (ID: {$database_id})",
                     'Child Database'
                 );
                 return $rendered_content;
             } else {
-                Notion_To_WordPress_Helper::warning_log(
+                Notion_Logger::warning_log(
                     "子数据库渲染为空: {$database_title} (ID: {$database_id})",
                     'Child Database'
                 );
                 return '<div class="notion-child-database-empty">数据库 "' . esc_html($database_title) . '" 暂无内容</div>';
             }
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "子数据库渲染失败: {$database_title} (ID: {$database_id}) - " . $e->getMessage(),
                 'Child Database'
             );
@@ -807,7 +802,7 @@ class Notion_Content_Converter {
                 );
 
                 if (!empty($rendered_content)) {
-                    Notion_To_WordPress_Helper::info_log(
+                    Notion_Logger::info_log(
                         "子数据库批量渲染成功: {$database_title} (ID: {$database_id})",
                         'Child Database Batch'
                     );
@@ -817,7 +812,7 @@ class Notion_Content_Converter {
         }
 
         // 如果预处理数据中没有，回退到标准处理
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "子数据库预处理数据缺失，回退到标准处理: {$database_title} (ID: {$database_id})",
             'Child Database Batch'
         );
@@ -828,11 +823,85 @@ class Notion_Content_Converter {
     // ==================== 辅助方法 ====================
 
     /**
-     * 提取富文本内容（与原有实现保持一致）
+     * 提取富文本内容并转换为HTML
      */
     private static function extract_rich_text($rich_text): string {
-        // 使用Helper类的统一处理方法，避免重复代码
-        return Notion_To_WordPress_Helper::extract_rich_text_complete($rich_text);
+        if (empty($rich_text)) {
+            return '';
+        }
+        
+        $result = '';
+        
+        foreach ($rich_text as $text) {
+            // 处理行内公式 - 恢复到旧版本逻辑
+            if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
+                $expr_raw = $text['equation']['expression'] ?? '';
+
+                // 保留化学公式的特殊处理（确保\ce前缀）
+                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
+                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
+                }
+
+                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
+                $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
+                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
+            } else {
+                // 对纯文本内容进行转义
+                $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
+            }
+            
+            if (empty($content)) {
+                continue;
+            }
+            
+            $annotations = isset($text['annotations']) ? $text['annotations'] : array();
+            $href = isset($text['href']) ? $text['href'] : '';
+            
+            // 应用格式化
+            if (!empty($annotations)) {
+                if ( isset( $annotations['bold'] ) && $annotations['bold'] ) {
+                    $content = '<strong>' . $content . '</strong>';
+                }
+                
+                if ( isset( $annotations['italic'] ) && $annotations['italic'] ) {
+                    $content = '<em>' . $content . '</em>';
+                }
+                
+                if ( isset( $annotations['strikethrough'] ) && $annotations['strikethrough'] ) {
+                    $content = '<del>' . $content . '</del>';
+                }
+                
+                if ( isset( $annotations['underline'] ) && $annotations['underline'] ) {
+                    $content = '<u>' . $content . '</u>';
+                }
+                
+                if ( isset( $annotations['code'] ) && $annotations['code'] ) {
+                    $content = '<code>' . $content . '</code>';
+                }
+                
+                // 处理颜色
+                if ( isset( $annotations['color'] ) && $annotations['color'] !== 'default' ) {
+                    $content = '<span class="notion-color-' . esc_attr( $annotations['color'] ) . '">' . $content . '</span>';
+                }
+            }
+
+            // 处理链接
+            if (!empty($href)) {
+                // 检测是否为 Notion 锚点链接
+                if (Notion_Text_Processor::is_notion_anchor_link($href)) {
+                    // 转换为本地锚点链接，不添加 target="_blank"
+                    $local_href = Notion_Text_Processor::convert_notion_anchor_to_local($href);
+                    $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
+                } else {
+                    // 外部链接保持原有处理方式
+                    $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
+                }
+            }
+            
+            $result .= $content;
+        }
+        
+        return $result;
     }
 
     /**
@@ -845,10 +914,6 @@ class Notion_Content_Converter {
         }
         return null;
     }
-
-
-
-
 
     // ==================== 单个块转换方法 ====================
 
@@ -865,7 +930,7 @@ class Notion_Content_Converter {
      */
     public static function convert_block_to_html(array $block, Notion_API $notion_api): string {
         if (empty($block) || !isset($block['type']) || empty($block['type'])) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '无效的块数据：缺少type字段或type为空',
                 'Block Conversion'
             );
@@ -875,7 +940,7 @@ class Notion_Content_Converter {
         $block_type = $block['type'];
         $converter_method = '_convert_block_' . $block_type;
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "转换单个块: {$block_type}",
             'Block Conversion'
         );
@@ -886,14 +951,14 @@ class Notion_Content_Converter {
                 // 调用相应的私有转换方法
                 $html = self::{$converter_method}($block, $notion_api);
 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "块转换成功: {$block_type}",
                     'Block Conversion'
                 );
 
                 return $html;
             } catch (Exception $e) {
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "块转换失败: {$block_type} - " . $e->getMessage(),
                     'Block Conversion'
                 );
@@ -901,7 +966,7 @@ class Notion_Content_Converter {
                 return '<!-- 块转换失败: ' . esc_html($block_type) . ' -->';
             }
         } else {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "未支持的块类型: {$block_type}",
                 'Block Conversion'
             );
@@ -910,12 +975,4 @@ class Notion_Content_Converter {
         }
     }
 
-    // ==================== 测试方法 ====================
-
-    /**
-     * 测试方法：公开访问内部转换方法
-     */
-    public static function test_convert_blocks_to_html(array $blocks, Notion_API $notion_api): string {
-        return self::convert_blocks_to_html($blocks, $notion_api);
-    }
 }

@@ -3,9 +3,15 @@ declare(strict_types=1);
 
 /**
  * Notion 子数据库渲染器类
- * 
+ *
  * 提供了将Notion子数据库渲染为表格、画廊、看板等多种视图的功能。
- * 
+ *
+ * 设计模式：静态工具类
+ * - 所有方法均为静态方法，无状态管理
+ * - 专注于数据库渲染，不涉及业务逻辑
+ * - 统一使用 Notion_Logger 进行日志记录
+ * - 统一的错误处理和异常管理
+ *
  * @since      2.0.0-beta.1
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -477,7 +483,7 @@ class Notion_Database_Renderer {
                 
             case 'rich_text':
                 if (!empty($prop_value['rich_text'])) {
-                    return Notion_To_WordPress_Helper::extract_rich_text_complete($prop_value['rich_text']);
+                    return Notion_Text_Processor::extract_rich_text_complete($prop_value['rich_text']);
                 }
                 return '';
                 
@@ -579,7 +585,7 @@ class Notion_Database_Renderer {
             $records = $notion_api->get_database_pages($database_id, [], true);
 
             if (empty($records)) {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '数据库无记录或无权限访问: ' . $database_id,
                     'Database Block'
                 );
@@ -587,7 +593,7 @@ class Notion_Database_Renderer {
             }
 
             // 显示所有记录的预览
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '获取数据库记录成功: ' . $database_id . ', 总记录: ' . count($records),
                 'Database Block'
             );
@@ -615,7 +621,7 @@ class Notion_Database_Renderer {
             return $html;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '数据库记录预览异常: ' . $database_id . ', 错误: ' . $e->getMessage(),
                 'Database Block'
             );
@@ -645,7 +651,7 @@ class Notion_Database_Renderer {
         if (!empty($database_title)) {
             $title_lower = strtolower($database_title);
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '数据库标题解析: "' . $database_title . '" -> "' . $title_lower . '"',
                 'Database Title Parse'
             );
@@ -703,7 +709,7 @@ class Notion_Database_Renderer {
     public static function render_database_preview_records_with_data(string $database_id, array $database_info, array $records): string {
         try {
             if (empty($records)) {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '数据库无记录或无权限访问（批量模式）: ' . $database_id,
                     'Database Block'
                 );
@@ -711,7 +717,7 @@ class Notion_Database_Renderer {
             }
 
             // 显示所有记录的预览
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '获取数据库记录成功（批量模式）: ' . $database_id . ', 总记录: ' . count($records),
                 'Database Block'
             );
@@ -729,7 +735,7 @@ class Notion_Database_Renderer {
                 }
             }
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '选择视图类型（批量模式）: ' . $view_type . ' for database: ' . $database_id . ', 标题: ' . $database_title,
                 'Database View'
             );
@@ -754,7 +760,7 @@ class Notion_Database_Renderer {
             return $html;
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '数据库记录预览异常（批量模式）: ' . $database_id . ', 错误: ' . $e->getMessage(),
                 'Database Block'
             );
@@ -788,7 +794,7 @@ class Notion_Database_Renderer {
         // 去重数据库ID
         $unique_database_ids = array_unique($database_ids);
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf(
                 '开始批量处理子数据库: %d个块，%d个唯一数据库ID',
                 count($database_blocks),
@@ -805,7 +811,7 @@ class Notion_Database_Renderer {
             $database_infos = $notion_api->batch_get_databases($unique_database_ids);
             $db_info_time = microtime(true) - $db_info_start;
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 sprintf('批量获取数据库信息耗时: %.4f秒', $db_info_time),
                 'Batch Database Performance'
             );
@@ -829,7 +835,7 @@ class Notion_Database_Renderer {
                 $database_records = $notion_api->batch_query_databases($valid_database_ids, $query_filters);
                 $db_records_time = microtime(true) - $db_records_start;
 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     sprintf('批量查询数据库记录耗时: %.4f秒', $db_records_time),
                     'Batch Database Performance'
                 );
@@ -845,7 +851,7 @@ class Notion_Database_Renderer {
 
             $execution_time = microtime(true) - $start_time;
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 sprintf(
                     '批量数据库处理完成: %d个块，%d个唯一数据库，总耗时 %.4f秒',
                     count($database_blocks),
@@ -859,7 +865,7 @@ class Notion_Database_Renderer {
             $api_time = ($db_info_time ?? 0) + ($db_records_time ?? 0);
             $processing_time = $execution_time - $api_time;
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 sprintf(
                     '性能分解: API调用 %.4f秒, 数据处理 %.4f秒',
                     $api_time,
@@ -869,7 +875,7 @@ class Notion_Database_Renderer {
             );
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 '批量数据库处理异常: ' . $e->getMessage(),
                 'Batch Database'
             );
@@ -947,7 +953,7 @@ class Notion_Database_Renderer {
 
             case 'rich_text':
                 if (!empty($property['rich_text'])) {
-                    $text = Notion_To_WordPress_Helper::extract_rich_text_complete($property['rich_text']);
+                    $text = Notion_Text_Processor::extract_rich_text_complete($property['rich_text']);
                     // 移除HTML标签以获取纯文本长度
                     $plain_text = strip_tags($text);
                     return mb_strlen($plain_text) > 50 ? mb_substr($plain_text, 0, 50) . '...' : $text;
@@ -1090,7 +1096,7 @@ class Notion_Database_Renderer {
         $html = '';
         $database_id = $database_info['id'] ?? 'unknown';
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '开始渲染数据库属性: ' . $database_id,
             'Database Block'
         );
@@ -1100,7 +1106,7 @@ class Notion_Database_Renderer {
             $property_count = count($properties);
 
             if ($property_count > 0) {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '开始处理数据库属性: ' . $database_id . ', 属性数量: ' . $property_count,
                     'Database Block'
                 );
@@ -1113,13 +1119,13 @@ class Notion_Database_Renderer {
                     $html .= '</div>';
                 }
             } else {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '数据库属性为空: ' . $database_id,
                     'Database Block'
                 );
             }
         } else {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '数据库信息中没有属性字段: ' . $database_id,
                 'Database Block'
             );
@@ -1137,7 +1143,7 @@ class Notion_Database_Renderer {
      */
     private static function format_database_properties(array $properties): string {
         if (empty($properties)) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '属性数组为空，跳过格式化',
                 'Database Block'
             );
@@ -1219,7 +1225,7 @@ class Notion_Database_Renderer {
         foreach ($properties as $name => $property) {
             if (isset($property['type']) && $property['type'] === 'title') {
                 if (!empty($property['title'])) {
-                    return Notion_To_WordPress_Helper::extract_rich_text_complete($property['title']);
+                    return Notion_Text_Processor::extract_rich_text_complete($property['title']);
                 }
             }
         }
@@ -1272,7 +1278,7 @@ class Notion_Database_Renderer {
      */
     public static function render_child_database(string $database_id, string $database_title, Notion_API $notion_api): string {
         try {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "开始渲染子数据库: {$database_title} (ID: {$database_id})",
                 'Child Database'
             );
@@ -1280,7 +1286,7 @@ class Notion_Database_Renderer {
             // 获取数据库信息
             $database_info = $notion_api->get_database($database_id);
             if (empty($database_info)) {
-                Notion_To_WordPress_Helper::warning_log(
+                Notion_Logger::warning_log(
                     "无法获取数据库信息: {$database_title} (ID: {$database_id})",
                     'Child Database'
                 );
@@ -1290,7 +1296,7 @@ class Notion_Database_Renderer {
             // 获取数据库记录（使用with_details=true获取完整信息）
             $records = $notion_api->get_database_pages($database_id, [], true);
             if (empty($records)) {
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "数据库无记录或无权限访问: {$database_title} (ID: {$database_id})",
                     'Child Database'
                 );
@@ -1301,13 +1307,13 @@ class Notion_Database_Renderer {
             $rendered_content = self::render_database_preview_records_with_data($database_id, $database_info, $records);
 
             if (!empty($rendered_content)) {
-                Notion_To_WordPress_Helper::info_log(
+                Notion_Logger::info_log(
                     "子数据库渲染成功: {$database_title} (ID: {$database_id}), 记录数: " . count($records),
                     'Child Database'
                 );
                 return $rendered_content;
             } else {
-                Notion_To_WordPress_Helper::warning_log(
+                Notion_Logger::warning_log(
                     "子数据库渲染结果为空: {$database_title} (ID: {$database_id})",
                     'Child Database'
                 );
@@ -1315,11 +1321,11 @@ class Notion_Database_Renderer {
             }
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "子数据库渲染异常: {$database_title} (ID: {$database_id}) - " . $e->getMessage(),
                 'Child Database'
             );
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "异常堆栈: " . $e->getTraceAsString(),
                 'Child Database'
             );
