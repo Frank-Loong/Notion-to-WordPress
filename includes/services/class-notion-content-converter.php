@@ -396,7 +396,10 @@ class Notion_Content_Converter {
                 $icon = '<img src="' . esc_url($block['callout']['icon']['external']['url']) . '" class="notion-callout-icon" alt="icon">';
             }
         }
-        return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
+
+        // 不添加 notion-callout 类，因为外层的 wrap_block_with_id 会添加
+        // 这样避免重复容器：外层已有 class="notion-block notion-callout"
+        return $icon . '<div class="notion-callout-content">' . $text . '</div>';
     }
 
     /**
@@ -422,16 +425,8 @@ class Notion_Content_Converter {
     private static function _convert_block_equation(array $block, Notion_API $notion_api): string {
         $expression = $block['equation']['expression'] ?? '';
 
-        // 保留化学公式的特殊处理（确保\ce前缀）
-        if (strpos($expression, 'ce{') !== false && strpos($expression, '\\\\ce{') === false) {
-            $expression = preg_replace('/(?<!\\\\\\\\)ce\\{/', '\\\\ce{', $expression);
-        }
-
-        // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
-        $expression = str_replace( '\\\\', '\\\\\\\\', $expression );
-
-        // 使用旧版本的简单类名，确保JavaScript能正确识别
-        return '<div class="notion-equation notion-equation-block">$$' . $expression . '$$</div>';
+        // 使用统一的公式处理方法
+        return Notion_Text_Processor::process_math_expression($expression, 'block');
     }
 
     /**
@@ -833,18 +828,10 @@ class Notion_Content_Converter {
         $result = '';
         
         foreach ($rich_text as $text) {
-            // 处理行内公式 - 恢复到旧版本逻辑
+            // 处理行内公式 - 使用统一的处理方法
             if ( isset( $text['type'] ) && $text['type'] === 'equation' ) {
                 $expr_raw = $text['equation']['expression'] ?? '';
-
-                // 保留化学公式的特殊处理（确保\ce前缀）
-                if (strpos($expr_raw, 'ce{') !== false && strpos($expr_raw, '\\ce{') === false) {
-                    $expr_raw = preg_replace('/(?<!\\\\)ce\{/', '\\ce{', $expr_raw);
-                }
-
-                // 对反斜杠进行一次加倍保护，确保正确传递给KaTeX
-                $expr_escaped = str_replace( '\\', '\\\\', $expr_raw );
-                $content = '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
+                $content = Notion_Text_Processor::process_math_expression($expr_raw, 'inline');
             } else {
                 // 对纯文本内容进行转义
                 $content = isset( $text['plain_text'] ) ? esc_html( $text['plain_text'] ) : '';
