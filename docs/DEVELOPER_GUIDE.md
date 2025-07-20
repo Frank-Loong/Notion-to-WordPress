@@ -123,10 +123,31 @@ docker-compose up -d wordpress
 ```
 notion-to-wordpress/
 ├── admin/                  # Admin interface
-├── includes/               # Core functionality classes
-│   ├── class-notion-api.php
-│   ├── class-notion-pages.php
-│   └── class-notion-to-wordpress.php
+├── includes/               # Core functionality classes (Layered Architecture)
+│   ├── core/              # Core Layer - Infrastructure Services
+│   │   ├── class-notion-logger.php
+│   │   ├── class-notion-security.php
+│   │   ├── class-notion-text-processor.php
+│   │   └── class-notion-http-client.php
+│   ├── services/          # Services Layer - Business Logic Services
+│   │   ├── class-notion-api.php
+│   │   ├── class-notion-content-converter.php
+│   │   ├── class-notion-database-renderer.php
+│   │   ├── class-notion-image-processor.php
+│   │   ├── class-notion-metadata-extractor.php
+│   │   └── class-notion-sync-manager.php
+│   ├── handlers/          # Handlers Layer - Coordinator Services
+│   │   ├── class-notion-import-coordinator.php  # (formerly Notion_Pages)
+│   │   ├── class-notion-to-wordpress-integrator.php
+│   │   └── class-notion-to-wordpress-webhook.php
+│   ├── utils/             # Utils Layer - Tool Support Services
+│   │   ├── class-notion-to-wordpress-helper.php
+│   │   ├── class-notion-network-retry.php
+│   │   └── class-notion-concurrent-network-manager.php
+│   └── framework/         # Framework Layer - Framework Management Services
+│       ├── class-notion-to-wordpress.php
+│       ├── class-notion-to-wordpress-loader.php
+│       └── class-notion-to-wordpress-i18n.php
 ├── scripts/                # Automation scripts
 │   ├── build.js
 │   └── release.js
@@ -138,12 +159,13 @@ notion-to-wordpress/
 
 ```mermaid
 classDiagram
+    %% Framework Layer
     class Notion_To_WordPress {
         -version: string
         -plugin_name: string
         -loader: Notion_To_WordPress_Loader
         -notion_api: Notion_API
-        -notion_pages: Notion_Pages
+        -notion_pages: Notion_Import_Coordinator
         -admin: Notion_To_WordPress_Admin
         +__construct()
         +load_dependencies()
@@ -152,6 +174,7 @@ classDiagram
         +cron_import_pages()
     }
 
+    %% Services Layer
     class Notion_API {
         -api_key: string
         -api_base: string
@@ -161,7 +184,8 @@ classDiagram
         +send_request()
     }
 
-    class Notion_Pages {
+    %% Handlers Layer
+    class Notion_Import_Coordinator {
         -notion_api: Notion_API
         -database_id: string
         -field_mapping: array
@@ -175,20 +199,21 @@ classDiagram
         -plugin_name: string
         -version: string
         -notion_api: Notion_API
-        -notion_pages: Notion_Pages
+        -notion_pages: Notion_Import_Coordinator
         +handle_manual_import()
         +handle_test_connection()
         +handle_refresh_all()
     }
 
     class Notion_To_WordPress_Webhook {
-        -notion_pages: Notion_Pages
+        -notion_pages: Notion_Import_Coordinator
         +handle_webhook()
         +handle_specific_event()
         +handle_page_updated()
         +handle_database_updated()
     }
 
+    %% Utils Layer
     class Notion_To_WordPress_Helper {
         +custom_kses()
         +normalize_post_status()
@@ -197,14 +222,24 @@ classDiagram
         +debug_log()
     }
 
+    %% Core Layer
+    class Notion_Logger {
+        +init()
+        +info_log()
+        +error_log()
+        +debug_log()
+    }
+
+    %% Relationships
     Notion_To_WordPress --> Notion_API
-    Notion_To_WordPress --> Notion_Pages
+    Notion_To_WordPress --> Notion_Import_Coordinator
     Notion_To_WordPress --> Notion_To_WordPress_Admin
     Notion_To_WordPress_Admin --> Notion_API
-    Notion_To_WordPress_Admin --> Notion_Pages
-    Notion_Pages --> Notion_API
-    Notion_To_WordPress_Webhook --> Notion_Pages
-    Notion_Pages --> Notion_To_WordPress_Helper
+    Notion_To_WordPress_Admin --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_API
+    Notion_To_WordPress_Webhook --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_To_WordPress_Helper
+    Notion_Import_Coordinator --> Notion_Logger
 ```
 
 ### 🔄 Data Flow
@@ -223,29 +258,29 @@ Notion API → API Communication Layer → Data Transform → Sync Engine → Wo
 sequenceDiagram
     participant U as User/Admin
     participant A as Admin Interface
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
     participant WP as WordPress Database
 
     U->>A: Click Smart Sync Button
-    A->>P: import_pages(check_deletions=true, incremental=true)
-    P->>API: get_database_pages()
-    API-->>P: Return all pages list
-    P->>P: filter_pages_for_incremental_sync()
-    Note over P: Compare last_edited_time<br/>Filter pages that need updates
+    A->>IC: import_pages(check_deletions=true, incremental=true)
+    IC->>API: get_database_pages()
+    API-->>IC: Return all pages list
+    IC->>IC: filter_pages_for_incremental_sync()
+    Note over IC: Compare last_edited_time<br/>Filter pages that need updates
 
     loop Process each page to sync
-        P->>API: get_page(page_id)
-        API-->>P: Return page details
-        P->>API: get_page_content(page_id)
-        API-->>P: Return page content blocks
-        P->>P: convert_blocks_to_html()
-        P->>WP: create_or_update_post()
-        WP-->>P: Return post ID
-        P->>P: update_page_sync_time()
+        IC->>API: get_page(page_id)
+        API-->>IC: Return page details
+        IC->>API: get_page_content(page_id)
+        API-->>IC: Return page content blocks
+        IC->>IC: convert_blocks_to_html()
+        IC->>WP: create_or_update_post()
+        WP-->>IC: Return post ID
+        IC->>IC: update_page_sync_time()
     end
 
-    P-->>A: Return sync result statistics
+    IC-->>A: Return sync result statistics
     A-->>U: Display sync completion info
 ```
 

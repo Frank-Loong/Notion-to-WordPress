@@ -23,32 +23,24 @@ if (!defined('ABSPATH')) {
 class Notion_Image_Processor {
 
     /**
-     * 待下载图片队列
-     * 
+     * 状态管理器实例存储
+     *
      * @since 2.0.0-beta.1
      * @var array
      */
-    private static array $pending_images = [];
+    private static array $state_managers = [];
 
     /**
-     * 图片占位符映射
-     * 
+     * 默认状态管理器ID
+     *
      * @since 2.0.0-beta.1
-     * @var array
+     * @var string
      */
-    private static array $image_placeholders = [];
+    private static string $default_state_id = 'default';
 
     /**
-     * 异步图片模式状态
-     * 
-     * @since 2.0.0-beta.1
-     * @var bool
-     */
-    private static bool $async_image_mode = false;
-
-    /**
-     * 性能统计数据
-     * 
+     * 全局性能统计数据
+     *
      * @since 2.0.0-beta.1
      * @var array
      */
@@ -61,19 +53,94 @@ class Notion_Image_Processor {
         'error_count' => 0
     ];
 
+    /**
+     * 获取或创建状态管理器
+     *
+     * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID
+     * @return array 状态管理器数据
+     */
+    private static function get_state_manager(string $state_id = null): array {
+        $id = $state_id ?? self::$default_state_id;
+
+        if (!isset(self::$state_managers[$id])) {
+            self::$state_managers[$id] = [
+                'pending_images' => [],
+                'image_placeholders' => [],
+                'async_image_mode' => false,
+                'performance_stats' => [
+                    'total_images' => 0,
+                    'concurrent_downloads' => 0,
+                    'download_time' => 0,
+                    'processing_time' => 0,
+                    'success_count' => 0,
+                    'error_count' => 0
+                ],
+                'created_at' => time(),
+                'last_used' => time()
+            ];
+        }
+
+        // 更新最后使用时间
+        self::$state_managers[$id]['last_used'] = time();
+
+        return self::$state_managers[$id];
+    }
+
+    /**
+     * 更新状态管理器
+     *
+     * @since 2.0.0-beta.1
+     * @param array $state 状态数据
+     * @param string $state_id 状态管理器ID
+     */
+    private static function update_state_manager(array $state, string $state_id = null): void {
+        $id = $state_id ?? self::$default_state_id;
+        $state['last_used'] = time();
+        self::$state_managers[$id] = $state;
+    }
+
+    /**
+     * 清理过期的状态管理器
+     *
+     * @since 2.0.0-beta.1
+     * @param int $max_age 最大存活时间（秒），默认1小时
+     */
+    private static function cleanup_expired_states(int $max_age = 3600): void {
+        $current_time = time();
+        foreach (self::$state_managers as $id => $state) {
+            if ($id !== self::$default_state_id &&
+                ($current_time - $state['last_used']) > $max_age) {
+                unset(self::$state_managers[$id]);
+
+                Notion_Logger::debug_log(
+                    "清理过期状态管理器: {$id}",
+                    'Image Processor'
+                );
+            }
+        }
+    }
+
     // ==================== 核心异步图片处理方法 ====================
 
     /**
      * 启用异步图片模式
      *
      * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID，用于状态隔离
      */
-    public static function enable_async_image_mode(): void {
-        self::$async_image_mode = true;
-        self::clear_image_queue();
-        
-        Notion_To_WordPress_Helper::debug_log(
-            '异步图片模式已启用',
+    public static function enable_async_image_mode(string $state_id = null): void {
+        $state = self::get_state_manager($state_id);
+        $state['async_image_mode'] = true;
+
+        // 清理当前状态的图片队列
+        $state['pending_images'] = [];
+        $state['image_placeholders'] = [];
+
+        self::update_state_manager($state, $state_id);
+
+        Notion_Logger::debug_log(
+            '异步图片模式已启用' . ($state_id ? " (状态ID: {$state_id})" : ''),
             'Async Image'
         );
     }
@@ -82,12 +149,16 @@ class Notion_Image_Processor {
      * 禁用异步图片模式
      *
      * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID，用于状态隔离
      */
-    public static function disable_async_image_mode(): void {
-        self::$async_image_mode = false;
-        
-        Notion_To_WordPress_Helper::debug_log(
-            '异步图片模式已禁用',
+    public static function disable_async_image_mode(string $state_id = null): void {
+        $state = self::get_state_manager($state_id);
+        $state['async_image_mode'] = false;
+
+        self::update_state_manager($state, $state_id);
+
+        Notion_Logger::debug_log(
+            '异步图片模式已禁用' . ($state_id ? " (状态ID: {$state_id})" : ''),
             'Async Image'
         );
     }
@@ -96,10 +167,12 @@ class Notion_Image_Processor {
      * 检查是否启用了异步图片模式
      *
      * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID，用于状态隔离
      * @return bool 是否启用异步模式
      */
-    public static function is_async_image_mode_enabled(): bool {
-        return self::$async_image_mode;
+    public static function is_async_image_mode_enabled(string $state_id = null): bool {
+        $state = self::get_state_manager($state_id);
+        return $state['async_image_mode'];
     }
 
     /**
@@ -108,10 +181,13 @@ class Notion_Image_Processor {
      * @since 2.0.0-beta.1
      * @param string $url 图片URL
      * @param string $caption 图片说明
+     * @param string $state_id 状态管理器ID，用于状态隔离
      * @return string 占位符字符串或直接HTML
      */
-    public static function collect_image_for_download(string $url, string $caption = ''): string {
-        if (!self::$async_image_mode) {
+    public static function collect_image_for_download(string $url, string $caption = '', string $state_id = null): string {
+        $state = self::get_state_manager($state_id);
+
+        if (!$state['async_image_mode']) {
             // 非异步模式，直接返回图片HTML
             return self::generate_direct_image_html($url, $caption);
         }
@@ -119,7 +195,7 @@ class Notion_Image_Processor {
         // 检查是否为Notion临时URL，只有临时URL才需要下载
         if (!self::is_notion_temp_url($url)) {
             // 外部永久链接，直接生成HTML，不下载
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "外部永久链接，直接引用: {$url}",
                 'Image Processing'
             );
@@ -133,7 +209,7 @@ class Notion_Image_Processor {
         $base_url = strtok($url, '?');
 
         // 添加到待下载队列
-        self::$pending_images[] = [
+        $state['pending_images'][] = [
             'url' => $url,
             'base_url' => $base_url,
             'caption' => $caption,
@@ -141,10 +217,21 @@ class Notion_Image_Processor {
             'timestamp' => time()
         ];
 
-        self::$performance_stats['total_images']++;
+        $state['performance_stats']['total_images']++;
 
-        Notion_To_WordPress_Helper::debug_log(
-            "Notion临时链接图片已添加到下载队列: {$url} -> {$placeholder}",
+        // 保存状态到占位符映射
+        $state['image_placeholders'][$placeholder] = [
+            'url' => $url,
+            'caption' => $caption,
+            'status' => 'pending'
+        ];
+
+        // 更新状态管理器
+        self::update_state_manager($state, $state_id);
+
+        Notion_Logger::debug_log(
+            "Notion临时链接图片已添加到下载队列: {$url} -> {$placeholder}" .
+            ($state_id ? " (状态ID: {$state_id})" : ''),
             'Async Image'
         );
 
@@ -155,22 +242,25 @@ class Notion_Image_Processor {
      * 批量下载所有待处理的图片
      *
      * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID，用于状态隔离
      * @return void
      */
-    public static function batch_download_images(): void {
-        if (empty(self::$pending_images)) {
-            Notion_To_WordPress_Helper::debug_log(
-                '没有待下载的图片',
+    public static function batch_download_images(string $state_id = null): void {
+        $state = self::get_state_manager($state_id);
+
+        if (empty($state['pending_images'])) {
+            Notion_Logger::debug_log(
+                '没有待下载的图片' . ($state_id ? " (状态ID: {$state_id})" : ''),
                 'Async Image'
             );
             return;
         }
 
         $start_time = microtime(true);
-        $total_images = count(self::$pending_images);
+        $total_images = count($state['pending_images']);
 
-        Notion_To_WordPress_Helper::info_log(
-            "开始批量下载 {$total_images} 张图片",
+        Notion_Logger::info_log(
+            "开始批量下载 {$total_images} 张图片" . ($state_id ? " (状态ID: {$state_id})" : ''),
             'Async Image'
         );
 
@@ -178,9 +268,9 @@ class Notion_Image_Processor {
         $unique_images = [];
         $url_to_placeholder = [];
 
-        foreach (self::$pending_images as $image_info) {
+        foreach ($state['pending_images'] as $image_info) {
             $base_url = $image_info['base_url'];
-            
+
             if (!isset($unique_images[$base_url])) {
                 $unique_images[$base_url] = $image_info;
                 $url_to_placeholder[$base_url] = [$image_info['placeholder']];
@@ -192,8 +282,9 @@ class Notion_Image_Processor {
 
         $unique_count = count($unique_images);
         if ($unique_count < $total_images) {
-            Notion_To_WordPress_Helper::debug_log(
-                "去重后需要下载 {$unique_count} 张图片（原始: {$total_images}）",
+            Notion_Logger::debug_log(
+                "去重后需要下载 {$unique_count} 张图片（原始: {$total_images}）" .
+                ($state_id ? " (状态ID: {$state_id})" : ''),
                 'Async Image'
             );
         }
@@ -213,7 +304,7 @@ class Notion_Image_Processor {
 
         // 执行并发下载
         $responses = self::concurrent_download_images($requests);
-        self::$performance_stats['concurrent_downloads'] = count($responses);
+        $state['performance_stats']['concurrent_downloads'] = count($responses);
 
         // 处理下载结果
         $success_count = 0;
@@ -222,32 +313,35 @@ class Notion_Image_Processor {
         foreach ($responses as $index => $response) {
             $image_info = $requests[$index]['image_info'];
             $base_url = $image_info['base_url'];
-            
+
             if (is_wp_error($response)) {
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "图片下载失败: {$image_info['url']} - " . $response->get_error_message(),
                     'Async Image'
                 );
-                
+
                 // 标记所有相同URL的占位符为失败
                 foreach ($url_to_placeholder[$base_url] as $placeholder) {
-                    self::$image_placeholders[$placeholder] = null;
+                    $state['image_placeholders'][$placeholder]['status'] = 'failed';
+                    $state['image_placeholders'][$placeholder]['attachment_id'] = null;
                 }
                 $error_count++;
             } else {
                 // 处理成功下载的图片
                 $attachment_id = self::process_downloaded_image_response($image_info, $response);
-                
+
                 if ($attachment_id) {
                     // 为所有相同URL的占位符设置相同的附件ID
                     foreach ($url_to_placeholder[$base_url] as $placeholder) {
-                        self::$image_placeholders[$placeholder] = $attachment_id;
+                        $state['image_placeholders'][$placeholder]['status'] = 'completed';
+                        $state['image_placeholders'][$placeholder]['attachment_id'] = $attachment_id;
                     }
                     $success_count++;
                 } else {
                     // 处理失败
                     foreach ($url_to_placeholder[$base_url] as $placeholder) {
-                        self::$image_placeholders[$placeholder] = null;
+                        $state['image_placeholders'][$placeholder]['status'] = 'failed';
+                        $state['image_placeholders'][$placeholder]['attachment_id'] = null;
                     }
                     $error_count++;
                 }
@@ -258,13 +352,16 @@ class Notion_Image_Processor {
         $download_time = $end_time - $start_time;
 
         // 更新性能统计
-        self::$performance_stats['download_time'] = $download_time;
-        self::$performance_stats['success_count'] = $success_count;
-        self::$performance_stats['error_count'] = $error_count;
+        $state['performance_stats']['download_time'] = $download_time;
+        $state['performance_stats']['success_count'] = $success_count;
+        $state['performance_stats']['error_count'] = $error_count;
 
-        Notion_To_WordPress_Helper::info_log(
+        // 更新状态管理器
+        self::update_state_manager($state, $state_id);
+
+        Notion_Logger::info_log(
             sprintf(
-                '批量下载完成: 成功 %d, 失败 %d, 耗时 %.2f 秒',
+                '批量下载完成: 成功 %d, 失败 %d, 耗时 %.2f 秒' . ($state_id ? " (状态ID: {$state_id})" : ''),
                 $success_count,
                 $error_count,
                 $download_time
@@ -300,7 +397,7 @@ class Notion_Image_Processor {
             ];
         }
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('Starting concurrent download of %d images', count($multi_requests)),
             'Concurrent Download'
         );
@@ -321,7 +418,7 @@ class Notion_Image_Processor {
 
         // 检查是否支持cURL
         if (!function_exists('curl_multi_init')) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 'cURL multi not available, falling back to sequential requests',
                 'Concurrent Download'
             );
@@ -389,7 +486,7 @@ class Notion_Image_Processor {
 
         curl_multi_close($multi_handle);
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('Concurrent download completed: %d responses', count($responses)),
             'Concurrent Download'
         );
@@ -412,7 +509,7 @@ class Notion_Image_Processor {
 
         $http_code = wp_remote_retrieve_response_code($response);
         if ($http_code !== 200) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "图片下载HTTP错误: {$image_info['url']} - HTTP {$http_code}",
                 'Async Image'
             );
@@ -421,7 +518,7 @@ class Notion_Image_Processor {
 
         $image_data = wp_remote_retrieve_body($response);
         if (empty($image_data)) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "图片数据为空: {$image_info['url']}",
                 'Async Image'
             );
@@ -449,7 +546,7 @@ class Notion_Image_Processor {
         $upload = wp_upload_bits($filename, null, $image_data);
 
         if ($upload['error']) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "图片上传失败: {$image_info['url']} - " . $upload['error'],
                 'Async Image'
             );
@@ -467,7 +564,7 @@ class Notion_Image_Processor {
         $attachment_id = wp_insert_attachment($attachment, $upload['file']);
 
         if (is_wp_error($attachment_id)) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "附件创建失败: {$image_info['url']} - " . $attachment_id->get_error_message(),
                 'Async Image'
             );
@@ -479,7 +576,7 @@ class Notion_Image_Processor {
         $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload['file']);
         wp_update_attachment_metadata($attachment_id, $attachment_data);
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "图片处理成功: {$image_info['url']} -> 附件ID {$attachment_id}",
             'Async Image'
         );
@@ -492,28 +589,33 @@ class Notion_Image_Processor {
      *
      * @since 2.0.0-beta.1
      * @param string $html HTML内容
+     * @param string $state_id 状态管理器ID，用于状态隔离
      * @return string 处理后的HTML
      */
-    public static function process_async_images(string $html): string {
-        if (!self::$async_image_mode || empty(self::$pending_images)) {
+    public static function process_async_images(string $html, string $state_id = null): string {
+        $state = self::get_state_manager($state_id);
+
+        if (!$state['async_image_mode'] || empty($state['pending_images'])) {
             return $html;
         }
 
         $start_time = microtime(true);
 
         // 先下载所有图片
-        self::batch_download_images();
+        self::batch_download_images($state_id);
 
         // 然后替换占位符
-        $processed_html = self::replace_image_placeholders($html);
+        $processed_html = self::replace_image_placeholders($html, $state_id);
 
         // 清理状态
-        self::clear_image_queue();
+        self::clear_image_queue($state_id);
 
         $processing_time = microtime(true) - $start_time;
-        self::$performance_stats['processing_time'] = $processing_time;
+        $state = self::get_state_manager($state_id);
+        $state['performance_stats']['processing_time'] = $processing_time;
+        self::update_state_manager($state, $state_id);
 
-        Notion_To_WordPress_Helper::info_log(
+        Notion_Logger::info_log(
             sprintf(
                 '异步图片处理完成，总耗时 %.2f 秒',
                 $processing_time
@@ -529,19 +631,22 @@ class Notion_Image_Processor {
      *
      * @since 2.0.0-beta.1
      * @param string $html HTML内容
+     * @param string $state_id 状态管理器ID，用于状态隔离
      * @return string 替换后的HTML
      */
-    public static function replace_image_placeholders(string $html): string {
-        if (empty(self::$image_placeholders)) {
+    public static function replace_image_placeholders(string $html, string $state_id = null): string {
+        $state = self::get_state_manager($state_id);
+
+        if (empty($state['image_placeholders'])) {
             return $html;
         }
 
         $replaced_count = 0;
 
-        foreach (self::$image_placeholders as $placeholder => $attachment_id) {
-            if ($attachment_id) {
+        foreach ($state['image_placeholders'] as $placeholder => $placeholder_data) {
+            if (isset($placeholder_data['attachment_id']) && $placeholder_data['attachment_id']) {
                 // 成功下载的图片，生成WordPress图片HTML
-                $image_html = self::generate_wordpress_image_html($attachment_id, $placeholder);
+                $image_html = self::generate_wordpress_image_html($placeholder_data['attachment_id'], $placeholder_data['caption'] ?? '');
                 $html = str_replace($placeholder, $image_html, $html);
                 $replaced_count++;
             } else {
@@ -551,8 +656,8 @@ class Notion_Image_Processor {
             }
         }
 
-        Notion_To_WordPress_Helper::debug_log(
-            "替换了 {$replaced_count} 个图片占位符",
+        Notion_Logger::debug_log(
+            "替换了 {$replaced_count} 个图片占位符" . ($state_id ? " (状态ID: {$state_id})" : ''),
             'Async Image'
         );
 
@@ -565,13 +670,16 @@ class Notion_Image_Processor {
      * 清理图片队列
      *
      * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID，用于状态隔离
      */
-    private static function clear_image_queue(): void {
-        self::$pending_images = [];
-        self::$image_placeholders = [];
+    private static function clear_image_queue(string $state_id = null): void {
+        $state = self::get_state_manager($state_id);
+
+        $state['pending_images'] = [];
+        $state['image_placeholders'] = [];
 
         // 重置性能统计
-        self::$performance_stats = [
+        $state['performance_stats'] = [
             'total_images' => 0,
             'concurrent_downloads' => 0,
             'download_time' => 0,
@@ -579,6 +687,13 @@ class Notion_Image_Processor {
             'success_count' => 0,
             'error_count' => 0
         ];
+
+        self::update_state_manager($state, $state_id);
+
+        Notion_Logger::debug_log(
+            '图片队列已清理' . ($state_id ? " (状态ID: {$state_id})" : ''),
+            'Image Processor'
+        );
     }
 
     /**
@@ -710,24 +825,142 @@ class Notion_Image_Processor {
      * 重置图片处理器状态
      *
      * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID，为null时重置所有状态
      */
-    public static function reset(): void {
-        self::$async_image_mode = false;
-        self::clear_image_queue();
+    public static function reset(string $state_id = null): void {
+        if ($state_id === null) {
+            // 重置所有状态管理器
+            self::$state_managers = [];
 
-        Notion_To_WordPress_Helper::debug_log(
-            '图片处理器状态已重置',
-            'Image Processor'
-        );
+            Notion_Logger::debug_log(
+                '图片处理器所有状态已重置',
+                'Image Processor'
+            );
+        } else {
+            // 重置特定状态管理器
+            if (isset(self::$state_managers[$state_id])) {
+                unset(self::$state_managers[$state_id]);
+
+                Notion_Logger::debug_log(
+                    "图片处理器状态已重置 (状态ID: {$state_id})",
+                    'Image Processor'
+                );
+            }
+        }
+
+        // 清理过期状态
+        self::cleanup_expired_states();
     }
 
     /**
      * 向后兼容：检查是否启用异步模式（静态访问）
      *
      * @since 2.0.0-beta.1
+     * @deprecated 2.0.0-beta.1 使用 is_async_image_mode_enabled() 代替
      * @return bool 是否启用异步模式
      */
     public static function is_async_mode(): bool {
-        return self::$async_image_mode;
+        return self::is_async_image_mode_enabled();
+    }
+
+    // ==================== 状态管理公共方法 ====================
+
+    /**
+     * 创建新的状态管理器
+     *
+     * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID
+     * @return string 创建的状态管理器ID
+     */
+    public static function create_state(string $state_id = null): string {
+        if ($state_id === null) {
+            $state_id = 'state_' . uniqid();
+        }
+
+        // 强制创建新状态
+        self::$state_managers[$state_id] = [
+            'pending_images' => [],
+            'image_placeholders' => [],
+            'async_image_mode' => false,
+            'performance_stats' => [
+                'total_images' => 0,
+                'concurrent_downloads' => 0,
+                'download_time' => 0,
+                'processing_time' => 0,
+                'success_count' => 0,
+                'error_count' => 0
+            ],
+            'created_at' => time(),
+            'last_used' => time()
+        ];
+
+        Notion_Logger::debug_log(
+            "创建新的状态管理器: {$state_id}",
+            'Image Processor'
+        );
+
+        return $state_id;
+    }
+
+    /**
+     * 获取状态管理器信息
+     *
+     * @since 2.0.0-beta.1
+     * @param string $state_id 状态管理器ID
+     * @return array|null 状态信息或null
+     */
+    public static function get_state_info(string $state_id = null): ?array {
+        $id = $state_id ?? self::$default_state_id;
+        return self::$state_managers[$id] ?? null;
+    }
+
+    /**
+     * 获取所有活跃的状态管理器
+     *
+     * @since 2.0.0-beta.1
+     * @return array 状态管理器列表
+     */
+    public static function get_active_states(): array {
+        $states = [];
+        foreach (self::$state_managers as $id => $state) {
+            $states[$id] = [
+                'id' => $id,
+                'async_mode' => $state['async_image_mode'],
+                'pending_count' => count($state['pending_images']),
+                'placeholder_count' => count($state['image_placeholders']),
+                'created_at' => $state['created_at'],
+                'last_used' => $state['last_used']
+            ];
+        }
+        return $states;
+    }
+
+    /**
+     * 清理所有过期状态
+     *
+     * @since 2.0.0-beta.1
+     * @param int $max_age 最大存活时间（秒）
+     * @return int 清理的状态数量
+     */
+    public static function cleanup_states(int $max_age = 3600): int {
+        $cleaned = 0;
+        $current_time = time();
+
+        foreach (self::$state_managers as $id => $state) {
+            if ($id !== self::$default_state_id &&
+                ($current_time - $state['last_used']) > $max_age) {
+                unset(self::$state_managers[$id]);
+                $cleaned++;
+            }
+        }
+
+        if ($cleaned > 0) {
+            Notion_Logger::debug_log(
+                "清理了 {$cleaned} 个过期状态管理器",
+                'Image Processor'
+            );
+        }
+
+        return $cleaned;
     }
 }

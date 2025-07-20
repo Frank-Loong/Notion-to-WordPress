@@ -3,10 +3,16 @@ declare(strict_types=1);
 
 /**
  * Notion 元数据提取器类
- * 
+ *
  * 专门处理 Notion 页面属性到 WordPress 字段的映射转换，包括标题、状态、
  * 分类、标签、自定义字段等。支持多种字段类型和复杂的映射规则。
- * 
+ *
+ * 设计模式：静态工具类
+ * - 所有方法均为静态方法，无状态管理
+ * - 专注于元数据提取和转换，不涉及业务逻辑
+ * - 统一使用 Notion_Logger 进行日志记录
+ * - 统一的错误处理和异常管理
+ *
  * @since      2.0.0-beta.1
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -141,15 +147,14 @@ class Notion_Metadata_Extractor {
         }
 
         // 记录状态处理日志
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('Notion页面状态: %s, 密码: %s, 转换为WordPress状态: %s, 密码保护: %s',
                 $status_val ?: 'null',
                 !empty($password_val) ? '***' : 'null',
                 $metadata['status'],
                 !empty($metadata['password']) ? '是' : '否'
             ),
-            'Notion Status',
-            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            'Status Processing'
         );
 
         // 提取文章类型

@@ -97,7 +97,7 @@ class Notion_Concurrent_Network_Manager {
     public function __construct($max_concurrent = 5) {
         $this->max_concurrent_requests = max(1, min(10, $max_concurrent));
         
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "初始化并发网络管理器，最大并发数: {$this->max_concurrent_requests}",
             'Concurrent Network'
         );
@@ -131,7 +131,7 @@ class Notion_Concurrent_Network_Manager {
             'args' => $args
         ];
         
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "添加请求到队列: {$args['method']} {$url}",
             'Concurrent Network'
         );
@@ -174,7 +174,7 @@ class Notion_Concurrent_Network_Manager {
      */
     public function execute_internal() {
         if (empty($this->requests)) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 '没有待执行的请求',
                 'Concurrent Network'
             );
@@ -183,7 +183,7 @@ class Notion_Concurrent_Network_Manager {
 
         $start_time = microtime(true);
         
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "开始执行 " . count($this->requests) . " 个并发请求",
             'Concurrent Network'
         );
@@ -207,7 +207,7 @@ class Notion_Concurrent_Network_Manager {
                 'peak_memory'        => memory_get_peak_usage(true)
             ];
 
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 sprintf(
                     "并发请求执行完成，耗时: %.2f秒，成功: %d，失败: %d",
                     $execution_time,
@@ -218,7 +218,7 @@ class Notion_Concurrent_Network_Manager {
             );
             
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 "并发请求执行异常: " . $e->getMessage(),
                 'Concurrent Network'
             );
@@ -286,7 +286,7 @@ class Notion_Concurrent_Network_Manager {
             $curl_handle = curl_init();
             
             if ($curl_handle === false) {
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "无法创建cURL句柄，请求ID: {$request_id}",
                     'Concurrent Network'
                 );
@@ -406,7 +406,7 @@ class Notion_Concurrent_Network_Manager {
                     sprintf('cURL错误 %d: %s', $error_code, $error_message)
                 );
 
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "请求失败 (ID: {$request_id}): cURL错误 {$error_code} - {$error_message}",
                     'Concurrent Network'
                 );
@@ -418,7 +418,7 @@ class Notion_Concurrent_Network_Manager {
                     sprintf('HTTP错误 %d', $http_code)
                 );
 
-                Notion_To_WordPress_Helper::error_log(
+                Notion_Logger::error_log(
                     "请求失败 (ID: {$request_id}): HTTP错误 {$http_code}",
                     'Concurrent Network'
                 );
@@ -434,7 +434,7 @@ class Notion_Concurrent_Network_Manager {
                     'headers'  => $this->parse_response_headers($curl_handle)
                 ];
 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     "请求成功 (ID: {$request_id}): HTTP {$http_code}",
                     'Concurrent Network'
                 );
@@ -553,7 +553,7 @@ class Notion_Concurrent_Network_Manager {
         $this->requests = [];
         $this->responses = [];
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             '并发网络管理器资源清理完成',
             'Concurrent Network'
         );
@@ -600,7 +600,7 @@ class Notion_Concurrent_Network_Manager {
     public function set_max_concurrent_requests($max_concurrent) {
         $this->max_concurrent_requests = max(1, min(10, $max_concurrent));
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "设置最大并发请求数: {$this->max_concurrent_requests}",
             'Concurrent Network'
         );
@@ -615,7 +615,7 @@ class Notion_Concurrent_Network_Manager {
     public function set_default_timeout($timeout) {
         $this->default_timeout = max(5, min(120, $timeout));
 
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "设置默认超时时间: {$this->default_timeout}秒",
             'Concurrent Network'
         );

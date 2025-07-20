@@ -54,24 +54,22 @@ class Notion_To_WordPress_Integrator {
             // 确保有密码的文章处于发布状态，否则密码保护无效
             if ($post_data['post_status'] === 'draft') {
                 $post_data['post_status'] = 'publish';
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     '文章有密码但状态为草稿，已自动调整为已发布状态以使密码生效',
-                    'Post Status',
-                    Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+                    'Post Status'
                 );
             }
         }
 
         // 记录最终的文章数据
-        Notion_To_WordPress_Helper::debug_log(
-            sprintf('文章数据: 标题=%s, 状态=%s, 类型=%s, 密码=%s', 
+        Notion_Logger::debug_log(
+            sprintf('文章数据: 标题=%s, 状态=%s, 类型=%s, 密码=%s',
                 $post_data['post_title'],
                 $post_data['post_status'],
                 $post_data['post_type'],
                 !empty($post_data['post_password']) ? '已设置' : '无'
             ),
-            'Post Data',
-            Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            'Post Data'
         );
 
         if (isset($metadata['date'])) {
@@ -104,10 +102,9 @@ class Notion_To_WordPress_Integrator {
     public static function apply_custom_fields(int $post_id, array $custom_fields): void {
         foreach ($custom_fields as $field_name => $field_value) {
             update_post_meta($post_id, $field_name, $field_value);
-            Notion_To_WordPress_Helper::debug_log(
-                "应用自定义字段: {$field_name} = {$field_value}", 
-                'Custom Fields', 
-                Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO
+            Notion_Logger::debug_log(
+                "应用自定义字段: {$field_name} = {$field_value}",
+                'Custom Fields'
             );
         }
     }
@@ -122,7 +119,7 @@ class Notion_To_WordPress_Integrator {
     public static function apply_taxonomies(int $post_id, array $metadata): void {
         if (!empty($metadata['categories'])) {
             wp_set_post_categories($post_id, $metadata['categories']);
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "设置分类: " . implode(', ', $metadata['categories']),
                 'Taxonomies'
             );
@@ -130,7 +127,7 @@ class Notion_To_WordPress_Integrator {
         
         if (!empty($metadata['tags'])) {
             wp_set_post_tags($post_id, $metadata['tags']);
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "设置标签: " . implode(', ', $metadata['tags']),
                 'Taxonomies'
             );
@@ -173,7 +170,7 @@ class Notion_To_WordPress_Integrator {
                 // 直接使用外链作为特色图片（通过自定义字段）
                 update_post_meta($post_id, '_notion_featured_image_url', esc_url_raw($image_url));
 
-                Notion_To_WordPress_Helper::debug_log(
+                Notion_Logger::debug_log(
                     'Using external featured image URL: ' . $image_url,
                     'Featured Image'
                 );
@@ -193,7 +190,7 @@ class Notion_To_WordPress_Integrator {
             update_post_meta($post_id, '_notion_featured_image_placeholder', $attachment_id);
             return true;
         } elseif (is_wp_error($attachment_id)) {
-            Notion_To_WordPress_Helper::error_log(
+            Notion_Logger::error_log(
                 'Featured image download failed: ' . $attachment_id->get_error_message()
             );
             return false;
@@ -240,7 +237,7 @@ class Notion_To_WordPress_Integrator {
         }
 
         // 禁用缓存，直接执行批量数据库查询以确保数据实时性
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             sprintf('批量获取文章ID映射（无缓存）: %d个页面', count($notion_ids)),
             'Integrator Batch Query'
         );
@@ -286,7 +283,7 @@ class Notion_To_WordPress_Integrator {
         $result = wp_delete_post($post_id, $force_delete);
 
         if ($result) {
-            Notion_To_WordPress_Helper::debug_log(
+            Notion_Logger::debug_log(
                 "文章删除成功: ID {$post_id}",
                 'Post Deletion'
             );
@@ -308,7 +305,7 @@ class Notion_To_WordPress_Integrator {
      */
     private static function clear_post_cache(int $post_id): void {
         // 缓存已禁用，无需清理操作
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "文章缓存清理请求（缓存已禁用）: 文章ID {$post_id}",
             'Integrator Cache'
         );
@@ -353,7 +350,7 @@ class Notion_To_WordPress_Integrator {
 
         // 简化处理：直接返回URL作为外部图片
         // 实际的下载和处理逻辑将在图片处理器中实现
-        Notion_To_WordPress_Helper::debug_log(
+        Notion_Logger::debug_log(
             "图片处理委托给图片处理器: {$image_url}",
             'Image Processing'
         );
