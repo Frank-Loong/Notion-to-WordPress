@@ -2,21 +2,21 @@
 
 /**
  * Notion-to-WordPress 插件发布控制器
- * 
- * 这是主发布编排器，负责协调整个自动化发布流程，包括版本号更新、构建、
- * Git 操作和带回滚能力的错误处理。
- * 
+ *
+ * 负责协调整个自动化发布流程，包括版本号更新、构建、Git 操作和错误处理，
+ * 简化的发布流程，依赖 Git 进行版本控制和回滚。
+ *
  * @author Frank-Loong
- * @version 1.0.0
+ * @version 2.0.0-beta.1
  */
 
 const fs = require('fs');
 const path = require('path');
-const { execSync, spawn } = require('child_process');
+const { execSync } = require('child_process');
 const chalk = require('chalk');
 const minimist = require('minimist');
 
-// Import our custom tools
+// 导入自定义工具
 const VersionBumper = require('./version-bump.js');
 const BuildTool = require('./build.js');
 
@@ -28,9 +28,8 @@ class ReleaseController {
         this.currentVersion = null;
         this.newVersion = null;
         
-        // Release steps tracking
+        // 发布步骤追踪
         this.completedSteps = [];
-        this.rollbackActions = [];
     }
 
     /**
@@ -58,17 +57,22 @@ class ReleaseController {
         this.customVersion = parsed.version;
         this.releaseType = parsed._[0];
 
-        // Validate arguments
+        // 校验参数
         if (this.customVersion) {
-            // Custom version provided, validate format
+            // 指定了自定义版本号，校验格式
             if (!this.isValidVersion(this.customVersion)) {
                 this.error(`无效的版本格式: ${this.customVersion}`);
                 this.showHelp();
                 process.exit(1);
             }
             this.releaseType = 'custom';
-        } else if (!this.releaseType || !['patch', 'minor', 'major', 'beta'].includes(this.releaseType)) {
-            this.error('无效或缺失的发布类型。使用 patch/minor/major/beta 或 --version=X.Y.Z');
+        } else if (this.releaseType === 'custom' && !this.customVersion) {
+            // 自定义发布类型，但没有提供版本号
+            this.error('自定义发布需要指定版本号。使用: node scripts/release.js custom --version=X.Y.Z');
+            this.showHelp();
+            process.exit(1);
+        } else if (!this.releaseType || !['patch', 'minor', 'major', 'beta', 'custom'].includes(this.releaseType)) {
+            this.error('无效或缺失的发布类型。使用 patch/minor/major/beta/custom 或 --version=X.Y.Z');
             this.showHelp();
             process.exit(1);
         }
@@ -85,7 +89,7 @@ class ReleaseController {
      * 校验版本号格式
      */
     isValidVersion(version) {
-        // Basic semver validation
+        // 基础 semver 校验
         const semverRegex = /^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
         return semverRegex.test(version);
     }
@@ -95,24 +99,25 @@ class ReleaseController {
      */
     showHelp() {
         console.log(chalk.bold('\n🚀 Notion-to-WordPress 发布控制器\n'));
-        console.log('用法: node release.js <release-type> [options]');
-        console.log('      node release.js --version=X.Y.Z [options]\n');
+        console.log('用法: npm run release:<发布类型> [-- options]');
+        console.log('      node scripts/release.js custom --version=X.Y.Z [options]\n');
         console.log('发布类型:');
         console.log('  patch     补丁发布 (1.1.0 → 1.1.1)');
         console.log('  minor     小版本发布 (1.1.0 → 1.2.0)');
         console.log('  major     主版本发布 (1.1.0 → 2.0.0)');
         console.log('  beta      测试版发布 (1.1.0 → 1.1.1-beta.1)\n');
         console.log('选项:');
-        console.log('  -v, --version=X.Y.Z  使用自定义版本号');
-        console.log('  -d, --dry-run        仅预览不执行');
-        console.log('  -f, --force          跳过确认提示');
-        console.log('  -h, --help           显示帮助信息\n');
+        console.log('  --version=X.Y.Z      使用自定义版本号');
+        console.log('  --dry-run            仅预览不执行');
+        console.log('  --force              跳过确认提示');
+        console.log('  --help               显示帮助信息\n');
         console.log('示例:');
-        console.log('  node release.js patch');
-        console.log('  node release.js minor --dry-run');
-        console.log('  node release.js major --force');
-        console.log('  node release.js --version=1.2.0-rc.1');
-        console.log('  node release.js --version=1.2.0-hotfix.1 --dry-run');
+        console.log('  npm run release:patch');
+        console.log('  npm run release:dry-run');
+        console.log('  node scripts/release.js custom --version=1.2.0-rc.1 --dry-run');
+        console.log('  node scripts/release.js custom --version=1.2.0-hotfix.1');
+        console.log('');
+        console.log('⚠️  注意: 由于 npm 参数传递有限制，自定义发布请使用 node 命令');
     }
 
     /**
@@ -121,7 +126,7 @@ class ReleaseController {
     validateEnvironment() {
         this.log('🔍 正在验证环境...');
 
-        // Check if we're in a git repository
+        // 检查是否在 git 仓库中
         try {
             execSync('git rev-parse --git-dir', { 
                 cwd: this.projectRoot, 
@@ -131,7 +136,7 @@ class ReleaseController {
             throw new Error('不在 Git 仓库中');
         }
 
-        // Check for uncommitted changes
+        // 检查是否有未提交的更改
         try {
             const status = execSync('git status --porcelain', { 
                 cwd: this.projectRoot, 
@@ -145,11 +150,13 @@ class ReleaseController {
             if (error.message.includes('uncommitted changes')) {
                 throw error;
             }
-            // Git status command failed for other reasons
-            this.warn('无法检查 Git 状态');
+            // 其他原因导致 git status 失败（如不在git仓库中）
+            if (!this.isDryRun) {
+                this.warn('无法检查 Git 状态');
+            }
         }
 
-        // Check if required tools are available
+        // 检查所需工具文件
         const requiredFiles = [
             path.join(__dirname, 'version-bump.js'),
             path.join(__dirname, 'build.js')
@@ -161,7 +168,7 @@ class ReleaseController {
             }
         }
 
-        // Check Node.js version
+        // 检查 Node.js 版本
         const nodeVersion = process.version;
         const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
         if (majorVersion < 16) {
@@ -179,16 +186,16 @@ class ReleaseController {
 
         const versionBumper = new VersionBumper();
 
-        // Get current version
+        // 获取当前版本
         this.currentVersion = versionBumper.getCurrentVersion();
         versionBumper.validateVersion();
 
-        // Calculate new version
+        // 计算新版本
         if (this.customVersion) {
-            // Use custom version
+            // 使用自定义版本
             this.newVersion = this.customVersion;
         } else {
-            // Calculate version based on release type
+            // 根据发布类型计算新版本
             this.newVersion = versionBumper.bumpVersion(this.currentVersion, this.releaseType);
         }
 
@@ -233,10 +240,10 @@ class ReleaseController {
      * 执行版本号升级
      */
     async executeVersionBump() {
-        this.log('🔄 正在更新版本号...');
+        this.log('🔢 正在更新版本号...');
 
         if (this.isDryRun) {
-            this.log('  [干运行] 将更新版本为 ' + this.newVersion);
+            this.log(`  [干运行] 将版本从 ${this.currentVersion} 更新为 ${this.newVersion}`);
             return;
         }
 
@@ -244,28 +251,22 @@ class ReleaseController {
             const versionBumper = new VersionBumper();
 
             if (this.customVersion) {
-                // Use custom version
+                // 使用自定义版本
+                this.log(`  设置自定义版本: ${this.customVersion}`);
                 versionBumper.updateToCustomVersion(this.customVersion);
                 this.newVersion = this.customVersion;
             } else {
-                // Use standard release type
+                // 使用标准发布类型
+                this.log(`  执行 ${this.releaseType} 版本升级`);
                 versionBumper.run(this.releaseType);
                 this.newVersion = versionBumper.getNewVersion();
             }
-            
+
             this.completedSteps.push('version-bump');
-            this.rollbackActions.push(() => {
-                this.log('回滚版本更改...');
-                try {
-                    versionBumper.restoreFromBackup();
-                } catch (error) {
-                    this.warn('无法恢复版本备份: ' + error.message);
-                }
-            });
-            
-            this.success('版本更新成功');
+            this.success(`版本已更新为 ${this.newVersion}`);
         } catch (error) {
-            throw new Error(`版本升级失败: ${error.message}`);
+            this.error(`版本升级失败: ${error.message}`);
+            throw error;
         }
     }
 
@@ -282,12 +283,14 @@ class ReleaseController {
 
         try {
             const buildTool = new BuildTool();
+            this.log('  正在打包文件...');
             await buildTool.build();
-            
+
             this.completedSteps.push('build');
             this.success('插件包构建成功');
         } catch (error) {
-            throw new Error(`构建失败: ${error.message}`);
+            this.error(`构建失败: ${error.message}`);
+            throw error;
         }
     }
 
@@ -303,31 +306,25 @@ class ReleaseController {
         }
 
         try {
-            // Add all changes
+            // 添加所有更改
+            this.log('  添加文件到暂存区...');
             execSync('git add .', { cwd: this.projectRoot });
-            
-            // Commit changes
+
+            // 提交更改
             const commitMessage = `发布版本 ${this.newVersion}`;
+            this.log(`  提交更改: ${commitMessage}`);
             execSync(`git commit -m "${commitMessage}"`, { cwd: this.projectRoot });
-            
-            // Create tag
+
+            // 创建标签
             const tagMessage = `版本 ${this.newVersion}`;
+            this.log(`  创建标签: v${this.newVersion}`);
             execSync(`git tag -a v${this.newVersion} -m "${tagMessage}"`, { cwd: this.projectRoot });
-            
+
             this.completedSteps.push('git-operations');
-            this.rollbackActions.push(() => {
-                this.log('回滚 Git 操作...');
-                try {
-                    execSync(`git tag -d v${this.newVersion}`, { cwd: this.projectRoot });
-                    execSync('git reset --hard HEAD~1', { cwd: this.projectRoot });
-                } catch (error) {
-                    this.warn('无法回滚 Git 操作: ' + error.message);
-                }
-            });
-            
             this.success('Git 操作完成');
         } catch (error) {
-            throw new Error(`Git 操作失败: ${error.message}`);
+            this.error(`Git 操作失败: ${error.message}`);
+            throw error;
         }
     }
 
@@ -343,32 +340,19 @@ class ReleaseController {
         }
 
         try {
-            // Push commits
+            // 推送提交
+            this.log('  推送提交到 main 分支...');
             execSync('git push origin main', { cwd: this.projectRoot });
-            
-            // Push tags
+
+            // 推送标签
+            this.log(`  推送标签 v${this.newVersion}...`);
             execSync(`git push origin v${this.newVersion}`, { cwd: this.projectRoot });
-            
+
             this.completedSteps.push('push');
             this.success('推送到远程仓库成功');
         } catch (error) {
-            throw new Error(`推送失败: ${error.message}`);
-        }
-    }
-
-    /**
-     * 执行回滚操作
-     */
-    async executeRollback() {
-        this.warn('🔄 正在执行回滚...');
-        
-        // Execute rollback actions in reverse order
-        for (let i = this.rollbackActions.length - 1; i >= 0; i--) {
-            try {
-                await this.rollbackActions[i]();
-            } catch (error) {
-                this.error(`回滚操作失败: ${error.message}`);
-            }
+            this.error(`推送失败: ${error.message}`);
+            throw error;
         }
     }
 
@@ -379,32 +363,32 @@ class ReleaseController {
         try {
             this.log(chalk.bold('🚀 开始发布流程'));
             
-            // Step 1: Validate environment
+            // 步骤 1: 校验环境
             this.validateEnvironment();
             
-            // Step 2: Prepare versions
+            // 步骤 2: 准备版本信息
             this.prepareVersions();
             
-            // Step 3: Ask for confirmation
+            // 步骤 3: 用户确认
             const confirmed = await this.askConfirmation();
             if (!confirmed) {
                 this.log('发布已被用户取消');
                 return;
             }
             
-            // Step 4: Execute version bump
+            // 步骤 4: 执行版本号升级
             await this.executeVersionBump();
             
-            // Step 5: Execute build
+            // 步骤 5: 执行构建
             await this.executeBuild();
             
-            // Step 6: Execute Git operations
+            // 步骤 6: 执行 Git 操作
             await this.executeGitOperations();
             
-            // Step 7: Push to remote
+            // 步骤 7: 推送到远程
             await this.pushToRemote();
             
-            // Success!
+            // 成功！
             this.success(`✅ 发布 ${this.newVersion} 成功!`);
             
             if (!this.isDryRun) {
@@ -416,11 +400,9 @@ class ReleaseController {
             
         } catch (error) {
             this.error(`发布失败: ${error.message}`);
-            
-            if (!this.isDryRun && this.completedSteps.length > 0) {
-                await this.executeRollback();
-            }
-            
+            this.log('\n💡 提示: 可以使用 Git 命令手动回滚更改:');
+            this.log('  git reset --hard HEAD~1  # 回滚提交');
+            this.log('  git tag -d v' + (this.newVersion || 'VERSION') + '  # 删除标签');
             process.exit(1);
         }
     }

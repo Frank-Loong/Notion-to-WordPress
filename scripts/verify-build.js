@@ -2,7 +2,12 @@
 
 /**
  * 构建校验工具
- * 校验打包过程是否正确包含/排除文件
+ * 
+ * 本工具用于校验打包过程是否正确包含/排除文件，
+ * 确保生成的 ZIP 包符合 WordPress 插件规范，并符合大小限制。
+ * 
+ * @author Frank-Loong
+ * @version 2.0.0-beta.1
  */
 
 const fs = require('fs');
@@ -20,7 +25,6 @@ class BuildVerifier {
             'notion-to-wordpress/notion-to-wordpress.php',
             'notion-to-wordpress/readme.txt',
             'notion-to-wordpress/uninstall.php',
-            'notion-to-wordpress/LICENSE'
         ];
         
         // ZIP 包中禁止包含的文件/目录

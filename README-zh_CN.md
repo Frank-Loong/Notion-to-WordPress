@@ -1,4 +1,4 @@
-**🏠 主页** • [📚 用户指南](docs/Wiki.zh_CN.md) • [📊 项目概览](docs/PROJECT_OVERVIEW-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits) • [🚀 开发者指南](docs/DEVELOPER_GUIDE-zh_CN.md)
+**🏠 主页** • [📚 用户指南](docs/Wiki.zh_CN.md) • [📊 项目概览](docs/PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](docs/DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 语言：** [English](README.md) • **中文**
 
@@ -9,6 +9,25 @@
 > 🚀 一键将 Notion 变身 WordPress — 告别复制粘贴，实现全自动内容发布与同步
 
 ![GitHub Stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![Release](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/frank-loong/notion-to-wordpress)
+
+---
+
+## 🖼️ 效果演示
+
+<p align="center">
+  <img src="docs/images/demo-overview-zh_CN.gif" alt="插件后台界面" width="90%"><br/>
+  <em>▲ 可视化后台：一键配置、同步与监控</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-notion-page-zh_CN.gif" alt="Notion 原页面" width="90%"><br/>
+  <em>▲ 在你熟悉的 Notion 中编写和组织内容</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-wordpress-post-zh_CN.gif" alt="WordPress 同步效果" width="90%"><br/>
+  <em>▲ 一键同步，内容完美还原到 WordPress，所见即所得</em>
+</p>
 
 ---
 
@@ -74,7 +93,7 @@
 
 ## 🌟 Star 历史
 
-[![Star History Chart](https://star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
 
 ---
 
@@ -102,4 +121,4 @@
 ## License
 GPL-3.0-or-later
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.2.5-beta.5
+> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1

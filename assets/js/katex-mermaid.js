@@ -1,8 +1,14 @@
 /**
- * 处理Notion页面中的LaTeX数学公式和Mermaid图表
- *
- * @since      1.0.8
- * @package    Notion_To_WordPress
+ * KaTeX 和 Mermaid 渲染脚本
+ * 
+ * 负责渲染 Notion 页面中的 LaTeX 数学公式和 Mermaid.js 图表，并提供资源加载失败时的备用方案。
+ * 
+ * @since 1.0.8
+ * @version 2.0.0-beta.1
+ * @package Notion_To_WordPress
+ * @author Frank-Loong
+ * @license GPL-3.0-or-later
+ * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 (function($) {
@@ -166,6 +172,13 @@ tex = tex.replace(/^\$\$|\$\$$/g, '').replace(/\$\$$/, '');
 tex = tex.replace(/^\$/, '').replace(/\$$/, '');
 }
 
+// 解码HTML实体，确保LaTeX符号正确（如 &amp; -> &）
+tex = tex.replace(/&amp;/g, '&')
+         .replace(/&lt;/g, '<')
+         .replace(/&gt;/g, '>')
+         .replace(/&quot;/g, '"')
+         .replace(/&#039;/g, "'");
+
 // 化学公式处理：如果包含ce{但没有\ce{，则添加反斜杠
 if (tex.indexOf('ce{') !== -1 && tex.indexOf('\\ce{') === -1) {
 tex = tex.replace(/ce\{([^}]+)\}/g, '\\ce{$1}');
@@ -247,14 +260,14 @@ startOnLoad: false, // 手动控制加载
 theme: 'default',
 securityLevel: 'loose',
 flowchart: {
-useMaxWidth: true,
+useMaxWidth: true, // 恢复Notion原版设置
 htmlLabels: true
 },
 er: {
-useMaxWidth: true
+useMaxWidth: true // 恢复Notion原版设置
 },
 sequence: {
-useMaxWidth: true,
+useMaxWidth: true, // 恢复Notion原版设置
 noteFontWeight: '14px',
 actorFontSize: '14px',
 messageFontSize: '16px'

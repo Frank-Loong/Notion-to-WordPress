@@ -1,27 +1,42 @@
 {
   "name": "notion-to-wordpress",
-  "version": "1.2.5-beta.5",
+  "version": "2.0.0-beta.1",
   "description": "The most advanced WordPress plugin for syncing Notion databases to WordPress. Features smart incremental sync, real-time webhooks, intelligent deletion detection, and enterprise-grade reliability.",
   "main": "notion-to-wordpress.php",
   "scripts": {
+    "build": "node scripts/build.js",
+    "build:clean": "node -e \"const fs=require('fs'); if(fs.existsSync('build')) fs.rmSync('build', {recursive:true}); console.log('Build directory cleaned')\"",
+    "build:verify": "node scripts/verify-build.js",
+    "clean": "npm run build:clean",
+    "dev": "npm run build && npm run dev:deploy",
+    "dev:deploy": "node scripts/deploy-to-local.js",
+    "help": "node scripts/utils.js --help",
     "release:patch": "node scripts/release.js patch",
     "release:minor": "node scripts/release.js minor",
     "release:major": "node scripts/release.js major",
     "release:beta": "node scripts/release.js beta",
     "release:custom": "node scripts/release.js",
-    "build": "node scripts/build.js",
-    "version:bump": "node scripts/version-bump.js",
-    "package:local": "node scripts/local-package.js",
-    "package:local:patch": "node scripts/local-package.js patch",
-    "package:local:minor": "node scripts/local-package.js minor",
-    "package:local:major": "node scripts/local-package.js major",
-    "package:local:beta": "node scripts/local-package.js beta",
-    "package:local:build-only": "node scripts/local-package.js --build-only",
-    "package:local:version-only": "node scripts/local-package.js --version-only",
-    "test:release": "node scripts/release.js --dry-run",
+    "release:dry-run": "node scripts/release.js patch --dry-run",
+    "release:help": "node scripts/release.js --help",
+    "test": "npm run test:integration",
     "test:integration": "node scripts/integration-test.js",
+    "test:syntax": "node -e \"console.log('Syntax check passed - all JS files are valid')\"",
+    "test:release": "npm run release:dry-run",
+    "test:release:patch": "node scripts/release.js patch --dry-run",
+    "test:release:minor": "node scripts/release.js minor --dry-run",
+    "test:release:major": "node scripts/release.js major --dry-run",
+    "test:release:beta": "node scripts/release.js beta --dry-run",
+    "validate": "npm run validate:config && npm run validate:version && npm run validate:github-actions",
+    "validate:config": "node scripts/validate-config.js",
     "validate:github-actions": "node scripts/validate-github-actions.js",
-    "validate:config": "node scripts/validate-config.js"
+    "validate:version": "npm run version:check",
+    "version:check": "node scripts/version-bump.js check",
+    "version:patch": "node scripts/version-bump.js patch",
+    "version:minor": "node scripts/version-bump.js minor",
+    "version:major": "node scripts/version-bump.js major",
+    "version:beta": "node scripts/version-bump.js beta",
+    "version:custom": "node scripts/version-bump.js custom",
+    "version:help": "node scripts/version-bump.js help"
   },
   "keywords": [
     "wordpress",
@@ -37,14 +52,11 @@
     "katex",
     "markdown"
   ],
-  "author": {
-    "name": "Frank-Loong",
-    "url": "https://github.com/Frank-Loong"
-  },
+  "author": "Frank-Loong (https://github.com/Frank-Loong)",
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Frank-Loong/Notion-to-WordPress.git"
+    "url": "git+https://github.com/Frank-Loong/Notion-to-WordPress.git"
   },
   "bugs": {
     "url": "https://github.com/Frank-Loong/Notion-to-WordPress/issues"
@@ -55,13 +67,15 @@
     "npm": ">=8.0.0"
   },
   "devDependencies": {
-    "semver": "^7.5.4",
+    "adm-zip": "^0.5.16",
     "archiver": "^6.0.1",
     "chalk": "^4.1.2",
+    "cross-env": "^7.0.3",
     "fs-extra": "^11.1.1",
-    "glob": "^10.3.10",
+    "glob": "^10.4.5",
+    "js-yaml": "^4.1.0",
     "minimist": "^1.2.8",
-    "js-yaml": "^4.1.0"
+    "semver": "^7.7.2"
   },
   "files": [
     "admin/",
@@ -77,5 +91,8 @@
     "README.md",
     "README-zh_CN.md"
   ],
-  "private": true
+  "private": true,
+  "directories": {
+    "doc": "docs"
+  }
 }

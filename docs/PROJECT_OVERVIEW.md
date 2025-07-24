@@ -1,4 +1,4 @@
-** [🏠 Home](../README.md) • [📚 User Guide](Wiki.md) • **📊 Project Overview** • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits) • [🚀 Developer Guide](DEVELOPER_GUIDE.md)
+** [🏠 Home](../README.md) • [📚 User Guide](Wiki.md) • **📊 Project Overview** • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 Language:** **English** • [中文](PROJECT_OVERVIEW-zh_CN.md)
 
@@ -6,7 +6,7 @@
 
 # 🚀 Notion-to-WordPress - Project Overview & Feature Comparison
 
-> **Current Version**: 1.2.5-beta.5  
+> **Current Version**: 2.0.0-beta.1  
 > **Status**: Production Ready ✅  
 > **Last Updated**: 2025-07-07
 
@@ -262,5 +262,7 @@
 <div align="center">
 
 **[⬆️ Back to Top](#-notion-to-wordpress---project-overview--feature-comparison) • [🏠 Home](../README.md) • [📚 Read the Docs](../docs/Wiki.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版](PROJECT_OVERVIEW-zh_CN.md)**
+
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>

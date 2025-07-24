@@ -1,12 +1,21 @@
 <?php
+// 声明严格类型
 declare(strict_types=1);
 
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 /**
- * 插件的管理区域功能
- *
+ * 后台管理类。
+ * 负责插件后台设置页面的功能，包括表单处理、选项保存等。
  * @since      1.0.9
+ * @version    1.8.3-beta.1
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 class Notion_To_WordPress_Admin {
@@ -39,13 +48,13 @@ class Notion_To_WordPress_Admin {
     private Notion_API $notion_api;
 
     /**
-     * Notion页面处理程序实例
+     * Notion导入协调器实例
      *
      * @since    1.0.5
      * @access   private
-     * @var      Notion_Pages
+     * @var      Notion_Import_Coordinator
      */
-    private Notion_Pages $notion_pages;
+    private Notion_Import_Coordinator $notion_pages;
 
     /**
      * 初始化类并设置其属性
@@ -54,9 +63,9 @@ class Notion_To_WordPress_Admin {
      * @param string $plugin_name 插件名称
      * @param string $version 插件版本
      * @param Notion_API $notion_api Notion API实例
-     * @param Notion_Pages $notion_pages Notion Pages实例
+     * @param Notion_Import_Coordinator $notion_pages Notion导入协调器实例
      */
-    public function __construct(string $plugin_name, string $version, Notion_API $notion_api, Notion_Pages $notion_pages) {
+    public function __construct(string $plugin_name, string $version, Notion_API $notion_api, Notion_Import_Coordinator $notion_pages) {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
         $this->notion_api = $notion_api;
@@ -360,6 +369,8 @@ class Notion_To_WordPress_Admin {
         // 重新初始化调试级别
         Notion_To_WordPress_Helper::init();
 
+        // 缓存功能已移除，使用增量同步替代
+
         // 更新 cron
         $this->update_cron_schedule( $options );
         $this->update_log_cleanup_schedule($options);
@@ -387,6 +398,8 @@ class Notion_To_WordPress_Admin {
 
             // 重新初始化调试级别
             Notion_To_WordPress_Helper::init();
+
+            // 缓存功能已移除，使用增量同步替代
 
             // 更新 cron
             $this->update_cron_schedule($options);
@@ -494,8 +507,8 @@ class Notion_To_WordPress_Admin {
             error_log('Notion to WordPress: 创建API实例，API Key: ' . substr($api_key, 0, 10) . '...');
             $notion_api = new Notion_API( $api_key );
 
-            error_log('Notion to WordPress: 创建Pages实例，Database ID: ' . $database_id);
-            $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping );
+            error_log('Notion to WordPress: 创建导入协调器实例，Database ID: ' . $database_id);
+            $notion_pages = new Notion_Import_Coordinator( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
 
             // 检查是否启用增量同步
@@ -586,9 +599,9 @@ class Notion_To_WordPress_Admin {
             $field_mapping = $options['field_mapping'] ?? [];
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
 
-            // 实例化API和Pages对象
+            // 实例化API和导入协调器对象
             $notion_api = new Notion_API( $api_key );
-            $notion_pages = new Notion_Pages( $notion_api, $database_id, $field_mapping );
+            $notion_pages = new Notion_Import_Coordinator( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
 
             // 执行导入
@@ -896,6 +909,7 @@ class Notion_To_WordPress_Admin {
             wp_send_json_error(['message' => __('测试错误: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
     }
+
 
     /**
      * 注册与管理区域功能相关的所有钩子

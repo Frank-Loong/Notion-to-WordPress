@@ -6,7 +6,7 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: Notion to WordPress 1.1.0\n"
+"Project-Id-Version: Notion to WordPress 2.0.0-beta.1\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-08 17:30+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -1168,10 +1168,6 @@ msgstr ""
 
 #: includes\class-notion-pages.php
 msgid "media_handle_sideload 错误: "
-msgstr ""
-
-#: includes\class-notion-to-wordpress-helper.php
-msgid "调试级别设置为: "
 msgstr ""
 
 #: includes\class-notion-to-wordpress-helper.php

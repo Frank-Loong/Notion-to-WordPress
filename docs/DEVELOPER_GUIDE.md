@@ -6,67 +6,90 @@
 
 # 🚀 Notion-to-WordPress Developer Guide
 
-> **Complete Development, Contributing, and Release Guide for Notion-to-WordPress Plugin**
+> **Professional WordPress Plugin Development, Contributing, and Release Complete Guide**
 
 ---
 
 ## 📋 Table of Contents
 
-- [🛠️ Development Environment Setup](#-development-environment-setup)
+- [🚀 Quick Start](#-quick-start)
+- [🛠️ Development Environment](#-development-environment)
 - [🏗️ Project Architecture](#-project-architecture)
-- [🤝 Contributing Guidelines](#-contributing-guidelines)
-- [📦 Local Development & Testing](#-local-development--testing)
+- [📝 Development Workflow](#-development-workflow)
+- [🔧 Command Reference](#-command-reference)
+- [🐛 Debug Guide](#-debug-guide)
 - [🚀 Release Management](#-release-management)
-- [🔧 Troubleshooting](#-troubleshooting)
 - [📚 Best Practices](#-best-practices)
+- [🤝 Contributing Guidelines](#-contributing-guidelines)
 - [🔗 Resources](#-resources)
+- [📖 Glossary](#-glossary)
 
 ---
 
-## 🛠️ Development Environment Setup
+## 🚀 Quick Start
 
-### System Requirements
-
-```bash
-# Required Environment
-- Node.js 16+ (18+ recommended for optimal performance)
-- Git 2.0+ with GitHub access
-- WordPress 6.0+ (for testing environment)
-- PHP 8.0+ with required extensions:
-  - curl (for API requests)
-  - mbstring (for string handling)
-  - json (for data processing)
-- Notion Account with API access
-```
-
-### Quick Setup Guide
+### ⚡ 5-Minute Setup
 
 ```bash
-# 1. Clone the repository
+# 1. Clone project
 git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
 cd Notion-to-WordPress
 
-# 2. Install Node.js dependencies
+# 2. Install dependencies
 npm install
 
-# 3. Verify environment configuration
-npm run validate:config
-npm run validate:github-actions
+# 3. Verify version consistency
+npm run version:check
 
-# 4. Create your development branch
-git checkout -b feature/your-feature-name
+# 4. Build test
+npm run build
 
-# 5. Test the build system
+# 5. Check results
+# Linux/Mac: ls -la build/notion-to-wordpress-*.zip
+# Windows: Get-ChildItem build/notion-to-wordpress-*.zip
+```
+
+### ⚡ Quick Development Workflow
+
+**3-Step Daily Development Workflow:**
+
+```bash
+# 1. Check version consistency
+npm run version:check
+
+# 2. Bump version (if needed)
+npm run version:patch    # or minor/major/beta
+
+# 3. Build production package
 npm run build
 ```
 
-### Development Tools Configuration
+**Quick Command Reference:**
+- `npm run help` - Show all available commands
+- `npm run version:help` - Show version management help
+- `npm run version:check` - Check version consistency only
+- `npm run clean` - Clean build files
 
-#### VS Code Setup (Recommended)
+### ✅ System Requirements
+
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| Node.js | 16.0+ | 18.0+ |
+| npm | 8.0+ | 9.0+ |
+| Git | 2.0+ | Latest |
+| PHP | 8.0+ | 8.1+ |
+| WordPress | 6.0+ | Latest |
+
+---
+
+## 🛠️ Development Environment
+
+### 🔧 IDE Configuration
+
+#### VS Code Settings
 ```json
-// .vscode/settings.json
 {
-  "php.validate.executablePath": "/path/to/php",
+  "php.validate.executablePath": "/usr/bin/php",
   "editor.formatOnSave": true,
   "files.associations": {
     "*.php": "php"
@@ -76,302 +99,233 @@ npm run build
 
 #### Git Configuration
 ```bash
-# Configure Git for WordPress development
 git config core.autocrlf false
 git config core.filemode false
+git config pull.rebase true
+```
+
+### 🐳 WordPress Testing Environment
+
+```bash
+# Docker approach (recommended)
+docker-compose up -d wordpress
+
+# Local environment
+# XAMPP, WAMP, MAMP, or Local by Flywheel
 ```
 
 ---
 
 ## 🏗️ Project Architecture
 
-### Directory Structure
+### 📁 Directory Structure
 
 ```
 notion-to-wordpress/
-├── admin/                      # WordPress Admin Interface
-│   ├── css/                   # Admin stylesheets
-│   ├── js/                    # Admin JavaScript
-│   └── partials/              # Admin template files
-├── assets/                     # Public Assets
-│   ├── css/                   # Frontend stylesheets
-│   ├── js/                    # Frontend JavaScript
-│   └── images/                # Image resources
-├── includes/                   # Core Plugin Logic
-│   ├── class-notion-to-wordpress.php          # Main plugin class
-│   ├── class-notion-to-wordpress-activator.php # Activation logic
-│   ├── class-notion-to-wordpress-deactivator.php # Deactivation logic
-│   ├── class-notion-to-wordpress-i18n.php     # Internationalization
-│   ├── class-notion-to-wordpress-loader.php   # Hook loader
-│   ├── class-notion-to-wordpress-admin.php    # Admin functionality
-│   └── class-notion-to-wordpress-public.php   # Public functionality
-├── languages/                  # Internationalization Files
-│   ├── notion-to-wordpress.pot # Translation template
-│   ├── notion-to-wordpress-zh_CN.po/.mo # Chinese translations
-│   └── notion-to-wordpress-en_US.po/.mo # English translations
-├── scripts/                    # Automation Scripts
-│   ├── build.js               # Build system
-│   ├── release.js             # Release automation
-│   ├── local-package.js       # Local packaging
-│   └── version-bump.js        # Version management
-├── docs/                       # Documentation
-├── wiki/                       # User guides
-├── notion-to-wordpress.php     # Main plugin file
-├── readme.txt                  # WordPress plugin description
-├── uninstall.php              # Clean uninstall script
-└── release.config.js          # Release configuration
+├── admin/                  # Admin interface
+├── includes/               # Core functionality classes (Layered Architecture)
+│   ├── core/              # Core Layer - Infrastructure Services
+│   │   ├── class-notion-logger.php
+│   │   ├── class-notion-security.php
+│   │   ├── class-notion-text-processor.php
+│   │   └── class-notion-http-client.php
+│   ├── services/          # Services Layer - Business Logic Services
+│   │   ├── class-notion-api.php
+│   │   ├── class-notion-content-converter.php
+│   │   ├── class-notion-database-renderer.php
+│   │   ├── class-notion-image-processor.php
+│   │   ├── class-notion-metadata-extractor.php
+│   │   └── class-notion-sync-manager.php
+│   ├── handlers/          # Handlers Layer - Coordinator Services
+│   │   ├── class-notion-import-coordinator.php  # (formerly Notion_Pages)
+│   │   ├── class-notion-to-wordpress-integrator.php
+│   │   └── class-notion-to-wordpress-webhook.php
+│   ├── utils/             # Utils Layer - Tool Support Services
+│   │   ├── class-notion-to-wordpress-helper.php
+│   │   ├── class-notion-network-retry.php
+│   │   └── class-notion-concurrent-network-manager.php
+│   └── framework/         # Framework Layer - Framework Management Services
+│       ├── class-notion-to-wordpress.php
+│       ├── class-notion-to-wordpress-loader.php
+│       └── class-notion-to-wordpress-i18n.php
+├── scripts/                # Automation scripts
+│   ├── build.js
+│   └── release.js
+├── languages/              # Internationalization files
+└── notion-to-wordpress.php # Plugin entry point
 ```
 
-### Core Components
-
-#### 1. Main Plugin Class (`includes/class-notion-to-wordpress.php`)
-- Plugin initialization and lifecycle management
-- Hook registration and dependency injection
-- Configuration management
-
-#### 2. Admin Interface (`admin/`)
-- WordPress admin dashboard integration
-- Settings pages and forms
-- AJAX handlers for real-time operations
-
-#### 3. API Integration (`includes/`)
-- Notion API communication
-- Data transformation and validation
-- WordPress content creation/updates
-
-#### 4. Automation Scripts (`scripts/`)
-- Build and packaging system
-- Version management
-- Release automation
-
-### Detailed Technical Architecture
-
-#### Core Class Structure
-
-The plugin follows a modular architecture with clear separation of concerns:
-
-```
-includes/
-├── class-notion-api.php                    # API integration layer
-├── class-notion-pages.php                  # Sync logic and processing
-├── class-notion-to-wordpress-webhook.php   # Webhook handling
-├── class-notion-to-wordpress-helper.php    # Utilities and logging
-├── class-notion-to-wordpress-i18n.php      # Internationalization
-├── class-notion-to-wordpress-loader.php    # Hook loader system
-├── class-notion-to-wordpress-admin.php     # Admin interface
-├── class-notion-to-wordpress-public.php    # Public functionality
-└── class-notion-to-wordpress.php           # Core orchestrator
-```
-
-#### Class Responsibilities
-
-**Notion_To_WordPress** (Core Orchestrator)
-- Manages plugin lifecycle and initialization
-- Coordinates between different components
-- Handles dependency injection and configuration
-
-**Notion_API** (API Integration Layer)
-- Manages all Notion API communications
-- Handles authentication and request/response processing
-- Implements rate limiting and error handling
-- Methods: `get_database_pages()`, `get_page()`, `get_page_content()`, `test_connection()`
-
-**Notion_Pages** (Sync Logic Engine)
-- Orchestrates the synchronization process
-- Converts Notion content to WordPress format
-- Manages incremental sync and deletion detection
-- Methods: `import_pages()`, `import_notion_page()`, `convert_blocks_to_html()`
-
-**Notion_To_WordPress_Admin** (Admin Interface)
-- Provides WordPress admin dashboard integration
-- Handles user interactions and settings management
-- Manages manual sync operations and status display
-- Methods: `display_plugin_setup_page()`, `handle_manual_sync()`
-
-**Notion_To_WordPress_Webhook** (Real-time Processing)
-- Processes incoming webhook events from Notion
-- Handles real-time content updates and deletions
-- Implements event-specific processing strategies
-- Methods: `handle_webhook()`, `process_webhook_event()`
-
-**Notion_To_WordPress_Helper** (Utilities)
-- Provides logging and debugging capabilities
-- Implements security functions and content sanitization
-- Manages file operations and cleanup tasks
-- Methods: `debug_log()`, `custom_kses()`, `run_log_cleanup()`
-
-#### Sync Architecture Patterns
-
-**Triple Sync Architecture**
-1. **Manual Sync**: User-initiated with real-time feedback
-2. **Scheduled Sync**: Automated background processing
-3. **Webhook Sync**: Real-time updates triggered by Notion events
-
-**Processing Flow**
-1. **Data Retrieval**: Fetch pages from Notion API
-2. **Content Transformation**: Convert Notion blocks to HTML
-3. **Metadata Extraction**: Process page properties and metadata
-4. **WordPress Integration**: Create or update WordPress posts
-5. **Status Reporting**: Log results and provide user feedback
-
-#### Performance Optimizations
-
-**Incremental Sync Strategy**
-- Timestamp-based change detection
-- Only processes modified content
-- Reduces API calls and processing time
-
-**Memory Management**
-- Batch processing for large datasets
-- Strategic memory cleanup
-- Optimized for enterprise-scale operations
-
-**Caching Implementation**
-- API response caching
-- Metadata caching for repeated operations
-- WordPress object cache integration
-
-**Async Processing**
-- Non-blocking webhook responses
-- Background processing for large operations
-- Queue-based processing for reliability
-
-#### Core Class Diagram
-
-The following diagram illustrates the relationships between core plugin classes:
+### 🔄 Core Class Relationship Diagram
 
 ```mermaid
 classDiagram
+    %% Framework Layer
     class Notion_To_WordPress {
-        -string plugin_name
-        -string version
-        -Notion_API notion_api
-        -Notion_Pages notion_pages
-        -Notion_To_WordPress_Admin admin
-        -Notion_To_WordPress_Loader loader
+        -version: string
+        -plugin_name: string
+        -loader: Notion_To_WordPress_Loader
+        -notion_api: Notion_API
+        -notion_pages: Notion_Import_Coordinator
+        -admin: Notion_To_WordPress_Admin
         +__construct()
-        +run()
         +load_dependencies()
         +instantiate_objects()
         +define_admin_hooks()
-        +define_public_hooks()
+        +cron_import_pages()
     }
 
+    %% Services Layer
     class Notion_API {
-        -string api_key
-        -string api_base
-        +__construct(api_key)
-        +get_database_pages(database_id, filter)
-        +get_page(page_id)
-        +get_page_content(page_id)
-        +get_database(database_id)
-        +test_connection(database_id)
-        -send_request(endpoint, method, data)
+        -api_key: string
+        -api_base: string
+        +get_database_pages()
+        +get_page()
+        +get_page_content()
+        +send_request()
     }
 
-    class Notion_Pages {
-        -Notion_API notion_api
-        -string database_id
-        -array field_mapping
-        +__construct(notion_api, database_id, field_mapping)
-        +import_pages(check_deletions, incremental)
-        +import_notion_page(page)
-        +get_page_data(page_id)
-        +extract_page_metadata(page)
-        +convert_blocks_to_html(blocks, notion_api)
-        +create_or_update_post(metadata, content, author_id, page_id, existing_post_id)
+    %% Handlers Layer
+    class Notion_Import_Coordinator {
+        -notion_api: Notion_API
+        -database_id: string
+        -field_mapping: array
+        +import_pages()
+        +import_notion_page()
+        +filter_pages_for_incremental_sync()
+        +convert_blocks_to_html()
     }
 
     class Notion_To_WordPress_Admin {
-        -string plugin_name
-        -string version
-        -Notion_API notion_api
-        -Notion_Pages notion_pages
-        +__construct(plugin_name, version, notion_api, notion_pages)
-        +add_plugin_admin_menu()
-        +display_plugin_setup_page()
-        +handle_manual_sync()
+        -plugin_name: string
+        -version: string
+        -notion_api: Notion_API
+        -notion_pages: Notion_Import_Coordinator
+        +handle_manual_import()
         +handle_test_connection()
-        +handle_refresh_verification_token()
+        +handle_refresh_all()
     }
 
     class Notion_To_WordPress_Webhook {
-        -Notion_Pages notion_pages
-        +__construct(notion_pages)
+        -notion_pages: Notion_Import_Coordinator
         +handle_webhook()
-        +process_webhook_event(event_type, page_id)
-        -handle_page_deleted(page_id)
-        -handle_page_updated(page_id)
-        -handle_page_created(page_id)
+        +handle_specific_event()
+        +handle_page_updated()
+        +handle_database_updated()
     }
 
+    %% Utils Layer
     class Notion_To_WordPress_Helper {
-        +debug_log(message, context, level)
-        +info_log(message, context)
-        +error_log(message, context)
-        +custom_kses(content)
-        +plugin_path(path)
-        +get_log_files()
-        +run_log_cleanup()
+        +custom_kses()
+        +normalize_post_status()
+        +info_log()
+        +error_log()
+        +debug_log()
     }
 
-    class Notion_To_WordPress_Loader {
-        -array actions
-        -array filters
-        +add_action(hook, component, callback, priority, accepted_args)
-        +add_filter(hook, component, callback, priority, accepted_args)
-        +run()
+    %% Core Layer
+    class Notion_Logger {
+        +init()
+        +info_log()
+        +error_log()
+        +debug_log()
     }
 
-    Notion_To_WordPress --> Notion_API : depends on
-    Notion_To_WordPress --> Notion_Pages : depends on
-    Notion_To_WordPress --> Notion_To_WordPress_Admin : depends on
-    Notion_To_WordPress --> Notion_To_WordPress_Loader : depends on
-    Notion_Pages --> Notion_API : uses
-    Notion_To_WordPress_Admin --> Notion_API : uses
-    Notion_To_WordPress_Admin --> Notion_Pages : uses
-    Notion_To_WordPress_Webhook --> Notion_Pages : uses
-    Notion_Pages --> Notion_To_WordPress_Helper : uses
-    Notion_API --> Notion_To_WordPress_Helper : uses
+    %% Relationships
+    Notion_To_WordPress --> Notion_API
+    Notion_To_WordPress --> Notion_Import_Coordinator
+    Notion_To_WordPress --> Notion_To_WordPress_Admin
+    Notion_To_WordPress_Admin --> Notion_API
+    Notion_To_WordPress_Admin --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_API
+    Notion_To_WordPress_Webhook --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_To_WordPress_Helper
+    Notion_Import_Coordinator --> Notion_Logger
 ```
 
-#### Sync Flow Sequence Diagram
+### 🔄 Data Flow
 
-The following diagram shows the complete manual sync process flow:
+```
+Notion API → API Communication Layer → Data Transform → Sync Engine → WordPress Database
+     ↑                                                        ↑
+  Webhook Handler                                      Admin Interface Trigger
+```
+
+### 📊 Sync Process Sequence Diagrams
+
+#### Smart Sync (Incremental Sync) Flow
 
 ```mermaid
 sequenceDiagram
-    participant U as User/System
+    participant U as User/Admin
     participant A as Admin Interface
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
-    participant WP as WordPress
-    participant H as Helper Logger
+    participant WP as WordPress Database
 
-    Note over U,H: Manual Sync Flow
-    U->>A: Click Manual Sync
-    A->>P: import_pages(check_deletions, incremental)
-    P->>API: get_database_pages(database_id, filter)
-    API->>API: send_request('databases/{id}/query')
-    API-->>P: Return page list
+    U->>A: Click Smart Sync Button
+    A->>IC: import_pages(check_deletions=true, incremental=true)
+    IC->>API: get_database_pages()
+    API-->>IC: Return all pages list
+    IC->>IC: filter_pages_for_incremental_sync()
+    Note over IC: Compare last_edited_time<br/>Filter pages that need updates
 
-    loop Process each page
-        P->>API: get_page_content(page_id)
-        API->>API: send_request('blocks/{id}/children')
-        API-->>P: Return page content blocks
-        P->>P: convert_blocks_to_html(blocks)
-        P->>P: extract_page_metadata(page)
-        P->>WP: create_or_update_post()
-        P->>H: info_log('Page sync completed')
+    loop Process each page to sync
+        IC->>API: get_page(page_id)
+        API-->>IC: Return page details
+        IC->>API: get_page_content(page_id)
+        API-->>IC: Return page content blocks
+        IC->>IC: convert_blocks_to_html()
+        IC->>WP: create_or_update_post()
+        WP-->>IC: Return post ID
+        IC->>IC: update_page_sync_time()
     end
 
-    P-->>A: Return sync results
-    A-->>U: Display sync status
+    IC-->>A: Return sync result statistics
+    A-->>U: Display sync completion info
 ```
 
-#### Webhook Processing Sequence Diagram
+#### Scheduled Sync (Cron Job) Flow
 
-The following diagram illustrates the real-time webhook processing flow:
+```mermaid
+sequenceDiagram
+    participant C as WordPress Cron
+    participant M as Notion_To_WordPress
+    participant P as Notion_Pages
+    participant API as Notion_API
+    participant WP as WordPress Database
+
+    C->>M: Trigger notion_cron_import event
+    M->>M: cron_import_pages()
+    Note over M: Get configuration options<br/>incremental=true<br/>check_deletions=true
+
+    M->>P: import_pages(check_deletions=true, incremental=true)
+    P->>API: get_database_pages()
+    API-->>P: Return all pages list
+
+    alt Incremental sync mode
+        P->>P: filter_pages_for_incremental_sync()
+        Note over P: Only process updated pages
+    else Full sync mode
+        Note over P: Process all pages
+    end
+
+    loop Process pages
+        P->>API: get_page(page_id)
+        P->>API: get_page_content(page_id)
+        P->>WP: create_or_update_post()
+        P->>P: update_page_sync_time()
+    end
+
+    alt Check deletions option enabled
+        P->>P: check_and_delete_removed_pages()
+        P->>WP: Delete removed posts
+    end
+
+    P-->>M: Return sync results
+    M->>M: Update last_sync_time
+```
+
+#### Webhook Real-time Sync Flow
 
 ```mermaid
 sequenceDiagram
@@ -379,604 +333,306 @@ sequenceDiagram
     participant W as Webhook Handler
     participant P as Notion_Pages
     participant API as Notion_API
-    participant WP as WordPress
-    participant H as Helper Logger
+    participant WP as WordPress Database
 
-    Note over N,H: Webhook Real-time Sync Flow
-    N->>W: POST /webhook (page update event)
-    W->>H: info_log('Webhook event received')
-    W->>W: Verify request signature
+    N->>W: Send Webhook Event
+    Note over N,W: Event types: page.updated<br/>database.updated<br/>page.deleted
 
-    alt Page Update Event
-        W->>P: get_page_data(page_id)
-        P->>API: get_page(page_id)
-        API-->>P: Return page data
-        P->>API: get_page_content(page_id)
-        API-->>P: Return page content
-        P->>P: import_notion_page(page)
+    W->>W: Verify request and event type
+    W->>W: Immediately return 200 response
+    Note over W: Avoid Notion timeout
+
+    alt Page updated event
+        W->>W: handle_page_updated(page_id)
+        W->>API: get_page(page_id)
+        API-->>W: Return page data
+        W->>P: import_notion_page(page)
+        Note over W,P: Force sync, ignore timestamp
         P->>WP: create_or_update_post()
-        P-->>W: Return processing result
-    else Page Delete Event
-        W->>P: Find corresponding WordPress post
-        P->>WP: wp_delete_post()
-        P-->>W: Return deletion result
+
+    else Database updated event
+        W->>W: handle_database_updated()
+        Note over W: Execute incremental or<br/>full sync based on config
+        W->>P: import_pages(check_deletions, incremental)
+        P->>API: get_database_pages()
+        P->>WP: Batch process pages
+
+    else Page deleted event
+        W->>W: handle_page_deleted(page_id)
+        W->>WP: Find and delete corresponding post
+        WP-->>W: Return deletion result
     end
 
-    W->>H: info_log('Webhook processing completed')
-    W-->>N: Return 200 response
+    W->>W: Log processing results
 ```
 
 ---
 
-## 🤝 Contributing Guidelines
+## 📝 Development Workflow
 
-### Contribution Types
+### 🔄 Standard Workflow
 
-#### 🐛 Bug Reports
-**Before Reporting:**
-- Search existing issues to avoid duplicates
-- Test with the latest plugin version
-- Gather detailed reproduction information
+```bash
+# 1. Create feature branch
+git checkout -b feature/your-feature
 
-**Required Information:**
-- WordPress version, PHP version, Plugin version
-- Detailed step-by-step reproduction steps
-- Expected behavior vs. actual behavior
-- Error messages, logs, or screenshots
-- Browser and environment details (if relevant)
+# 2. Development and testing
+npm run version:check
+npm run build
 
-**Submission:** Use [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) with the bug report template.
+# 3. Code checks
+npm run validate:config
+php -l notion-to-wordpress.php
 
-#### ✨ Feature Requests
-**Process:**
-1. Check [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions) for existing ideas
-2. Ensure the feature aligns with plugin scope and goals
-3. Provide detailed use cases and implementation suggestions
-4. Include mockups or examples if applicable
+# 4. Commit code
+git add .
+git commit -m "feat: add new feature"
 
-#### 🔧 Code Contributions
-**Development Standards:**
-- Follow [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/)
-- Use PSR-12 compatible formatting where applicable
-- Write comprehensive PHPDoc comments for all public methods
-- Implement proper input sanitization and output escaping
-- Include unit tests for new functionality (when applicable)
+# 5. Merge to main
+git checkout main
+git merge feature/your-feature
+```
 
-### Code Quality Standards
+### 📋 Commit Conventions
 
-#### ✅ Recommended Code Patterns
+```
+<type>: <description>
 
+Types:
+- feat: New features
+- fix: Bug fixes
+- docs: Documentation updates
+- style: Code formatting
+- refactor: Refactoring
+- test: Testing
+- chore: Build tools
+```
+
+---
+
+## 🔧 Command Reference
+
+### 🏗️ Build Commands
+
+| Command | Function | Purpose |
+|---------|----------|---------|
+| `npm run build` | Build production package | Pre-release build |
+| `npm run build:clean` | Clean build directory | Remove old builds |
+| `npm run build:verify` | Verify build results | Post-build validation |
+| `npm run clean` | Clean all build files | Quick cleanup |
+
+### 📦 Development Workflow
+
+| Step | Command | Description |
+|------|---------|-------------|
+| 1. Check version | `npm run version:check` | Validate version consistency |
+| 2. Bump version | `npm run version:patch` | Upgrade version as needed |
+| 3. Build package | `npm run build` | Generate production package |
+| 4. Test build | `npm run build:verify` | Verify build results |
+
+### 🚀 Release Commands
+
+| Command | Function | Description |
+|---------|----------|-------------|
+| `npm run release:patch` | Patch release | Auto-release to GitHub |
+| `npm run release:minor` | Minor release | Contains new features |
+| `npm run release:major` | Major release | Breaking changes |
+| `npm run release:beta` | Beta release | Pre-release version |
+| `node scripts/release.js custom --version=X.Y.Z --dry-run` | Custom release | Set specific version |
+| `npm run release:dry-run` | Preview release | Safe preview mode |
+| `npm run release:help` | Show help | View options |
+
+### 🔍 Version Management
+
+| Command | Function | Purpose |
+|---------|----------|---------|
+| `npm run version:check` | Check version consistency | Validate all files have same version |
+| `node scripts/version-bump.js --version=X.Y.Z` | Set custom version | Directly update all version files |
+| `npm run version:patch` | Patch version upgrade | 1.0.0 → 1.0.1 |
+| `npm run version:minor` | Minor version upgrade | 1.0.0 → 1.1.0 |
+| `npm run version:major` | Major version upgrade | 1.0.0 → 2.0.0 |
+| `npm run version:beta` | Beta version upgrade | 1.0.0 → 1.0.1-beta.1 |
+| `npm run version:help` | Show help | Display usage information |
+
+**Note**: For custom version setting, use `node` command directly due to npm parameter passing limitations.
+
+### 🧪 Testing Commands
+
+| Command | Function | Purpose |
+|---------|----------|---------|
+| `npm run test` | Run default tests | Quick test suite |
+| `npm run test:integration` | Integration testing | Comprehensive testing |
+| `npm run test:syntax` | Syntax check | Code validation |
+| `npm run test:release` | Test release process | Safe release preview |
+| `npm run validate` | Run all validations | Complete validation suite |
+| `npm run validate:config` | Validate configuration | Environment check |
+| `npm run validate:github-actions` | Validate CI configuration | Pre-release check |
+| `npm run validate:version` | Validate version consistency | Version check |
+
+### 🔧 Utility Commands
+
+| Command | Function | Purpose |
+|---------|----------|---------|
+| `npm run help` | Show all commands | Display categorized command list |
+| `npm run clean` | Clean build files | Remove build directory |
+| `npm run dev` | Development deployment | Quick build and deploy |
+| `npm run dev:deploy` | Deploy to local WordPress | Local environment deployment |
+
+**Custom Commands** (use `node` directly):
+- `node scripts/version-bump.js --version=X.Y.Z` - Set custom version
+- `node scripts/release.js custom --version=X.Y.Z --dry-run` - Custom release
+
+### 📝 Unit Testing Guide
+
+#### Test File Structure
+```
+tests/
+├── unit/                   # Unit tests
+│   ├── test-notion-api.php
+│   ├── test-notion-pages.php
+│   └── test-helper.php
+├── integration/            # Integration tests
+│   ├── test-sync-flow.php
+│   └── test-webhook.php
+└── bootstrap.php           # Test bootstrap file
+```
+
+#### Writing Unit Tests Example
 ```php
 <?php
 /**
- * Notion to WordPress Sync Handler
- *
- * Handles synchronization between Notion databases and WordPress posts.
- *
- * @since 1.0.0
- * @package Notion_To_WordPress
+ * Notion API Unit Tests
  */
-class Notion_To_WordPress_Sync {
+class Test_Notion_API extends WP_UnitTestCase {
 
-    /**
-     * Synchronize Notion database to WordPress
-     *
-     * @since 1.0.0
-     * @param string $database_id The Notion database ID to sync
-     * @param array  $options     Sync options and configuration
-     * @return array|WP_Error     Sync results or error object
-     */
-    public function sync_database( $database_id, $options = array() ) {
-        // Input validation and sanitization
-        $database_id = sanitize_text_field( $database_id );
-        $options = wp_parse_args( $options, $this->get_default_sync_options() );
+    private $notion_api;
 
-        // Validate required parameters
-        if ( empty( $database_id ) ) {
-            return new WP_Error( 'missing_database_id', __( 'Database ID is required.', 'notion-to-wordpress' ) );
-        }
-
-        // Execute sync logic
-        $result = $this->execute_sync( $database_id, $options );
-
-        // Return sanitized results
-        return array(
-            'status'    => 'success',
-            'message'   => esc_html( $result['message'] ),
-            'synced'    => absint( $result['count'] ),
-            'timestamp' => current_time( 'mysql' )
-        );
+    public function setUp(): void {
+        parent::setUp();
+        $this->notion_api = new Notion_API();
     }
 
     /**
-     * Get default sync options
-     *
-     * @since 1.0.0
-     * @return array Default options array
+     * Test API connection
      */
-    private function get_default_sync_options() {
-        return array(
-            'batch_size'    => 10,
-            'timeout'       => 30,
-            'update_existing' => true,
-            'delete_missing'  => false
-        );
-    }
-}
-```
-
-#### ❌ Code Patterns to Avoid
-
-```php
-<?php
-// Dangerous: No input validation or output escaping
-$api_key = $_POST['notion_api_key'];  // Security risk!
-echo '<p>' . $message . '</p>';       // XSS vulnerability!
-
-// Poor: No error handling
-$result = wp_remote_get( $url );
-$data = json_decode( $result['body'] );
-
-// Inconsistent: Mixed coding styles
-function badFunction($param1,$param2){
-    if($param1){
-        return $param2;
-    }
-}
-```
-
-### Pull Request Process
-
-```bash
-# 1. Create and switch to feature branch
-git checkout -b feature/amazing-new-feature
-
-# 2. Implement your changes
-# - Follow coding standards
-# - Add comprehensive comments
-# - Include error handling
-# - Test thoroughly
-
-# 3. Commit with descriptive messages
-git add .
-git commit -m "feat: add amazing new feature
-
-- Implement core functionality
-- Add input validation
-- Include comprehensive tests
-- Update documentation"
-
-# 4. Push branch to your fork
-git push origin feature/amazing-new-feature
-
-# 5. Create Pull Request
-# - Use clear, descriptive title
-# - Link related issues
-# - Include testing instructions
-# - Add screenshots for UI changes
-```
-
-### Documentation Requirements
-
-#### Code Documentation
-- PHPDoc comments for all classes, methods, and functions
-- Inline comments for complex logic
-- README updates for new features
-- Changelog entries for all changes
-
-#### User Documentation
-- Wiki updates for new features
-- Screenshot updates for UI changes
-- Translation string updates
-- FAQ additions for common questions
-
----
-
-## 📦 Local Development & Testing
-
-### Local Testing Environment
-
-#### WordPress Development Setup
-```bash
-# Option 1: Local WordPress installation
-# Download WordPress, configure database, install plugin
-
-# Option 2: Docker setup (recommended)
-docker-compose up -d wordpress
-
-# Option 3: Local development tools
-# XAMPP, WAMP, MAMP, or Local by Flywheel
-```
-
-#### Notion API Testing
-```bash
-# 1. Create Notion integration at https://www.notion.so/my-integrations
-# 2. Get Internal Integration Token
-# 3. Create test database with required properties
-# 4. Share database with your integration
-```
-
-### Local Packaging System
-
-The local packaging system allows safe testing without affecting the Git repository.
-
-#### Basic Commands
-
-```bash
-# View all available options
-node scripts/local-package.js --help
-
-# Standard version increments
-npm run package:local patch    # 1.2.0 → 1.2.1
-npm run package:local minor    # 1.2.0 → 1.3.0
-npm run package:local major    # 1.2.0 → 2.0.0
-npm run package:local beta     # 1.2.0 → 1.2.1-beta.1
-
-# Custom version numbers
-npm run package:local -- --version=1.2.6-test.1
-npm run package:local -- --version=1.3.0-dev.1
-npm run package:local -- --version=2.0.0-alpha.1
-```
-
-#### Advanced Options
-
-```bash
-# Preview mode (recommended for first use)
-npm run package:local patch --dry-run
-npm run package:local -- --version=1.2.6-test.1 --dry-run
-
-# Package only (no version update)
-npm run package:local -- --build-only
-
-# Version update only (no package creation)
-npm run package:local -- --version-only
-
-# Direct script execution
-node scripts/local-package.js --version=1.2.6-test.1 --dry-run
-```
-
-### Testing Workflow
-
-```bash
-# 1. Create test version
-npm run package:local -- --version=1.2.6-test.1
-
-# 2. Locate generated package
-# File: build/notion-to-wordpress-1.2.6-test.1.zip
-
-# 3. Test in WordPress
-# - Upload ZIP to WordPress admin → Plugins → Add New → Upload
-# - Activate plugin and configure settings
-# - Test all functionality thoroughly
-# - Verify new features work as expected
-
-# 4. Commit changes when satisfied
-git add .
-git commit -m "feat: implement new feature with comprehensive testing"
-```
-
-### Local Package Features
-
-- ✅ **Safe Testing**: No Git operations, repository remains unchanged
-- ✅ **Automatic Backup**: Creates backup before changes, auto-rollback on errors
-- ✅ **Version Synchronization**: Updates version in all relevant files automatically
-- ✅ **WordPress Compatibility**: Generated ZIP ready for direct WordPress installation
-- ✅ **Build Validation**: Ensures package meets WordPress plugin standards
-
----
-
-## 🚀 Release Management
-
-### Automated Release System
-
-Our sophisticated release system provides enterprise-grade CI/CD capabilities, transforming complex release processes into simple, one-command operations.
-
-#### Release Types & Semantic Versioning
-
-| Type | Version Change | Use Case | Command |
-|------|---------------|----------|---------|
-| **Patch** | 1.1.0 → 1.1.1 | Bug fixes, security patches, minor improvements | `npm run release:patch` |
-| **Minor** | 1.1.0 → 1.2.0 | New features, enhancements, backward-compatible changes | `npm run release:minor` |
-| **Major** | 1.1.0 → 2.0.0 | Breaking changes, major rewrites, API modifications | `npm run release:major` |
-| **Beta** | 1.1.0 → 1.1.1-beta.1 | Pre-release testing, experimental features | `npm run release:beta` |
-
-### Standard Release Process
-
-#### Pre-Release Checklist
-
-```bash
-# 1. Ensure clean working directory
-git status  # Should show "working tree clean"
-
-# 2. Verify all tests pass
-npm run test:integration
-
-# 3. Validate configuration
-npm run validate:config
-npm run validate:github-actions
-
-# 4. Preview the release (highly recommended)
-npm run test:release patch  # or minor/major/beta
-```
-
-#### Execute Release
-
-```bash
-# Standard releases
-npm run release:patch   # For bug fixes
-npm run release:minor   # For new features
-npm run release:major   # For breaking changes
-npm run release:beta    # For testing versions
-
-# Monitor the process
-# - Review version changes when prompted
-# - Confirm release when ready
-# - Watch GitHub Actions for completion
-```
-
-### Custom Version Releases
-
-#### Using npm Scripts (Recommended)
-
-```bash
-# Release candidates
-npm run release:custom -- --version=1.3.0-rc.1
-npm run release:custom -- --version=1.3.0-rc.2
-
-# Hotfix releases
-npm run release:custom -- --version=1.2.1-hotfix.1
-npm run release:custom -- --version=1.2.1-hotfix.2
-
-# Alpha/Beta releases
-npm run release:custom -- --version=2.0.0-alpha.1
-npm run release:custom -- --version=2.0.0-beta.1
-
-# Preview custom releases
-npm run release:custom -- --version=1.3.0-rc.1 --dry-run
-
-# Force release (skip confirmations)
-npm run release:custom -- --version=1.3.0-rc.1 --force
-```
-
-#### Direct Script Usage
-
-```bash
-# Direct script execution with full control
-node scripts/release.js --version=1.3.0-rc.1
-node scripts/release.js --version=1.3.0-rc.1 --dry-run
-node scripts/release.js --version=1.3.0-rc.1 --force
-
-# View all available options
-node scripts/release.js --help
-```
-
-### Release Process Deep Dive
-
-The automated release system executes the following comprehensive workflow:
-
-#### 1. Environment Validation
-- **Git Repository Status**: Ensures working directory is clean
-- **Node.js Compatibility**: Verifies Node.js version meets requirements
-- **Tool Availability**: Confirms all required tools are accessible
-- **Branch Validation**: Checks current branch and remote status
-
-#### 2. Version Management
-- **Current Version Detection**: Reads version from main plugin file
-- **New Version Calculation**: Computes new version based on release type
-- **Multi-File Updates**: Synchronizes version across all relevant files:
-  - `notion-to-wordpress.php` (WordPress plugin header)
-  - `readme.txt` (WordPress.org stable tag)
-  - `package.json` (npm package version)
-  - `includes/class-notion-to-wordpress.php` (PHP class version)
-  - `docs/PROJECT_STATUS.md` and `docs/PROJECT_STATUS-zh_CN.md` (documentation)
-
-#### 3. Package Building
-- **WordPress Standards**: Creates WordPress.org compliant ZIP package
-- **File Optimization**: Excludes development files, includes only runtime essentials
-- **Size Optimization**: Generates minimal package for faster downloads
-- **Validation**: Ensures package meets all WordPress plugin requirements
-
-#### 4. Git Operations
-- **Commit Creation**: Creates descriptive commit with version changes
-- **Tag Generation**: Creates annotated Git tag (e.g., `v1.2.1`)
-- **Remote Push**: Pushes commits and tags to GitHub repository
-
-#### 5. GitHub Actions Integration
-- **Automatic Trigger**: Release tag push triggers GitHub Actions workflow
-- **Build Verification**: Re-builds and validates package in clean environment
-- **Release Creation**: Creates GitHub Release with:
-  - Downloadable ZIP package
-  - Security checksums (SHA256, MD5)
-  - Auto-generated release notes
-  - Installation instructions
-  - Version comparison links
-
-### Release Configuration
-
-#### Configuration File (`release.config.js`)
-
-```javascript
-module.exports = {
-    // Project metadata
-    project: {
-        name: 'notion-to-wordpress',
-        displayName: 'Notion-to-WordPress',
-        author: 'Frank-Loong',
-        description: 'Advanced Notion to WordPress integration'
-    },
-
-    // Version management
-    version: {
-        files: [
-            // Files that need version updates
-            {
-                path: 'notion-to-wordpress.php',
-                patterns: [
-                    // WordPress plugin header
-                    {
-                        regex: /(\* Version:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    }
-                ]
+    public function test_api_connection() {
+        // Mock API response
+        $mock_response = [
+            'object' => 'database',
+            'id' => 'test-database-id'
+        ];
+
+        // Use WordPress HTTP API mock
+        add_filter('pre_http_request', function($response, $args, $url) use ($mock_response) {
+            if (strpos($url, 'notion.com/v1') !== false) {
+                return [
+                    'response' => ['code' => 200],
+                    'body' => json_encode($mock_response)
+                ];
             }
-            // ... additional files
-        ]
-    },
+            return $response;
+        }, 10, 3);
 
-    // Build configuration
-    build: {
-        output: {
-            directory: 'build',
-            filename: '{PROJECT_NAME}-{VERSION}.zip'
-        },
-        include: {
-            files: ['notion-to-wordpress.php', 'readme.txt', 'uninstall.php'],
-            directories: ['admin/', 'assets/', 'includes/', 'languages/']
-        },
-        exclude: [
-            'node_modules/', 'scripts/', '.git/', 'docs/', 'wiki/',
-            '*.log', '*.tmp', '.env'
-        ]
+        $result = $this->notion_api->test_connection();
+        $this->assertTrue($result);
     }
-};
+
+    /**
+     * Test data validation
+     */
+    public function test_data_validation() {
+        // Test invalid database ID
+        $result = $this->notion_api->get_database_pages('invalid-id');
+        $this->assertInstanceOf('WP_Error', $result);
+        $this->assertEquals('invalid_database_id', $result->get_error_code());
+    }
+
+    /**
+     * Test error handling
+     */
+    public function test_error_handling() {
+        // Mock API error response
+        add_filter('pre_http_request', function($response, $args, $url) {
+            return [
+                'response' => ['code' => 401],
+                'body' => json_encode(['message' => 'Unauthorized'])
+            ];
+        }, 10, 3);
+
+        $result = $this->notion_api->get_database_pages('test-id');
+        $this->assertInstanceOf('WP_Error', $result);
+        $this->assertEquals('api_unauthorized', $result->get_error_code());
+    }
+}
 ```
 
-#### Customization Options
-
+#### Running Tests
 ```bash
-# Modify output directory
-# Edit release.config.js → build.output.directory
+# Install PHPUnit (if not installed)
+composer require --dev phpunit/phpunit
 
-# Add/remove files from package
-# Edit release.config.js → build.include/exclude
+# Run all tests
+vendor/bin/phpunit
 
-# Customize commit messages
-# Edit release.config.js → git.commitMessage.template
+# Run specific test file
+vendor/bin/phpunit tests/unit/test-notion-api.php
 
-# Update GitHub settings
-# Edit release.config.js → github section
+# Run tests with coverage report
+vendor/bin/phpunit --coverage-html coverage/
 ```
 
 ---
 
-## 🔧 Troubleshooting
+## 🐛 Debug Guide
 
-### Common Development Issues
+### 🔍 Common Issues
 
-#### "Working directory has uncommitted changes"
-
-**Problem**: Git working directory is not clean before release
-
-**Solutions**:
+#### Build Failures
 ```bash
-# Check what files are modified
-git status
+# Check Node.js version
+node --version  # Requires 18+
 
-# Option 1: Commit your changes
-git add .
-git commit -m "feat: implement new feature"
-
-# Option 2: Stash changes temporarily
-git stash
-# ... perform release ...
-git stash pop
-
-# Option 3: Force release (not recommended)
-node scripts/release.js patch --force
-```
-
-#### "Version mismatch detected across files"
-
-**Problem**: Version numbers are inconsistent between files
-
-**Solutions**:
-```bash
-# Check version consistency
-node scripts/version-bump.js
-
-# Fix version inconsistencies automatically
-node scripts/version-bump.js patch
-
-# Manual verification
-grep -r "Version:" notion-to-wordpress.php
-grep -r "Stable tag:" readme.txt
-```
-
-#### "Build process failed"
-
-**Problem**: Package building encounters errors
-
-**Solutions**:
-```bash
-# Check Node.js version compatibility
-node --version  # Should be 16+
-npm --version   # Should be 8+
-
-# Clean and reinstall dependencies
-rm -rf node_modules package-lock.json
+# Clean and reinstall
+# Linux/Mac: rm -rf node_modules package-lock.json
+# Windows: Remove-Item node_modules, package-lock.json -Recurse -Force
 npm install
 
-# Test build process manually
-npm run build
-
-# Check for file permission issues (Unix/Linux)
-chmod +x scripts/*.js
+# Verify environment
+npm run validate:config
 ```
 
-#### "GitHub Actions workflow failed"
-
-**Problem**: Automated release workflow fails
-
-**Solutions**:
-1. **Check GitHub Actions tab** in your repository
-2. **Review workflow logs** for specific error messages
-3. **Verify GitHub token permissions** (usually automatic)
-4. **Validate workflow file syntax**:
-   ```bash
-   npm run validate:github-actions
-   ```
-5. **Test locally** before pushing:
-   ```bash
-   npm run test:release patch
-   ```
-
-#### "WordPress plugin activation errors"
-
-**Problem**: Plugin fails to activate in WordPress
-
-**Solutions**:
+#### Version Inconsistency
 ```bash
-# Check PHP syntax errors
+# Auto-fix version inconsistency (choose appropriate type)
+npm run version:patch
+
+# Manual version check
+# Linux/Mac:
+grep "Version:" notion-to-wordpress.php
+grep "version" package.json
+
+# Windows PowerShell:
+Select-String "Version:" notion-to-wordpress.php
+Select-String "version" package.json
+
+# View help information
+npm run version:help
+```
+
+#### Plugin Activation Failure
+```bash
+# PHP syntax check
 php -l notion-to-wordpress.php
 
-# Verify WordPress compatibility
-# Check minimum WordPress version in readme.txt
-
-# Review PHP error logs
-tail -f /path/to/wordpress/wp-content/debug.log
-
-# Test with WordPress debug mode
+# Enable WordPress debug
 # Add to wp-config.php:
-define('WP_DEBUG', true);
-define('WP_DEBUG_LOG', true);
+# define('WP_DEBUG', true);
+# define('WP_DEBUG_LOG', true);
 ```
 
-### Debug Mode and Logging
+### 🛠️ Debug Configuration
 
-#### Enable Debug Mode
-
-```bash
-# Comprehensive dry-run with full output
-node scripts/release.js patch --dry-run --force
-
-# Step-by-step manual testing
-node scripts/version-bump.js patch
-npm run build
-git status
-```
-
-#### WordPress Debug Configuration
-
+#### WordPress Debug
 ```php
 // wp-config.php
 define('WP_DEBUG', true);
@@ -985,254 +641,600 @@ define('WP_DEBUG_DISPLAY', false);
 define('SCRIPT_DEBUG', true);
 ```
 
-### Getting Help
+#### Performance Monitoring
+```php
+// Memory usage monitoring
+$memory_before = memory_get_usage();
+// ... code ...
+$memory_after = memory_get_usage();
+error_log('Memory used: ' . ($memory_after - $memory_before) . ' bytes');
+```
 
-#### Support Channels
+### ❓ Troubleshooting FAQ
 
-- **General Questions**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
-- **Bug Reports**: [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
-- **Security Issues**: Contact maintainer directly at [frankloong@qq.com](mailto:frankloong@qq.com)
-- **Documentation Issues**: Create pull request with improvements
+#### Q1: Sync fails with "Invalid API key"
+**Symptoms**: Connection test fails, logs show 401 error
+**Solutions**:
+```bash
+# 1. Check API key format
+# Correct format: secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-#### Before Seeking Help
+# 2. Verify API key permissions
+# Ensure integration is added to target database
 
-1. **Search existing issues** and discussions
-2. **Check documentation** thoroughly
-3. **Test with latest version**
-4. **Gather detailed information**:
-   - WordPress version
-   - PHP version
-   - Plugin version
-   - Error messages
-   - Steps to reproduce
+# 3. Regenerate API key
+# Regenerate key in Notion integration settings
+```
+
+#### Q2: Sync is very slow
+**Symptoms**: Takes too long to sync large number of pages
+**Solutions**:
+```bash
+# 1. Enable incremental sync
+# Settings → Sync Options → Enable Incremental Sync
+
+# 2. Adjust batch size
+# Settings → Performance Optimization → Batch Size: 10-20
+
+# 3. Check server performance
+php -m | grep -E "(curl|json|mbstring)"  # Ensure extensions are installed
+```
+
+#### Q3: Images not displaying
+**Symptoms**: Images in posts show as links or fail to load
+**Solutions**:
+```bash
+# 1. Check media library permissions
+# Linux/Mac: ls -la wp-content/uploads/
+# Windows: Get-ChildItem wp-content/uploads/ -Force
+
+# 2. Verify image download settings
+# Settings → Media Options → Enable Image Download
+
+# 3. Check network connectivity
+curl -I https://s3.us-west-2.amazonaws.com/secure.notion-static.com/test.jpg
+```
+
+#### Q4: Webhook not working
+**Symptoms**: WordPress doesn't auto-sync after Notion updates
+**Solutions**:
+```bash
+# 1. Check Webhook URL
+# Ensure URL is accessible from internet: https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
+
+# 2. Verify SSL certificate
+curl -I https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
+
+# 3. Check firewall settings
+# Ensure server allows requests from Notion
+```
+
+#### Q5: Out of memory error
+**Symptoms**: "Fatal error: Allowed memory size exhausted" during sync
+**Solutions**:
+```php
+// 1. Increase PHP memory limit
+// Add to wp-config.php:
+ini_set('memory_limit', '512M');
+
+// 2. Optimize batch size
+// Settings → Performance Optimization → Batch Size: 5-10
+
+// 3. Use real-time data queries
+// Plugin uses direct database queries for data consistency
+```
+
+#### Q6: Chinese characters display as garbled text
+**Symptoms**: Chinese content shows as question marks or garbled after sync
+**Solutions**:
+```sql
+-- 1. Check database charset
+SHOW VARIABLES LIKE 'character_set%';
+
+-- 2. Modify database charset (if needed)
+ALTER DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 3. Modify table charset
+ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+---
+
+## 🚀 Release Management
+
+### 📋 Release Types
+
+| Type | Version Change | Use Case |
+|------|---------------|----------|
+| Patch | 1.1.0 → 1.1.1 | Bug fixes, security patches |
+| Minor | 1.1.0 → 1.2.0 | New features, backward compatible |
+| Major | 1.1.0 → 2.0.0 | Breaking changes |
+| Beta | 1.1.0 → 1.1.1-beta.1 | Pre-release testing |
+
+### 🚀 Release Process
+
+```bash
+# 1. Pre-release checks
+git status                    # Ensure clean working directory
+npm run validate:config       # Validate configuration
+npm run release:dry-run       # Preview release
+
+# 2. Execute release
+npm run release:patch         # Choose appropriate type
+
+# 3. Post-release verification
+# - Check GitHub Actions status
+# - Verify GitHub Release page
+# - Test downloaded ZIP package
+```
+
+### 🔧 Custom Versions
+
+```bash
+# Release candidates
+node scripts/release.js custom --version=1.8.1-rc.1
+
+# Hotfix versions
+node scripts/release.js custom --version=1.8.1-hotfix.1
+
+# Preview mode
+node scripts/release.js custom --version=X.Y.Z --dry-run
+```
 
 ---
 
 ## 📚 Best Practices
 
-### Development Workflow
+### 🔒 Code Quality
 
-#### Recommended Development Process
-
-```bash
-# 1. Planning Phase
-- Create GitHub issue for feature/bug
-- Discuss implementation approach
-- Plan testing strategy
-
-# 2. Development Phase
-- Create feature branch from main
-- Implement changes incrementally
-- Commit frequently with clear messages
-- Test continuously during development
-
-# 3. Testing Phase
-- Create local test packages
-- Test in multiple WordPress environments
-- Verify all functionality works correctly
-- Test edge cases and error conditions
-
-# 4. Review Phase
-- Self-review code for quality
-- Update documentation as needed
-- Ensure coding standards compliance
-- Run all validation tools
-
-# 5. Release Preparation
-- Merge feature branch to main
-- Run comprehensive test suite
-- Use preview mode to verify release
-- Update changelog and version notes
-
-# 6. Release Execution
-- Choose appropriate version type
-- Execute release command
-- Monitor GitHub Actions status
-- Verify release availability
-```
-
-### Code Quality Guidelines
-
-#### Security Best Practices
-
-```php
-<?php
-// Always sanitize input
-$user_input = sanitize_text_field( $_POST['field_name'] );
-
-// Always escape output
-echo '<p>' . esc_html( $message ) . '</p>';
-
-// Use nonces for form security
-wp_nonce_field( 'my_action', 'my_nonce' );
-if ( ! wp_verify_nonce( $_POST['my_nonce'], 'my_action' ) ) {
-    wp_die( 'Security check failed' );
-}
-
-// Validate user capabilities
-if ( ! current_user_can( 'manage_options' ) ) {
-    wp_die( 'Insufficient permissions' );
-}
-```
-
-#### Performance Optimization
-
-```php
-<?php
-// Use WordPress caching
-$cache_key = 'notion_data_' . md5( $database_id );
-$data = wp_cache_get( $cache_key );
-if ( false === $data ) {
-    $data = $this->fetch_notion_data( $database_id );
-    wp_cache_set( $cache_key, $data, '', HOUR_IN_SECONDS );
-}
-
-// Optimize database queries
-global $wpdb;
-$results = $wpdb->get_results( $wpdb->prepare(
-    "SELECT * FROM {$wpdb->posts} WHERE post_type = %s AND post_status = %s",
-    'post',
-    'publish'
-) );
-
-// Use WordPress HTTP API
-$response = wp_remote_get( $url, array(
-    'timeout' => 30,
-    'headers' => array(
-        'Authorization' => 'Bearer ' . $api_token
-    )
-) );
-```
-
-### Version Strategy
-
-#### Semantic Versioning Guidelines
-
-- **Patch (1.1.0 → 1.1.1)**:
-  - Bug fixes and security patches
-  - Performance improvements
-  - Documentation updates
-  - Translation updates
-
-- **Minor (1.1.0 → 1.2.0)**:
-  - New features and functionality
-  - UI/UX improvements
-  - New configuration options
-  - Backward-compatible API changes
-
-- **Major (1.1.0 → 2.0.0)**:
-  - Breaking changes to existing functionality
-  - Major architectural changes
-  - Removal of deprecated features
-  - Incompatible API modifications
-
-- **Pre-release (1.1.0 → 1.1.1-beta.1)**:
-  - Testing versions for community feedback
-  - Experimental features
-  - Release candidates
-
-### Documentation Standards
-
-#### Code Documentation
-
+#### PHP Code Standards
 ```php
 <?php
 /**
- * Class description with purpose and usage
- *
- * Detailed explanation of what this class does,
- * how it fits into the overall architecture,
- * and any important usage notes.
- *
- * @since 1.0.0
- * @package Notion_To_WordPress
- * @subpackage Core
+ * Example class demonstrating best practices
  */
 class Notion_To_WordPress_Example {
 
     /**
-     * Method description with clear purpose
+     * Data processing method
      *
-     * Detailed explanation of what this method does,
-     * including any side effects or important behavior.
-     *
+     * @param string $input Input parameter
+     * @return array|WP_Error Processing result
      * @since 1.0.0
-     * @param string $param1 Description of first parameter
-     * @param array  $param2 {
-     *     Optional. Description of array parameter.
-     *
-     *     @type string $key1 Description of array key
-     *     @type int    $key2 Description of another key
-     * }
-     * @return array|WP_Error Success array or error object
      */
-    public function example_method( $param1, $param2 = array() ) {
-        // Implementation
+    public function process_data( $input ) {
+        // Input validation
+        if ( empty( $input ) ) {
+            return new WP_Error( 'invalid_input', 'Input cannot be empty' );
+        }
+
+        // Data sanitization
+        $clean_input = sanitize_text_field( $input );
+
+        // Processing logic
+        $result = $this->transform_data( $clean_input );
+
+        return $result;
     }
 }
 ```
 
-#### User Documentation
+#### JavaScript Code Standards
+```javascript
+(function($) {
+    'use strict';
 
-- **Clear headings** and logical structure
-- **Step-by-step instructions** with screenshots
-- **Code examples** with explanations
-- **Troubleshooting sections** for common issues
-- **Cross-references** to related documentation
+    const NotionWordPress = {
+        init: function() {
+            this.bindEvents();
+        },
+
+        bindEvents: function() {
+            $('.sync-button').on('click', this.handleSync.bind(this));
+        },
+
+        handleSync: function(event) {
+            event.preventDefault();
+            this.showLoading();
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'notion_sync',
+                    nonce: notion_ajax.nonce
+                },
+                success: this.handleSuccess.bind(this),
+                error: this.handleError.bind(this)
+            });
+        }
+    };
+
+    $(document).ready(function() {
+        NotionWordPress.init();
+    });
+
+})(jQuery);
+```
+
+### 🛡️ Security Standards
+
+#### Data Validation
+```php
+// Input validation
+$page_id = sanitize_text_field( $_POST['page_id'] );
+if ( ! preg_match( '/^[a-f0-9-]{36}$/', $page_id ) ) {
+    wp_die( 'Invalid page ID format' );
+}
+
+// Output escaping
+echo '<h1>' . esc_html( $title ) . '</h1>';
+echo '<a href="' . esc_url( $link ) . '">' . esc_html( $text ) . '</a>';
+
+// Nonce verification
+if ( ! wp_verify_nonce( $_POST['nonce'], 'notion_sync_action' ) ) {
+    wp_die( 'Security verification failed' );
+}
+```
+
+### ⚡ Performance Optimization
+
+#### Real-time Data Query Strategy
+
+**Why Real-time Queries?**
+- **Data Consistency**: Always reflects the current database state
+- **Incremental Sync Accuracy**: Enables precise change detection
+- **Simplified Architecture**: Eliminates cache invalidation complexity
+- **Debugging Ease**: No cache-related issues to troubleshoot
+
+```php
+// Direct database queries ensure data consistency
+// Use batch queries for optimal performance
+$pages = $this->fetch_notion_pages_batch( $database_ids );
+
+// Leverage WordPress built-in optimizations
+$post_ids = wp_list_pluck( $posts, 'ID' );
+$meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
+```
+
+#### Database Optimization
+```php
+// Batch queries instead of loops
+$post_ids = wp_list_pluck( $posts, 'ID' );
+$meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
+```
+
+### 🚨 Error Handling Best Practices
+
+#### Exception Handling Pattern
+```php
+/**
+ * Standard error handling example
+ */
+public function sync_notion_page( $page_id ) {
+    try {
+        // Input validation
+        if ( empty( $page_id ) || ! is_string( $page_id ) ) {
+            throw new InvalidArgumentException( 'Page ID cannot be empty and must be a string' );
+        }
+
+        // API call error handling
+        $page_data = $this->notion_api->get_page( $page_id );
+        if ( is_wp_error( $page_data ) ) {
+            Notion_To_WordPress_Helper::error_log(
+                sprintf( 'Failed to get page: %s', $page_data->get_error_message() ),
+                'SYNC_ERROR'
+            );
+            return $page_data; // Return WP_Error object
+        }
+
+        // Data validation
+        if ( ! isset( $page_data['properties'] ) ) {
+            return new WP_Error(
+                'invalid_page_data',
+                'Invalid page data format: missing properties field',
+                ['page_id' => $page_id, 'data' => $page_data]
+            );
+        }
+
+        // Business logic processing
+        $post_id = $this->create_or_update_post( $page_data );
+        if ( is_wp_error( $post_id ) ) {
+            // Log detailed error information
+            Notion_To_WordPress_Helper::error_log(
+                sprintf(
+                    'Failed to create/update post: %s (Page ID: %s)',
+                    $post_id->get_error_message(),
+                    $page_id
+                ),
+                'POST_CREATION_ERROR'
+            );
+            return $post_id;
+        }
+
+        // Success log
+        Notion_To_WordPress_Helper::info_log(
+            sprintf( 'Page synced successfully: %s -> Post ID: %d', $page_id, $post_id ),
+            'SYNC_SUCCESS'
+        );
+
+        return $post_id;
+
+    } catch ( Exception $e ) {
+        // Catch all unhandled exceptions
+        $error_message = sprintf(
+            'Exception occurred during sync: %s (File: %s, Line: %d)',
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        );
+
+        Notion_To_WordPress_Helper::error_log( $error_message, 'EXCEPTION' );
+
+        return new WP_Error(
+            'sync_exception',
+            'Unexpected error occurred during sync',
+            ['exception' => $e->getMessage(), 'page_id' => $page_id]
+        );
+    }
+}
+```
+
+#### Error Classification and Handling Strategy
+```php
+/**
+ * Error classification handling
+ */
+class Notion_Error_Handler {
+
+    const ERROR_TYPES = [
+        'API_ERROR' => 'API call error',
+        'VALIDATION_ERROR' => 'Data validation error',
+        'PERMISSION_ERROR' => 'Permission error',
+        'RATE_LIMIT_ERROR' => 'Rate limit error',
+        'NETWORK_ERROR' => 'Network connection error',
+        'DATA_ERROR' => 'Data processing error'
+    ];
+
+    /**
+     * Unified error handling
+     */
+    public static function handle_error( $error, $context = [] ) {
+        if ( ! is_wp_error( $error ) ) {
+            return $error;
+        }
+
+        $error_code = $error->get_error_code();
+        $error_message = $error->get_error_message();
+        $error_data = $error->get_error_data();
+
+        // Different strategies based on error type
+        switch ( $error_code ) {
+            case 'api_rate_limit':
+                // Rate limit: wait and retry
+                self::schedule_retry( $context, 60 ); // Retry after 60 seconds
+                break;
+
+            case 'api_unauthorized':
+                // Auth error: notify admin
+                self::notify_admin( 'Authentication failed, please check API key', $error );
+                break;
+
+            case 'network_timeout':
+                // Network timeout: retry after short delay
+                self::schedule_retry( $context, 30 ); // Retry after 30 seconds
+                break;
+
+            default:
+                // Other errors: log
+                Notion_To_WordPress_Helper::error_log(
+                    sprintf( 'Unclassified error: %s', $error_message ),
+                    'UNHANDLED_ERROR'
+                );
+        }
+
+        return $error;
+    }
+
+    /**
+     * Schedule retry task
+     */
+    private static function schedule_retry( $context, $delay_seconds ) {
+        wp_schedule_single_event(
+            time() + $delay_seconds,
+            'notion_retry_sync',
+            [$context]
+        );
+    }
+
+    /**
+     * Notify admin
+     */
+    private static function notify_admin( $message, $error ) {
+        // Send email notification or display admin notice
+        add_action( 'admin_notices', function() use ( $message ) {
+            echo '<div class="notice notice-error"><p>' . esc_html( $message ) . '</p></div>';
+        });
+    }
+}
+```
+
+---
+
+## 🤝 Contributing Guidelines
+
+### 📝 Contribution Types
+
+| Type | Description | Submission Method |
+|------|-------------|-------------------|
+| 🐛 Bug Reports | Discover issues and provide detailed information | [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) |
+| ✨ Feature Suggestions | Propose new feature ideas | [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions) |
+| 🔧 Code Contributions | Submit code fixes or new features | Pull Request |
+| 📚 Documentation Improvements | Enhance documentation content | Pull Request |
+
+### 🔄 Contribution Process
+
+```bash
+# 1. Fork the project
+# Click Fork button on GitHub
+
+# 2. Clone your fork
+git clone https://github.com/YOUR_USERNAME/Notion-to-WordPress.git
+cd Notion-to-WordPress
+
+# 3. Create feature branch
+git checkout -b feature/your-feature-name
+
+# 4. Develop and test
+npm run version:check
+npm run build
+
+# 5. Commit changes
+git add .
+git commit -m "feat: add new feature description"
+
+# 6. Push to your fork
+git push origin feature/your-feature-name
+
+# 7. Create Pull Request
+# Create PR to main repository on GitHub
+```
+
+### ✅ Quality Requirements
+
+- [ ] Follow WordPress coding standards
+- [ ] Include complete PHPDoc comments
+- [ ] Pass all existing tests
+- [ ] Add test cases for new features
+- [ ] Update relevant documentation
+
+### 🔍 Code Review Process
+
+#### Pull Request Checklist
+
+**Pre-submission Self-check**:
+- [ ] Code follows PSR-12 coding standards
+- [ ] All functions have PHPDoc comments
+- [ ] Input data is properly validated and sanitized
+- [ ] Output data is properly escaped
+- [ ] Error handling is complete and reasonable
+- [ ] Performance impact considered
+- [ ] Security risks assessed
+- [ ] Test cases added
+- [ ] Documentation updated
+
+**Reviewer Checklist**:
+- [ ] **Functionality**: Does the code implement expected functionality?
+- [ ] **Security**: Are there any security vulnerabilities?
+- [ ] **Performance**: Are there any performance issues?
+- [ ] **Maintainability**: Is the code easy to understand and maintain?
+- [ ] **Test Coverage**: Are tests sufficient?
+- [ ] **Documentation**: Is documentation accurate and complete?
+
+#### Review Standards
+
+**Code Quality Standards**:
+```php
+// ✅ Good example
+/**
+ * Sync Notion page to WordPress
+ *
+ * @param string $page_id Notion page ID
+ * @param array  $options Sync options
+ * @return int|WP_Error Returns post ID on success, WP_Error on failure
+ * @since 1.0.0
+ */
+public function sync_page( $page_id, $options = [] ) {
+    // Input validation
+    if ( empty( $page_id ) ) {
+        return new WP_Error( 'invalid_page_id', 'Page ID cannot be empty' );
+    }
+
+    // Business logic...
+}
+
+// ❌ Needs improvement
+function sync($id) {  // Missing type hints and documentation
+    $data = $_POST['data'];  // Unvalidated input
+    echo $data;  // Unescaped output
+}
+```
+
+**Security Review Focus**:
+- All user input must be validated and sanitized
+- All output must be properly escaped
+- Database queries must use prepared statements
+- File operations must validate paths and permissions
+- API calls must handle errors and timeouts
+
+**Performance Review Focus**:
+- Avoid N+1 query problems
+- Use batch queries for optimal performance
+- Optimize database queries
+- Control memory usage
+- Handle long operations asynchronously
 
 ---
 
 ## 🔗 Resources
 
-### Essential Links
+### 📚 Official Documentation
+- [WordPress Plugin Development Handbook](https://developer.wordpress.org/plugins/)
+- [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/)
+- [Notion API Documentation](https://developers.notion.com/)
+- [Semantic Versioning Specification](https://semver.org/)
 
-#### Official Documentation
-- **[WordPress Plugin Development](https://developer.wordpress.org/plugins/)** - Official WordPress plugin guide
-- **[WordPress Coding Standards](https://developer.wordpress.org/coding-standards/)** - Code quality guidelines
-- **[Notion API Documentation](https://developers.notion.com/)** - Complete Notion API reference
-- **[Semantic Versioning](https://semver.org/)** - Version numbering standards
+### 🛠️ Development Tools
+- [WordPress CLI](https://wp-cli.org/) - WordPress command-line tool
+- [PHPStan](https://phpstan.org/) - PHP static analysis
+- [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) - Code standards checker
 
-#### Project Documentation
-- **[Language Files Guide](../languages/README.md)** - Internationalization and localization guide
-
-#### Development Tools
-- **[WordPress CLI](https://wp-cli.org/)** - Command-line interface for WordPress
-- **[PHPStan](https://phpstan.org/)** - PHP static analysis tool
-- **[PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)** - Code standards checker
-- **[Composer](https://getcomposer.org/)** - PHP dependency management
-
-#### Testing Resources
-- **[WordPress Unit Tests](https://make.wordpress.org/core/handbook/testing/automated-testing/phpunit/)** - WordPress testing framework
-- **[Local by Flywheel](https://localwp.com/)** - Local WordPress development
-- **[Docker WordPress](https://hub.docker.com/_/wordpress)** - Containerized WordPress
-
-### Community Resources
-
-#### Support and Discussion
-- **[GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)** - Community Q&A
-- **[WordPress.org Forums](https://wordpress.org/support/)** - General WordPress support
-- **[Notion Community](https://www.notion.so/help/community)** - Notion-specific help
-
-#### Learning Resources
-- **[WordPress Developer Handbook](https://developer.wordpress.org/)** - Comprehensive development guide
-- **[PHP: The Right Way](https://phptherightway.com/)** - Modern PHP best practices
-- **[Git Handbook](https://guides.github.com/introduction/git-handbook/)** - Git version control guide
+### 🆘 Getting Help
+- **General Questions**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+- **Bug Reports**: [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+- **Security Issues**: Contact maintainers directly
 
 ---
 
-## 🎉 Success Indicators
+## 📖 Glossary
 
-A successful development contribution will demonstrate:
+### 🔧 Technical Terms
 
-- ✅ **Code Quality**: Follows WordPress coding standards and best practices
-- ✅ **Functionality**: Features work correctly across multiple environments
-- ✅ **Security**: Proper input validation and output escaping implemented
-- ✅ **Performance**: Optimized for speed and resource efficiency
-- ✅ **Documentation**: Comprehensive code comments and user documentation
-- ✅ **Testing**: Thoroughly tested in various scenarios and edge cases
-- ✅ **Compatibility**: Works with supported WordPress and PHP versions
-- ✅ **Accessibility**: Follows WordPress accessibility guidelines
-- ✅ **Internationalization**: Properly prepared for translation
+| Term | Chinese | Explanation |
+|------|---------|-------------|
+| **Incremental Sync** | 增量同步 | Sync only content updated since last sync, improving efficiency |
+| **Full Sync** | 全量同步 | Sync all content regardless of update time |
+| **Webhook** | Webhook | Real-time event notification mechanism, notifies WordPress immediately when Notion updates |
+| **API Key** | API密钥 | Authentication credential for accessing Notion API |
+| **Database ID** | 数据库ID | Unique identifier for Notion database |
+| **Page ID** | 页面ID | Unique identifier for Notion page |
+| **Field Mapping** | 字段映射 | Configuration mapping Notion properties to WordPress fields |
+| **Nonce** | Nonce | WordPress security mechanism preventing CSRF attacks |
+| **Escaping** | 转义 | Security processing of output content to prevent XSS attacks |
+| **Sanitization** | 清理 | Cleaning and validation of input data |
+
+### 🏗️ Architecture Terms
+
+| Term | Chinese | Explanation |
+|------|---------|-------------|
+| **API Communication Layer** | API通信层 | Code layer responsible for interacting with Notion API |
+| **Data Transformer** | 数据转换器 | Converts Notion data format to WordPress format |
+| **Sync Engine** | 同步引擎 | Core synchronization logic processor |
+| **Hook System** | 钩子系统 | WordPress event-driven mechanism |
+| **Loader** | 加载器 | Responsible for registering hooks and initializing components |
+| **Helper Class** | 助手类 | Class providing common utility functions |
+
+### 📝 Development Terms
+
+| Term | Chinese | Explanation |
+|------|---------|-------------|
+| **Conventional Commits** | 约定式提交 | Standardized Git commit message format |
+| **Semantic Versioning** | 语义化版本 | Version number management specification (major.minor.patch) |
+| **PHPDoc** | PHPDoc | PHP code documentation comment standard |
+| **PSR-12** | PSR-12 | PHP coding style specification |
+| **Unit Testing** | 单元测试 | Testing individual code unit functionality |
+| **Integration Testing** | 集成测试 | Testing multiple components working together |
+| **Code Coverage** | 代码覆盖率 | Percentage of code covered by tests |
 
 ---
 
@@ -1244,6 +1246,8 @@ A successful development contribution will demonstrate:
 
 <div align="center">
 
-**[⬆️ Back to Top](#-notion-to-wordpress-developer-guide) • [🏠 Home](../README.md) • [📚 Read the Docs](../docs/Wiki.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🇨🇳 中文版](DEVELOPER_GUIDE-zh_CN.md)**
+**[⬆️ Back to Top](#-notion-to-wordpress-developer-guide) • [🏠 Home](../README.md) • [📚 User Guide](Wiki.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🇨🇳 中文版](DEVELOPER_GUIDE-zh_CN.md)**
+
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>

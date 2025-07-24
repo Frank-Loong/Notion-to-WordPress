@@ -1,4 +1,4 @@
-** [🏠 主页](../README-zh_CN.md) • [📚 用户指南](Wiki.zh_CN.md) • **📊 项目概览** • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md)
+** [🏠 主页](../README-zh_CN.md) • [📚 用户指南](Wiki.zh_CN.md) • **📊 项目概览** • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 语言：** [English](PROJECT_OVERVIEW.md) • **中文**
 
@@ -6,7 +6,7 @@
 
 # 🚀 Notion-to-WordPress - 项目概览与功能对比
 
-> **当前版本**: 1.2.5-beta.5  
+> **当前版本**: 2.0.0-beta.1  
 > **状态**: 生产就绪 ✅  
 > **最后更新**: 2025-07-07
 
@@ -262,5 +262,7 @@
 <div align="center">
 
 **[⬆️ 返回顶部](#-notion-to-wordpress---项目概览与功能对比) • [🏠 主页](../README-zh_CN.md) • [📚 阅读文档](Wiki.zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English](PROJECT_OVERVIEW.md)**
+
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>

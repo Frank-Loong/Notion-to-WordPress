@@ -2,14 +2,20 @@
 declare(strict_types=1);
 
 /**
- * 插件卸载时运行的代码
- *
+ * 卸载脚本
+ * 
+ * 当插件从 WordPress 卸载时，此脚本负责清理所有相关的数据库选项、计划任务和（可选的）内容。
+ * 
  * @since      1.0.5
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
-// 如果不是WordPress调用，则退出
-if (!defined('WP_UNINSTALL_PLUGIN')) {
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
     exit;
 }
 
@@ -163,7 +169,10 @@ function notion_to_wordpress_delete_plugin_attachments() {
         }
 
         // 记录删除的附件数量
-        error_log("Notion to WordPress: 已删除 " . count($all_attachment_ids) . " 个插件相关附件");
+        // 注意：在卸载过程中，Helper类可能不可用，使用WordPress内置日志
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log("Notion to WordPress: 已删除 " . count($all_attachment_ids) . " 个插件相关附件");
+        }
     }
 
     // 清理可能的孤立meta数据

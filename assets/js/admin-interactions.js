@@ -1,8 +1,14 @@
 /**
  * 管理界面交互脚本
+ * 
+ * 处理 Notion to WordPress 插件后台页面的所有用户交互，包括表单提交、AJAX 请求、标签页切换和动态内容更新。
  *
- * @since      1.0.8
- * @package    Notion_To_WordPress
+ * @since 1.0.8
+ * @version 2.0.0-beta.1
+ * @package Notion_To_WordPress
+ * @author Frank-Loong
+ * @license GPL-3.0-or-later
+ * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 jQuery(document).ready(function($) {
@@ -16,7 +22,9 @@ jQuery(document).ready(function($) {
     // 验证必要的安全参数
     if (!notionToWp || !notionToWp.ajax_url || typeof notionToWp.ajax_url !== 'string' || !notionToWp.nonce || typeof notionToWp.nonce !== 'string') {
       console.error(notionToWp.i18n.security_missing || '安全验证参数缺失或无效');
-      return;
+      // 安全检查失败，禁用所有AJAX功能
+      $('.notion-wp-admin-page').addClass('security-check-failed');
+      return false;
     }
 
     // 记录页面加载时的原始语言设置，用于检测变化
@@ -47,15 +55,15 @@ jQuery(document).ready(function($) {
     $('.notion-wp-menu-item').on('click', function(e) {
         e.preventDefault();
         var tabId = $(this).data('tab');
-        
+
         $('.notion-wp-menu-item').removeClass('active');
         $('.notion-wp-tab-content').removeClass('active');
-        
+
         $(this).addClass('active');
-        
+
         // 添加淡入效果
         $('#' + tabId).addClass('active').hide().fadeIn(300);
-        
+
         // 保存用户的标签选择到本地存储
         localStorage.setItem('notion_wp_active_tab', tabId);
     });
@@ -439,7 +447,7 @@ jQuery(document).ready(function($) {
                 showModal(notionToWp.i18n.refresh_error, 'error');
             },
             complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> ' + notionToWp.i18n.refresh_all);
+                button.prop('disabled', false).html('<span class="dashicons dashicons-admin-generic"></span> ' + notionToWp.i18n.refresh_all);
             }
         });
     });
@@ -584,8 +592,15 @@ jQuery(document).ready(function($) {
         e.preventDefault(); // 阻止默认的表单提交
 
         var $form = $(this);
-        var $submitButton = $form.find('input[type="submit"]');
-        var originalButtonText = $submitButton.val();
+        // 精确查找保存设置按钮，避免影响其他按钮
+        var $submitButton = $('#notion-save-settings');
+
+        // 如果没有找到保存按钮，尝试备用选择器
+        if ($submitButton.length === 0) {
+            $submitButton = $form.find('input[type="submit"][name="submit"]');
+        }
+
+        var originalButtonText = $submitButton.val() || $submitButton.text();
 
         // 防止重复提交
         if ($submitButton.prop('disabled')) {
@@ -610,11 +625,28 @@ jQuery(document).ready(function($) {
         // 获取当前webhook设置值（用户选择的新值）
         var newWebhookEnabled = $('#webhook_enabled').is(':checked');
 
-        // 禁用按钮并显示加载状态
-        $submitButton.prop('disabled', true).val(notionToWp.i18n.saving);
+        // 禁用按钮并显示加载状态（只针对保存按钮）
+        $submitButton.prop('disabled', true);
+
+        // 根据按钮类型设置文本
+        if ($submitButton.is('input')) {
+            $submitButton.val(notionToWp.i18n.saving);
+        } else {
+            $submitButton.text(notionToWp.i18n.saving);
+        }
 
         var formData = new FormData(this);
         formData.set('action', 'save_notion_settings'); // 确保action正确
+
+        // 确保nonce字段存在
+        if (!formData.has('notion_to_wordpress_options_nonce')) {
+            var nonceField = $form.find('input[name="notion_to_wordpress_options_nonce"]');
+            if (nonceField.length) {
+                formData.set('notion_to_wordpress_options_nonce', nonceField.val());
+            }
+        }
+
+
 
         $.ajax({
             url: notionToWp.ajax_url,
@@ -678,18 +710,33 @@ jQuery(document).ready(function($) {
                         console.log('Notion to WordPress: Updated original values - language:', originalLanguage, 'webhook:', originalWebhookEnabled);
 
                         // 恢复按钮状态
-                        $submitButton.prop('disabled', false).val(originalButtonText);
+                        $submitButton.prop('disabled', false);
+                        if ($submitButton.is('input')) {
+                            $submitButton.val(originalButtonText);
+                        } else {
+                            $submitButton.text(originalButtonText);
+                        }
                     }
                 } else {
                     showModal(response.data.message || notionToWp.i18n.unknown_error, 'error');
                     // 恢复按钮状态
-                    $submitButton.prop('disabled', false).val(originalButtonText);
+                    $submitButton.prop('disabled', false);
+                    if ($submitButton.is('input')) {
+                        $submitButton.val(originalButtonText);
+                    } else {
+                        $submitButton.text(originalButtonText);
+                    }
                 }
             },
             error: function() {
                 showModal(notionToWp.i18n.unknown_error, 'error');
                 // 恢复按钮状态
-                $submitButton.prop('disabled', false).val(originalButtonText);
+                $submitButton.prop('disabled', false);
+                if ($submitButton.is('input')) {
+                    $submitButton.val(originalButtonText);
+                } else {
+                    $submitButton.text(originalButtonText);
+                }
             },
             complete: function() {
                 // 注意：如果语言发生变化，按钮状态恢复会在页面刷新前处理
@@ -719,16 +766,16 @@ jQuery(document).ready(function($) {
 
     // 初始化复制按钮
     initCopyButtons();
-    
+
     // 初始化复制按钮函数
     function initCopyButtons() {
         const copyButtons = $('.copy-to-clipboard');
-        
+
         copyButtons.each(function(index) {
             const $btn = $(this);
             const target = $btn.data('clipboard-target');
             const $target = $(target);
-            
+
             // 确保按钮有正确的提示
             if (!$btn.attr('title')) {
                 $btn.attr('title', notionToWp.i18n.copy_to_clipboard);
@@ -787,4 +834,4 @@ jQuery(document).ready(function($) {
             }
         }
     });
-})(jQuery); 
+})(jQuery);

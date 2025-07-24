@@ -7,7 +7,7 @@
  * 字符串处理和校验等。
  * 
  * @author Frank-Loong
- * @version 1.0.0
+ * @version 2.0.0-beta.1
  */
 
 const fs = require('fs');
@@ -412,6 +412,104 @@ async function retry(fn, maxRetries = 3, baseDelay = 1000) {
     throw lastError;
 }
 
+/**
+ * 显示友好的 npm scripts 帮助信息
+ */
+function showHelp() {
+    const packageJson = JSON.parse(readFile(path.join(__dirname, '..', 'package.json')));
+    const scripts = packageJson.scripts || {};
+
+    console.log(chalk.cyan('\n🚀 Notion-to-WordPress 开发脚本\n'));
+
+    // 按分类组织脚本
+    const categories = {
+        '🏗️  构建 (Build)': {
+            'build': '构建 WordPress 插件包',
+            'build:clean': '清理构建目录',
+            'build:verify': '验证构建结果'
+        },
+        '📦 版本管理 (Version)': {
+            'version:check': '检查版本一致性',
+            'version:patch': '升级补丁版本 (1.0.0 → 1.0.1)',
+            'version:minor': '升级小版本 (1.0.0 → 1.1.0)',
+            'version:major': '升级主版本 (1.0.0 → 2.0.0)',
+            'version:beta': '升级测试版本 (1.0.0 → 1.0.1-beta.1)',
+            'version:help': '显示版本管理帮助'
+        },
+        '🔧 自定义版本 (Custom Version)': {
+            'node scripts/version-bump.js --version=X.Y.Z': '设置自定义版本号'
+        },
+        '🚀 发布 (Release)': {
+            'release:patch': '发布补丁版本',
+            'release:minor': '发布小版本',
+            'release:major': '发布主版本',
+            'release:beta': '发布测试版本',
+            'release:dry-run': '模拟发布（不实际执行）',
+            'release:help': '显示发布帮助'
+        },
+        '🚀 自定义发布 (Custom Release)': {
+            'node scripts/release.js custom --version=X.Y.Z --dry-run': '发布自定义版本'
+        },
+        '🧪 测试 (Test)': {
+            'test': '运行默认测试',
+            'test:integration': '运行集成测试',
+            'test:syntax': '检查语法',
+            'test:release': '测试发布流程',
+            'test:release:patch': '测试补丁发布',
+            'test:release:minor': '测试小版本发布',
+            'test:release:major': '测试主版本发布',
+            'test:release:beta': '测试测试版发布'
+        },
+        '✅ 验证 (Validate)': {
+            'validate': '运行所有验证',
+            'validate:config': '验证配置文件',
+            'validate:github-actions': '验证 GitHub Actions',
+            'validate:version': '验证版本一致性'
+        },
+        '🛠️  开发 (Development)': {
+            'dev': '开发环境快速部署',
+            'dev:deploy': '部署到本地 WordPress'
+        },
+        '🔧 工具 (Utilities)': {
+            'clean': '清理构建文件',
+            'help': '显示此帮助信息'
+        }
+    };
+
+    // 显示分类帮助
+    Object.keys(categories).forEach(categoryName => {
+        console.log(chalk.yellow(categoryName));
+        const categoryScripts = categories[categoryName];
+
+        Object.keys(categoryScripts).forEach(scriptName => {
+            const description = categoryScripts[scriptName];
+            if (scripts[scriptName]) {
+                // npm scripts
+                console.log(`  ${chalk.green('npm run ' + scriptName.padEnd(20))} ${description}`);
+            } else if (scriptName.startsWith('node ')) {
+                // node commands
+                console.log(`  ${chalk.green(scriptName.padEnd(35))} ${description}`);
+            }
+        });
+        console.log('');
+    });
+    
+    // 显示更多信息
+    console.log(chalk.cyan('📚 更多信息:\n'));
+    console.log(`  开发文档: ${chalk.blue('docs/DEVELOPER_GUIDE.md')}`);
+    console.log(`  中文文档: ${chalk.blue('docs/DEVELOPER_GUIDE-zh_CN.md')}`);
+    console.log(`  项目主页: ${chalk.blue(packageJson.homepage || 'N/A')}`);
+    console.log('');
+}
+
+// 处理命令行参数
+if (require.main === module) {
+    const args = process.argv.slice(2);
+    if (args.includes('--help') || args.includes('-h')) {
+        showHelp();
+    }
+}
+
 // 导出所有工具函数
 module.exports = {
     // 文件操作
@@ -450,5 +548,8 @@ module.exports = {
     
     // 错误处理
     withErrorHandling,
-    retry
+    retry,
+
+    // Help 系统
+    showHelp
 };

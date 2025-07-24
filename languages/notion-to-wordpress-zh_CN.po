@@ -5,7 +5,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Notion to WordPress 1.1.0\n"
+"Project-Id-Version: Notion to WordPress 2.0.0-beta.1\n"
 "Report-Msgid-Bugs-To: https://github.com/Frank-Loong/Notion-to-WordPress/issues\n"
 "POT-Creation-Date: 2025-01-08 17:30+0800\n"
 "PO-Revision-Date: 2025-07-09 20:15+0800\n"
@@ -1041,10 +1041,6 @@ msgstr "无效的PDF文件或包含不安全内容"
 #: includes\class-notion-pages.php
 msgid "media_handle_sideload 错误: "
 msgstr "media_handle_sideload 错误: "
-
-#: includes\class-notion-to-wordpress-helper.php
-msgid "调试级别设置为: "
-msgstr "调试级别设置为: "
 
 #: includes\class-notion-to-wordpress-helper.php
 msgid "内容已截断，完整内容请查看专用日志文件"

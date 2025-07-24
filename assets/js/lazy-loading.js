@@ -1,7 +1,14 @@
 /**
- * 懒加载功能实现
+ * 图片懒加载和渐进式内容加载脚本
  * 
+ * 使用 Intersection Observer API 实现图片的延迟加载，并为 Notion 数据库视图提供渐进式加载功能。
+ *
  * @since 1.1.1
+ * @version 2.0.0-beta.1
+ * @package Notion_To_WordPress
+ * @author Frank-Loong
+ * @license GPL-3.0-or-later
+ * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 (function() {
@@ -214,5 +221,85 @@
             return '无标题';
         }
     };
+
+    /**
+     * 外部特色图像处理
+     */
+    const FeaturedImageHandler = {
+        init() {
+            this.handleExternalFeaturedImages();
+            this.addErrorHandling();
+        },
+
+        /**
+         * 处理外部特色图像
+         */
+        handleExternalFeaturedImages() {
+            const featuredImages = document.querySelectorAll('.post-thumbnail img[src^="http"], .wp-post-image[src^="http"]');
+
+            featuredImages.forEach(img => {
+                // 添加加载状态
+                img.classList.add('notion-external-featured');
+
+                // 如果图像已经加载完成
+                if (img.complete && img.naturalHeight !== 0) {
+                    img.classList.add('loaded');
+                } else {
+                    // 监听加载事件
+                    img.addEventListener('load', () => {
+                        img.classList.add('loaded');
+                    });
+
+                    // 监听错误事件
+                    img.addEventListener('error', () => {
+                        this.handleImageError(img);
+                    });
+                }
+            });
+        },
+
+        /**
+         * 添加错误处理
+         */
+        addErrorHandling() {
+            // 为所有外部图像添加错误处理
+            document.addEventListener('error', (e) => {
+                if (e.target.tagName === 'IMG' && e.target.src.startsWith('http')) {
+                    this.handleImageError(e.target);
+                }
+            }, true);
+        },
+
+        /**
+         * 处理图像加载错误
+         */
+        handleImageError(img) {
+            img.classList.add('notion-image-error');
+
+            // 创建错误占位符
+            const placeholder = document.createElement('div');
+            placeholder.className = 'notion-featured-image-error';
+            placeholder.innerHTML = `
+                <div class="notion-image-placeholder">
+                    <span class="notion-image-icon">🖼️</span>
+                    <span class="notion-image-text">特色图像加载失败</span>
+                </div>
+            `;
+
+            // 替换失败的图像
+            if (img.parentNode) {
+                img.parentNode.replaceChild(placeholder, img);
+            }
+        }
+    };
+
+    // 初始化外部特色图像处理
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            FeaturedImageHandler.init();
+        });
+    } else {
+        FeaturedImageHandler.init();
+    }
 
 })();

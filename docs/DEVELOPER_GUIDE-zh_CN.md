@@ -6,67 +6,90 @@
 
 # 🚀 Notion-to-WordPress 开发者指南
 
-> **Notion-to-WordPress 插件完整开发、贡献和发布指南**
+> **专业的WordPress插件开发、贡献和发布完整指南**
 
 ---
 
 ## 📋 目录
 
-- [🛠️ 开发环境搭建](#-开发环境搭建)
+- [🚀 快速开始](#-快速开始)
+- [🛠️ 开发环境](#-开发环境)
 - [🏗️ 项目架构](#-项目架构)
-- [🤝 贡献指南](#-贡献指南)
-- [📦 本地开发与测试](#-本地开发与测试)
+- [📝 开发流程](#-开发流程)
+- [🔧 命令参考](#-命令参考)
+- [🐛 调试指南](#-调试指南)
 - [🚀 发布管理](#-发布管理)
-- [🔧 故障排除](#-故障排除)
 - [📚 最佳实践](#-最佳实践)
+- [🤝 贡献指南](#-贡献指南)
 - [🔗 资源链接](#-资源链接)
+- [📖 术语表](#-术语表)
 
 ---
 
-## 🛠️ 开发环境搭建
+## 🚀 快速开始
 
-### 系统要求
-
-```bash
-# 必需环境
-- Node.js 16+ (推荐 18+ 以获得最佳性能)
-- Git 2.0+ 并具有 GitHub 访问权限
-- WordPress 6.0+ (用于测试环境)
-- PHP 8.0+ 及必需扩展：
-  - curl (用于 API 请求)
-  - mbstring (用于字符串处理)
-  - json (用于数据处理)
-- Notion 账户及 API 访问权限
-```
-
-### 快速搭建指南
+### ⚡ 5分钟上手
 
 ```bash
-# 1. 克隆仓库
+# 1. 克隆项目
 git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
 cd Notion-to-WordPress
 
-# 2. 安装 Node.js 依赖
+# 2. 安装依赖
 npm install
 
-# 3. 验证环境配置
-npm run validate:config
-npm run validate:github-actions
+# 3. 验证版本一致性
+npm run version:check
 
-# 4. 创建开发分支
-git checkout -b feature/your-feature-name
+# 4. 构建测试
+npm run build
 
-# 5. 测试构建系统
+# 5. 检查结果
+# Linux/Mac: ls -la build/notion-to-wordpress-*.zip
+# Windows: Get-ChildItem build/notion-to-wordpress-*.zip
+```
+
+### ⚡ 简化开发工作流
+
+**日常开发的3步工作流：**
+
+```bash
+# 1. 检查版本一致性
+npm run version:check
+
+# 2. 升级版本（如需要）
+npm run version:patch    # 或 minor/major/beta
+
+# 3. 构建生产包
 npm run build
 ```
 
-### 开发工具配置
+**常用命令速查：**
+- `npm run help` - 查看所有可用命令
+- `npm run version:help` - 查看版本管理帮助
+- `npm run version:check` - 仅检查版本一致性
+- `npm run clean` - 清理构建文件
 
-#### VS Code 设置（推荐）
+### ✅ 环境要求
+
+| 组件 | 最低版本 | 推荐版本 |
+|------|----------|----------|
+| Node.js | 16.0+ | 18.0+ |
+| npm | 8.0+ | 9.0+ |
+| Git | 2.0+ | 最新版 |
+| PHP | 8.0+ | 8.1+ |
+| WordPress | 6.0+ | 最新版 |
+
+---
+
+## 🛠️ 开发环境
+
+### 🔧 IDE配置
+
+#### VS Code设置
 ```json
-// .vscode/settings.json
 {
-  "php.validate.executablePath": "/path/to/php",
+  "php.validate.executablePath": "/usr/bin/php",
   "editor.formatOnSave": true,
   "files.associations": {
     "*.php": "php"
@@ -74,909 +97,542 @@ npm run build
 }
 ```
 
-#### Git 配置
+#### Git配置
 ```bash
-# 为 WordPress 开发配置 Git
 git config core.autocrlf false
 git config core.filemode false
+git config pull.rebase true
+```
+
+### 🐳 WordPress测试环境
+
+```bash
+# Docker方式（推荐）
+docker-compose up -d wordpress
+
+# 本地环境
+# XAMPP、WAMP、MAMP或Local by Flywheel
 ```
 
 ---
 
 ## 🏗️ 项目架构
 
-### 目录结构
+### 📁 目录结构
 
 ```
 notion-to-wordpress/
-├── admin/                      # WordPress 后台界面
-│   ├── css/                   # 后台样式表
-│   ├── js/                    # 后台 JavaScript
-│   └── partials/              # 后台模板文件
-├── assets/                     # 公共资源
-│   ├── css/                   # 前端样式表
-│   ├── js/                    # 前端 JavaScript
-│   └── images/                # 图片资源
-├── includes/                   # 核心插件逻辑
-│   ├── class-notion-to-wordpress.php          # 主插件类
-│   ├── class-notion-to-wordpress-activator.php # 激活逻辑
-│   ├── class-notion-to-wordpress-deactivator.php # 停用逻辑
-│   ├── class-notion-to-wordpress-i18n.php     # 国际化
-│   ├── class-notion-to-wordpress-loader.php   # 钩子加载器
-│   ├── class-notion-to-wordpress-admin.php    # 后台功能
-│   └── class-notion-to-wordpress-public.php   # 前端功能
-├── languages/                  # 国际化文件
-│   ├── notion-to-wordpress.pot # 翻译模板
-│   ├── notion-to-wordpress-zh_CN.po/.mo # 中文翻译
-│   └── notion-to-wordpress-en_US.po/.mo # 英文翻译
-├── scripts/                    # 自动化脚本
-│   ├── build.js               # 构建系统
-│   ├── release.js             # 发布自动化
-│   ├── local-package.js       # 本地打包
-│   └── version-bump.js        # 版本管理
-├── docs/                       # 文档
-├── wiki/                       # 用户指南
-├── notion-to-wordpress.php     # 主插件文件
-├── readme.txt                  # WordPress 插件描述
-├── uninstall.php              # 清理卸载脚本
-└── release.config.js          # 发布配置
+├── admin/                  # 后台管理界面
+├── includes/               # 核心功能类（分层架构）
+│   ├── core/              # Core层 - 基础设施服务
+│   │   ├── class-notion-logger.php
+│   │   ├── class-notion-security.php
+│   │   ├── class-notion-text-processor.php
+│   │   └── class-notion-http-client.php
+│   ├── services/          # Services层 - 业务逻辑服务
+│   │   ├── class-notion-api.php
+│   │   ├── class-notion-content-converter.php
+│   │   ├── class-notion-database-renderer.php
+│   │   ├── class-notion-image-processor.php
+│   │   ├── class-notion-metadata-extractor.php
+│   │   └── class-notion-sync-manager.php
+│   ├── handlers/          # Handlers层 - 协调器服务
+│   │   ├── class-notion-import-coordinator.php  # (原Notion_Pages)
+│   │   ├── class-notion-to-wordpress-integrator.php
+│   │   └── class-notion-to-wordpress-webhook.php
+│   ├── utils/             # Utils层 - 工具支持服务
+│   │   ├── class-notion-to-wordpress-helper.php
+│   │   ├── class-notion-network-retry.php
+│   │   └── class-notion-concurrent-network-manager.php
+│   └── framework/         # Framework层 - 框架管理服务
+│       ├── class-notion-to-wordpress.php
+│       ├── class-notion-to-wordpress-loader.php
+│       └── class-notion-to-wordpress-i18n.php
+├── scripts/                # 自动化脚本
+│   ├── build.js
+│   └── release.js
+├── languages/              # 国际化文件
+└── notion-to-wordpress.php # 插件入口
 ```
 
-### 核心组件
-
-#### 1. 主插件类 (`includes/class-notion-to-wordpress.php`)
-- 插件初始化和生命周期管理
-- 钩子注册和依赖注入
-- 配置管理
-
-#### 2. 后台界面 (`admin/`)
-- WordPress 后台仪表板集成
-- 设置页面和表单
-- 实时操作的 AJAX 处理器
-
-#### 3. API 集成 (`includes/`)
-- Notion API 通信
-- 数据转换和验证
-- WordPress 内容创建/更新
-
-#### 4. 自动化脚本 (`scripts/`)
-- 构建和打包系统
-- 版本管理
-- 发布自动化
-
-### 详细技术架构
-
-#### 核心类结构
-
-插件采用模块化架构，具有清晰的关注点分离：
-
-```
-includes/
-├── class-notion-api.php                    # API 集成层
-├── class-notion-pages.php                  # 同步逻辑和处理
-├── class-notion-to-wordpress-webhook.php   # Webhook 处理
-├── class-notion-to-wordpress-helper.php    # 工具和日志
-├── class-notion-to-wordpress-i18n.php      # 国际化
-├── class-notion-to-wordpress-loader.php    # 钩子加载系统
-├── class-notion-to-wordpress-admin.php     # 后台界面
-├── class-notion-to-wordpress-public.php    # 公共功能
-└── class-notion-to-wordpress.php           # 核心协调器
-```
-
-#### 类职责
-
-**Notion_To_WordPress** (核心协调器)
-- 管理插件生命周期和初始化
-- 协调不同组件之间的交互
-- 处理依赖注入和配置
-
-**Notion_API** (API 集成层)
-- 管理所有 Notion API 通信
-- 处理身份验证和请求/响应处理
-- 实现速率限制和错误处理
-- 方法：`get_database_pages()`, `get_page()`, `get_page_content()`, `test_connection()`
-
-**Notion_Pages** (同步逻辑引擎)
-- 协调同步过程
-- 将 Notion 内容转换为 WordPress 格式
-- 管理增量同步和删除检测
-- 方法：`import_pages()`, `import_notion_page()`, `convert_blocks_to_html()`
-
-**Notion_To_WordPress_Admin** (后台界面)
-- 提供 WordPress 后台仪表板集成
-- 处理用户交互和设置管理
-- 管理手动同步操作和状态显示
-- 方法：`display_plugin_setup_page()`, `handle_manual_sync()`
-
-**Notion_To_WordPress_Webhook** (实时处理)
-- 处理来自 Notion 的传入 webhook 事件
-- 处理实时内容更新和删除
-- 实现事件特定的处理策略
-- 方法：`handle_webhook()`, `process_webhook_event()`
-
-**Notion_To_WordPress_Helper** (工具类)
-- 提供日志记录和调试功能
-- 实现安全功能和内容清理
-- 管理文件操作和清理任务
-- 方法：`debug_log()`, `custom_kses()`, `run_log_cleanup()`
-
-#### 同步架构模式
-
-**三重同步架构**
-1. **手动同步**：用户发起，具有实时反馈
-2. **计划同步**：自动化后台处理
-3. **Webhook 同步**：由 Notion 事件触发的实时更新
-
-**处理流程**
-1. **数据检索**：从 Notion API 获取页面
-2. **内容转换**：将 Notion 块转换为 HTML
-3. **元数据提取**：处理页面属性和元数据
-4. **WordPress 集成**：创建或更新 WordPress 文章
-5. **状态报告**：记录结果并提供用户反馈
-
-#### 性能优化
-
-**增量同步策略**
-- 基于时间戳的变更检测
-- 仅处理修改的内容
-- 减少 API 调用和处理时间
-
-**内存管理**
-- 大数据集的批处理
-- 策略性内存清理
-- 针对企业级操作进行优化
-
-**缓存实现**
-- API 响应缓存
-- 重复操作的元数据缓存
-- WordPress 对象缓存集成
-
-**异步处理**
-- 非阻塞 webhook 响应
-- 大型操作的后台处理
-- 基于队列的处理以确保可靠性
-
-#### 核心类关系图
-
-以下图表展示了核心插件类之间的关系：
+### 🔄 核心类关系图
 
 ```mermaid
 classDiagram
+    %% Framework层
     class Notion_To_WordPress {
-        -string plugin_name
-        -string version
-        -Notion_API notion_api
-        -Notion_Pages notion_pages
-        -Notion_To_WordPress_Admin admin
-        -Notion_To_WordPress_Loader loader
+        -version: string
+        -plugin_name: string
+        -loader: Notion_To_WordPress_Loader
+        -notion_api: Notion_API
+        -notion_pages: Notion_Import_Coordinator
+        -admin: Notion_To_WordPress_Admin
         +__construct()
-        +run()
         +load_dependencies()
         +instantiate_objects()
         +define_admin_hooks()
-        +define_public_hooks()
+        +cron_import_pages()
     }
 
+    %% Services层
     class Notion_API {
-        -string api_key
-        -string api_base
-        +__construct(api_key)
-        +get_database_pages(database_id, filter)
-        +get_page(page_id)
-        +get_page_content(page_id)
-        +get_database(database_id)
-        +test_connection(database_id)
-        -send_request(endpoint, method, data)
+        -api_key: string
+        -api_base: string
+        +get_database_pages()
+        +get_page()
+        +get_page_content()
+        +send_request()
     }
 
-    class Notion_Pages {
-        -Notion_API notion_api
-        -string database_id
-        -array field_mapping
-        +__construct(notion_api, database_id, field_mapping)
-        +import_pages(check_deletions, incremental)
-        +import_notion_page(page)
-        +get_page_data(page_id)
-        +extract_page_metadata(page)
-        +convert_blocks_to_html(blocks, notion_api)
-        +create_or_update_post(metadata, content, author_id, page_id, existing_post_id)
+    %% Handlers层
+    class Notion_Import_Coordinator {
+        -notion_api: Notion_API
+        -database_id: string
+        -field_mapping: array
+        +import_pages()
+        +import_notion_page()
+        +filter_pages_for_incremental_sync()
+        +convert_blocks_to_html()
     }
 
     class Notion_To_WordPress_Admin {
-        -string plugin_name
-        -string version
-        -Notion_API notion_api
-        -Notion_Pages notion_pages
-        +__construct(plugin_name, version, notion_api, notion_pages)
-        +add_plugin_admin_menu()
-        +display_plugin_setup_page()
-        +handle_manual_sync()
+        -plugin_name: string
+        -version: string
+        -notion_api: Notion_API
+        -notion_pages: Notion_Import_Coordinator
+        +handle_manual_import()
         +handle_test_connection()
-        +handle_refresh_verification_token()
+        +handle_refresh_all()
     }
 
     class Notion_To_WordPress_Webhook {
-        -Notion_Pages notion_pages
-        +__construct(notion_pages)
+        -notion_pages: Notion_Import_Coordinator
         +handle_webhook()
-        +process_webhook_event(event_type, page_id)
-        -handle_page_deleted(page_id)
-        -handle_page_updated(page_id)
-        -handle_page_created(page_id)
+        +handle_specific_event()
+        +handle_page_updated()
+        +handle_database_updated()
     }
 
+    %% Utils层
     class Notion_To_WordPress_Helper {
-        +debug_log(message, context, level)
-        +info_log(message, context)
-        +error_log(message, context)
-        +custom_kses(content)
-        +plugin_path(path)
-        +get_log_files()
-        +run_log_cleanup()
+        +custom_kses()
+        +normalize_post_status()
+        +info_log()
+        +error_log()
+        +debug_log()
     }
 
-    class Notion_To_WordPress_Loader {
-        -array actions
-        -array filters
-        +add_action(hook, component, callback, priority, accepted_args)
-        +add_filter(hook, component, callback, priority, accepted_args)
-        +run()
+    %% Core层
+    class Notion_Logger {
+        +init()
+        +info_log()
+        +error_log()
+        +debug_log()
     }
 
-    Notion_To_WordPress --> Notion_API : 依赖
-    Notion_To_WordPress --> Notion_Pages : 依赖
-    Notion_To_WordPress --> Notion_To_WordPress_Admin : 依赖
-    Notion_To_WordPress --> Notion_To_WordPress_Loader : 依赖
-    Notion_Pages --> Notion_API : 使用
-    Notion_To_WordPress_Admin --> Notion_API : 使用
-    Notion_To_WordPress_Admin --> Notion_Pages : 使用
-    Notion_To_WordPress_Webhook --> Notion_Pages : 使用
-    Notion_Pages --> Notion_To_WordPress_Helper : 使用
-    Notion_API --> Notion_To_WordPress_Helper : 使用
+    %% 关系
+    Notion_To_WordPress --> Notion_API
+    Notion_To_WordPress --> Notion_Import_Coordinator
+    Notion_To_WordPress --> Notion_To_WordPress_Admin
+    Notion_To_WordPress_Admin --> Notion_API
+    Notion_To_WordPress_Admin --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_API
+    Notion_To_WordPress_Webhook --> Notion_Import_Coordinator
+    Notion_Import_Coordinator --> Notion_To_WordPress_Helper
+    Notion_Import_Coordinator --> Notion_Logger
 ```
 
-#### 同步流程序列图
+### 🔄 数据流向
 
-以下图表展示了完整的手动同步过程流程：
+```
+Notion API → API通信层 → 数据转换 → 同步引擎 → WordPress数据库
+     ↑                                      ↑
+  Webhook处理器                        管理界面触发
+```
+
+### 📊 同步流程序列图
+
+#### 智能同步（增量同步）流程
 
 ```mermaid
 sequenceDiagram
-    participant U as 用户/系统
+    participant U as 用户/管理员
     participant A as Admin界面
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
-    participant WP as WordPress
-    participant H as Helper日志
+    participant WP as WordPress数据库
 
-    Note over U,H: 手动同步流程
-    U->>A: 点击手动同步
-    A->>P: import_pages(check_deletions, incremental)
-    P->>API: get_database_pages(database_id, filter)
-    API->>API: send_request('databases/{id}/query')
-    API-->>P: 返回页面列表
+    U->>A: 点击智能同步按钮
+    A->>IC: import_pages(check_deletions=true, incremental=true)
+    IC->>API: get_database_pages()
+    API-->>IC: 返回所有页面列表
+    IC->>IC: filter_pages_for_incremental_sync()
+    Note over IC: 比较last_edited_time<br/>筛选需要更新的页面
 
-    loop 处理每个页面
-        P->>API: get_page_content(page_id)
-        API->>API: send_request('blocks/{id}/children')
-        API-->>P: 返回页面内容块
-        P->>P: convert_blocks_to_html(blocks)
-        P->>P: extract_page_metadata(page)
-        P->>WP: create_or_update_post()
-        P->>H: info_log('页面同步完成')
+    loop 处理每个需要同步的页面
+        IC->>API: get_page(page_id)
+        API-->>IC: 返回页面详情
+        IC->>API: get_page_content(page_id)
+        API-->>IC: 返回页面内容块
+        IC->>IC: convert_blocks_to_html()
+        IC->>WP: create_or_update_post()
+        WP-->>IC: 返回文章ID
+        IC->>IC: update_page_sync_time()
     end
 
-    P-->>A: 返回同步结果
-    A-->>U: 显示同步状态
+    IC-->>A: 返回同步结果统计
+    A-->>U: 显示同步完成信息
 ```
 
-#### Webhook处理序列图
+#### 定时同步（Cron任务）流程
 
-以下图表展示了实时 webhook 处理流程：
+```mermaid
+sequenceDiagram
+    participant C as WordPress Cron
+    participant M as Notion_To_WordPress
+    participant IC as Notion_Import_Coordinator
+    participant API as Notion_API
+    participant WP as WordPress数据库
+
+    C->>M: 触发notion_cron_import事件
+    M->>M: cron_import_pages()
+    Note over M: 获取配置选项<br/>incremental=true<br/>check_deletions=true
+
+    M->>IC: import_pages(check_deletions=true, incremental=true)
+    IC->>API: get_database_pages()
+    API-->>IC: 返回所有页面列表
+
+    alt 增量同步模式
+        IC->>IC: filter_pages_for_incremental_sync()
+        Note over IC: 只处理有更新的页面
+    else 全量同步模式
+        Note over IC: 处理所有页面
+    end
+
+    loop 处理页面
+        IC->>API: get_page(page_id)
+        IC->>API: get_page_content(page_id)
+        IC->>WP: create_or_update_post()
+        IC->>IC: update_page_sync_time()
+    end
+
+    alt 检查删除选项开启
+        IC->>IC: check_and_delete_removed_pages()
+        IC->>WP: 删除已移除的文章
+    end
+
+    IC-->>M: 返回同步结果
+    M->>M: 更新last_sync_time
+```
+
+#### Webhook实时同步流程
 
 ```mermaid
 sequenceDiagram
     participant N as Notion
     participant W as Webhook处理器
-    participant P as Notion_Pages
+    participant IC as Notion_Import_Coordinator
     participant API as Notion_API
-    participant WP as WordPress
-    participant H as Helper日志
+    participant WP as WordPress数据库
 
-    Note over N,H: Webhook实时同步流程
-    N->>W: POST /webhook (页面更新事件)
-    W->>H: info_log('收到Webhook事件')
-    W->>W: 验证请求签名
+    N->>W: 发送Webhook事件
+    Note over N,W: 事件类型：page.updated<br/>database.updated<br/>page.deleted
+
+    W->>W: 验证请求和事件类型
+    W->>W: 立即返回200响应
+    Note over W: 避免Notion超时
 
     alt 页面更新事件
-        W->>P: get_page_data(page_id)
-        P->>API: get_page(page_id)
-        API-->>P: 返回页面数据
-        P->>API: get_page_content(page_id)
-        API-->>P: 返回页面内容
-        P->>P: import_notion_page(page)
+        W->>W: handle_page_updated(page_id)
+        W->>API: get_page(page_id)
+        API-->>W: 返回页面数据
+        W->>IC: import_notion_page(page)
+        Note over W,IC: 强制同步，忽略时间戳
         P->>WP: create_or_update_post()
-        P-->>W: 返回处理结果
+
+    else 数据库更新事件
+        W->>W: handle_database_updated()
+        Note over W: 根据配置执行<br/>增量或全量同步
+        W->>IC: import_pages(check_deletions, incremental)
+        P->>API: get_database_pages()
+        P->>WP: 批量处理页面
+
     else 页面删除事件
-        W->>P: 查找对应WordPress文章
-        P->>WP: wp_delete_post()
-        P-->>W: 返回删除结果
+        W->>W: handle_page_deleted(page_id)
+        W->>WP: 查找并删除对应文章
+        WP-->>W: 返回删除结果
     end
 
-    W->>H: info_log('Webhook处理完成')
-    W-->>N: 返回200响应
+    W->>W: 记录处理结果日志
 ```
 
 ---
 
-## 🤝 贡献指南
+## 📝 开发流程
 
-### 贡献类型
+### 🔄 标准工作流
 
-#### 🐛 Bug 报告
-**报告前准备：**
-- 搜索现有问题避免重复
-- 使用最新插件版本测试
-- 收集详细的重现信息
+```bash
+# 1. 创建功能分支
+git checkout -b feature/your-feature
 
-**必需信息：**
-- WordPress 版本、PHP 版本、插件版本
-- 详细的分步重现步骤
-- 期望行为 vs 实际行为
-- 错误信息、日志或截图
-- 浏览器和环境详情（如相关）
+# 2. 开发和测试
+npm run version:check
+npm run build
 
-**提交方式：** 使用 [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) 及 bug 报告模板。
+# 3. 代码检查
+npm run validate:config
+php -l notion-to-wordpress.php
 
-#### ✨ 功能请求
-**流程：**
-1. 在 [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions) 中检查现有想法
-2. 确保功能符合插件范围和目标
-3. 提供详细的使用场景和实现建议
-4. 如适用，包含模型图或示例
+# 4. 提交代码
+git add .
+git commit -m "feat: 添加新功能"
 
-#### 🔧 代码贡献
-**开发标准：**
-- 遵循 [WordPress 编码标准](https://developer.wordpress.org/coding-standards/)
-- 使用 PSR-12 兼容格式（如适用）
-- 为所有公共方法编写全面的 PHPDoc 注释
-- 实现适当的输入清理和输出转义
-- 包含新功能的单元测试（如适用）
+# 5. 合并主分支
+git checkout main
+git merge feature/your-feature
+```
 
-### 代码质量标准
+### 📋 提交规范
 
-#### ✅ 推荐的代码模式
+```
+<类型>: <描述>
 
+类型：
+- feat: 新功能
+- fix: 修复bug
+- docs: 文档更新
+- style: 代码格式
+- refactor: 重构
+- test: 测试
+- chore: 构建工具
+```
+
+---
+
+## 🔧 命令参考
+
+### 🏗️ 构建命令
+
+| 命令 | 功能 | 用途 |
+|------|------|------|
+| `npm run build` | 构建生产包 | 发布前构建 |
+| `npm run build:clean` | 清理构建目录 | 移除旧构建 |
+| `npm run build:verify` | 验证构建结果 | 构建后验证 |
+| `npm run clean` | 清理所有构建文件 | 快速清理 |
+
+### 📦 开发工作流
+
+| 步骤 | 命令 | 说明 |
+|------|------|------|
+| 1. 检查版本 | `npm run version:check` | 验证版本一致性 |
+| 2. 升级版本 | `npm run version:patch` | 根据需要升级版本 |
+| 3. 构建打包 | `npm run build` | 生成生产包 |
+| 4. 测试构建 | `npm run build:verify` | 验证构建结果 |
+
+### 🚀 发布命令
+
+| 命令 | 功能 | 说明 |
+|------|------|------|
+| `npm run release:patch` | 补丁发布 | 自动发布到GitHub |
+| `npm run release:minor` | 小版本发布 | 包含新功能 |
+| `npm run release:major` | 主版本发布 | 破坏性更改 |
+| `npm run release:beta` | 测试版发布 | 预发布版本 |
+| `node scripts/release.js custom --version=X.Y.Z --dry-run` | 自定义发布 | 设置特定版本 |
+| `npm run release:dry-run` | 预览发布 | 安全预览模式 |
+| `npm run release:help` | 显示帮助 | 查看选项 |
+
+### 🔍 版本管理
+
+| 命令 | 功能 | 用途 |
+|------|------|------|
+| `npm run version:check` | 检查版本一致性 | 验证所有文件版本号一致 |
+| `node scripts/version-bump.js --version=X.Y.Z` | 自定义版本号 | 直接更新所有版本文档 |
+| `npm run version:patch` | 补丁版本升级 | 1.0.0 → 1.0.1 |
+| `npm run version:minor` | 小版本升级 | 1.0.0 → 1.1.0 |
+| `npm run version:major` | 主版本升级 | 1.0.0 → 2.0.0 |
+| `npm run version:beta` | 测试版本升级 | 1.0.0 → 1.0.1-beta.1 |
+| `npm run version:help` | 显示帮助 | 显示使用说明 |
+
+**注意**：由于 npm 参数传递有限制，自定义版本设置请直接使用 `node` 命令。
+
+### 🧪 测试命令
+
+| 命令 | 功能 | 用途 |
+|------|------|------|
+| `npm run test` | 运行默认测试 | 快速测试套件 |
+| `npm run test:integration` | 集成测试 | 全面测试 |
+| `npm run test:syntax` | 语法检查 | 代码验证 |
+| `npm run test:release` | 测试发布流程 | 安全发布预览 |
+| `npm run validate` | 运行所有验证 | 完整验证套件 |
+| `npm run validate:config` | 验证配置 | 环境检查 |
+| `npm run validate:github-actions` | 验证CI配置 | 发布前检查 |
+| `npm run validate:version` | 验证版本一致性 | 版本检查 |
+
+### 🔧 工具命令
+
+| 命令 | 功能 | 用途 |
+|------|------|------|
+| `npm run help` | 显示所有命令 | 显示分类命令列表 |
+| `npm run clean` | 清理构建文件 | 移除构建目录 |
+| `npm run dev` | 开发环境部署 | 快速构建和部署 |
+| `npm run dev:deploy` | 部署到本地WordPress | 本地环境部署 |
+
+**自定义命令**（请直接使用 `node` 命令）：
+- `node scripts/version-bump.js --version=X.Y.Z` - 设置自定义版本
+- `node scripts/release.js custom --version=X.Y.Z --dry-run` - 自定义发布
+
+### 📝 单元测试指导
+
+#### 测试文件结构
+```
+tests/
+├── unit/                   # 单元测试
+│   ├── test-notion-api.php
+│   ├── test-notion-pages.php
+│   └── test-helper.php
+├── integration/            # 集成测试
+│   ├── test-sync-flow.php
+│   └── test-webhook.php
+└── bootstrap.php           # 测试引导文件
+```
+
+#### 编写单元测试示例
 ```php
 <?php
 /**
- * Notion to WordPress 同步处理器
- * 
- * 处理 Notion 数据库与 WordPress 文章之间的同步。
- * 
- * @since 1.0.0
- * @package Notion_To_WordPress
+ * Notion API 单元测试
  */
-class Notion_To_WordPress_Sync {
-    
+class Test_Notion_API extends WP_UnitTestCase {
+
+    private $notion_api;
+
+    public function setUp(): void {
+        parent::setUp();
+        $this->notion_api = new Notion_API();
+    }
+
     /**
-     * 同步 Notion 数据库到 WordPress
-     * 
-     * @since 1.0.0
-     * @param string $database_id 要同步的 Notion 数据库 ID
-     * @param array  $options     同步选项和配置
-     * @return array|WP_Error     同步结果或错误对象
+     * 测试API连接
      */
-    public function sync_database( $database_id, $options = array() ) {
-        // 输入验证和清理
-        $database_id = sanitize_text_field( $database_id );
-        $options = wp_parse_args( $options, $this->get_default_sync_options() );
-        
-        // 验证必需参数
-        if ( empty( $database_id ) ) {
-            return new WP_Error( 'missing_database_id', __( '数据库 ID 是必需的。', 'notion-to-wordpress' ) );
-        }
-        
-        // 执行同步逻辑
-        $result = $this->execute_sync( $database_id, $options );
-        
-        // 返回清理后的结果
-        return array(
-            'status'    => 'success',
-            'message'   => esc_html( $result['message'] ),
-            'synced'    => absint( $result['count'] ),
-            'timestamp' => current_time( 'mysql' )
-        );
-    }
-    
-    /**
-     * 获取默认同步选项
-     * 
-     * @since 1.0.0
-     * @return array 默认选项数组
-     */
-    private function get_default_sync_options() {
-        return array(
-            'batch_size'      => 10,
-            'timeout'         => 30,
-            'update_existing' => true,
-            'delete_missing'  => false
-        );
-    }
-}
-```
-
-#### ❌ 应避免的代码模式
-
-```php
-<?php
-// 危险：没有输入验证或输出转义
-$api_key = $_POST['notion_api_key'];  // 安全风险！
-echo '<p>' . $message . '</p>';       // XSS 漏洞！
-
-// 糟糕：没有错误处理
-$result = wp_remote_get( $url );
-$data = json_decode( $result['body'] );
-
-// 不一致：混合编码风格
-function badFunction($param1,$param2){
-    if($param1){
-        return $param2;
-    }
-}
-```
-
-### Pull Request 流程
-
-```bash
-# 1. 创建并切换到功能分支
-git checkout -b feature/amazing-new-feature
-
-# 2. 实现您的更改
-# - 遵循编码标准
-# - 添加全面的注释
-# - 包含错误处理
-# - 彻底测试
-
-# 3. 使用描述性消息提交
-git add .
-git commit -m "feat: 添加令人惊叹的新功能
-
-- 实现核心功能
-- 添加输入验证
-- 包含全面测试
-- 更新文档"
-
-# 4. 推送分支到您的 fork
-git push origin feature/amazing-new-feature
-
-# 5. 创建 Pull Request
-# - 使用清晰、描述性的标题
-# - 链接相关问题
-# - 包含测试说明
-# - 为 UI 更改添加截图
-```
-
-### 文档要求
-
-#### 代码文档
-- 所有类、方法和函数的 PHPDoc 注释
-- 复杂逻辑的内联注释
-- 新功能的 README 更新
-- 所有更改的变更日志条目
-
-#### 用户文档
-- 新功能的 Wiki 更新
-- UI 更改的截图更新
-- 翻译字符串更新
-- 常见问题的 FAQ 添加
-
----
-
-## 📦 本地开发与测试
-
-### 本地测试环境
-
-#### WordPress 开发设置
-```bash
-# 选项 1：本地 WordPress 安装
-# 下载 WordPress，配置数据库，安装插件
-
-# 选项 2：Docker 设置（推荐）
-docker-compose up -d wordpress
-
-# 选项 3：本地开发工具
-# XAMPP、WAMP、MAMP 或 Local by Flywheel
-```
-
-#### Notion API 测试
-```bash
-# 1. 在 https://www.notion.so/my-integrations 创建 Notion 集成
-# 2. 获取内部集成令牌
-# 3. 创建具有必需属性的测试数据库
-# 4. 与您的集成共享数据库
-```
-
-### 本地打包系统
-
-本地打包系统允许安全测试而不影响 Git 仓库。
-
-#### 基本命令
-
-```bash
-# 查看所有可用选项
-node scripts/local-package.js --help
-
-# 标准版本递增
-npm run package:local patch    # 1.2.0 → 1.2.1
-npm run package:local minor    # 1.2.0 → 1.3.0  
-npm run package:local major    # 1.2.0 → 2.0.0
-npm run package:local beta     # 1.2.0 → 1.2.1-beta.1
-
-# 自定义版本号
-npm run package:local -- --version=1.2.6-test.1
-npm run package:local -- --version=1.3.0-dev.1
-npm run package:local -- --version=2.0.0-alpha.1
-```
-
-#### 高级选项
-
-```bash
-# 预览模式（首次使用推荐）
-npm run package:local patch --dry-run
-npm run package:local -- --version=1.2.6-test.1 --dry-run
-
-# 仅打包（不更新版本）
-npm run package:local -- --build-only
-
-# 仅版本更新（不创建包）  
-npm run package:local -- --version-only
-
-# 直接脚本执行
-node scripts/local-package.js --version=1.2.6-test.1 --dry-run
-```
-
-### 测试工作流程
-
-```bash
-# 1. 创建测试版本
-npm run package:local -- --version=1.2.6-test.1
-
-# 2. 定位生成的包
-# 文件：build/notion-to-wordpress-1.2.6-test.1.zip
-
-# 3. 在 WordPress 中测试
-# - 上传 ZIP 到 WordPress 后台 → 插件 → 安装插件 → 上传
-# - 激活插件并配置设置
-# - 彻底测试所有功能
-# - 验证新功能按预期工作
-
-# 4. 满意时提交更改
-git add .
-git commit -m "feat: 实现新功能并进行全面测试"
-```
-
-### 本地包功能
-
-- ✅ **安全测试**：无 Git 操作，仓库保持不变
-- ✅ **自动备份**：更改前创建备份，出错时自动回滚
-- ✅ **版本同步**：自动更新所有相关文件中的版本
-- ✅ **WordPress 兼容**：生成的 ZIP 可直接在 WordPress 中安装
-- ✅ **构建验证**：确保包符合 WordPress 插件标准
-
----
-
-## 🚀 发布管理
-
-### 自动化发布系统
-
-我们先进的发布系统提供企业级 CI/CD 功能，将复杂的发布过程转化为简单的一键操作。
-
-#### 发布类型和语义化版本
-
-| 类型 | 版本变化 | 使用场景 | 命令 |
-|------|----------|----------|------|
-| **Patch** | 1.1.0 → 1.1.1 | Bug 修复、安全补丁、小改进 | `npm run release:patch` |
-| **Minor** | 1.1.0 → 1.2.0 | 新功能、增强、向后兼容的更改 | `npm run release:minor` |
-| **Major** | 1.1.0 → 2.0.0 | 破坏性更改、重大重写、API 修改 | `npm run release:major` |
-| **Beta** | 1.1.0 → 1.1.1-beta.1 | 预发布测试、实验性功能 | `npm run release:beta` |
-
-### 标准发布流程
-
-#### 发布前检查清单
-
-```bash
-# 1. 确保工作目录干净
-git status  # 应显示 "working tree clean"
-
-# 2. 验证所有测试通过
-npm run test:integration
-
-# 3. 验证配置
-npm run validate:config
-npm run validate:github-actions
-
-# 4. 预览发布（强烈推荐）
-npm run test:release patch  # 或 minor/major/beta
-```
-
-#### 执行发布
-
-```bash
-# 标准发布
-npm run release:patch   # 用于 bug 修复
-npm run release:minor   # 用于新功能  
-npm run release:major   # 用于破坏性更改
-npm run release:beta    # 用于测试版本
-
-# 监控过程
-# - 提示时审查版本更改
-# - 准备好时确认发布
-# - 观察 GitHub Actions 完成情况
-```
-
-### 自定义版本发布
-
-#### 使用 npm 脚本（推荐）
-
-```bash
-# 候选版本
-npm run release:custom -- --version=1.3.0-rc.1
-npm run release:custom -- --version=1.3.0-rc.2
-
-# 热修复发布
-npm run release:custom -- --version=1.2.1-hotfix.1
-npm run release:custom -- --version=1.2.1-hotfix.2
-
-# Alpha/Beta 发布
-npm run release:custom -- --version=2.0.0-alpha.1
-npm run release:custom -- --version=2.0.0-beta.1
-
-# 预览自定义发布
-npm run release:custom -- --version=1.3.0-rc.1 --dry-run
-
-# 强制发布（跳过确认）
-npm run release:custom -- --version=1.3.0-rc.1 --force
-```
-
-#### 直接脚本使用
-
-```bash
-# 具有完全控制的直接脚本执行
-node scripts/release.js --version=1.3.0-rc.1
-node scripts/release.js --version=1.3.0-rc.1 --dry-run
-node scripts/release.js --version=1.3.0-rc.1 --force
-
-# 查看所有可用选项
-node scripts/release.js --help
-```
-
-### 发布过程深度解析
-
-自动化发布系统执行以下全面工作流程：
-
-#### 1. 环境验证
-- **Git 仓库状态**：确保工作目录干净
-- **Node.js 兼容性**：验证 Node.js 版本满足要求
-- **工具可用性**：确认所有必需工具可访问
-- **分支验证**：检查当前分支和远程状态
-
-#### 2. 版本管理
-- **当前版本检测**：从主插件文件读取版本
-- **新版本计算**：根据发布类型计算新版本
-- **多文件更新**：同步所有相关文件中的版本：
-  - `notion-to-wordpress.php` (WordPress 插件头)
-  - `readme.txt` (WordPress.org 稳定标签)
-  - `package.json` (npm 包版本)
-  - `includes/class-notion-to-wordpress.php` (PHP 类版本)
-  - `docs/PROJECT_STATUS.md` 和 `docs/PROJECT_STATUS-zh_CN.md` (文档)
-
-#### 3. 包构建
-- **WordPress 标准**：创建 WordPress.org 兼容的 ZIP 包
-- **文件优化**：排除开发文件，仅包含运行时必需文件
-- **大小优化**：生成最小包以加快下载速度
-- **验证**：确保包满足所有 WordPress 插件要求
-
-#### 4. Git 操作
-- **提交创建**：创建带有版本更改的描述性提交
-- **标签生成**：创建带注释的 Git 标签（如 `v1.2.1`）
-- **远程推送**：推送提交和标签到 GitHub 仓库
-
-#### 5. GitHub Actions 集成
-- **自动触发**：发布标签推送触发 GitHub Actions 工作流
-- **构建验证**：在干净环境中重新构建和验证包
-- **发布创建**：创建包含以下内容的 GitHub 发布：
-  - 可下载的 ZIP 包
-  - 安全校验和（SHA256、MD5）
-  - 自动生成的发布说明
-  - 安装说明
-  - 版本比较链接
-
-### 发布配置
-
-#### 配置文件 (`release.config.js`)
-
-```javascript
-module.exports = {
-    // 项目元数据
-    project: {
-        name: 'notion-to-wordpress',
-        displayName: 'Notion-to-WordPress',
-        author: 'Frank-Loong',
-        description: '高级 Notion 到 WordPress 集成'
-    },
-
-    // 版本管理
-    version: {
-        files: [
-            // 需要版本更新的文件
-            {
-                path: 'notion-to-wordpress.php',
-                patterns: [
-                    // WordPress 插件头
-                    {
-                        regex: /(\* Version:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    }
-                ]
+    public function test_api_connection() {
+        // 模拟API响应
+        $mock_response = [
+            'object' => 'database',
+            'id' => 'test-database-id'
+        ];
+
+        // 使用WordPress的HTTP API模拟
+        add_filter('pre_http_request', function($response, $args, $url) use ($mock_response) {
+            if (strpos($url, 'notion.com/v1') !== false) {
+                return [
+                    'response' => ['code' => 200],
+                    'body' => json_encode($mock_response)
+                ];
             }
-            // ... 其他文件
-        ]
-    },
+            return $response;
+        }, 10, 3);
 
-    // 构建配置
-    build: {
-        output: {
-            directory: 'build',
-            filename: '{PROJECT_NAME}-{VERSION}.zip'
-        },
-        include: {
-            files: ['notion-to-wordpress.php', 'readme.txt', 'uninstall.php'],
-            directories: ['admin/', 'assets/', 'includes/', 'languages/']
-        },
-        exclude: [
-            'node_modules/', 'scripts/', '.git/', 'docs/', 'wiki/',
-            '*.log', '*.tmp', '.env'
-        ]
+        $result = $this->notion_api->test_connection();
+        $this->assertTrue($result);
     }
-};
+
+    /**
+     * 测试数据验证
+     */
+    public function test_data_validation() {
+        // 测试无效的数据库ID
+        $result = $this->notion_api->get_database_pages('invalid-id');
+        $this->assertInstanceOf('WP_Error', $result);
+        $this->assertEquals('invalid_database_id', $result->get_error_code());
+    }
+
+    /**
+     * 测试错误处理
+     */
+    public function test_error_handling() {
+        // 模拟API错误响应
+        add_filter('pre_http_request', function($response, $args, $url) {
+            return [
+                'response' => ['code' => 401],
+                'body' => json_encode(['message' => 'Unauthorized'])
+            ];
+        }, 10, 3);
+
+        $result = $this->notion_api->get_database_pages('test-id');
+        $this->assertInstanceOf('WP_Error', $result);
+        $this->assertEquals('api_unauthorized', $result->get_error_code());
+    }
+}
 ```
 
-#### 自定义选项
-
+#### 运行测试
 ```bash
-# 修改输出目录
-# 编辑 release.config.js → build.output.directory
+# 安装PHPUnit（如果未安装）
+composer require --dev phpunit/phpunit
 
-# 添加/删除包中的文件
-# 编辑 release.config.js → build.include/exclude
+# 运行所有测试
+vendor/bin/phpunit
 
-# 自定义提交消息
-# 编辑 release.config.js → git.commitMessage.template
+# 运行特定测试文件
+vendor/bin/phpunit tests/unit/test-notion-api.php
 
-# 更新 GitHub 设置
-# 编辑 release.config.js → github 部分
+# 运行测试并生成覆盖率报告
+vendor/bin/phpunit --coverage-html coverage/
 ```
 
 ---
 
-## 🔧 故障排除
+## 🐛 调试指南
 
-### 常见开发问题
+### 🔍 常见问题
 
-#### "工作目录有未提交的更改"
-
-**问题**：发布前 Git 工作目录不干净
-
-**解决方案**：
+#### 构建失败
 ```bash
-# 检查哪些文件被修改
-git status
+# 检查Node.js版本
+node --version  # 需要18+
 
-# 选项 1：提交您的更改
-git add .
-git commit -m "feat: 实现新功能"
-
-# 选项 2：临时储藏更改
-git stash
-# ... 执行发布 ...
-git stash pop
-
-# 选项 3：强制发布（不推荐）
-node scripts/release.js patch --force
-```
-
-#### "检测到文件间版本不匹配"
-
-**问题**：文件间版本号不一致
-
-**解决方案**：
-```bash
-# 检查版本一致性
-node scripts/version-bump.js
-
-# 自动修复版本不一致
-node scripts/version-bump.js patch
-
-# 手动验证
-grep -r "Version:" notion-to-wordpress.php
-grep -r "Stable tag:" readme.txt
-```
-
-#### "构建过程失败"
-
-**问题**：包构建遇到错误
-
-**解决方案**：
-```bash
-# 检查 Node.js 版本兼容性
-node --version  # 应该是 16+
-npm --version   # 应该是 8+
-
-# 清理并重新安装依赖
-rm -rf node_modules package-lock.json
+# 清理重装
+# Linux/Mac: rm -rf node_modules package-lock.json
+# Windows: Remove-Item node_modules, package-lock.json -Recurse -Force
 npm install
 
-# 手动测试构建过程
-npm run build
-
-# 检查文件权限问题（Unix/Linux）
-chmod +x scripts/*.js
+# 验证环境
+npm run validate:config
 ```
 
-#### "GitHub Actions 工作流失败"
-
-**问题**：自动发布工作流失败
-
-**解决方案**：
-1. **检查 GitHub Actions 选项卡**在您的仓库中
-2. **查看工作流日志**获取具体错误消息
-3. **验证 GitHub 令牌权限**（通常是自动的）
-4. **验证工作流文件语法**：
-   ```bash
-   npm run validate:github-actions
-   ```
-5. **推送前本地测试**：
-   ```bash
-   npm run test:release patch
-   ```
-
-#### "WordPress 插件激活错误"
-
-**问题**：插件在 WordPress 中激活失败
-
-**解决方案**：
+#### 版本不一致
 ```bash
-# 检查 PHP 语法错误
+# 自动修复版本不一致（选择合适的类型）
+npm run version:patch
+
+# 手动检查版本
+# Linux/Mac:
+grep "Version:" notion-to-wordpress.php
+grep "version" package.json
+
+# Windows PowerShell:
+Select-String "Version:" notion-to-wordpress.php
+Select-String "version" package.json
+
+# 查看帮助信息
+npm run version:help
+```
+
+#### 插件激活失败
+```bash
+# PHP语法检查
 php -l notion-to-wordpress.php
 
-# 验证 WordPress 兼容性
-# 检查 readme.txt 中的最低 WordPress 版本
-
-# 查看 PHP 错误日志
-tail -f /path/to/wordpress/wp-content/debug.log
-
-# 使用 WordPress 调试模式测试
-# 添加到 wp-config.php：
-define('WP_DEBUG', true);
-define('WP_DEBUG_LOG', true);
+# 启用WordPress调试
+# wp-config.php中添加：
+# define('WP_DEBUG', true);
+# define('WP_DEBUG_LOG', true);
 ```
 
-### 调试模式和日志记录
+### 🛠️ 调试配置
 
-#### 启用调试模式
-
-```bash
-# 带完整输出的综合预览
-node scripts/release.js patch --dry-run --force
-
-# 逐步手动测试
-node scripts/version-bump.js patch
-npm run build
-git status
-```
-
-#### WordPress 调试配置
-
+#### WordPress调试
 ```php
 // wp-config.php
 define('WP_DEBUG', true);
@@ -985,254 +641,600 @@ define('WP_DEBUG_DISPLAY', false);
 define('SCRIPT_DEBUG', true);
 ```
 
-### 获取帮助
+#### 性能监控
+```php
+// 内存使用监控
+$memory_before = memory_get_usage();
+// ... 代码 ...
+$memory_after = memory_get_usage();
+error_log('Memory used: ' . ($memory_after - $memory_before) . ' bytes');
+```
 
-#### 支持渠道
+### ❓ 故障排除FAQ
 
-- **一般问题**：[GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
-- **Bug 报告**：[GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
-- **安全问题**：直接联系维护者 [frankloong@qq.com](mailto:frankloong@qq.com)
-- **文档问题**：创建包含改进的 pull request
+#### Q1: 同步失败，显示"API密钥无效"
+**症状**: 测试连接失败，日志显示401错误
+**解决方案**:
+```bash
+# 1. 检查API密钥格式
+# 正确格式: secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-#### 寻求帮助前
+# 2. 验证API密钥权限
+# 确保集成已添加到目标数据库
 
-1. **搜索现有问题**和讨论
-2. **彻底检查文档**
-3. **使用最新版本测试**
-4. **收集详细信息**：
-   - WordPress 版本
-   - PHP 版本
-   - 插件版本
-   - 错误消息
-   - 重现步骤
+# 3. 重新生成API密钥
+# 在Notion集成设置中重新生成密钥
+```
+
+#### Q2: 同步速度很慢
+**症状**: 同步大量页面时耗时过长
+**解决方案**:
+```bash
+# 1. 启用增量同步
+# 设置 → 同步选项 → 启用增量同步
+
+# 2. 调整批处理大小
+# 设置 → 性能优化 → 批处理大小: 10-20
+
+# 3. 检查服务器性能
+php -m | grep -E "(curl|json|mbstring)"  # 确保扩展已安装
+```
+
+#### Q3: 图片无法显示
+**症状**: 文章中的图片显示为链接或无法加载
+**解决方案**:
+```bash
+# 1. 检查媒体库权限
+# Linux/Mac: ls -la wp-content/uploads/
+# Windows: Get-ChildItem wp-content/uploads/ -Force
+
+# 2. 验证图片下载设置
+# 设置 → 媒体选项 → 启用图片下载
+
+# 3. 检查网络连接
+curl -I https://s3.us-west-2.amazonaws.com/secure.notion-static.com/test.jpg
+```
+
+#### Q4: Webhook不工作
+**症状**: Notion更新后WordPress没有自动同步
+**解决方案**:
+```bash
+# 1. 检查Webhook URL
+# 确保URL可从外网访问: https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
+
+# 2. 验证SSL证书
+curl -I https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
+
+# 3. 检查防火墙设置
+# 确保服务器允许来自Notion的请求
+```
+
+#### Q5: 内存不足错误
+**症状**: 同步时出现"Fatal error: Allowed memory size exhausted"
+**解决方案**:
+```php
+// 1. 增加PHP内存限制
+// wp-config.php中添加:
+ini_set('memory_limit', '512M');
+
+// 2. 优化批处理大小
+// 设置 → 性能优化 → 批处理大小: 5-10
+
+// 3. 使用实时数据查询
+// 插件使用直接数据库查询确保数据一致性
+```
+
+#### Q6: 中文字符显示乱码
+**症状**: 同步后中文内容显示为问号或乱码
+**解决方案**:
+```sql
+-- 1. 检查数据库字符集
+SHOW VARIABLES LIKE 'character_set%';
+
+-- 2. 修改数据库字符集（如需要）
+ALTER DATABASE wordpress CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 3. 修改表字符集
+ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+---
+
+## 🚀 发布管理
+
+### 📋 发布类型
+
+| 类型 | 版本变化 | 使用场景 |
+|------|----------|----------|
+| Patch | 1.1.0 → 1.1.1 | Bug修复、安全补丁 |
+| Minor | 1.1.0 → 1.2.0 | 新功能、向后兼容 |
+| Major | 1.1.0 → 2.0.0 | 破坏性更改 |
+| Beta | 1.1.0 → 1.1.1-beta.1 | 预发布测试 |
+
+### 🚀 发布流程
+
+```bash
+# 1. 发布前检查
+git status                    # 确保工作目录干净
+npm run validate:config       # 验证配置
+npm run release:dry-run       # 预览发布
+
+# 2. 执行发布
+npm run release:patch         # 选择合适类型
+
+# 3. 发布后验证
+# - 检查GitHub Actions状态
+# - 验证GitHub Release页面
+# - 测试下载的ZIP包
+```
+
+### 🔧 自定义版本
+
+```bash
+# 候选版本
+node scripts/release.js custom --version=1.8.1-rc.1
+
+# 热修复版本
+node scripts/release.js custom --version=1.8.1-hotfix.1
+
+# 预览模式
+node scripts/release.js custom --version=X.Y.Z --dry-run
+```
 
 ---
 
 ## 📚 最佳实践
 
-### 开发工作流程
+### 🔒 代码质量
 
-#### 推荐的开发过程
-
-```bash
-# 1. 规划阶段
-- 为功能/bug 创建 GitHub 问题
-- 讨论实现方法
-- 规划测试策略
-
-# 2. 开发阶段
-- 从 main 创建功能分支
-- 增量实现更改
-- 频繁提交并使用清晰消息
-- 开发过程中持续测试
-
-# 3. 测试阶段
-- 创建本地测试包
-- 在多个 WordPress 环境中测试
-- 验证所有功能正常工作
-- 测试边缘情况和错误条件
-
-# 4. 审查阶段
-- 自我审查代码质量
-- 根据需要更新文档
-- 确保编码标准合规
-- 运行所有验证工具
-
-# 5. 发布准备
-- 将功能分支合并到 main
-- 运行综合测试套件
-- 使用预览模式验证发布
-- 更新变更日志和版本说明
-
-# 6. 发布执行
-- 选择适当的版本类型
-- 执行发布命令
-- 监控 GitHub Actions 状态
-- 验证发布可用性
-```
-
-### 代码质量指南
-
-#### 安全最佳实践
-
-```php
-<?php
-// 始终清理输入
-$user_input = sanitize_text_field( $_POST['field_name'] );
-
-// 始终转义输出
-echo '<p>' . esc_html( $message ) . '</p>';
-
-// 使用 nonce 进行表单安全
-wp_nonce_field( 'my_action', 'my_nonce' );
-if ( ! wp_verify_nonce( $_POST['my_nonce'], 'my_action' ) ) {
-    wp_die( '安全检查失败' );
-}
-
-// 验证用户权限
-if ( ! current_user_can( 'manage_options' ) ) {
-    wp_die( '权限不足' );
-}
-```
-
-#### 性能优化
-
-```php
-<?php
-// 使用 WordPress 缓存
-$cache_key = 'notion_data_' . md5( $database_id );
-$data = wp_cache_get( $cache_key );
-if ( false === $data ) {
-    $data = $this->fetch_notion_data( $database_id );
-    wp_cache_set( $cache_key, $data, '', HOUR_IN_SECONDS );
-}
-
-// 优化数据库查询
-global $wpdb;
-$results = $wpdb->get_results( $wpdb->prepare(
-    "SELECT * FROM {$wpdb->posts} WHERE post_type = %s AND post_status = %s",
-    'post',
-    'publish'
-) );
-
-// 使用 WordPress HTTP API
-$response = wp_remote_get( $url, array(
-    'timeout' => 30,
-    'headers' => array(
-        'Authorization' => 'Bearer ' . $api_token
-    )
-) );
-```
-
-### 版本策略
-
-#### 语义化版本指南
-
-- **Patch (1.1.0 → 1.1.1)**：
-  - Bug 修复和安全补丁
-  - 性能改进
-  - 文档更新
-  - 翻译更新
-
-- **Minor (1.1.0 → 1.2.0)**：
-  - 新功能和功能性
-  - UI/UX 改进
-  - 新配置选项
-  - 向后兼容的 API 更改
-
-- **Major (1.1.0 → 2.0.0)**：
-  - 对现有功能的破坏性更改
-  - 重大架构更改
-  - 删除已弃用的功能
-  - 不兼容的 API 修改
-
-- **预发布 (1.1.0 → 1.1.1-beta.1)**：
-  - 社区反馈的测试版本
-  - 实验性功能
-  - 候选版本
-
-### 文档标准
-
-#### 代码文档
-
+#### PHP代码规范
 ```php
 <?php
 /**
- * 类描述，包含目的和用法
- *
- * 详细解释此类的作用，
- * 它如何适应整体架构，
- * 以及任何重要的使用说明。
- *
- * @since 1.0.0
- * @package Notion_To_WordPress
- * @subpackage Core
+ * 示例类展示最佳实践
  */
 class Notion_To_WordPress_Example {
 
     /**
-     * 方法描述，明确目的
+     * 处理数据的方法
      *
-     * 详细解释此方法的作用，
-     * 包括任何副作用或重要行为。
-     *
+     * @param string $input 输入参数
+     * @return array|WP_Error 处理结果
      * @since 1.0.0
-     * @param string $param1 第一个参数的描述
-     * @param array  $param2 {
-     *     可选。数组参数的描述。
-     *
-     *     @type string $key1 数组键的描述
-     *     @type int    $key2 另一个键的描述
-     * }
-     * @return array|WP_Error 成功数组或错误对象
      */
-    public function example_method( $param1, $param2 = array() ) {
-        // 实现
+    public function process_data( $input ) {
+        // 输入验证
+        if ( empty( $input ) ) {
+            return new WP_Error( 'invalid_input', '输入不能为空' );
+        }
+
+        // 数据清理
+        $clean_input = sanitize_text_field( $input );
+
+        // 处理逻辑
+        $result = $this->transform_data( $clean_input );
+
+        return $result;
     }
 }
 ```
 
-#### 用户文档
+#### JavaScript代码规范
+```javascript
+(function($) {
+    'use strict';
 
-- **清晰的标题**和逻辑结构
-- **分步说明**配有截图
-- **代码示例**配有解释
-- **故障排除部分**解决常见问题
-- **交叉引用**到相关文档
+    const NotionWordPress = {
+        init: function() {
+            this.bindEvents();
+        },
+
+        bindEvents: function() {
+            $('.sync-button').on('click', this.handleSync.bind(this));
+        },
+
+        handleSync: function(event) {
+            event.preventDefault();
+            this.showLoading();
+
+            $.ajax({
+                url: ajaxurl,
+                type: 'POST',
+                data: {
+                    action: 'notion_sync',
+                    nonce: notion_ajax.nonce
+                },
+                success: this.handleSuccess.bind(this),
+                error: this.handleError.bind(this)
+            });
+        }
+    };
+
+    $(document).ready(function() {
+        NotionWordPress.init();
+    });
+
+})(jQuery);
+```
+
+### 🛡️ 安全规范
+
+#### 数据验证
+```php
+// 输入验证
+$page_id = sanitize_text_field( $_POST['page_id'] );
+if ( ! preg_match( '/^[a-f0-9-]{36}$/', $page_id ) ) {
+    wp_die( '无效的页面ID格式' );
+}
+
+// 输出转义
+echo '<h1>' . esc_html( $title ) . '</h1>';
+echo '<a href="' . esc_url( $link ) . '">' . esc_html( $text ) . '</a>';
+
+// Nonce验证
+if ( ! wp_verify_nonce( $_POST['nonce'], 'notion_sync_action' ) ) {
+    wp_die( '安全验证失败' );
+}
+```
+
+### ⚡ 性能优化
+
+#### 实时数据查询策略
+
+**为什么使用实时查询？**
+- **数据一致性**: 始终反映当前数据库状态
+- **增量同步精度**: 实现精确的变更检测
+- **架构简化**: 消除缓存失效的复杂性
+- **调试便利**: 无缓存相关问题需要排查
+
+```php
+// 直接数据库查询确保数据一致性
+// 使用批量查询优化性能
+$pages = $this->fetch_notion_pages_batch( $database_ids );
+
+// 利用WordPress内置优化
+$post_ids = wp_list_pluck( $posts, 'ID' );
+$meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
+```
+
+#### 数据库优化
+```php
+// 批量查询而非循环查询
+$post_ids = wp_list_pluck( $posts, 'ID' );
+$meta_data = get_post_meta_batch( $post_ids, 'notion_id' );
+```
+
+### 🚨 错误处理最佳实践
+
+#### 异常处理模式
+```php
+/**
+ * 标准错误处理示例
+ */
+public function sync_notion_page( $page_id ) {
+    try {
+        // 输入验证
+        if ( empty( $page_id ) || ! is_string( $page_id ) ) {
+            throw new InvalidArgumentException( '页面ID不能为空且必须是字符串' );
+        }
+
+        // API调用错误处理
+        $page_data = $this->notion_api->get_page( $page_id );
+        if ( is_wp_error( $page_data ) ) {
+            Notion_To_WordPress_Helper::error_log(
+                sprintf( '获取页面失败: %s', $page_data->get_error_message() ),
+                'SYNC_ERROR'
+            );
+            return $page_data; // 返回WP_Error对象
+        }
+
+        // 数据验证
+        if ( ! isset( $page_data['properties'] ) ) {
+            return new WP_Error(
+                'invalid_page_data',
+                '页面数据格式无效：缺少properties字段',
+                ['page_id' => $page_id, 'data' => $page_data]
+            );
+        }
+
+        // 业务逻辑处理
+        $post_id = $this->create_or_update_post( $page_data );
+        if ( is_wp_error( $post_id ) ) {
+            // 记录详细错误信息
+            Notion_To_WordPress_Helper::error_log(
+                sprintf(
+                    '创建/更新文章失败: %s (页面ID: %s)',
+                    $post_id->get_error_message(),
+                    $page_id
+                ),
+                'POST_CREATION_ERROR'
+            );
+            return $post_id;
+        }
+
+        // 成功日志
+        Notion_To_WordPress_Helper::info_log(
+            sprintf( '页面同步成功: %s -> 文章ID: %d', $page_id, $post_id ),
+            'SYNC_SUCCESS'
+        );
+
+        return $post_id;
+
+    } catch ( Exception $e ) {
+        // 捕获所有未处理的异常
+        $error_message = sprintf(
+            '同步过程中发生异常: %s (文件: %s, 行: %d)',
+            $e->getMessage(),
+            $e->getFile(),
+            $e->getLine()
+        );
+
+        Notion_To_WordPress_Helper::error_log( $error_message, 'EXCEPTION' );
+
+        return new WP_Error(
+            'sync_exception',
+            '同步过程中发生未预期的错误',
+            ['exception' => $e->getMessage(), 'page_id' => $page_id]
+        );
+    }
+}
+```
+
+#### 错误分类和处理策略
+```php
+/**
+ * 错误分类处理
+ */
+class Notion_Error_Handler {
+
+    const ERROR_TYPES = [
+        'API_ERROR' => 'API调用错误',
+        'VALIDATION_ERROR' => '数据验证错误',
+        'PERMISSION_ERROR' => '权限错误',
+        'RATE_LIMIT_ERROR' => '速率限制错误',
+        'NETWORK_ERROR' => '网络连接错误',
+        'DATA_ERROR' => '数据处理错误'
+    ];
+
+    /**
+     * 统一错误处理
+     */
+    public static function handle_error( $error, $context = [] ) {
+        if ( ! is_wp_error( $error ) ) {
+            return $error;
+        }
+
+        $error_code = $error->get_error_code();
+        $error_message = $error->get_error_message();
+        $error_data = $error->get_error_data();
+
+        // 根据错误类型采取不同策略
+        switch ( $error_code ) {
+            case 'api_rate_limit':
+                // 速率限制：等待后重试
+                self::schedule_retry( $context, 60 ); // 60秒后重试
+                break;
+
+            case 'api_unauthorized':
+                // 认证错误：通知管理员
+                self::notify_admin( '认证失败，请检查API密钥', $error );
+                break;
+
+            case 'network_timeout':
+                // 网络超时：短时间后重试
+                self::schedule_retry( $context, 30 ); // 30秒后重试
+                break;
+
+            default:
+                // 其他错误：记录日志
+                Notion_To_WordPress_Helper::error_log(
+                    sprintf( '未分类错误: %s', $error_message ),
+                    'UNHANDLED_ERROR'
+                );
+        }
+
+        return $error;
+    }
+
+    /**
+     * 安排重试任务
+     */
+    private static function schedule_retry( $context, $delay_seconds ) {
+        wp_schedule_single_event(
+            time() + $delay_seconds,
+            'notion_retry_sync',
+            [$context]
+        );
+    }
+
+    /**
+     * 通知管理员
+     */
+    private static function notify_admin( $message, $error ) {
+        // 发送邮件通知或在后台显示通知
+        add_action( 'admin_notices', function() use ( $message ) {
+            echo '<div class="notice notice-error"><p>' . esc_html( $message ) . '</p></div>';
+        });
+    }
+}
+```
+
+---
+
+## 🤝 贡献指南
+
+### 📝 贡献类型
+
+| 类型 | 说明 | 提交方式 |
+|------|------|----------|
+| 🐛 Bug报告 | 发现问题并提供详细信息 | [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues) |
+| ✨ 功能建议 | 提出新功能想法 | [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions) |
+| 🔧 代码贡献 | 提交代码修复或新功能 | Pull Request |
+| 📚 文档改进 | 完善文档内容 | Pull Request |
+
+### 🔄 贡献流程
+
+```bash
+# 1. Fork项目
+# 在GitHub上点击Fork按钮
+
+# 2. 克隆Fork
+git clone https://github.com/YOUR_USERNAME/Notion-to-WordPress.git
+cd Notion-to-WordPress
+
+# 3. 创建功能分支
+git checkout -b feature/your-feature-name
+
+# 4. 开发测试
+npm run version:check
+npm run build
+
+# 5. 提交更改
+git add .
+git commit -m "feat: 添加新功能描述"
+
+# 6. 推送到Fork
+git push origin feature/your-feature-name
+
+# 7. 创建Pull Request
+# 在GitHub上创建PR到主仓库
+```
+
+### ✅ 质量要求
+
+- [ ] 遵循WordPress编码标准
+- [ ] 包含完整的PHPDoc注释
+- [ ] 通过所有现有测试
+- [ ] 添加新功能的测试用例
+- [ ] 更新相关文档
+
+### 🔍 代码审查流程
+
+#### Pull Request检查清单
+
+**提交前自检**:
+- [ ] 代码符合PSR-12编码标准
+- [ ] 所有函数都有PHPDoc注释
+- [ ] 输入数据已正确验证和清理
+- [ ] 输出数据已正确转义
+- [ ] 错误处理完整且合理
+- [ ] 性能影响已考虑
+- [ ] 安全风险已评估
+- [ ] 测试用例已添加
+- [ ] 文档已更新
+
+**审查者检查项**:
+- [ ] **功能性**: 代码是否实现了预期功能？
+- [ ] **安全性**: 是否存在安全漏洞？
+- [ ] **性能**: 是否有性能问题？
+- [ ] **可维护性**: 代码是否易于理解和维护？
+- [ ] **测试覆盖**: 测试是否充分？
+- [ ] **文档完整性**: 文档是否准确和完整？
+
+#### 审查标准
+
+**代码质量标准**:
+```php
+// ✅ 好的示例
+/**
+ * 同步Notion页面到WordPress
+ *
+ * @param string $page_id Notion页面ID
+ * @param array  $options 同步选项
+ * @return int|WP_Error 成功返回文章ID，失败返回WP_Error
+ * @since 1.0.0
+ */
+public function sync_page( $page_id, $options = [] ) {
+    // 输入验证
+    if ( empty( $page_id ) ) {
+        return new WP_Error( 'invalid_page_id', '页面ID不能为空' );
+    }
+
+    // 业务逻辑...
+}
+
+// ❌ 需要改进的示例
+function sync($id) {  // 缺少类型提示和文档
+    $data = $_POST['data'];  // 未验证输入
+    echo $data;  // 未转义输出
+}
+```
+
+**安全审查重点**:
+- 所有用户输入必须验证和清理
+- 所有输出必须适当转义
+- 数据库查询必须使用预处理语句
+- 文件操作必须验证路径和权限
+- API调用必须处理错误和超时
+
+**性能审查重点**:
+- 避免N+1查询问题
+- 使用批量查询优化
+- 优化数据库查询
+- 控制内存使用
+- 异步处理长时间操作
 
 ---
 
 ## 🔗 资源链接
 
-### 重要链接
+### 📚 官方文档
+- [WordPress插件开发手册](https://developer.wordpress.org/plugins/)
+- [WordPress编码标准](https://developer.wordpress.org/coding-standards/)
+- [Notion API文档](https://developers.notion.com/)
+- [语义化版本规范](https://semver.org/lang/zh-CN/)
 
-#### 官方文档
-- **[WordPress 插件开发](https://developer.wordpress.org/plugins/)** - 官方 WordPress 插件指南
-- **[WordPress 编码标准](https://developer.wordpress.org/coding-standards/)** - 代码质量指南
-- **[Notion API 文档](https://developers.notion.com/)** - 完整的 Notion API 参考
-- **[语义化版本](https://semver.org/lang/zh-CN/)** - 版本编号标准
+### 🛠️ 开发工具
+- [WordPress CLI](https://wp-cli.org/) - WordPress命令行工具
+- [PHPStan](https://phpstan.org/) - PHP静态分析
+- [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) - 代码规范检查
 
-#### 项目文档
-- **[语言文件指南](../languages/README.md)** - 国际化和本地化指南
-
-#### 开发工具
-- **[WordPress CLI](https://wp-cli.org/)** - WordPress 命令行界面
-- **[PHPStan](https://phpstan.org/)** - PHP 静态分析工具
-- **[PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer)** - 代码标准检查器
-- **[Composer](https://getcomposer.org/)** - PHP 依赖管理
-
-#### 测试资源
-- **[WordPress 单元测试](https://make.wordpress.org/core/handbook/testing/automated-testing/phpunit/)** - WordPress 测试框架
-- **[Local by Flywheel](https://localwp.com/)** - 本地 WordPress 开发
-- **[Docker WordPress](https://hub.docker.com/_/wordpress)** - 容器化 WordPress
-
-### 社区资源
-
-#### 支持和讨论
-- **[GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)** - 社区问答
-- **[WordPress.org 论坛](https://wordpress.org/support/)** - 一般 WordPress 支持
-- **[Notion 社区](https://www.notion.so/help/community)** - Notion 特定帮助
-
-#### 学习资源
-- **[WordPress 开发者手册](https://developer.wordpress.org/)** - 综合开发指南
-- **[PHP: The Right Way](https://phptherightway.com/)** - 现代 PHP 最佳实践
-- **[Git 手册](https://guides.github.com/introduction/git-handbook/)** - Git 版本控制指南
+### 🆘 获取帮助
+- **一般问题**: [GitHub Discussions](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
+- **Bug报告**: [GitHub Issues](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
+- **安全问题**: 直接联系维护者
 
 ---
 
-## 🎉 成功指标
+## 📖 术语表
 
-成功的开发贡献将展示：
+### 🔧 技术术语
 
-- ✅ **代码质量**：遵循 WordPress 编码标准和最佳实践
-- ✅ **功能性**：功能在多个环境中正确工作
-- ✅ **安全性**：实现适当的输入验证和输出转义
-- ✅ **性能**：针对速度和资源效率进行优化
-- ✅ **文档**：全面的代码注释和用户文档
-- ✅ **测试**：在各种场景和边缘情况下彻底测试
-- ✅ **兼容性**：与支持的 WordPress 和 PHP 版本兼容
-- ✅ **可访问性**：遵循 WordPress 可访问性指南
-- ✅ **国际化**：为翻译做好适当准备
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **增量同步** | Incremental Sync | 只同步自上次同步后有更新的内容，提高效率 |
+| **全量同步** | Full Sync | 同步所有内容，不考虑更新时间 |
+| **Webhook** | Webhook | 实时事件通知机制，Notion有更新时立即通知WordPress |
+| **API密钥** | API Key | 访问Notion API的认证凭据 |
+| **数据库ID** | Database ID | Notion数据库的唯一标识符 |
+| **页面ID** | Page ID | Notion页面的唯一标识符 |
+| **字段映射** | Field Mapping | 将Notion属性映射到WordPress字段的配置 |
+| **Nonce** | Nonce | WordPress安全机制，防止CSRF攻击 |
+| **转义** | Escaping | 对输出内容进行安全处理，防止XSS攻击 |
+| **清理** | Sanitization | 对输入数据进行清理和验证 |
+
+### 🏗️ 架构术语
+
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **API通信层** | API Communication Layer | 负责与Notion API交互的代码层 |
+| **数据转换器** | Data Transformer | 将Notion数据格式转换为WordPress格式 |
+| **同步引擎** | Sync Engine | 核心同步逻辑处理器 |
+| **钩子系统** | Hook System | WordPress的事件驱动机制 |
+| **加载器** | Loader | 负责注册钩子和初始化组件 |
+| **助手类** | Helper Class | 提供通用工具函数的类 |
+
+### 📝 开发术语
+
+| 术语 | 英文 | 解释 |
+|------|------|------|
+| **约定式提交** | Conventional Commits | 标准化的Git提交信息格式 |
+| **语义化版本** | Semantic Versioning | 版本号管理规范（主版本.次版本.修订版本） |
+| **PHPDoc** | PHPDoc | PHP代码文档注释标准 |
+| **PSR-12** | PSR-12 | PHP编码风格规范 |
+| **单元测试** | Unit Testing | 测试单个代码单元的功能 |
+| **集成测试** | Integration Testing | 测试多个组件协同工作 |
+| **代码覆盖率** | Code Coverage | 测试覆盖的代码百分比 |
 
 ---
 
@@ -1244,6 +1246,8 @@ class Notion_To_WordPress_Example {
 
 <div align="center">
 
-**[⬆️ 返回顶部](#-notion-to-wordpress-开发者指南) • [🏠 主页](../README-zh_CN.md)• [📚 阅读文档](Wiki.zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🇺🇸 English](DEVELOPER_GUIDE.md)**
+**[⬆️ 返回顶部](#-notion-to-wordpress-开发者指南) • [🏠 主页](../README-zh_CN.md) • [📚 用户指南](Wiki.zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🇺🇸 English](DEVELOPER_GUIDE.md)**
+
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>

@@ -1,4 +1,4 @@
-**🏠 Home** • [📚 User Guide](docs/Wiki.md) • [📊 Project Overview](docs/PROJECT_OVERVIEW.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits) • [🚀 Developer Guide](docs/DEVELOPER_GUIDE.md)
+**🏠 Home** • [📚 User Guide](docs/Wiki.md) • [📊 Project Overview](docs/PROJECT_OVERVIEW.md) • [🚀 Developer Guide](docs/DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 Language:** **English** • [中文](README-zh_CN.md)
 
@@ -16,6 +16,25 @@
 **Notion-to-WordPress** is a modern WP plugin that syncs every block of your Notion database—posts, pages, images, math, Mermaid charts—straight to WordPress and keeps them in perfect harmony.
 
 *Write in Notion, rank with WordPress. Stop copying, start creating.*
+
+---
+
+## 🖼️ Demo Showcase
+
+<p align="center">
+  <img src="docs/images/demo-overview.gif" alt="Plugin Admin Overview" width="90%"><br/>
+  <em>▲ Intuitive plugin admin panel: configure, sync, and monitor with ease</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-notion-page.gif" alt="Notion Original Page" width="90%"><br/>
+  <em>▲ Write and organize content in Notion — your familiar workspace</em>
+</p>
+
+<p align="center">
+  <img src="docs/images/demo-wordpress-post.gif" alt="WordPress Synced Post" width="90%"><br/>
+  <em>▲ One-click sync: Notion content instantly published to WordPress, pixel-perfect</em>
+</p>
 
 ---
 
@@ -74,7 +93,7 @@ Perfect for blogs, knowledge bases, team collaboration, and online courses. Writ
 
 ## 🌟 Star History
 
-[![Star History Chart](https://star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
 
 ---
 
@@ -102,4 +121,4 @@ We extend our heartfelt gratitude to these projects and their maintainers for th
 ## License
 GPL-3.0-or-later
 
-> © 2025 Frank-Loong · Notion-to-WordPress v1.2.5-beta.5
+> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1

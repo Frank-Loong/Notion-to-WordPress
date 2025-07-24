@@ -139,7 +139,7 @@ wp core version
 - 使用你的 Notion 账号登录
 
 <div align="center">
-  <img src="../docs/images/notion-integrations.png" alt="Notion 集成页面" width="800">
+  <img src="../docs/images/notion-integrations-zh_CN.png" alt="Notion 集成页面" width="800">
   <p><em>Notion 集成管理界面</em></p>
 </div>
 
@@ -162,7 +162,7 @@ wp core version
 - ⚠️ **重要：** 请妥善保存此密钥，后续配置需要使用
 
 <div align="center">
-  <img src="../docs/images/notion-internal-integration-key.png" alt="复制内部集成秘钥" width="800">
+  <img src="../docs/images/notion-internal-integration-key-zh_CN.png" alt="复制内部集成密钥" width="800">
   <p><em>复制并保存你的内部集成秘钥</em></p>
 </div>
 
@@ -179,7 +179,7 @@ wp core version
 - 点击 "**添加连接**" 完成添加
 
 <div align="center">
-  <img src="../docs/images/notion-database-id.png" alt="添加集成并复制数据库ID" width="800">
+  <img src="../docs/images/notion-database-id-zh_CN.png" alt="添加集成并复制数据库ID" width="800">
   <p><em>将集成连接到数据库并复制数据库ID</em></p>
 </div>
 
@@ -212,7 +212,7 @@ wp core version
 - 进入 `插件` → `添加新插件` → `上传插件`
 
 <div align="center">
-  <img src="../docs/images/install.png" alt="WordPress插件安装" width="800">
+  <img src="../docs/images/install-zh_CN.png" alt="WordPress插件安装" width="800">
   <p><em>WordPress 插件上传界面</em></p>
 </div>
 
@@ -289,7 +289,7 @@ wp plugin list | grep notion-to-wordpress
 - **Database ID（数据库 ID）：** 粘贴第一步获取的 32 位数据库 ID
 
 <div align="center">
-  <img src="../docs/images/wordpress-config.png" alt="WordPress配置" width="600">
+  <img src="../docs/images/wordpress-config-zh_CN.png" alt="WordPress配置" width="600">
   <p><em>在 WordPress 中配置 Notion 集成信息</em></p>
 </div>
 
@@ -822,22 +822,19 @@ https://yoursite.com/wp-json/notion-to-wordpress/v1/webhook
 - **处理间隔：** 批次间暂停 1-5 秒
 - **超时设置：** 单批最大执行时间 300 秒
 
-#### 💾 缓存策略
+#### ⚡ 增量同步策略
 
-**内容缓存：**
-- 🗄️ Notion API 响应缓存
-- 🗄️ 图片下载缓存
-- 🗄️ 转换结果缓存
-- 🗄️ 字段映射缓存
+**实时同步：**
+- 🔄 基于时间戳的增量同步
+- 📅 最后编辑时间比较
+- 🚀 仅同步修改的内容
+- ⏱️ 无需缓存机制
 
-**缓存配置：**
-```
-设置 → 缓存设置
-```
-- **缓存时间：** 1-24 小时可选
-- **缓存大小：** 最大 100MB
-- **自动清理：** 定期清理过期缓存
-- **手动清理：** 一键清空所有缓存
+**同步优化：**
+- **智能检测：** 仅处理变更页面
+- **高效更新：** 最少的 API 调用
+- **实时数据：** 始终保持最新内容
+- **性能优越：** 比缓存系统更快
 
 #### 📊 性能监控
 
@@ -1698,8 +1695,6 @@ document.addEventListener('DOMContentLoaded', function() {
 - **WordPress 社区** - 提供了强大的插件开发框架
 - **Notion 开发团队** - 提供了优秀的 API 接口
 
----
-
 ### 📞 联系方式
 
 **项目维护者：** Frank Loong
@@ -1714,14 +1709,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
 *感谢您阅读 Notion to WordPress 用户指南！*
 
+**🎉 如果这份指南对您有帮助，请考虑：**
+
+⭐ 给项目点个 Star
+
+🔄 分享给其他需要的用户
+
+💬 在社区中分享您的使用经验
+
+🐛 报告文档中的错误或改进建议
+
 **[⬆️ 返回顶部](#-notion-to-wordpress---用户指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
 
----
-
-**🎉 如果这份指南对您有帮助，请考虑：**
-- ⭐ 给项目点个 Star
-- 🔄 分享给其他需要的用户
-- 💬 在社区中分享您的使用经验
-- 🐛 报告文档中的错误或改进建议
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 
 </div>

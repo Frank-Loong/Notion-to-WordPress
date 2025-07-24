@@ -1,4 +1,15 @@
-/* Notion 内容导入器现代化后台样式 - 2.0版本 */
+/**
+ * 插件后台现代化样式
+ *
+ * 为 Notion to WordPress 插件后台提供现代化、响应式的用户界面样式。
+ *
+ * @since      2.0.0
+ * @version    2.0.0-beta.1
+ * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
+ */
 
 :root {
   --notion-primary: #2563eb;
@@ -180,8 +191,8 @@ body.wp-admin {
 
 /* 侧边栏样式*/
 .ncf-admin-aside {
-    background: #001529;
-    color: #fff;
+    background: #f1f1f1;
+    color: #333;
     border-right: 1px solid #eee;
     height: 100vh;
     position: fixed;
@@ -302,7 +313,8 @@ body.wp-admin {
 
 /* WordPress 暗模式兼容*/
 body.admin-color-dark .ncf-admin-aside {
-    background: #23282d;
+    background: #f9f9f9;
+    color: #333;
 }
 
 /* 管理页面样式 */
@@ -545,7 +557,7 @@ body.admin-color-dark .ncf-admin-aside {
 
 /* 内容区域 */
 .notion-wp-tab-content {
-  display: none;
+  display: none !important;
   background: white;
   border-radius: var(--notion-border-radius);
   padding: 25px;
@@ -554,7 +566,7 @@ body.admin-color-dark .ncf-admin-aside {
 }
 
 .notion-wp-tab-content.active {
-  display: block;
+  display: block !important;
   animation: fadeIn 0.3s ease-in-out;
 }
 

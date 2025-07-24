@@ -3,28 +3,31 @@
 /**
  * 配置集成测试
  * 
- * 本脚本用于测试发布配置与现有发布系统组件的集成情况。
+ * 用于测试发布配置与现有发布系统组件的集成情况。
+ * 
+ * @author Frank-Loong
+ * @version 2.0.0-beta.1
  */
 
 const config = require('../release.config.js');
 const chalk = require('chalk');
 
-console.log(chalk.bold('🪪 配置集成测试\n'));
+console.log(chalk.bold('📋 配置集成测试\n'));
 
 try {
     const cfg = config.getConfig();
-    
+
     console.log(chalk.blue('📋 配置概览:'));
     console.log(`  项目: ${cfg.project.name} (${cfg.project.displayName})`);
     console.log(`  作者: ${cfg.project.author}`);
     console.log(`  许可证: ${cfg.project.license}`);
-    
+
     console.log(chalk.blue('\n📝 版本管理:'));
     console.log(`  需更新文件数: ${cfg.version.files.length}`);
     cfg.version.files.forEach((file, i) => {
         console.log(`    ${i+1}. ${file.path} (${file.patterns.length} 规则)`);
     });
-    
+
     console.log(chalk.blue('\n📦 构建配置:'));
     console.log(`  输出目录: ${cfg.build.output.directory}`);
     console.log(`  文件名模板: ${cfg.build.output.filename}`);
@@ -32,7 +35,7 @@ try {
     console.log(`  包含目录: ${cfg.build.include.directories.length}`);
     console.log(`  排除文件: ${cfg.build.exclude.files.length}`);
     console.log(`  排除目录: ${cfg.build.exclude.directories.length}`);
-    
+
     console.log(chalk.blue('\n🔧 Git 配置:'));
     console.log(`  主分支: ${cfg.git.branch.main}`);
     console.log(`  Tag 格式: ${cfg.git.tag.format}`);
