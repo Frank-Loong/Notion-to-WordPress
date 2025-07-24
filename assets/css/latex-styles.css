@@ -11,196 +11,107 @@
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
-/* 块级公式样式 */
-.latex-block {
-    display: block;
-    margin: 1.5em 0;
-    text-align: center;
-    overflow-x: auto;
-    max-width: 100%;
-}
-
 /* 行内公式样式 */
-.latex-inline {
-    display: inline-block;
-    vertical-align: middle;
-    margin: 0 0.2em;
-}
-
-/* Notion公式样式 */
 .notion-equation-inline {
     display: inline-block;
     vertical-align: middle;
     margin: 0 0.2em;
 }
 
+/* 块级公式容器 - 现在直接在第一层标签上有ID和类名 */
 .notion-equation-block {
     display: block;
-    margin: 1.5em 0;
+    margin: 0.3em 0 !important; /* 紧凑间距 */
     text-align: center;
-    overflow-x: auto;
-    max-width: 100%;
+    font-size: 0.95em; /* 稍微增大，确保复杂公式显示正常 */
+    line-height: 1.4; /* 增加行高，为上下标和大括号留出空间 */
 }
 
-/* KaTeX相关样式调整 */
-.katex {
-    outline: 0;
-    font-size: 1.1em;
-}
-
-.katex-display {
+/* 如果公式块同时有notion-block类（新的结构） */
+.notion-block.notion-equation {
     display: block;
+    margin: 0.3em 0 !important; /* 与上面保持一致 */
     text-align: center;
-    margin: 1em 0;
-    padding: 0.5em 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: 100%;
+    font-size: 0.95em;
+    line-height: 1.4;
 }
 
-.katex-display > .katex {
-    display: inline-block;
-    white-space: nowrap;
-}
-
-/* 修复KaTeX标签重叠问题并优化样式 */
-.katex-display .tag {
-    position: absolute;
-    right: 0.5em;
-    top: 50%;
-    transform: translateY(-50%);
-    white-space: nowrap;
-    z-index: 1;
-
-    /* 优雅的标签样式 */
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-    border: 1px solid #dee2e6 !important;
-    border-radius: 8px !important;
-    padding: 0.4em 0.8em !important;
-    font-size: 0.85em !important;
-    color: #495057 !important;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    font-weight: 500 !important;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-    transition: all 0.3s ease !important;
-}
-
-.katex-display .tag:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%) !important;
-    border-color: #adb5bd !important;
-    color: #212529 !important;
-    transform: translateY(-50%) scale(1.05) !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
-}
-
-/* 标签内部元素样式重置 */
-.katex-display .tag .strut {
-    display: none !important; /* 隐藏KaTeX的strut元素 */
-}
-
-.katex-display .tag .mord {
-    color: inherit !important;
-    font-family: inherit !important;
-    font-size: inherit !important;
-}
-
-.katex-display .tag .mord.text {
-    font-family: inherit !important;
-}
-
-/* 对于不支持:has()的浏览器，使用通用样式 */
+/* 覆盖KaTeX默认的katex-display样式 */
 .katex-display {
+    display: block !important;
+    margin: 0.2em 0 !important; /* 覆盖KaTeX默认的1em */
+    text-align: center !important;
+}
+
+/* 覆盖KaTeX默认的katex样式 */
+.katex-display > .katex {
+    display: block !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    font-size: 1em !important; /* 保持正常大小，确保复杂公式显示正确 */
+    min-height: 2em; /* 为复杂公式预留足够高度 */
+}
+
+/* 确保katex-html有正确的定位上下文和空间预留 */
+.katex-display > .katex > .katex-html {
+    display: block !important;
     position: relative !important;
-    padding-right: 6em;
+    padding-right: 4em !important; /* 为标签预留空间 */
+    overflow: visible !important; /* 确保上下标和大括号不被裁剪 */
+    min-height: inherit; /* 继承父元素的最小高度 */
 }
 
-/* 确保公式内容不会与标签重叠 */
-.katex-display .katex-html {
-    max-width: calc(100% - 8em);
-    display: inline-block;
+/* 覆盖KaTeX默认的标签样式 - 学术风格 */
+.katex-display > .katex > .katex-html > .tag {
+    position: absolute !important;
+    right: 0 !important; /* 完全右对齐 */
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+
+    /* 使用与公式相符的字体样式 */
+    font-family: KaTeX_Main, "Times New Roman", serif !important;
+    font-size: 0.8em !important; /* 相对于公式的大小 */
+    font-weight: normal !important;
+    color: inherit !important; /* 继承公式的颜色 */
+    line-height: 1.2 !important;
+
+    /* 简洁的学术风格 - 类似传统数学文献 */
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 0.3em !important; /* 最小padding */
+    box-shadow: none !important;
+    z-index: 10 !important;
+
+    /* 添加括号样式，符合学术传统 */
+    text-decoration: none !important;
 }
 
-/* 响应式设计 - 小屏幕上的标签处理 */
+/* 响应式设计 */
 @media (max-width: 768px) {
-    .katex-display {
-        padding-right: 3em;
-    }
-
-    .katex-display .tag {
-        font-size: 0.75em !important;
-        padding: 0.3em 0.5em !important;
-        right: 0.2em;
-    }
-
-    .katex-display .katex-html {
-        max-width: calc(100% - 3.5em);
-    }
-}
-
-/* KaTeX错误样式 */
-.katex-error {
-    color: #d32f2f;
-    background-color: #ffebee;
-    border: 1px solid #ffcdd2;
-    border-radius: 4px;
-    padding: 0.2em 0.4em;
-    font-family: monospace;
-    font-size: 0.9em;
-    display: inline-block;
-    margin: 0.1em;
-}
-
-/* 确保图表和公式正常显示 */
-.mermaid {
-    margin: 2em 0;
-    text-align: center;
-    overflow-x: auto;
-    max-width: 100%;
-    padding: 1em;
-    background: #f9f9f9;
-    border-radius: 5px;
-}
-
-/* 暗色主题适配 */
-@media (prefers-color-scheme: dark) {
-    .katex {
-        color: #f0f0f0;
+    .notion-equation-block,
+    .notion-block.notion-equation {
+        margin: 0.2em 0 !important; /* 更紧凑 */
+        font-size: 0.9em !important; /* 移动端稍小但不过小 */
+        line-height: 1.5; /* 移动端增加行高 */
     }
 
     .katex-display {
-        color: #f0f0f0;
+        margin: 0.1em 0 !important;
     }
 
-    .katex-error {
-        color: #f44336;
-        background-color: #3d2f2f;
-        border-color: #5d4037;
+    .katex-display > .katex {
+        font-size: 0.95em !important; /* 移动端稍小但保证可读性 */
+        min-height: 1.8em; /* 移动端也预留足够高度 */
     }
 
-    .mermaid {
-        background: #2d2d2d;
-        color: #f0f0f0;
+    .katex-display > .katex > .katex-html {
+        padding-right: 3em !important; /* 减少右边距 */
+    }
+
+    .katex-display > .katex > .katex-html > .tag {
+        font-size: 0.7em !important;
+        padding: 0 0.2em !important; /* 保持简洁 */
     }
 }
 
-/* 媒体查询适配移动设备 */
-@media (max-width: 768px) {
-    .katex {
-        font-size: 95% !important;
-    }
-
-    .katex-display {
-        font-size: 95% !important;
-        margin: 0.8em 0;
-        padding: 0.3em 0;
-    }
-
-    .notion-equation-block {
-        margin: 1em 0;
-        font-size: 95%;
-    }
-
-    .mermaid {
-        font-size: 90%;
-    }
-}
