@@ -822,22 +822,19 @@ Settings → Performance Optimization → Enable Incremental Sync
 - **Processing Interval:** 1-5 second pause between batches
 - **Timeout Settings:** Maximum execution time 300 seconds per batch
 
-#### 💾 Caching Strategy
+#### ⚡ Incremental Sync Strategy
 
-**Content Caching:**
-- 🗄️ Notion API response caching
-- 🗄️ Image download caching
-- 🗄️ Conversion result caching
-- 🗄️ Field mapping caching
+**Real-time Synchronization:**
+- 🔄 Timestamp-based incremental sync
+- 📅 Last edited time comparison
+- 🚀 Only sync modified content
+- ⏱️ Eliminates need for caching
 
-**Cache Configuration:**
-```
-Settings → Cache Settings
-```
-- **Cache Duration:** 1-24 hours selectable
-- **Cache Size:** Maximum 100MB
-- **Auto Cleanup:** Regularly clean expired cache
-- **Manual Cleanup:** One-click clear all cache
+**Sync Optimization:**
+- **Smart Detection:** Only processes changed pages
+- **Efficient Updates:** Minimal API calls required
+- **Real-time Data:** Always current content
+- **Performance:** Faster than cache-based systems
 
 #### 📊 Performance Monitoring
 
