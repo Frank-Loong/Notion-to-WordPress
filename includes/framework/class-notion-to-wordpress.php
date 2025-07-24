@@ -507,12 +507,29 @@ class Notion_To_WordPress {
 			'0.16.22'
 		);
 
-		// KaTeX 主库
+		// 本地兜底样式
+		wp_enqueue_style(
+			'katex-fallback',
+			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.css'),
+			array(),
+			$this->version
+		);
+
+		// KaTeX 主库 - CDN优先
 		wp_register_script(
 			'katex',
 			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.js',
 			array(),
 			'0.16.22',
+			true
+		);
+
+		// 本地兜底脚本
+		wp_register_script(
+			'katex-fallback',
+			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js'),
+			array(),
+			$this->version,
 			true
 		);
 
@@ -525,7 +542,16 @@ class Notion_To_WordPress {
 			true
 		);
 
-		// 新增：KaTeX auto-render 扩展，依赖 KaTeX
+		// mhchem 本地兜底
+		wp_register_script(
+			'katex-mhchem-fallback',
+			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
+			array( 'katex-fallback' ),
+			$this->version,
+			true
+		);
+
+		// KaTeX auto-render 扩展，依赖 KaTeX
 		wp_register_script(
 			'katex-auto-render',
 			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
@@ -534,12 +560,43 @@ class Notion_To_WordPress {
 			true
 		);
 
+		// auto-render 本地兜底
+		wp_register_script(
+			'katex-auto-render-fallback',
+			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
+			array( 'katex-fallback' ),
+			$this->version,
+			true
+		);
+
 		// 按顺序入队 KaTeX 相关脚本
 		wp_enqueue_script( 'katex' );
 		wp_enqueue_script( 'katex-mhchem' );
 		wp_enqueue_script( 'katex-auto-render' );
 
-		// ---------------- Mermaid ----------------
+		// 添加CDN兜底逻辑
+		wp_add_inline_script( 'katex', "
+			// KaTeX CDN兜底逻辑
+			if (typeof katex === 'undefined') {
+				console.log('KaTeX CDN failed, loading fallback...');
+				var script = document.createElement('script');
+				script.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js') . "';
+				script.onload = function() {
+					// 加载mhchem兜底
+					var mhchemScript = document.createElement('script');
+					mhchemScript.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js') . "';
+					document.head.appendChild(mhchemScript);
+
+					// 加载auto-render兜底
+					var autoRenderScript = document.createElement('script');
+					autoRenderScript.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js') . "';
+					document.head.appendChild(autoRenderScript);
+				};
+				document.head.appendChild(script);
+			}
+		" );
+
+		// ---------------- Mermaid - CDN优先，本地兜底 ----------------
 		wp_enqueue_script(
 			'mermaid',
 			$cdn_prefix . '/npm/mermaid@11/dist/mermaid.min.js',
@@ -547,6 +604,16 @@ class Notion_To_WordPress {
 			'11.7.0',
 			true
 		);
+
+		// Mermaid CDN兜底逻辑
+		wp_add_inline_script( 'mermaid', "
+			if (typeof mermaid === 'undefined') {
+				console.log('Mermaid CDN failed, loading fallback...');
+				var script = document.createElement('script');
+				script.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js') . "';
+				document.head.appendChild(script);
+			}
+		" );
 
 		// 处理公式与Mermaid渲染的脚本
 		wp_enqueue_script(
@@ -632,14 +699,14 @@ class Notion_To_WordPress {
 		static $formula_placeholders = array();
 
 		// 匹配所有公式标签（行内和块级），使用更精确的正则表达式
+		// 注意：避免匹配已经包含占位符的包装div
 		$patterns = array(
 			// 匹配行内公式 span 标签
 			'/<span[^>]*class="[^"]*notion-equation-inline[^"]*"[^>]*>.*?<\/span>/s',
-			// 匹配块级公式 div 标签
-			'/<div[^>]*class="[^"]*notion-equation-block[^"]*"[^>]*>.*?<\/div>/s',
-			// 兼容旧版本的通用匹配
-			'/<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>/s',
-			'/<div[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/div>/s'
+			// 匹配块级公式 div 标签，但排除包含占位符的div
+			'/<div[^>]*class="[^"]*notion-equation-block[^"]*"[^>]*>(?!.*NOTION_FORMULA_PLACEHOLDER).*?<\/div>/s',
+			// 兼容旧版本的行内公式匹配
+			'/<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>/s'
 		);
 
 		foreach ( $patterns as $pattern ) {

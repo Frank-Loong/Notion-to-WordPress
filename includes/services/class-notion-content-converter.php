@@ -176,13 +176,13 @@ class Notion_Content_Converter {
     }
 
     /**
-     * 为块添加 ID 包装，支持锚点跳转
+     * 为块添加 ID 和类名，支持锚点跳转（直接修改第一层标签，避免额外嵌套）
      *
      * @since 2.0.0-beta.1
      * @param mixed $block_html 块的 HTML 内容（可能是字符串或数组）
      * @param string $block_id 块 ID
      * @param string $block_type 块类型
-     * @return string 包装后的 HTML
+     * @return string 添加ID和类名后的 HTML
      */
     public static function wrap_block_with_id($block_html, string $block_id, string $block_type): string {
         // 类型安全检查：确保 block_html 是字符串
@@ -209,8 +209,57 @@ class Notion_Content_Converter {
         $safe_id = esc_attr('notion-block-' . $block_id);
         $safe_class = esc_attr('notion-block notion-' . $block_type);
 
-        // 为块添加包装 div，包含 ID 和类名
-        return '<div id="' . $safe_id . '" class="' . $safe_class . '">' . $block_html . '</div>';
+        // 尝试直接在第一层HTML标签上添加ID和类名，避免额外嵌套
+        return self::add_attributes_to_first_tag($block_html, $safe_id, $safe_class);
+    }
+
+    /**
+     * 在HTML的第一个标签上添加ID和类名属性
+     *
+     * @param string $html HTML内容
+     * @param string $id 要添加的ID
+     * @param string $class 要添加的类名
+     * @return string 修改后的HTML
+     */
+    private static function add_attributes_to_first_tag(string $html, string $id, string $class): string {
+        // 如果HTML为空或不包含标签，则用div包装
+        if (empty($html) || !preg_match('/<[^>]+>/', $html)) {
+            return '<div id="' . $id . '" class="' . $class . '">' . $html . '</div>';
+        }
+
+        // 查找第一个HTML标签
+        if (preg_match('/^(\s*)<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^>]*)?)(\s*\/?>)/', $html, $matches)) {
+            $before_tag = $matches[1]; // 标签前的空白
+            $tag_name = $matches[2];   // 标签名
+            $existing_attrs = $matches[3]; // 现有属性
+            $tag_end = $matches[4];    // 标签结束部分
+
+            // 检查是否已有ID属性
+            $id_attr = '';
+            if (!preg_match('/\bid\s*=/', $existing_attrs)) {
+                $id_attr = ' id="' . $id . '"';
+            }
+
+            // 检查是否已有class属性
+            if (preg_match('/\bclass\s*=\s*["\']([^"\']*)["\']/', $existing_attrs, $class_matches)) {
+                // 已有class，合并类名
+                $existing_classes = $class_matches[1];
+                $new_class = ' class="' . $existing_classes . ' ' . $class . '"';
+                $new_attrs = preg_replace('/\bclass\s*=\s*["\'][^"\']*["\']/', $new_class, $existing_attrs);
+            } else {
+                // 没有class，添加新的
+                $new_attrs = $existing_attrs . ' class="' . $class . '"';
+            }
+
+            // 构建新的开始标签
+            $new_opening_tag = $before_tag . '<' . $tag_name . $id_attr . $new_attrs . $tag_end;
+
+            // 替换原始HTML中的第一个标签
+            return preg_replace('/^(\s*)<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^>]*)?)(\s*\/?>)/', $new_opening_tag, $html, 1);
+        }
+
+        // 如果无法解析第一个标签，则用div包装（兜底方案）
+        return '<div id="' . $id . '" class="' . $class . '">' . $html . '</div>';
     }
 
     // ==================== 基础块转换方法 ====================
@@ -397,9 +446,8 @@ class Notion_Content_Converter {
             }
         }
 
-        // 不添加 notion-callout 类，因为外层的 wrap_block_with_id 会添加
-        // 这样避免重复容器：外层已有 class="notion-block notion-callout"
-        return $icon . '<div class="notion-callout-content">' . $text . '</div>';
+        // 现在直接返回完整的callout结构，因为wrap_block_with_id会在第一层标签上添加ID和类
+        return '<div class="notion-callout">' . $icon . '<div class="notion-callout-content">' . $text . '</div></div>';
     }
 
     /**
