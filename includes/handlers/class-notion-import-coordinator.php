@@ -363,6 +363,22 @@ class Notion_Import_Coordinator {
             // 添加性能统计到返回结果
             $stats['performance'] = $performance_stats;
 
+            // 执行延迟链接转换处理
+            Notion_Logger::debug_log('开始执行延迟链接转换处理', 'Pages Import');
+            $link_conversion_stats = Notion_To_WordPress_Integrator::process_delayed_link_conversion();
+
+            // 将链接转换统计添加到返回结果
+            $stats['link_conversion'] = $link_conversion_stats;
+
+            Notion_Logger::info_log(
+                sprintf('延迟链接转换统计: 处理=%d, 更新=%d, 错误=%d',
+                    $link_conversion_stats['processed'],
+                    $link_conversion_stats['updated'],
+                    $link_conversion_stats['errors']
+                ),
+                'Pages Import'
+            );
+
             // 缓存已禁用，无需清理操作
             Notion_Logger::debug_log(
                 '同步完成，缓存已禁用无需清理',
@@ -893,8 +909,41 @@ class Notion_Import_Coordinator {
     private function coordinate_wordpress_integration(array $metadata, string $content, string $page_id) {
         Notion_Logger::debug_log('协调WordPress集成开始', 'Page Import');
 
+        // 诊断日志：记录内容保存前的状态
+        $content_length = strlen($content);
+        $has_notion_links = strpos($content, 'notion.so') !== false;
+        $has_wordpress_links = strpos($content, 'frankloong.local') !== false;
+
+        Notion_Logger::debug_log(
+            sprintf('内容保存前诊断: 长度=%d, 包含Notion链接=%s, 包含WordPress链接=%s',
+                $content_length,
+                $has_notion_links ? '是' : '否',
+                $has_wordpress_links ? '是' : '否'
+            ),
+            'Content Diagnosis'
+        );
+
+        // 如果包含转换后的链接，记录详细信息
+        if ($has_wordpress_links) {
+            preg_match_all('/frankloong\.local[^\s"\'<>]*/', $content, $matches);
+            $wordpress_links = $matches[0] ?? [];
+            Notion_Logger::debug_log(
+                '发现转换后的WordPress链接: ' . implode(', ', array_slice($wordpress_links, 0, 3)),
+                'Content Diagnosis'
+            );
+        }
+
         $existing_post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page_id);
         $author_id = Notion_To_WordPress_Integrator::get_default_author_id();
+
+        Notion_Logger::debug_log(
+            sprintf('文章信息: 页面ID=%s, 现有文章ID=%d, 作者ID=%d',
+                $page_id,
+                $existing_post_id,
+                $author_id
+            ),
+            'Content Diagnosis'
+        );
 
         // 创建或更新文章
         $post_id = Notion_To_WordPress_Integrator::create_or_update_post(
@@ -906,7 +955,58 @@ class Notion_Import_Coordinator {
         );
 
         if (is_wp_error($post_id)) {
+            Notion_Logger::error_log(
+                '文章保存失败: ' . $post_id->get_error_message(),
+                'Content Diagnosis'
+            );
             return $post_id;
+        }
+
+        // 诊断日志：验证保存后的内容
+        $saved_post = get_post($post_id);
+        if ($saved_post) {
+            $saved_content = $saved_post->post_content;
+            $saved_length = strlen($saved_content);
+            $saved_has_notion_links = strpos($saved_content, 'notion.so') !== false;
+            $saved_has_wordpress_links = strpos($saved_content, 'frankloong.local') !== false;
+
+            Notion_Logger::debug_log(
+                sprintf('内容保存后诊断: 长度=%d, 包含Notion链接=%s, 包含WordPress链接=%s',
+                    $saved_length,
+                    $saved_has_notion_links ? '是' : '否',
+                    $saved_has_wordpress_links ? '是' : '否'
+                ),
+                'Content Diagnosis'
+            );
+
+            // 比较保存前后的内容
+            if ($content_length !== $saved_length) {
+                Notion_Logger::warning_log(
+                    sprintf('内容长度变化: 保存前=%d, 保存后=%d',
+                        $content_length,
+                        $saved_length
+                    ),
+                    'Content Diagnosis'
+                );
+            }
+
+            // 检查链接转换是否丢失
+            if ($has_wordpress_links && !$saved_has_wordpress_links) {
+                Notion_Logger::error_log(
+                    '严重问题：转换后的WordPress链接在保存后丢失！',
+                    'Content Diagnosis'
+                );
+            } elseif ($has_wordpress_links && $saved_has_wordpress_links) {
+                Notion_Logger::debug_log(
+                    '链接转换保存成功',
+                    'Content Diagnosis'
+                );
+            }
+        } else {
+            Notion_Logger::error_log(
+                '无法获取保存后的文章内容进行验证',
+                'Content Diagnosis'
+            );
         }
 
         // 应用分类、标签和特色图
