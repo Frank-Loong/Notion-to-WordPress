@@ -279,29 +279,15 @@
     max-width: 100%;
 }
 
-/* Mermaid 图表样式 - 统一布局和居中 */
+/* Mermaid 图表样式 */
 .mermaid {
     text-align: center;
-    margin: 2em auto;
+    margin: 1.5em auto;
     max-width: 100%;
     overflow-x: auto;
     background: transparent;
-    padding: 1em 0;
+    padding: 0;
     overflow: visible;
-    display: block;
-    width: 100%;
-}
-
-/* 确保Mermaid容器在所有主题中都能正确居中 */
-pre.mermaid {
-    text-align: center;
-    margin: 2em auto;
-    padding: 1em;
-    background: #f9f9f9;
-    border-radius: 5px;
-    border: 1px solid #e0e0e0;
-    overflow-x: auto;
-    max-width: 100%;
 }
 
 /* 保证 Mermaid 渲染后的 SVG 充满容器并字体可读*/
@@ -322,32 +308,7 @@ pre.mermaid > svg,
     transform: none !important;
 }
 
-/* Mermaid 响应式样式 */
-@media (max-width: 768px) {
-    .mermaid,
-    pre.mermaid {
-        margin: 1.5em auto;
-        padding: 0.5em;
-        font-size: 14px;
-    }
 
-    .mermaid svg text {
-        font-size: 14px;
-    }
-}
-
-@media (max-width: 480px) {
-    .mermaid,
-    pre.mermaid {
-        margin: 1em auto;
-        padding: 0.25em;
-        font-size: 12px;
-    }
-
-    .mermaid svg text {
-        font-size: 12px;
-    }
-}
 
 /* 化学方程式样式*/
 .notion-chem-equation {
@@ -356,6 +317,21 @@ pre.mermaid > svg,
     font-size: 1.05em;
     margin: 0 2px;
 }
+
+.mermaid {
+    margin: 2em auto !important;
+    text-align: center;
+    overflow-x: auto;
+    max-width: 100%;
+    padding: 1em;
+    background: #f9f9f9;
+    border-radius: 5px;
+    width: fit-content !important;
+    min-width: 300px;
+    max-width: min(100%, 800px) !important;
+}
+
+
 
 /* 代码块样式优化*/
 .wp-block-code {

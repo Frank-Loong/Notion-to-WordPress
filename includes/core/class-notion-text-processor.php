@@ -116,6 +116,10 @@ class Notion_Text_Processor {
                     // 转换为本地锚点链接，不添加 target="_blank"
                     $local_href = self::convert_notion_anchor_to_local($href);
                     $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
+                } elseif (self::is_notion_page_link($href)) {
+                    // 转换为 WordPress 永久链接，不添加 target="_blank"
+                    $wordpress_href = self::convert_notion_page_to_wordpress($href);
+                    $content = '<a href="' . esc_url($wordpress_href) . '">' . $content . '</a>';
                 } else {
                     // 外部链接保持原有处理方式
                     $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
@@ -141,6 +145,99 @@ class Notion_Text_Processor {
         // 2. https://notion.so/123abc#456def
         // 3. #456def (相对锚点)
         return (bool) preg_match('/(?:notion\.so.*)?#[a-f0-9-]{8,}/', $href);
+    }
+
+    /**
+     * 检测是否为 Notion 页面链接
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $href    链接地址
+     * @return   bool              是否为 Notion 页面链接
+     */
+    public static function is_notion_page_link(string $href): bool {
+        // 检测是否为 Notion 页面链接，支持多种格式：
+        // 1. https://www.notion.so/22a7544376be81ed8e01e36cf55a6789
+        // 2. https://notion.so/22a7544376be81ed8e01e36cf55a6789
+        // 3. https://www.notion.so/page-title-22a7544376be81ed8e01e36cf55a6789
+        // 4. https://notion.so/page-title-22a75443-76be-81ed-8e01-e36cf55a6789
+        $is_page_link = (bool) preg_match('/^https?:\/\/(?:www\.)?notion\.so\/(?:.*-)?([a-f0-9]{32}|[a-f0-9-]{36})(?:[?#].*)?$/i', $href);
+
+        // 调试日志：记录页面链接检测结果
+        if ($is_page_link) {
+            Notion_Logger::debug_log("检测到 Notion 页面链接: $href", 'Page Link Detection');
+        }
+
+        return $is_page_link;
+    }
+
+    /**
+     * 从 Notion 页面链接中提取页面 ID
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $href    Notion 页面链接
+     * @return   string             页面 ID，提取失败返回空字符串
+     */
+    public static function extract_notion_page_id(string $href): string {
+        // 使用正则表达式提取页面 ID
+        if (preg_match('/^https?:\/\/(?:www\.)?notion\.so\/(?:.*-)?([a-f0-9]{32}|[a-f0-9-]{36})(?:[?#].*)?$/i', $href, $matches)) {
+            $page_id = $matches[1];
+
+            // 调试日志：记录提取的页面 ID
+            Notion_Logger::debug_log("从链接中提取页面 ID: $page_id", 'Page Link');
+
+            // 标准化页面 ID 格式（转换为32位无连字符格式，与数据库存储一致）
+            $normalized_id = str_replace('-', '', $page_id);
+
+            // 验证 ID 长度
+            if (strlen($normalized_id) === 32) {
+                return $normalized_id;
+            } else {
+                Notion_Logger::warning_log("页面 ID 长度不正确: $normalized_id (长度: " . strlen($normalized_id) . ")", 'Page Link');
+                return '';
+            }
+        }
+
+        Notion_Logger::warning_log("无法从链接中提取页面 ID: $href", 'Page Link');
+        return '';
+    }
+
+    /**
+     * 将 Notion 页面链接转换为 WordPress 永久链接
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $href    原始 Notion 页面链接
+     * @return   string             转换后的 WordPress 永久链接，转换失败返回原链接
+     */
+    public static function convert_notion_page_to_wordpress(string $href): string {
+        // 提取页面 ID
+        $page_id = self::extract_notion_page_id($href);
+
+        if (empty($page_id)) {
+            Notion_Logger::warning_log("无法提取页面 ID，保持原链接: $href", 'Page Link');
+            return $href;
+        }
+
+        // 查找对应的 WordPress 文章 ID
+        $post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page_id);
+
+        if ($post_id === 0) {
+            // 未找到对应文章，记录调试信息并保持原链接
+            Notion_Logger::debug_log("未找到页面 ID $page_id 对应的 WordPress 文章，保持原链接", 'Page Link');
+            return $href;
+        }
+
+        // 生成 WordPress 永久链接
+        $wordpress_url = get_permalink($post_id);
+
+        if (empty($wordpress_url) || $wordpress_url === false) {
+            Notion_Logger::warning_log("无法为文章 ID $post_id 生成永久链接，保持原链接", 'Page Link');
+            return $href;
+        }
+
+        // 转换成功，记录调试信息
+        Notion_Logger::debug_log("页面链接转换成功: $href -> $wordpress_url (文章ID: $post_id)", 'Page Link');
+
+        return $wordpress_url;
     }
 
     /**

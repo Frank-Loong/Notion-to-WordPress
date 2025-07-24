@@ -253,14 +253,14 @@ startOnLoad: false, // 手动控制加载
 theme: 'default',
 securityLevel: 'loose',
 flowchart: {
-useMaxWidth: true,
+useMaxWidth: true, // 恢复Notion原版设置
 htmlLabels: true
 },
 er: {
-useMaxWidth: true
+useMaxWidth: true // 恢复Notion原版设置
 },
 sequence: {
-useMaxWidth: true,
+useMaxWidth: true, // 恢复Notion原版设置
 noteFontWeight: '14px',
 actorFontSize: '14px',
 messageFontSize: '16px'

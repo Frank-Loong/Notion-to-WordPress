@@ -927,6 +927,10 @@ class Notion_Content_Converter {
                     // 转换为本地锚点链接，不添加 target="_blank"
                     $local_href = Notion_Text_Processor::convert_notion_anchor_to_local($href);
                     $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
+                } elseif (Notion_Text_Processor::is_notion_page_link($href)) {
+                    // 转换为 WordPress 永久链接，不添加 target="_blank"
+                    $wordpress_href = Notion_Text_Processor::convert_notion_page_to_wordpress($href);
+                    $content = '<a href="' . esc_url($wordpress_href) . '">' . $content . '</a>';
                 } else {
                     // 外部链接保持原有处理方式
                     $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
