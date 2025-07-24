@@ -213,16 +213,61 @@ class Notion_Text_Processor {
         $page_id = self::extract_notion_page_id($href);
 
         if (empty($page_id)) {
-            Notion_Logger::warning_log("无法提取页面 ID，保持原链接: $href", 'Page Link');
             return $href;
         }
 
-        // 查找对应的 WordPress 文章 ID
+        // 尝试多种格式查找页面ID
+        $post_id = 0;
+        $found_format = '';
+
+        // 1. 首先尝试无连字符格式查找（32位）
         $post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page_id);
+        if ($post_id > 0) {
+            $found_format = '32位无连字符';
+        }
+
+        // 2. 如果无连字符格式未找到，尝试带连字符格式（36位）
+        if ($post_id === 0) {
+            $formatted_page_id = self::format_page_id_with_hyphens($page_id);
+
+            if (!empty($formatted_page_id)) {
+                $post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($formatted_page_id);
+
+                if ($post_id > 0) {
+                    $found_format = '36位带连字符';
+                }
+            }
+        }
+
+        // 3. 如果仍然未找到，尝试反向转换（从36位转32位）
+        if ($post_id === 0 && strlen($page_id) === 32) {
+            // 检查是否有其他可能的格式变体
+            global $wpdb;
+            $like_pattern = '%' . substr($page_id, 0, 8) . '%' . substr($page_id, 8, 4) . '%' . substr($page_id, 12, 4) . '%';
+
+            $query = $wpdb->prepare(
+                "SELECT post_id, meta_value FROM {$wpdb->postmeta}
+                WHERE meta_key = '_notion_page_id' AND meta_value LIKE %s
+                LIMIT 5",
+                $like_pattern
+            );
+
+            $similar_results = $wpdb->get_results($query);
+
+            if (!empty($similar_results)) {
+                // 尝试精确匹配
+                foreach ($similar_results as $result) {
+                    $stored_id = str_replace('-', '', $result->meta_value);
+                    if ($stored_id === $page_id) {
+                        $post_id = (int)$result->post_id;
+                        $found_format = '模糊匹配成功';
+                        break;
+                    }
+                }
+            }
+        }
 
         if ($post_id === 0) {
-            // 未找到对应文章，记录调试信息并保持原链接
-            Notion_Logger::debug_log("未找到页面 ID $page_id 对应的 WordPress 文章，保持原链接", 'Page Link');
             return $href;
         }
 
@@ -230,14 +275,36 @@ class Notion_Text_Processor {
         $wordpress_url = get_permalink($post_id);
 
         if (empty($wordpress_url) || $wordpress_url === false) {
-            Notion_Logger::warning_log("无法为文章 ID $post_id 生成永久链接，保持原链接", 'Page Link');
             return $href;
         }
 
-        // 转换成功，记录调试信息
-        Notion_Logger::debug_log("页面链接转换成功: $href -> $wordpress_url (文章ID: $post_id)", 'Page Link');
-
         return $wordpress_url;
+    }
+
+    /**
+     * 将32位无连字符页面ID格式化为36位带连字符格式
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $page_id    32位无连字符页面ID
+     * @return   string                36位带连字符页面ID，格式化失败返回空字符串
+     */
+    private static function format_page_id_with_hyphens(string $page_id): string {
+        // 验证输入是否为32位十六进制字符串
+        if (strlen($page_id) !== 32 || !ctype_xdigit($page_id)) {
+            return '';
+        }
+
+        // 格式化为 8-4-4-4-12 的UUID格式
+        $formatted = sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($page_id, 0, 8),
+            substr($page_id, 8, 4),
+            substr($page_id, 12, 4),
+            substr($page_id, 16, 4),
+            substr($page_id, 20, 12)
+        );
+
+        return $formatted;
     }
 
     /**
@@ -397,6 +464,9 @@ class Notion_Text_Processor {
         if (empty($expression)) {
             return '';
         }
+
+        // 解码HTML实体，确保LaTeX符号正确（如 &amp; -> &）
+        $expression = html_entity_decode($expression, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         // 保留化学公式的特殊处理（确保\ce前缀）
         if (strpos($expression, 'ce{') !== false && strpos($expression, '\\ce{') === false) {

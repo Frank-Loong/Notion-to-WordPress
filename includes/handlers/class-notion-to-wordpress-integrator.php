@@ -76,17 +76,109 @@ class Notion_To_WordPress_Integrator {
             $post_data['post_date'] = $metadata['date'];
         }
 
+        // 诊断日志：记录WordPress函数调用前的状态
+        $content_preview = substr($content, 0, 200) . (strlen($content) > 200 ? '...' : '');
+        $has_wordpress_links_before = strpos($content, 'frankloong.local') !== false;
+
+        Notion_Logger::debug_log(
+            sprintf('准备调用WordPress函数: 操作=%s, 内容长度=%d, 包含WordPress链接=%s',
+                $existing_post_id ? 'UPDATE' : 'INSERT',
+                strlen($content),
+                $has_wordpress_links_before ? '是' : '否'
+            ),
+            'WordPress Integration'
+        );
+
+        Notion_Logger::debug_log(
+            '内容预览: ' . $content_preview,
+            'WordPress Integration'
+        );
+
         $post_id = 0;
         if ($existing_post_id) {
             $post_data['ID'] = $existing_post_id;
+
+            Notion_Logger::debug_log(
+                sprintf('调用wp_update_post: 文章ID=%d', $existing_post_id),
+                'WordPress Integration'
+            );
+
             $post_id = wp_update_post($post_data, true);
+
+            if (is_wp_error($post_id)) {
+                Notion_Logger::error_log(
+                    'wp_update_post失败: ' . $post_id->get_error_message(),
+                    'WordPress Integration'
+                );
+            } else {
+                Notion_Logger::debug_log(
+                    sprintf('wp_update_post成功: 返回ID=%d', $post_id),
+                    'WordPress Integration'
+                );
+            }
         } else {
+            Notion_Logger::debug_log(
+                '调用wp_insert_post: 创建新文章',
+                'WordPress Integration'
+            );
+
             $post_id = wp_insert_post($post_data, true);
+
+            if (is_wp_error($post_id)) {
+                Notion_Logger::error_log(
+                    'wp_insert_post失败: ' . $post_id->get_error_message(),
+                    'WordPress Integration'
+                );
+            } else {
+                Notion_Logger::debug_log(
+                    sprintf('wp_insert_post成功: 新文章ID=%d', $post_id),
+                    'WordPress Integration'
+                );
+            }
         }
 
-        // 如果创建/更新成功，处理自定义字段
-        if (!is_wp_error($post_id) && $post_id > 0 && !empty($metadata['custom_fields'])) {
-            self::apply_custom_fields($post_id, $metadata['custom_fields']);
+        // 诊断日志：验证WordPress函数调用后的结果
+        if (!is_wp_error($post_id) && $post_id > 0) {
+            // 立即从数据库重新获取文章内容进行验证
+            $verification_post = get_post($post_id);
+            if ($verification_post) {
+                $saved_content = $verification_post->post_content;
+                $has_wordpress_links_after = strpos($saved_content, 'frankloong.local') !== false;
+
+                Notion_Logger::debug_log(
+                    sprintf('WordPress函数调用后验证: 保存长度=%d, 包含WordPress链接=%s',
+                        strlen($saved_content),
+                        $has_wordpress_links_after ? '是' : '否'
+                    ),
+                    'WordPress Integration'
+                );
+
+                // 检查内容是否正确保存
+                if ($has_wordpress_links_before && !$has_wordpress_links_after) {
+                    Notion_Logger::error_log(
+                        '关键问题：WordPress链接在wp_update_post/wp_insert_post后丢失！',
+                        'WordPress Integration'
+                    );
+                } elseif ($has_wordpress_links_before && $has_wordpress_links_after) {
+                    Notion_Logger::debug_log(
+                        'WordPress链接成功保存到数据库',
+                        'WordPress Integration'
+                    );
+                }
+            } else {
+                Notion_Logger::error_log(
+                    '无法重新获取文章进行验证',
+                    'WordPress Integration'
+                );
+            }
+        }
+
+        // 如果创建/更新成功，处理自定义字段和缓存清除
+        if (!is_wp_error($post_id) && $post_id > 0) {
+            // 处理自定义字段
+            if (!empty($metadata['custom_fields'])) {
+                self::apply_custom_fields($post_id, $metadata['custom_fields']);
+            }
         }
 
         return $post_id;
@@ -527,5 +619,220 @@ class Notion_To_WordPress_Integrator {
         }
 
         return $value;
+    }
+
+    /**
+     * 延迟链接转换处理
+     *
+     * 在所有页面同步完成后，重新处理包含未转换Notion链接的文章
+     *
+     * @since 2.0.0-beta.1
+     * @return array 处理结果统计
+     */
+    public static function process_delayed_link_conversion(): array {
+        $stats = [
+            'processed' => 0,
+            'updated' => 0,
+            'errors' => 0
+        ];
+
+        // 查找包含Notion链接的文章（只匹配href属性中的链接）
+        global $wpdb;
+        $query = "
+            SELECT p.ID, p.post_content, pm.meta_value as notion_page_id
+            FROM {$wpdb->posts} p
+            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            WHERE pm.meta_key = '_notion_page_id'
+            AND p.post_content LIKE '%href%notion.so%'
+            AND p.post_status = 'publish'
+        ";
+
+        $posts_with_notion_links = $wpdb->get_results($query);
+
+        if (empty($posts_with_notion_links)) {
+            return $stats;
+        }
+
+        foreach ($posts_with_notion_links as $post) {
+            $stats['processed']++;
+
+            // 重新处理文章内容中的链接
+            $original_content = $post->post_content;
+            $updated_content = self::convert_notion_links_in_content($original_content);
+
+            // 检查是否有链接被转换
+            if ($updated_content !== $original_content) {
+                // 直接更新数据库避免HTML实体转义
+                global $wpdb;
+
+                $update_result = $wpdb->update(
+                    $wpdb->posts,
+                    ['post_content' => $updated_content],
+                    ['ID' => $post->ID],
+                    ['%s'],
+                    ['%d']
+                );
+
+                if ($update_result === false) {
+                    $stats['errors']++;
+                    Notion_Logger::error_log(
+                        sprintf('更新文章 %d 链接转换失败', $post->ID),
+                        'Delayed Link Conversion'
+                    );
+                } else {
+                    $stats['updated']++;
+                    // 强制清除缓存
+                    clean_post_cache($post->ID);
+                }
+            }
+        }
+
+        // 只在有实际更新或错误时记录日志
+        if ($stats['updated'] > 0 || $stats['errors'] > 0) {
+            Notion_Logger::info_log(
+                sprintf('延迟链接转换完成: 处理=%d, 更新=%d, 错误=%d',
+                    $stats['processed'], $stats['updated'], $stats['errors']),
+                'Delayed Link Conversion'
+            );
+        }
+
+
+
+        return $stats;
+    }
+
+    /**
+     * 转换内容中的Notion链接
+     *
+     * @since 2.0.0-beta.1
+     * @param string $content 原始内容
+     * @return string 转换后的内容
+     */
+    private static function convert_notion_links_in_content(string $content): string {
+        // 保护公式内容，避免在链接转换过程中被破坏
+        $formula_placeholders = [];
+        $formula_patterns = [
+            '/(<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>)/s',
+            '/(<div[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/div>)/s'
+        ];
+
+        // 用占位符替换公式内容
+        foreach ($formula_patterns as $pattern) {
+            $content = preg_replace_callback($pattern, function($matches) use (&$formula_placeholders) {
+                $placeholder = '<!--FORMULA_PLACEHOLDER_' . count($formula_placeholders) . '-->';
+                $formula_placeholders[$placeholder] = $matches[0];
+                return $placeholder;
+            }, $content);
+        }
+
+        // 使用更精确的正则表达式，只匹配href属性中的Notion链接
+        // 这样可以避免匹配HTML元素ID中的UUID
+        $pattern = '/href\s*=\s*["\']https?:\/\/(?:www\.)?notion\.so\/(?:[^"\']*-)?([a-f0-9]{32}|[a-f0-9-]{36})(?:[?#][^"\']*)?["\']/i';
+
+        $content = preg_replace_callback($pattern, function($matches) {
+            $original_href_attr = $matches[0];
+
+            // 提取完整的URL
+            if (preg_match('/href\s*=\s*["\']([^"\']+)["\']/i', $original_href_attr, $url_matches)) {
+                $original_link = $url_matches[1];
+
+                // 使用现有的链接转换逻辑
+                $converted_link = Notion_Text_Processor::convert_notion_page_to_wordpress($original_link);
+
+                if ($converted_link !== $original_link) {
+                    // 替换href属性中的URL
+                    return str_replace($original_link, $converted_link, $original_href_attr);
+                }
+            }
+
+            return $original_href_attr;
+        }, $content);
+
+        // 恢复公式内容
+        foreach ($formula_placeholders as $placeholder => $formula_content) {
+            $content = str_replace($placeholder, $formula_content, $content);
+        }
+
+        return $content;
+    }
+
+    /**
+     * 修复文章中公式的HTML实体问题
+     *
+     * @since 2.0.0-beta.1
+     * @return array 修复结果统计
+     */
+    public static function fix_formula_html_entities(): array {
+        $stats = [
+            'processed' => 0,
+            'fixed' => 0,
+            'errors' => 0
+        ];
+
+        // 查找所有包含公式的文章
+        $posts = get_posts([
+            'post_type' => 'post',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'meta_query' => [
+                [
+                    'key' => '_notion_page_id',
+                    'compare' => 'EXISTS'
+                ]
+            ]
+        ]);
+
+        foreach ($posts as $post) {
+            $stats['processed']++;
+
+            $content = $post->post_content;
+            $original_content = $content;
+
+            // 修复公式中的HTML实体
+            $content = preg_replace_callback(
+                '/(<(?:span|div)[^>]*class="[^"]*notion-equation[^"]*"[^>]*>)(.*?)(<\/(?:span|div)>)/s',
+                function($matches) {
+                    $opening_tag = $matches[1];
+                    $formula_content = $matches[2];
+                    $closing_tag = $matches[3];
+
+                    // 解码HTML实体
+                    $fixed_content = html_entity_decode($formula_content, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+                    return $opening_tag . $fixed_content . $closing_tag;
+                },
+                $content
+            );
+
+            // 如果内容有变化，更新文章
+            if ($content !== $original_content) {
+                $result = wp_update_post([
+                    'ID' => $post->ID,
+                    'post_content' => $content
+                ], true);
+
+                if (is_wp_error($result)) {
+                    $stats['errors']++;
+                    Notion_Logger::error_log(
+                        sprintf('修复文章 %d 的公式HTML实体失败: %s', $post->ID, $result->get_error_message()),
+                        'Formula Fix'
+                    );
+                } else {
+                    $stats['fixed']++;
+                    Notion_Logger::debug_log(
+                        sprintf('成功修复文章 %d 的公式HTML实体', $post->ID),
+                        'Formula Fix'
+                    );
+                }
+            }
+        }
+
+        Notion_Logger::info_log(
+            sprintf('公式HTML实体修复完成: 处理=%d, 修复=%d, 错误=%d',
+                $stats['processed'], $stats['fixed'], $stats['errors']),
+            'Formula Fix'
+        );
+
+        return $stats;
     }
 }

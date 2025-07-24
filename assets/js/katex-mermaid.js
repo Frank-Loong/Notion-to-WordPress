@@ -172,6 +172,13 @@ tex = tex.replace(/^\$\$|\$\$$/g, '').replace(/\$\$$/, '');
 tex = tex.replace(/^\$/, '').replace(/\$$/, '');
 }
 
+// 解码HTML实体，确保LaTeX符号正确（如 &amp; -> &）
+tex = tex.replace(/&amp;/g, '&')
+         .replace(/&lt;/g, '<')
+         .replace(/&gt;/g, '>')
+         .replace(/&quot;/g, '"')
+         .replace(/&#039;/g, "'");
+
 // 化学公式处理：如果包含ce{但没有\ce{，则添加反斜杠
 if (tex.indexOf('ce{') !== -1 && tex.indexOf('\\ce{') === -1) {
 tex = tex.replace(/ce\{([^}]+)\}/g, '\\ce{$1}');
