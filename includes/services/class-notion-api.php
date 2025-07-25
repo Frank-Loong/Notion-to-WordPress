@@ -873,4 +873,259 @@ class Notion_API {
             return [];
         }
     }
+
+    /**
+     * 智能增量获取数据库页面（API层前置过滤）
+     *
+     * 在API层面过滤变更内容，避免拉取全量数据后本地过滤的带宽浪费
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param string $last_sync_time 最后同步时间（ISO 8601格式）
+     * @param array $additional_filters 额外的过滤条件
+     * @param bool $with_details 是否获取详细信息
+     * @return array 过滤后的页面数组
+     */
+    public function smart_incremental_fetch(string $database_id, string $last_sync_time = '', array $additional_filters = [], bool $with_details = false): array {
+        // 开始性能监控
+        $start_time = microtime(true);
+        $start_memory = memory_get_usage(true);
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('smart_incremental_fetch');
+        }
+
+        // 构建时间戳过滤器
+        $time_filter = [];
+        if (!empty($last_sync_time)) {
+            // 确保时间格式正确
+            $formatted_time = $this->format_timestamp_for_api($last_sync_time);
+
+            $time_filter = [
+                'timestamp' => [
+                    'last_edited_time' => [
+                        'after' => $formatted_time
+                    ]
+                ]
+            ];
+        }
+
+        // 构建复合过滤器
+        $filters = [];
+
+        // 添加时间过滤器
+        if (!empty($time_filter)) {
+            $filters[] = $time_filter;
+        }
+
+        // 添加额外的过滤条件
+        foreach ($additional_filters as $filter) {
+            $filters[] = $filter;
+        }
+
+        // 构建最终的过滤器结构
+        $final_filter = [];
+        if (count($filters) === 1) {
+            $final_filter = $filters[0];
+        } elseif (count($filters) > 1) {
+            $final_filter = ['and' => $filters];
+        }
+
+        // 记录过滤器信息
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    'API层增量过滤: 数据库=%s, 时间戳=%s, 额外过滤器=%d个',
+                    $database_id,
+                    $last_sync_time ?: '无',
+                    count($additional_filters)
+                ),
+                'Smart Incremental Fetch'
+            );
+        }
+
+        try {
+            // 使用过滤器获取数据
+            $filtered_pages = $this->get_database_pages($database_id, $final_filter, $with_details);
+
+            // 记录过滤效果统计
+            $processing_time = microtime(true) - $start_time;
+            $memory_used = memory_get_usage(true) - $start_memory;
+
+            if (class_exists('Notion_Performance_Monitor')) {
+                Notion_Performance_Monitor::end_timer('smart_incremental_fetch');
+                Notion_Performance_Monitor::record_custom_metric('incremental_fetch_time', $processing_time);
+                Notion_Performance_Monitor::record_custom_metric('incremental_fetch_count', count($filtered_pages));
+                Notion_Performance_Monitor::record_custom_metric('incremental_fetch_memory', $memory_used);
+            }
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log(
+                    sprintf(
+                        'API层过滤完成: 获取%d个页面, 耗时%.3fs, 内存%s',
+                        count($filtered_pages),
+                        $processing_time,
+                        $this->format_bytes($memory_used)
+                    ),
+                    'Smart Incremental Fetch'
+                );
+            }
+
+            return $filtered_pages;
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('API层增量过滤失败: %s', $e->getMessage()),
+                    'Smart Incremental Fetch'
+                );
+            }
+
+            // 失败时回退到无过滤的查询
+            return $this->get_database_pages($database_id, [], $with_details);
+        }
+    }
+
+    /**
+     * 批量增量获取多个数据库的页面
+     *
+     * 为多个数据库同时执行增量同步，提升效率
+     *
+     * @since 2.0.0-beta.1
+     * @param array $database_configs 数据库配置数组 [database_id => [last_sync_time, filters]]
+     * @param bool $with_details 是否获取详细信息
+     * @return array [database_id => pages] 映射
+     */
+    public function batch_smart_incremental_fetch(array $database_configs, bool $with_details = false): array {
+        $results = [];
+        $start_time = microtime(true);
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf('开始批量增量获取 %d 个数据库', count($database_configs)),
+                'Batch Incremental Fetch'
+            );
+        }
+
+        foreach ($database_configs as $database_id => $config) {
+            $last_sync_time = $config['last_sync_time'] ?? '';
+            $additional_filters = $config['filters'] ?? [];
+
+            try {
+                $results[$database_id] = $this->smart_incremental_fetch(
+                    $database_id,
+                    $last_sync_time,
+                    $additional_filters,
+                    $with_details
+                );
+
+            } catch (Exception $e) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::warning_log(
+                        sprintf('数据库 %s 增量获取失败: %s', $database_id, $e->getMessage()),
+                        'Batch Incremental Fetch'
+                    );
+                }
+                $results[$database_id] = [];
+            }
+        }
+
+        $total_time = microtime(true) - $start_time;
+        $total_pages = array_sum(array_map('count', $results));
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::record_custom_metric('batch_incremental_time', $total_time);
+            Notion_Performance_Monitor::record_custom_metric('batch_incremental_databases', count($database_configs));
+            Notion_Performance_Monitor::record_custom_metric('batch_incremental_total_pages', $total_pages);
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '批量增量获取完成: %d个数据库, 总计%d个页面, 耗时%.3fs',
+                    count($database_configs),
+                    $total_pages,
+                    $total_time
+                ),
+                'Batch Incremental Fetch'
+            );
+        }
+
+        return $results;
+    }
+
+    /**
+     * 格式化时间戳为API兼容格式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $timestamp 时间戳
+     * @return string 格式化后的时间戳
+     */
+    private function format_timestamp_for_api(string $timestamp): string {
+        // 如果已经是ISO 8601格式，直接返回
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $timestamp)) {
+            return $timestamp;
+        }
+
+        // 尝试解析并转换为ISO 8601格式
+        try {
+            $date = new DateTime($timestamp);
+            return $date->format('c'); // ISO 8601格式
+        } catch (Exception $e) {
+            // 如果解析失败，返回当前时间前1小时
+            $date = new DateTime();
+            $date->modify('-1 hour');
+            return $date->format('c');
+        }
+    }
+
+    /**
+     * 格式化字节数为可读格式
+     *
+     * @since 2.0.0-beta.1
+     * @param int $bytes 字节数
+     * @return string 格式化后的字符串
+     */
+    private function format_bytes(int $bytes): string {
+        if ($bytes >= 1024 * 1024) {
+            return round($bytes / 1024 / 1024, 2) . 'MB';
+        } elseif ($bytes >= 1024) {
+            return round($bytes / 1024, 2) . 'KB';
+        } else {
+            return $bytes . 'B';
+        }
+    }
+
+    /**
+     * 获取增量同步统计信息
+     *
+     * @since 2.0.0-beta.1
+     * @return array 统计信息
+     */
+    public function get_incremental_sync_stats(): array {
+        $stats = [
+            'api_filter_enabled' => true,
+            'supported_filters' => [
+                'timestamp' => ['last_edited_time', 'created_time'],
+                'property' => ['text', 'number', 'select', 'multi_select', 'date', 'checkbox'],
+                'compound' => ['and', 'or']
+            ],
+            'performance_optimizations' => [
+                'server_side_filtering' => true,
+                'batch_processing' => true,
+                'memory_optimization' => true
+            ]
+        ];
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            $metrics = Notion_Performance_Monitor::get_metrics();
+            $stats['recent_performance'] = [
+                'last_fetch_time' => $metrics['incremental_fetch_time'] ?? 0,
+                'last_fetch_count' => $metrics['incremental_fetch_count'] ?? 0,
+                'last_memory_usage' => $metrics['incremental_fetch_memory'] ?? 0
+            ];
+        }
+
+        return $stats;
+    }
 }

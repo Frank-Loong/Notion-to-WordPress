@@ -887,4 +887,276 @@ class Notion_Sync_Manager {
 
         return $stats;
     }
+
+    /**
+     * API层前置过滤的增量同步
+     *
+     * 在API层面过滤变更内容，显著减少数据传输量
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param Notion_API $notion_api API实例
+     * @param array $sync_options 同步选项
+     * @return array 同步结果统计
+     */
+    public static function api_filtered_incremental_sync(string $database_id, $notion_api, array $sync_options = []): array {
+        $stats = [
+            'total_pages' => 0,
+            'filtered_pages' => 0,
+            'bandwidth_saved' => 0,
+            'processing_time' => 0,
+            'method_used' => 'api_filtered',
+            'success' => true
+        ];
+
+        // 开始性能监控
+        $start_time = microtime(true);
+        $start_memory = memory_get_usage(true);
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('api_filtered_sync');
+        }
+
+        try {
+            // 获取最后同步时间
+            $last_sync_time = get_option("notion_last_sync_time_{$database_id}", '');
+
+            // 如果没有最后同步时间，使用24小时前
+            if (empty($last_sync_time)) {
+                $date = new DateTime();
+                $date->modify('-24 hours');
+                $last_sync_time = $date->format('c');
+
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::info_log(
+                        '首次同步，使用24小时前作为起始时间',
+                        'API Filtered Sync'
+                    );
+                }
+            }
+
+            // 构建额外过滤条件
+            $additional_filters = [];
+
+            // 添加状态过滤（如果配置了）
+            if (isset($sync_options['exclude_archived']) && $sync_options['exclude_archived']) {
+                $additional_filters[] = [
+                    'property' => 'Status',
+                    'select' => [
+                        'does_not_equal' => 'Archived'
+                    ]
+                ];
+            }
+
+            // 添加自定义过滤条件
+            if (isset($sync_options['custom_filters']) && is_array($sync_options['custom_filters'])) {
+                $additional_filters = array_merge($additional_filters, $sync_options['custom_filters']);
+            }
+
+            // 首先获取全量数据（用于对比）
+            $full_pages = [];
+            if (isset($sync_options['compare_bandwidth']) && $sync_options['compare_bandwidth']) {
+                $full_start = microtime(true);
+                $full_pages = $notion_api->get_database_pages($database_id, [], false);
+                $full_time = microtime(true) - $full_start;
+
+                $stats['full_fetch_time'] = $full_time;
+                $stats['total_pages'] = count($full_pages);
+            }
+
+            // 使用API层过滤获取增量数据
+            $filtered_pages = $notion_api->smart_incremental_fetch(
+                $database_id,
+                $last_sync_time,
+                $additional_filters,
+                true // 获取详细信息
+            );
+
+            $stats['filtered_pages'] = count($filtered_pages);
+
+            // 计算带宽节省
+            if (!empty($full_pages)) {
+                $full_size = strlen(serialize($full_pages));
+                $filtered_size = strlen(serialize($filtered_pages));
+                $stats['bandwidth_saved'] = max(0, $full_size - $filtered_size);
+                $stats['bandwidth_save_percentage'] = $full_size > 0 ?
+                    round(($stats['bandwidth_saved'] / $full_size) * 100, 1) : 0;
+            }
+
+            // 处理过滤后的页面
+            if (!empty($filtered_pages)) {
+                // 使用优化的数据库操作处理同步数据
+                $sync_processing_stats = self::smart_sync_data_processing($filtered_pages);
+                $stats = array_merge($stats, $sync_processing_stats);
+
+                // 更新最后同步时间
+                $current_time = current_time('c');
+                update_option("notion_last_sync_time_{$database_id}", $current_time);
+
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::info_log(
+                        sprintf(
+                            'API过滤同步完成: 过滤获取%d个页面（总计%d个），带宽节省%s',
+                            $stats['filtered_pages'],
+                            $stats['total_pages'],
+                            isset($stats['bandwidth_save_percentage']) ?
+                                $stats['bandwidth_save_percentage'] . '%' : '未计算'
+                        ),
+                        'API Filtered Sync'
+                    );
+                }
+            } else {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::info_log(
+                        '没有需要同步的页面（API层过滤结果为空）',
+                        'API Filtered Sync'
+                    );
+                }
+            }
+
+        } catch (Exception $e) {
+            $stats['success'] = false;
+            $stats['error'] = $e->getMessage();
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('API过滤同步失败: %s', $e->getMessage()),
+                    'API Filtered Sync'
+                );
+            }
+        }
+
+        // 结束性能监控
+        $stats['processing_time'] = microtime(true) - $start_time;
+        $stats['memory_used'] = memory_get_usage(true) - $start_memory;
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('api_filtered_sync');
+            Notion_Performance_Monitor::record_custom_metric('api_filtered_sync_time', $stats['processing_time']);
+            Notion_Performance_Monitor::record_custom_metric('api_filtered_pages', $stats['filtered_pages']);
+            if (isset($stats['bandwidth_saved'])) {
+                Notion_Performance_Monitor::record_custom_metric('api_bandwidth_saved', $stats['bandwidth_saved']);
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 批量API过滤同步多个数据库
+     *
+     * 为多个数据库同时执行API层过滤同步
+     *
+     * @since 2.0.0-beta.1
+     * @param array $database_configs 数据库配置数组
+     * @param Notion_API $notion_api API实例
+     * @return array 批量同步结果
+     */
+    public static function batch_api_filtered_sync(array $database_configs, $notion_api): array {
+        $batch_stats = [
+            'total_databases' => count($database_configs),
+            'successful_syncs' => 0,
+            'failed_syncs' => 0,
+            'total_pages_filtered' => 0,
+            'total_bandwidth_saved' => 0,
+            'total_processing_time' => 0
+        ];
+
+        $start_time = microtime(true);
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf('开始批量API过滤同步 %d 个数据库', count($database_configs)),
+                'Batch API Filtered Sync'
+            );
+        }
+
+        // 准备批量增量获取配置
+        $batch_configs = [];
+        foreach ($database_configs as $database_id => $config) {
+            $last_sync_time = get_option("notion_last_sync_time_{$database_id}", '');
+            if (empty($last_sync_time)) {
+                $date = new DateTime();
+                $date->modify('-24 hours');
+                $last_sync_time = $date->format('c');
+            }
+
+            $batch_configs[$database_id] = [
+                'last_sync_time' => $last_sync_time,
+                'filters' => $config['filters'] ?? []
+            ];
+        }
+
+        try {
+            // 批量获取所有数据库的增量数据
+            $batch_results = $notion_api->batch_smart_incremental_fetch($batch_configs, true);
+
+            // 处理每个数据库的结果
+            foreach ($batch_results as $database_id => $pages) {
+                try {
+                    if (!empty($pages)) {
+                        $sync_stats = self::smart_sync_data_processing($pages);
+
+                        if ($sync_stats['success']) {
+                            $batch_stats['successful_syncs']++;
+
+                            // 更新最后同步时间
+                            $current_time = current_time('c');
+                            update_option("notion_last_sync_time_{$database_id}", $current_time);
+                        } else {
+                            $batch_stats['failed_syncs']++;
+                        }
+
+                        $batch_stats['total_pages_filtered'] += count($pages);
+                    } else {
+                        $batch_stats['successful_syncs']++; // 空结果也算成功
+                    }
+
+                } catch (Exception $e) {
+                    $batch_stats['failed_syncs']++;
+
+                    if (class_exists('Notion_Logger')) {
+                        Notion_Logger::warning_log(
+                            sprintf('数据库 %s 同步处理失败: %s', $database_id, $e->getMessage()),
+                            'Batch API Filtered Sync'
+                        );
+                    }
+                }
+            }
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('批量API过滤获取失败: %s', $e->getMessage()),
+                    'Batch API Filtered Sync'
+                );
+            }
+
+            $batch_stats['failed_syncs'] = count($database_configs);
+        }
+
+        $batch_stats['total_processing_time'] = microtime(true) - $start_time;
+
+        // 记录批量同步统计
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::record_custom_metric('batch_api_sync_time', $batch_stats['total_processing_time']);
+            Notion_Performance_Monitor::record_custom_metric('batch_api_sync_databases', $batch_stats['total_databases']);
+            Notion_Performance_Monitor::record_custom_metric('batch_api_sync_pages', $batch_stats['total_pages_filtered']);
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '批量API过滤同步完成: 成功%d个, 失败%d个, 总页面%d个, 耗时%.3fs',
+                    $batch_stats['successful_syncs'],
+                    $batch_stats['failed_syncs'],
+                    $batch_stats['total_pages_filtered'],
+                    $batch_stats['total_processing_time']
+                ),
+                'Batch API Filtered Sync'
+            );
+        }
+
+        return $batch_stats;
+    }
 }

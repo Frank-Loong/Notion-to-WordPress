@@ -495,4 +495,220 @@ class Notion_Incremental_Detector {
         
         return intval($deleted);
     }
+
+    /**
+     * 与API层过滤的兼容性检测
+     *
+     * 验证API层过滤的结果与本地增量检测的一致性
+     *
+     * @since 2.0.0-beta.1
+     * @param array $api_filtered_pages API层过滤的页面
+     * @param array $local_pages 本地检测需要同步的页面
+     * @return array 兼容性检测结果
+     */
+    public static function validate_api_filter_compatibility(array $api_filtered_pages, array $local_pages): array {
+        $stats = [
+            'api_count' => count($api_filtered_pages),
+            'local_count' => count($local_pages),
+            'matched_count' => 0,
+            'api_only_count' => 0,
+            'local_only_count' => 0,
+            'compatibility_rate' => 0,
+            'recommendations' => []
+        ];
+
+        // 提取页面ID进行对比
+        $api_ids = array_column($api_filtered_pages, 'id');
+        $local_ids = array_column($local_pages, 'id');
+
+        // 计算交集和差集
+        $matched_ids = array_intersect($api_ids, $local_ids);
+        $api_only_ids = array_diff($api_ids, $local_ids);
+        $local_only_ids = array_diff($local_ids, $api_ids);
+
+        $stats['matched_count'] = count($matched_ids);
+        $stats['api_only_count'] = count($api_only_ids);
+        $stats['local_only_count'] = count($local_only_ids);
+
+        // 计算兼容性率
+        $total_unique = count(array_unique(array_merge($api_ids, $local_ids)));
+        $stats['compatibility_rate'] = $total_unique > 0 ?
+            round(($stats['matched_count'] / $total_unique) * 100, 1) : 100;
+
+        // 生成建议
+        if ($stats['compatibility_rate'] < 90) {
+            $stats['recommendations'][] = 'API过滤与本地检测兼容性较低，建议检查时间戳同步';
+        }
+
+        if ($stats['api_only_count'] > $stats['local_count'] * 0.1) {
+            $stats['recommendations'][] = 'API过滤获取了较多本地检测未发现的页面，可能存在时间戳偏差';
+        }
+
+        if ($stats['local_only_count'] > $stats['api_count'] * 0.1) {
+            $stats['recommendations'][] = '本地检测发现了API过滤遗漏的页面，建议调整API过滤条件';
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    'API过滤兼容性检测: 兼容率%.1f%%, API=%d, 本地=%d, 匹配=%d',
+                    $stats['compatibility_rate'],
+                    $stats['api_count'],
+                    $stats['local_count'],
+                    $stats['matched_count']
+                ),
+                'API Filter Compatibility'
+            );
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 混合增量检测策略
+     *
+     * 结合API层过滤和本地增量检测的优势
+     *
+     * @since 2.0.0-beta.1
+     * @param array $api_filtered_pages API层过滤的页面
+     * @param string $database_id 数据库ID
+     * @return array 最终需要同步的页面
+     */
+    public static function hybrid_incremental_detection(array $api_filtered_pages, string $database_id): array {
+        $start_time = microtime(true);
+
+        if (empty($api_filtered_pages)) {
+            return [];
+        }
+
+        $final_pages = [];
+        $api_trust_count = 0;
+        $local_verify_count = 0;
+
+        foreach ($api_filtered_pages as $page) {
+            $notion_id = $page['id'];
+
+            // 获取对应的WordPress文章ID
+            $post_mapping = Notion_Database_Helper::batch_get_posts_by_notion_ids([$notion_id]);
+            $post_id = $post_mapping[$notion_id] ?? 0;
+
+            if ($post_id > 0) {
+                // 对于已存在的文章，使用本地增量检测验证
+                $change_detection = self::detect_content_changes($page, $post_id, false);
+
+                if ($change_detection['has_changes']) {
+                    $final_pages[] = $page;
+                    $local_verify_count++;
+                } else {
+                    // API认为有变化但本地检测无变化，记录但不同步
+                    if (class_exists('Notion_Logger')) {
+                        Notion_Logger::debug_log(
+                            sprintf('页面 %s API过滤通过但本地检测无变化', $notion_id),
+                            'Hybrid Detection'
+                        );
+                    }
+                }
+            } else {
+                // 对于新页面，直接信任API过滤结果
+                $final_pages[] = $page;
+                $api_trust_count++;
+            }
+        }
+
+        $processing_time = microtime(true) - $start_time;
+
+        // 记录混合检测统计
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::record_custom_metric('hybrid_detection_time', $processing_time);
+            Notion_Performance_Monitor::record_custom_metric('hybrid_api_trust_count', $api_trust_count);
+            Notion_Performance_Monitor::record_custom_metric('hybrid_local_verify_count', $local_verify_count);
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '混合增量检测完成: API输入%d个, 最终%d个, API信任%d个, 本地验证%d个, 耗时%.3fs',
+                    count($api_filtered_pages),
+                    count($final_pages),
+                    $api_trust_count,
+                    $local_verify_count,
+                    $processing_time
+                ),
+                'Hybrid Detection'
+            );
+        }
+
+        return $final_pages;
+    }
+
+    /**
+     * 获取API过滤建议配置
+     *
+     * 基于历史同步数据生成API过滤的最优配置
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @return array 建议的API过滤配置
+     */
+    public static function get_api_filter_recommendations(string $database_id): array {
+        global $wpdb;
+
+        $recommendations = [
+            'time_buffer_minutes' => 5, // 默认5分钟缓冲
+            'suggested_filters' => [],
+            'confidence_level' => 'medium'
+        ];
+
+        // 分析最近的同步模式
+        $recent_syncs = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT meta_value as last_sync
+                FROM {$wpdb->postmeta}
+                WHERE meta_key = %s
+                ORDER BY meta_id DESC
+                LIMIT 10",
+                '_notion_last_sync_time'
+            )
+        );
+
+        if (!empty($recent_syncs)) {
+            $sync_intervals = [];
+            for ($i = 1; $i < count($recent_syncs); $i++) {
+                $current = strtotime($recent_syncs[$i-1]->last_sync);
+                $previous = strtotime($recent_syncs[$i]->last_sync);
+                if ($current && $previous) {
+                    $sync_intervals[] = ($current - $previous) / 60; // 转换为分钟
+                }
+            }
+
+            if (!empty($sync_intervals)) {
+                $avg_interval = array_sum($sync_intervals) / count($sync_intervals);
+
+                // 根据平均同步间隔调整时间缓冲
+                if ($avg_interval < 30) {
+                    $recommendations['time_buffer_minutes'] = 2;
+                    $recommendations['confidence_level'] = 'high';
+                } elseif ($avg_interval > 120) {
+                    $recommendations['time_buffer_minutes'] = 10;
+                    $recommendations['confidence_level'] = 'low';
+                }
+            }
+        }
+
+        // 添加常用过滤建议
+        $recommendations['suggested_filters'] = [
+            [
+                'property' => 'Status',
+                'select' => ['does_not_equal' => 'Archived'],
+                'description' => '排除已归档的页面'
+            ],
+            [
+                'property' => 'Published',
+                'checkbox' => ['equals' => true],
+                'description' => '仅同步已发布的页面'
+            ]
+        ];
+
+        return $recommendations;
+    }
 }
