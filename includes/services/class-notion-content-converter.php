@@ -1106,9 +1106,18 @@ class Notion_Content_Converter {
             Notion_Performance_Monitor::start_timer('content_conversion');
         }
 
-        // 监控内存使用
+        // 智能选择处理器
+        $block_count = count($blocks);
+        $use_lightweight = false;
+
         if (class_exists('Notion_Memory_Manager')) {
+            $use_lightweight = Notion_Memory_Manager::is_lightweight_mode($block_count, true);
             Notion_Memory_Manager::monitor_memory_usage('Content Conversion');
+        }
+
+        // 如果适合轻量级处理，使用简化的处理流程
+        if ($use_lightweight && class_exists('Notion_Stream_Processor')) {
+            return self::convert_blocks_lightweight($blocks, $notion_api, $state_id);
         }
 
         // 使用算法优化器预处理文本内容（只对大量内容启用）
@@ -1331,6 +1340,218 @@ class Notion_Content_Converter {
         }
 
         return implode("\n", $cleaned_lines);
+    }
+
+    /**
+     * 轻量级块转换方法
+     *
+     * 专为小数据集优化的简化转换流程，减少不必要的性能开销
+     *
+     * @since 2.0.0-beta.1
+     * @param array $blocks Notion 块数组
+     * @param Notion_API $notion_api Notion API 实例
+     * @param string $state_id 状态管理器ID
+     * @return string HTML 内容
+     */
+    private static function convert_blocks_lightweight(array $blocks, Notion_API $notion_api, string $state_id = null): string {
+        if (empty($blocks)) {
+            return '';
+        }
+
+        // 使用轻量级流式处理器
+        $processor = function($block_chunk) use ($notion_api, $state_id) {
+            $html_parts = [];
+            $list_wrapper = null;
+
+            foreach ($block_chunk as $block) {
+                $block_type = $block['type'];
+
+                // 简化的列表处理
+                $is_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item', 'to_do']);
+
+                if ($is_list_item) {
+                    $required_wrapper = ($block_type === 'to_do') ? 'todo' :
+                                       ($block_type === 'bulleted_list_item' ? 'ul' : 'ol');
+
+                    if ($list_wrapper !== $required_wrapper) {
+                        if ($list_wrapper !== null) {
+                            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                        }
+                        $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
+                        $list_wrapper = $required_wrapper;
+                    }
+                } elseif ($list_wrapper !== null) {
+                    $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                    $list_wrapper = null;
+                }
+
+                // 简化的块转换（不使用复杂的优化）
+                $block_html = self::convert_single_block_simple($block, $notion_api);
+
+                if (!empty($block_html)) {
+                    $html_parts[] = $block_html;
+                }
+            }
+
+            // 关闭未关闭的列表
+            if ($list_wrapper !== null) {
+                $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+            }
+
+            return $html_parts;
+        };
+
+        // 使用轻量级流式处理器处理数据
+        $config = class_exists('Notion_Memory_Manager') ?
+                  Notion_Memory_Manager::get_lightweight_config() :
+                  ['chunk_size' => 50];
+
+        $html_chunks = Notion_Stream_Processor::process_data_stream($blocks, $processor, $config['chunk_size']);
+
+        // 合并结果
+        $all_html_parts = [];
+        foreach ($html_chunks as $chunk) {
+            if (is_array($chunk)) {
+                $all_html_parts = array_merge($all_html_parts, $chunk);
+            }
+        }
+
+        $final_html = implode("\n", $all_html_parts);
+
+        // 结束性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('content_conversion');
+        }
+
+        // 记录轻量级处理统计
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log(
+                sprintf('轻量级内容转换完成: %d个块', count($blocks)),
+                'Content Converter Lightweight'
+            );
+        }
+
+        return $final_html;
+    }
+
+    /**
+     * 简化的单块转换方法
+     *
+     * 为轻量级模式提供的简化块转换，减少复杂的优化逻辑
+     *
+     * @since 2.0.0-beta.1
+     * @param array $block Notion 块数据
+     * @param Notion_API $notion_api Notion API 实例
+     * @return string 块的HTML内容
+     */
+    private static function convert_single_block_simple(array $block, Notion_API $notion_api): string {
+        $block_type = $block['type'];
+        $block_id = $block['id'];
+
+        // 基本块类型处理（简化版本）
+        switch ($block_type) {
+            case 'paragraph':
+                return self::convert_paragraph_simple($block);
+
+            case 'heading_1':
+            case 'heading_2':
+            case 'heading_3':
+                return self::convert_heading_simple($block);
+
+            case 'bulleted_list_item':
+            case 'numbered_list_item':
+            case 'to_do':
+                return self::convert_list_item_simple($block);
+
+            case 'quote':
+                return self::convert_quote_simple($block);
+
+            case 'code':
+                return self::convert_code_simple($block);
+
+            case 'divider':
+                return '<hr class="notion-divider">';
+
+            default:
+                // 对于复杂块类型，回退到原始方法
+                return self::convert_single_block_optimized($block, $notion_api, []);
+        }
+    }
+
+    /**
+     * 简化的段落转换
+     */
+    private static function convert_paragraph_simple(array $block): string {
+        $content = self::convert_rich_text_simple($block['paragraph']['rich_text'] ?? []);
+        return empty($content) ? '' : "<p>{$content}</p>";
+    }
+
+    /**
+     * 简化的标题转换
+     */
+    private static function convert_heading_simple(array $block): string {
+        $level = substr($block['type'], -1); // 获取标题级别
+        $content = self::convert_rich_text_simple($block[$block['type']]['rich_text'] ?? []);
+        return empty($content) ? '' : "<h{$level}>{$content}</h{$level}>";
+    }
+
+    /**
+     * 简化的列表项转换
+     */
+    private static function convert_list_item_simple(array $block): string {
+        $block_type = $block['type'];
+        $content = self::convert_rich_text_simple($block[$block_type]['rich_text'] ?? []);
+
+        if ($block_type === 'to_do') {
+            $checked = $block['to_do']['checked'] ?? false;
+            $checkbox = $checked ? '☑' : '☐';
+            return "<li class=\"notion-todo-item\">{$checkbox} {$content}</li>";
+        }
+
+        return "<li>{$content}</li>";
+    }
+
+    /**
+     * 简化的引用转换
+     */
+    private static function convert_quote_simple(array $block): string {
+        $content = self::convert_rich_text_simple($block['quote']['rich_text'] ?? []);
+        return empty($content) ? '' : "<blockquote>{$content}</blockquote>";
+    }
+
+    /**
+     * 简化的代码块转换
+     */
+    private static function convert_code_simple(array $block): string {
+        $content = self::convert_rich_text_simple($block['code']['rich_text'] ?? []);
+        $language = $block['code']['language'] ?? 'text';
+        return "<pre><code class=\"language-{$language}\">" . htmlspecialchars($content) . "</code></pre>";
+    }
+
+    /**
+     * 简化的富文本转换
+     */
+    private static function convert_rich_text_simple(array $rich_text): string {
+        if (empty($rich_text)) {
+            return '';
+        }
+
+        $text_parts = [];
+        foreach ($rich_text as $text_obj) {
+            $text = $text_obj['plain_text'] ?? '';
+
+            // 简化的格式处理
+            if (!empty($text_obj['annotations'])) {
+                $annotations = $text_obj['annotations'];
+                if ($annotations['bold'] ?? false) $text = "<strong>{$text}</strong>";
+                if ($annotations['italic'] ?? false) $text = "<em>{$text}</em>";
+                if ($annotations['code'] ?? false) $text = "<code>{$text}</code>";
+            }
+
+            $text_parts[] = $text;
+        }
+
+        return implode('', $text_parts);
     }
 
 }

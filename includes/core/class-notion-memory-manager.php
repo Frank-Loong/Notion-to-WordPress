@@ -29,6 +29,7 @@ class Notion_Memory_Manager {
     const MEMORY_CRITICAL_THRESHOLD = 0.9; // 90%内存使用时强制清理
     const DEFAULT_CHUNK_SIZE = 100;         // 默认分块大小
     const GC_FREQUENCY = 5;                 // 每处理5个块进行一次垃圾回收
+    const LIGHTWEIGHT_THRESHOLD = 100;     // 小于100项时使用轻量级模式
     
     /**
      * 流式处理大数据集
@@ -298,5 +299,90 @@ class Notion_Memory_Manager {
             // 强制垃圾回收
             self::force_garbage_collection();
         }
+    }
+
+    /**
+     * 检测是否应该使用轻量级模式
+     *
+     * 基于数据量大小、系统负载和配置来决定是否使用轻量级处理
+     *
+     * @since 2.0.0-beta.1
+     * @param int $data_count 数据项数量
+     * @param bool $force_check 是否强制检查系统状态
+     * @return bool 是否使用轻量级模式
+     */
+    public static function is_lightweight_mode(int $data_count = 0, bool $force_check = false): bool {
+        // 检查配置开关
+        $options = get_option('notion_to_wordpress_options', []);
+        $enable_lightweight = $options['enable_lightweight_mode'] ?? true;
+
+        if (!$enable_lightweight) {
+            return false;
+        }
+
+        // 基于数据量判断
+        if ($data_count > 0 && $data_count < self::LIGHTWEIGHT_THRESHOLD) {
+            return true;
+        }
+
+        // 如果需要强制检查系统状态
+        if ($force_check) {
+            $usage = self::get_memory_usage();
+            $system_load = function_exists('sys_getloadavg') ? sys_getloadavg()[0] ?? 1.0 : 1.0;
+
+            // 系统负载低且内存充足时使用轻量级模式
+            if ($usage['usage_percentage'] < 50 && $system_load < 2.0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 获取轻量级模式的配置信息
+     *
+     * @since 2.0.0-beta.1
+     * @return array 轻量级模式配置
+     */
+    public static function get_lightweight_config(): array {
+        $options = get_option('notion_to_wordpress_options', []);
+
+        return [
+            'enabled' => $options['enable_lightweight_mode'] ?? true,
+            'threshold' => self::LIGHTWEIGHT_THRESHOLD,
+            'chunk_size' => $options['lightweight_chunk_size'] ?? 50,
+            'gc_frequency' => $options['lightweight_gc_frequency'] ?? 10,
+            'auto_detect' => $options['lightweight_auto_detect'] ?? true
+        ];
+    }
+
+    /**
+     * 智能选择处理器
+     *
+     * 根据数据量和系统状态自动选择最适合的处理器
+     *
+     * @since 2.0.0-beta.1
+     * @param array $data 要处理的数据
+     * @param callable $processor 处理函数
+     * @param int $chunk_size 分块大小（可选）
+     * @return array 处理结果
+     */
+    public static function smart_process(array $data, callable $processor, int $chunk_size = null): array {
+        $data_count = count($data);
+
+        if (self::is_lightweight_mode($data_count, true)) {
+            // 使用轻量级流式处理器
+            if (class_exists('Notion_Stream_Processor')) {
+                $config = self::get_lightweight_config();
+                $effective_chunk_size = $chunk_size ?? $config['chunk_size'];
+
+                return Notion_Stream_Processor::process_data_stream($data, $processor, $effective_chunk_size);
+            }
+        }
+
+        // 使用标准内存管理器
+        $effective_chunk_size = $chunk_size ?? self::DEFAULT_CHUNK_SIZE;
+        return self::stream_process($data, $processor, $effective_chunk_size);
     }
 }
