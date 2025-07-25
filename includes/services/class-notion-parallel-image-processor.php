@@ -31,19 +31,41 @@ class Notion_Parallel_Image_Processor {
     const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 最大图片大小（10MB）
     
     /**
-     * 并行处理图片
-     * 
-     * 使用WordPress HTTP API的并发功能处理多个图片
-     * 这是核心的并行处理方法
+     * 并行处理图片（智能选择处理方式）
+     *
+     * 根据系统环境和图片数量智能选择最优的处理方式
+     * 优先使用真并发方法，回退到分块处理
      *
      * @since 2.0.0-beta.1
      * @param array $image_urls 图片URL数组
      * @param int $max_concurrent 最大并发数
+     * @param bool $force_true_parallel 强制使用真并发
      * @return array [url => attachment_id] 映射，失败的返回false
      */
-    public static function process_images_parallel(array $image_urls, int $max_concurrent = self::DEFAULT_MAX_CONCURRENT): array {
+    public static function process_images_parallel(array $image_urls, int $max_concurrent = self::DEFAULT_MAX_CONCURRENT, bool $force_true_parallel = false): array {
         if (empty($image_urls)) {
             return [];
+        }
+
+        // 智能选择处理方式
+        $use_true_parallel = $force_true_parallel || self::should_use_true_parallel($image_urls);
+
+        if ($use_true_parallel) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log(
+                    sprintf('使用真并发处理 %d 个图片', count($image_urls)),
+                    'Parallel Image Processor'
+                );
+            }
+            return self::download_images_truly_parallel($image_urls, $max_concurrent);
+        }
+
+        // 回退到原有的分块处理方式
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf('使用分块处理 %d 个图片', count($image_urls)),
+                'Parallel Image Processor'
+            );
         }
 
         // 使用自适应并发数调整
@@ -454,5 +476,670 @@ class Notion_Parallel_Image_Processor {
             'max_image_size' => self::MAX_IMAGE_SIZE,
             'max_image_size_formatted' => size_format(self::MAX_IMAGE_SIZE)
         ];
+    }
+
+    /**
+     * 真正的并发图片下载和处理
+     *
+     * 使用curl_multi实现真正的并发下载，替代分块串行处理
+     *
+     * @since 2.0.0-beta.1
+     * @param array $image_urls 图片URL数组
+     * @param int $max_concurrent 最大并发数
+     * @return array [url => attachment_id] 映射，失败的返回false
+     */
+    public static function download_images_truly_parallel(array $image_urls, int $max_concurrent = self::DEFAULT_MAX_CONCURRENT): array {
+        if (empty($image_urls)) {
+            return [];
+        }
+
+        // 开始性能监控
+        $start_time = microtime(true);
+        $start_memory = memory_get_usage(true);
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('true_parallel_image_download');
+        }
+
+        // 智能并发数调整
+        $system_load = function_exists('sys_getloadavg') ? (sys_getloadavg()[0] ?? 1.0) : 1.0;
+        $optimal_concurrent = $system_load > 2.0 ? min(4, $max_concurrent) : $max_concurrent;
+        $optimal_concurrent = max(1, min($optimal_concurrent, self::MAX_CONCURRENT_LIMIT));
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '开始真并发图片下载: %d个图片, 系统负载%.2f, 并发数%d',
+                    count($image_urls),
+                    $system_load,
+                    $optimal_concurrent
+                ),
+                'True Parallel Image Processor'
+            );
+        }
+
+        // 图片大小预估和分组
+        $image_groups = self::estimate_and_group_images($image_urls);
+
+        // 处理小图片组（优先处理）
+        $small_results = [];
+        if (!empty($image_groups['small'])) {
+            $small_results = self::process_image_group_concurrent($image_groups['small'], $optimal_concurrent, 'small');
+        }
+
+        // 处理大图片组（减少并发数）
+        $large_results = [];
+        if (!empty($image_groups['large'])) {
+            $large_concurrent = max(1, floor($optimal_concurrent / 2)); // 大图片使用一半并发数
+            $large_results = self::process_image_group_concurrent($image_groups['large'], $large_concurrent, 'large');
+        }
+
+        // 合并结果
+        $results = array_merge($small_results, $large_results);
+
+        // 记录性能统计
+        $processing_time = microtime(true) - $start_time;
+        $memory_used = memory_get_usage(true) - $start_memory;
+        $success_count = count(array_filter($results));
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('true_parallel_image_download');
+            Notion_Performance_Monitor::record_custom_metric('parallel_image_download_time', $processing_time);
+            Notion_Performance_Monitor::record_custom_metric('parallel_image_success_count', $success_count);
+            Notion_Performance_Monitor::record_custom_metric('parallel_image_memory_usage', $memory_used);
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '真并发图片下载完成: %d成功/%d总计, 耗时%.3fs, 内存%s, 平均%.1f图片/秒',
+                    $success_count,
+                    count($image_urls),
+                    $processing_time,
+                    self::format_bytes($memory_used),
+                    count($image_urls) / $processing_time
+                ),
+                'True Parallel Image Processor'
+            );
+        }
+
+        return $results;
+    }
+
+    /**
+     * 预估图片大小并分组
+     *
+     * @since 2.0.0-beta.1
+     * @param array $image_urls 图片URL数组
+     * @return array ['small' => [], 'large' => []] 分组结果
+     */
+    private static function estimate_and_group_images(array $image_urls): array {
+        $groups = ['small' => [], 'large' => []];
+
+        foreach ($image_urls as $url) {
+            if (!self::is_valid_image_url($url)) {
+                continue;
+            }
+
+            // 简单的大小预估（基于URL特征）
+            $estimated_size = self::estimate_image_size($url);
+
+            if ($estimated_size > 1024 * 1024) { // 大于1MB认为是大图片
+                $groups['large'][] = $url;
+            } else {
+                $groups['small'][] = $url;
+            }
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log(
+                sprintf('图片分组: 小图片%d个, 大图片%d个', count($groups['small']), count($groups['large'])),
+                'Image Grouping'
+            );
+        }
+
+        return $groups;
+    }
+
+    /**
+     * 预估图片大小
+     *
+     * @since 2.0.0-beta.1
+     * @param string $url 图片URL
+     * @return int 预估大小（字节）
+     */
+    private static function estimate_image_size(string $url): int {
+        // 基于URL特征的简单预估
+        $url_lower = strtolower($url);
+
+        // 检查URL中的尺寸信息
+        if (preg_match('/(\d+)x(\d+)/', $url, $matches)) {
+            $width = intval($matches[1]);
+            $height = intval($matches[2]);
+
+            // 简单的大小预估公式
+            if ($width > 1920 || $height > 1080) {
+                return 2 * 1024 * 1024; // 2MB
+            } elseif ($width > 800 || $height > 600) {
+                return 500 * 1024; // 500KB
+            } else {
+                return 100 * 1024; // 100KB
+            }
+        }
+
+        // 基于文件扩展名预估
+        if (strpos($url_lower, '.png') !== false) {
+            return 800 * 1024; // PNG通常较大
+        } elseif (strpos($url_lower, '.jpg') !== false || strpos($url_lower, '.jpeg') !== false) {
+            return 300 * 1024; // JPEG通常较小
+        } elseif (strpos($url_lower, '.gif') !== false) {
+            return 200 * 1024; // GIF通常较小
+        } elseif (strpos($url_lower, '.webp') !== false) {
+            return 150 * 1024; // WebP通常最小
+        }
+
+        // 默认预估
+        return 400 * 1024; // 400KB
+    }
+
+    /**
+     * 并发处理图片组
+     *
+     * @since 2.0.0-beta.1
+     * @param array $image_urls 图片URL数组
+     * @param int $max_concurrent 最大并发数
+     * @param string $group_type 组类型（small/large）
+     * @return array 处理结果
+     */
+    private static function process_image_group_concurrent(array $image_urls, int $max_concurrent, string $group_type): array {
+        if (empty($image_urls)) {
+            return [];
+        }
+
+        $results = [];
+        $multi_handle = curl_multi_init();
+        $curl_handles = [];
+        $url_map = [];
+
+        if (!$multi_handle) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log('无法初始化curl_multi句柄', 'Concurrent Image Processing');
+            }
+            // 回退到串行处理
+            return self::process_image_chunk($image_urls);
+        }
+
+        try {
+            // 设置curl_multi选项
+            curl_multi_setopt($multi_handle, CURLMOPT_MAXCONNECTS, $max_concurrent);
+
+            $active_downloads = 0;
+            $url_index = 0;
+            $total_urls = count($image_urls);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    sprintf('开始%s图片组并发下载: %d个图片, 并发数%d', $group_type, $total_urls, $max_concurrent),
+                    'Concurrent Image Processing'
+                );
+            }
+
+            // 初始化第一批下载
+            while ($active_downloads < $max_concurrent && $url_index < $total_urls) {
+                $url = $image_urls[$url_index];
+
+                if (self::is_valid_image_url($url)) {
+                    $curl_handle = self::create_curl_handle($url, $group_type);
+                    if ($curl_handle) {
+                        curl_multi_add_handle($multi_handle, $curl_handle);
+                        $curl_handles[(int)$curl_handle] = $curl_handle;
+                        $url_map[(int)$curl_handle] = $url;
+                        $active_downloads++;
+                    }
+                } else {
+                    $results[$url] = false;
+                }
+
+                $url_index++;
+            }
+
+            // 执行并发下载
+            do {
+                $status = curl_multi_exec($multi_handle, $running);
+
+                if ($running > 0) {
+                    // 等待活动或超时
+                    curl_multi_select($multi_handle, 0.1);
+                }
+
+                // 检查完成的下载
+                while (($info = curl_multi_info_read($multi_handle)) !== false) {
+                    if ($info['msg'] === CURLMSG_DONE) {
+                        $curl_handle = $info['handle'];
+                        $handle_id = (int)$curl_handle;
+                        $url = $url_map[$handle_id];
+
+                        // 处理下载结果
+                        $attachment_id = self::process_curl_result($curl_handle, $url);
+                        $results[$url] = $attachment_id;
+
+                        // 清理句柄
+                        curl_multi_remove_handle($multi_handle, $curl_handle);
+                        curl_close($curl_handle);
+                        unset($curl_handles[$handle_id], $url_map[$handle_id]);
+                        $active_downloads--;
+
+                        // 添加新的下载（如果还有）
+                        if ($url_index < $total_urls) {
+                            $next_url = $image_urls[$url_index];
+
+                            if (self::is_valid_image_url($next_url)) {
+                                $new_curl_handle = self::create_curl_handle($next_url, $group_type);
+                                if ($new_curl_handle) {
+                                    curl_multi_add_handle($multi_handle, $new_curl_handle);
+                                    $curl_handles[(int)$new_curl_handle] = $new_curl_handle;
+                                    $url_map[(int)$new_curl_handle] = $next_url;
+                                    $active_downloads++;
+                                }
+                            } else {
+                                $results[$next_url] = false;
+                            }
+
+                            $url_index++;
+                        }
+                    }
+                }
+
+            } while ($running > 0 || $active_downloads > 0);
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('并发图片下载异常: %s', $e->getMessage()),
+                    'Concurrent Image Processing'
+                );
+            }
+        } finally {
+            // 清理剩余的句柄
+            foreach ($curl_handles as $curl_handle) {
+                curl_multi_remove_handle($multi_handle, $curl_handle);
+                curl_close($curl_handle);
+            }
+            curl_multi_close($multi_handle);
+        }
+
+        return $results;
+    }
+
+    /**
+     * 创建cURL句柄
+     *
+     * @since 2.0.0-beta.1
+     * @param string $url 图片URL
+     * @param string $group_type 组类型
+     * @return resource|false cURL句柄
+     */
+    private static function create_curl_handle(string $url, string $group_type) {
+        $curl_handle = curl_init();
+
+        if (!$curl_handle) {
+            return false;
+        }
+
+        // 根据图片组类型设置不同的超时时间
+        $timeout = ($group_type === 'large') ? self::REQUEST_TIMEOUT * 2 : self::REQUEST_TIMEOUT;
+
+        curl_setopt_array($curl_handle, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_USERAGENT => 'Notion-to-WordPress/2.0.0-beta.1',
+            CURLOPT_HTTPHEADER => [
+                'Accept: image/*',
+                'Cache-Control: no-cache'
+            ],
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_ENCODING => '', // 支持压缩
+            CURLOPT_MAXFILESIZE => self::MAX_IMAGE_SIZE
+        ]);
+
+        return $curl_handle;
+    }
+
+    /**
+     * 处理cURL下载结果
+     *
+     * @since 2.0.0-beta.1
+     * @param resource $curl_handle cURL句柄
+     * @param string $url 图片URL
+     * @return int|false 附件ID或false
+     */
+    private static function process_curl_result($curl_handle, string $url) {
+        $response_data = curl_getinfo($curl_handle);
+        $http_code = $response_data['http_code'];
+        $content = curl_multi_getcontent($curl_handle);
+
+        // 检查HTTP状态码
+        if ($http_code !== 200) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log(
+                    sprintf('图片下载HTTP错误 (%s): %d', $url, $http_code),
+                    'Concurrent Image Processing'
+                );
+            }
+            return false;
+        }
+
+        // 检查cURL错误
+        $curl_error = curl_error($curl_handle);
+        if (!empty($curl_error)) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('图片下载cURL错误 (%s): %s', $url, $curl_error),
+                    'Concurrent Image Processing'
+                );
+            }
+            return false;
+        }
+
+        // 检查内容
+        if (empty($content)) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log(
+                    sprintf('图片下载内容为空 (%s)', $url),
+                    'Concurrent Image Processing'
+                );
+            }
+            return false;
+        }
+
+        // 验证图片内容
+        if (!self::validate_image_content($content)) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log(
+                    sprintf('图片内容验证失败 (%s)', $url),
+                    'Concurrent Image Processing'
+                );
+            }
+            return false;
+        }
+
+        // 创建WordPress附件
+        return self::create_attachment_from_content($url, $content, $response_data);
+    }
+
+    /**
+     * 验证图片内容
+     *
+     * @since 2.0.0-beta.1
+     * @param string $content 图片内容
+     * @return bool 是否为有效图片
+     */
+    private static function validate_image_content(string $content): bool {
+        if (strlen($content) < 100) { // 太小不可能是有效图片
+            return false;
+        }
+
+        // 检查图片文件头
+        $image_headers = [
+            'jpeg' => ["\xFF\xD8\xFF"],
+            'png' => ["\x89\x50\x4E\x47\x0D\x0A\x1A\x0A"],
+            'gif' => ["GIF87a", "GIF89a"],
+            'webp' => ["RIFF", "WEBP"],
+            'bmp' => ["BM"]
+        ];
+
+        foreach ($image_headers as $type => $headers) {
+            foreach ($headers as $header) {
+                if (strpos($content, $header) === 0) {
+                    return true;
+                }
+            }
+        }
+
+        // 对于WebP，需要检查RIFF和WEBP标识
+        if (strpos($content, 'RIFF') === 0 && strpos($content, 'WEBP') !== false) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 从内容创建WordPress附件
+     *
+     * @since 2.0.0-beta.1
+     * @param string $url 原始URL
+     * @param string $content 图片内容
+     * @param array $response_data cURL响应信息
+     * @return int|false 附件ID或false
+     */
+    private static function create_attachment_from_content(string $url, string $content, array $response_data) {
+        try {
+            // 获取文件名
+            $filename = self::extract_filename_from_url($url);
+
+            // 获取MIME类型
+            $mime_type = self::detect_mime_type($content, $response_data);
+
+            // 创建临时文件
+            $temp_file = wp_tempnam($filename);
+            if (!$temp_file) {
+                return false;
+            }
+
+            // 写入内容
+            if (file_put_contents($temp_file, $content) === false) {
+                @unlink($temp_file);
+                return false;
+            }
+
+            // 准备文件数组
+            $file_array = [
+                'name' => $filename,
+                'type' => $mime_type,
+                'tmp_name' => $temp_file,
+                'error' => 0,
+                'size' => strlen($content)
+            ];
+
+            // 使用WordPress媒体处理
+            $attachment_id = media_handle_sideload($file_array, 0);
+
+            // 清理临时文件
+            @unlink($temp_file);
+
+            if (is_wp_error($attachment_id)) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::error_log(
+                        sprintf('创建附件失败 (%s): %s', $url, $attachment_id->get_error_message()),
+                        'Concurrent Image Processing'
+                    );
+                }
+                return false;
+            }
+
+            return $attachment_id;
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('创建附件异常 (%s): %s', $url, $e->getMessage()),
+                    'Concurrent Image Processing'
+                );
+            }
+            return false;
+        }
+    }
+
+    /**
+     * 从URL提取文件名
+     *
+     * @since 2.0.0-beta.1
+     * @param string $url URL
+     * @return string 文件名
+     */
+    private static function extract_filename_from_url(string $url): string {
+        $parsed_url = parse_url($url);
+        $path = $parsed_url['path'] ?? '';
+        $filename = basename($path);
+
+        // 如果没有扩展名，尝试从URL推断
+        if (strpos($filename, '.') === false) {
+            $filename .= '.jpg'; // 默认扩展名
+        }
+
+        // 确保文件名安全
+        $filename = sanitize_file_name($filename);
+
+        // 如果文件名为空，生成一个
+        if (empty($filename) || $filename === '.jpg') {
+            $filename = 'notion-image-' . uniqid() . '.jpg';
+        }
+
+        return $filename;
+    }
+
+    /**
+     * 检测MIME类型
+     *
+     * @since 2.0.0-beta.1
+     * @param string $content 图片内容
+     * @param array $response_data cURL响应信息
+     * @return string MIME类型
+     */
+    private static function detect_mime_type(string $content, array $response_data): string {
+        // 首先尝试从HTTP头获取
+        $content_type = $response_data['content_type'] ?? '';
+        if (!empty($content_type) && strpos($content_type, 'image/') === 0) {
+            return explode(';', $content_type)[0]; // 移除charset等参数
+        }
+
+        // 从内容检测
+        if (strpos($content, "\xFF\xD8\xFF") === 0) {
+            return 'image/jpeg';
+        } elseif (strpos($content, "\x89\x50\x4E\x47") === 0) {
+            return 'image/png';
+        } elseif (strpos($content, 'GIF8') === 0) {
+            return 'image/gif';
+        } elseif (strpos($content, 'RIFF') === 0 && strpos($content, 'WEBP') !== false) {
+            return 'image/webp';
+        } elseif (strpos($content, 'BM') === 0) {
+            return 'image/bmp';
+        }
+
+        // 默认返回JPEG
+        return 'image/jpeg';
+    }
+
+    /**
+     * 格式化字节数
+     *
+     * @since 2.0.0-beta.1
+     * @param int $bytes 字节数
+     * @return string 格式化后的字符串
+     */
+    private static function format_bytes(int $bytes): string {
+        if ($bytes >= 1024 * 1024) {
+            return round($bytes / 1024 / 1024, 2) . 'MB';
+        } elseif ($bytes >= 1024) {
+            return round($bytes / 1024, 2) . 'KB';
+        } else {
+            return $bytes . 'B';
+        }
+    }
+
+    /**
+     * 判断是否应该使用真并发处理
+     *
+     * @since 2.0.0-beta.1
+     * @param array $image_urls 图片URL数组
+     * @return bool 是否使用真并发
+     */
+    private static function should_use_true_parallel(array $image_urls): bool {
+        // 检查cURL多句柄支持
+        if (!function_exists('curl_multi_init')) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log('cURL多句柄不可用，回退到分块处理', 'Parallel Image Processor');
+            }
+            return false;
+        }
+
+        // 图片数量太少时不值得使用真并发
+        if (count($image_urls) < 3) {
+            return false;
+        }
+
+        // 检查系统负载
+        if (function_exists('sys_getloadavg')) {
+            $load = sys_getloadavg()[0] ?? 0;
+            if ($load > 3.0) { // 系统负载过高
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::warning_log(
+                        sprintf('系统负载过高(%.2f)，回退到分块处理', $load),
+                        'Parallel Image Processor'
+                    );
+                }
+                return false;
+            }
+        }
+
+        // 检查内存使用情况
+        if (class_exists('Notion_Memory_Manager')) {
+            $memory_stats = Notion_Memory_Manager::get_memory_stats();
+            if (isset($memory_stats['usage_percent']) && $memory_stats['usage_percent'] > 85) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::warning_log(
+                        sprintf('内存使用率过高(%d%%)，回退到分块处理', $memory_stats['usage_percent']),
+                        'Parallel Image Processor'
+                    );
+                }
+                return false;
+            }
+        }
+
+        // 检查是否有配置禁用真并发
+        $disable_true_parallel = get_option('notion_disable_true_parallel_images', false);
+        if ($disable_true_parallel) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 获取真并发处理统计信息
+     *
+     * @since 2.0.0-beta.1
+     * @return array 统计信息
+     */
+    public static function get_true_parallel_stats(): array {
+        $stats = [
+            'curl_multi_available' => function_exists('curl_multi_init'),
+            'system_load' => function_exists('sys_getloadavg') ? sys_getloadavg()[0] : null,
+            'memory_usage' => null,
+            'true_parallel_enabled' => !get_option('notion_disable_true_parallel_images', false),
+            'recommended_mode' => 'chunk' // 默认推荐
+        ];
+
+        // 获取内存使用情况
+        if (class_exists('Notion_Memory_Manager')) {
+            $memory_stats = Notion_Memory_Manager::get_memory_stats();
+            $stats['memory_usage'] = $memory_stats['usage_percent'] ?? null;
+        }
+
+        // 判断推荐模式
+        if ($stats['curl_multi_available'] &&
+            $stats['true_parallel_enabled'] &&
+            ($stats['system_load'] === null || $stats['system_load'] < 3.0) &&
+            ($stats['memory_usage'] === null || $stats['memory_usage'] < 85)) {
+            $stats['recommended_mode'] = 'true_parallel';
+        }
+
+        return $stats;
     }
 }
