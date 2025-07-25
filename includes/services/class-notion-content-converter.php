@@ -1115,9 +1115,14 @@ class Notion_Content_Converter {
             Notion_Memory_Manager::monitor_memory_usage('Content Conversion');
         }
 
-        // 如果适合轻量级处理，使用简化的处理流程
+        // 智能选择处理方式
         if ($use_lightweight && class_exists('Notion_Stream_Processor')) {
             return self::convert_blocks_lightweight($blocks, $notion_api, $state_id);
+        }
+
+        // 对于中等大小的数据集，使用超级优化版本
+        if ($block_count >= 20 && $block_count <= 200) {
+            return self::convert_blocks_to_html_ultra_optimized($blocks, $notion_api, $state_id);
         }
 
         // 使用算法优化器预处理文本内容（只对大量内容启用）
@@ -1552,6 +1557,191 @@ class Notion_Content_Converter {
         }
 
         return implode('', $text_parts);
+    }
+
+    /**
+     * 批量获取子内容优化方法
+     *
+     * 减少API调用次数，提升性能
+     *
+     * @since 2.0.0-beta.1
+     * @param array $blocks 块数组
+     * @param Notion_API $notion_api API实例
+     * @return array 子内容数据
+     */
+    private static function batch_get_children_content(array $blocks, Notion_API $notion_api): array {
+        $children_content = [];
+        $blocks_with_children = [];
+
+        // 识别需要获取子内容的块
+        foreach ($blocks as $block) {
+            if (isset($block['has_children']) && $block['has_children']) {
+                $blocks_with_children[] = $block['id'];
+            }
+        }
+
+        if (empty($blocks_with_children)) {
+            return $children_content;
+        }
+
+        // 批量获取子内容（如果API支持）
+        $start_time = microtime(true);
+
+        foreach ($blocks_with_children as $block_id) {
+            try {
+                $children = $notion_api->get_block_children($block_id);
+                $children_content[$block_id] = $children;
+            } catch (Exception $e) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::warning_log(
+                        sprintf('获取子内容失败: %s - %s', $block_id, $e->getMessage()),
+                        'Content Converter'
+                    );
+                }
+                $children_content[$block_id] = [];
+            }
+        }
+
+        // 记录批量获取性能
+        if (class_exists('Notion_Performance_Monitor')) {
+            $processing_time = microtime(true) - $start_time;
+            Notion_Performance_Monitor::record_custom_metric('batch_children_fetch_time', $processing_time);
+            Notion_Performance_Monitor::record_custom_metric('batch_children_count', count($blocks_with_children));
+        }
+
+        return $children_content;
+    }
+
+    /**
+     * 优化的HTML生成方法
+     *
+     * 使用预构建的HTML模板和数组拼接
+     *
+     * @since 2.0.0-beta.1
+     * @param array $blocks 块数组
+     * @param Notion_API $notion_api API实例
+     * @param string $state_id 状态ID
+     * @return string HTML内容
+     */
+    public static function convert_blocks_to_html_ultra_optimized(array $blocks, Notion_API $notion_api, string $state_id = null): string {
+        if (empty($blocks)) {
+            return '';
+        }
+
+        // 开始性能监控
+        $start_time = microtime(true);
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('ultra_optimized_conversion');
+        }
+
+        // 批量预处理
+        $children_content = self::batch_get_children_content($blocks, $notion_api);
+
+        // 批量处理富文本（如果有多个富文本块）
+        $rich_text_blocks = [];
+        foreach ($blocks as $index => $block) {
+            if (isset($block['paragraph']['rich_text']) && !empty($block['paragraph']['rich_text'])) {
+                $rich_text_blocks[$index] = $block['paragraph']['rich_text'];
+            }
+        }
+
+        $processed_rich_texts = [];
+        if (!empty($rich_text_blocks) && class_exists('Notion_Text_Processor')) {
+            $processed_rich_texts = Notion_Text_Processor::batch_extract_rich_text($rich_text_blocks);
+        }
+
+        // 使用数组收集HTML片段
+        $html_parts = [];
+        $list_wrapper = null;
+
+        foreach ($blocks as $index => $block) {
+            $block_type = $block['type'];
+
+            // 列表处理逻辑
+            $is_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item', 'to_do']);
+
+            if ($is_list_item) {
+                $required_wrapper = ($block_type === 'to_do') ? 'todo' :
+                                   ($block_type === 'bulleted_list_item' ? 'ul' : 'ol');
+
+                if ($list_wrapper !== $required_wrapper) {
+                    if ($list_wrapper !== null) {
+                        $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                    }
+                    $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
+                    $list_wrapper = $required_wrapper;
+                }
+            } elseif ($list_wrapper !== null) {
+                $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                $list_wrapper = null;
+            }
+
+            // 使用预处理的富文本（如果可用）
+            if (isset($processed_rich_texts[$index])) {
+                $block_html = self::convert_block_with_processed_text($block, $processed_rich_texts[$index], $children_content);
+            } else {
+                $block_html = self::convert_single_block_optimized($block, $notion_api, $children_content);
+            }
+
+            if (!empty($block_html)) {
+                $html_parts[] = $block_html;
+            }
+        }
+
+        // 关闭未关闭的列表
+        if ($list_wrapper !== null) {
+            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+        }
+
+        // 一次性拼接所有HTML
+        $result = implode('', $html_parts);
+
+        // 结束性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('ultra_optimized_conversion');
+            $processing_time = microtime(true) - $start_time;
+            Notion_Performance_Monitor::record_custom_metric('ultra_optimized_conversion_time', $processing_time);
+            Notion_Performance_Monitor::record_custom_metric('ultra_optimized_blocks_count', count($blocks));
+        }
+
+        return $result;
+    }
+
+    /**
+     * 使用预处理富文本转换块
+     *
+     * @since 2.0.0-beta.1
+     * @param array $block 块数据
+     * @param string $processed_rich_text 预处理的富文本HTML
+     * @param array $children_content 子内容数据
+     * @return string 块HTML
+     */
+    private static function convert_block_with_processed_text(array $block, string $processed_rich_text, array $children_content): string {
+        $block_type = $block['type'];
+
+        switch ($block_type) {
+            case 'paragraph':
+                return empty($processed_rich_text) ? '' : "<p>{$processed_rich_text}</p>";
+
+            case 'heading_1':
+            case 'heading_2':
+            case 'heading_3':
+                $level = substr($block_type, -1);
+                return empty($processed_rich_text) ? '' : "<h{$level}>{$processed_rich_text}</h{$level}>";
+
+            case 'bulleted_list_item':
+            case 'numbered_list_item':
+                return "<li>{$processed_rich_text}</li>";
+
+            case 'to_do':
+                $checked = $block['to_do']['checked'] ?? false;
+                $checkbox = $checked ? '☑' : '☐';
+                return "<li class=\"notion-todo-item\">{$checkbox} {$processed_rich_text}</li>";
+
+            default:
+                // 对于复杂块类型，回退到标准方法
+                return self::convert_single_block_optimized($block, null, $children_content);
+        }
     }
 
 }

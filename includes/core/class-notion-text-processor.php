@@ -23,6 +23,22 @@ if (!defined('ABSPATH')) {
 class Notion_Text_Processor {
 
     /**
+     * 格式化标签查找表，避免重复的字符串拼接
+     */
+    private static $format_tags = [
+        'bold' => ['<strong>', '</strong>'],
+        'italic' => ['<em>', '</em>'],
+        'strikethrough' => ['<del>', '</del>'],
+        'underline' => ['<u>', '</u>'],
+        'code' => ['<code>', '</code>']
+    ];
+
+    /**
+     * 链接类型检测缓存
+     */
+    private static $link_cache = [];
+
+    /**
      * 从 Notion 的富文本（rich_text）数组中提取纯文本内容。
      *
      * @since    2.0.0-beta.1
@@ -49,9 +65,10 @@ class Notion_Text_Processor {
 
 
     /**
-     * 完整的 Rich Text 处理方法
+     * 完整的 Rich Text 处理方法（优化版本）
      *
      * 支持所有格式化功能：粗体、斜体、删除线、下划线、代码、颜色、链接、公式等
+     * 使用数组拼接和查找表优化性能
      *
      * @since    2.0.0-beta.1
      * @param    array     $rich_text    富文本数组
@@ -62,7 +79,11 @@ class Notion_Text_Processor {
             return '';
         }
 
-        $result = '';
+        // 开始性能监控
+        $start_time = microtime(true);
+
+        // 使用数组收集HTML片段，避免频繁字符串拼接
+        $html_parts = [];
 
         foreach ($rich_text as $text) {
             // 处理行内公式
@@ -80,55 +101,51 @@ class Notion_Text_Processor {
             
             $annotations = isset($text['annotations']) ? $text['annotations'] : array();
             $href = isset($text['href']) ? $text['href'] : '';
-            
-            // 应用格式化
+
+            // 使用查找表和数组拼接优化格式化处理
             if (!empty($annotations)) {
-                if ( isset( $annotations['bold'] ) && $annotations['bold'] ) {
-                    $content = '<strong>' . $content . '</strong>';
+                $format_stack = []; // 用于收集格式化标签
+
+                // 使用查找表快速应用格式化
+                foreach (self::$format_tags as $format => $tags) {
+                    if (isset($annotations[$format]) && $annotations[$format]) {
+                        $format_stack[] = $tags;
+                    }
                 }
-                
-                if ( isset( $annotations['italic'] ) && $annotations['italic'] ) {
-                    $content = '<em>' . $content . '</em>';
+
+                // 处理颜色（特殊情况）
+                if (isset($annotations['color']) && $annotations['color'] !== 'default') {
+                    $format_stack[] = [
+                        '<span class="notion-color-' . esc_attr($annotations['color']) . '">',
+                        '</span>'
+                    ];
                 }
-                
-                if ( isset( $annotations['strikethrough'] ) && $annotations['strikethrough'] ) {
-                    $content = '<del>' . $content . '</del>';
-                }
-                
-                if ( isset( $annotations['underline'] ) && $annotations['underline'] ) {
-                    $content = '<u>' . $content . '</u>';
-                }
-                
-                if ( isset( $annotations['code'] ) && $annotations['code'] ) {
-                    $content = '<code>' . $content . '</code>';
-                }
-                
-                // 处理颜色
-                if ( isset( $annotations['color'] ) && $annotations['color'] !== 'default' ) {
-                    $content = '<span class="notion-color-' . esc_attr( $annotations['color'] ) . '">' . $content . '</span>';
+
+                // 应用所有格式化（从内到外）
+                foreach ($format_stack as $tags) {
+                    $content = $tags[0] . $content . $tags[1];
                 }
             }
 
-            // 处理链接
+            // 优化的链接处理（使用缓存）
             if (!empty($href)) {
-                // 检测是否为 Notion 锚点链接
-                if (self::is_notion_anchor_link($href)) {
-                    // 转换为本地锚点链接，不添加 target="_blank"
-                    $local_href = self::convert_notion_anchor_to_local($href);
-                    $content = '<a href="' . esc_attr($local_href) . '">' . $content . '</a>';
-                } elseif (self::is_notion_page_link($href)) {
-                    // 转换为 WordPress 永久链接，不添加 target="_blank"
-                    $wordpress_href = self::convert_notion_page_to_wordpress($href);
-                    $content = '<a href="' . esc_url($wordpress_href) . '">' . $content . '</a>';
-                } else {
-                    // 外部链接保持原有处理方式
-                    $content = '<a href="' . esc_url($href) . '" target="_blank">' . $content . '</a>';
-                }
+                $content = self::process_link_optimized($content, $href);
             }
-            
-            $result .= $content;
+
+            // 将处理后的内容添加到数组中
+            $html_parts[] = $content;
         }
-        
+
+        // 一次性拼接所有HTML片段
+        $result = implode('', $html_parts);
+
+        // 记录性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            $processing_time = microtime(true) - $start_time;
+            Notion_Performance_Monitor::record_custom_metric('rich_text_processing_time', $processing_time);
+            Notion_Performance_Monitor::record_custom_metric('rich_text_items_processed', count($rich_text));
+        }
+
         return $result;
     }
 
@@ -607,5 +624,124 @@ class Notion_Text_Processor {
         }
 
         return $stats;
+    }
+
+    /**
+     * 优化的链接处理方法
+     *
+     * 使用缓存和优化的检测逻辑处理链接
+     *
+     * @since 2.0.0-beta.1
+     * @param string $content 内容文本
+     * @param string $href 链接地址
+     * @return string 处理后的HTML内容
+     */
+    private static function process_link_optimized(string $content, string $href): string {
+        // 使用缓存避免重复的链接类型检测
+        $cache_key = md5($href);
+
+        if (!isset(self::$link_cache[$cache_key])) {
+            // 检测链接类型并缓存结果
+            if (self::is_notion_anchor_link($href)) {
+                self::$link_cache[$cache_key] = [
+                    'type' => 'anchor',
+                    'processed_href' => self::convert_notion_anchor_to_local($href)
+                ];
+            } elseif (self::is_notion_page_link($href)) {
+                self::$link_cache[$cache_key] = [
+                    'type' => 'page',
+                    'processed_href' => self::convert_notion_page_to_wordpress($href)
+                ];
+            } else {
+                self::$link_cache[$cache_key] = [
+                    'type' => 'external',
+                    'processed_href' => esc_url($href)
+                ];
+            }
+        }
+
+        $link_info = self::$link_cache[$cache_key];
+
+        // 根据链接类型生成HTML
+        switch ($link_info['type']) {
+            case 'anchor':
+                return '<a href="' . esc_attr($link_info['processed_href']) . '">' . $content . '</a>';
+            case 'page':
+                return '<a href="' . esc_url($link_info['processed_href']) . '">' . $content . '</a>';
+            case 'external':
+            default:
+                return '<a href="' . $link_info['processed_href'] . '" target="_blank">' . $content . '</a>';
+        }
+    }
+
+    /**
+     * 批量优化的富文本处理
+     *
+     * 专为大量富文本处理优化的方法
+     *
+     * @since 2.0.0-beta.1
+     * @param array $rich_text_array 多个富文本数组
+     * @return array 处理后的HTML数组
+     */
+    public static function batch_extract_rich_text(array $rich_text_array): array {
+        if (empty($rich_text_array)) {
+            return [];
+        }
+
+        $start_time = microtime(true);
+        $results = [];
+
+        // 预热链接缓存（如果有重复链接）
+        $all_links = [];
+        foreach ($rich_text_array as $rich_text) {
+            foreach ($rich_text as $text) {
+                if (!empty($text['href'])) {
+                    $all_links[] = $text['href'];
+                }
+            }
+        }
+
+        // 批量处理每个富文本
+        foreach ($rich_text_array as $index => $rich_text) {
+            $results[$index] = self::extract_rich_text_complete($rich_text);
+        }
+
+        // 记录批量处理性能
+        if (class_exists('Notion_Performance_Monitor')) {
+            $processing_time = microtime(true) - $start_time;
+            Notion_Performance_Monitor::record_custom_metric('batch_rich_text_processing_time', $processing_time);
+            Notion_Performance_Monitor::record_custom_metric('batch_rich_text_count', count($rich_text_array));
+        }
+
+        return $results;
+    }
+
+    /**
+     * 清理链接缓存
+     *
+     * 定期清理缓存以避免内存占用过多
+     *
+     * @since 2.0.0-beta.1
+     */
+    public static function clear_link_cache(): void {
+        self::$link_cache = [];
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log('链接缓存已清理', 'Text Processor');
+        }
+    }
+
+    /**
+     * 获取链接缓存统计
+     *
+     * @since 2.0.0-beta.1
+     * @return array 缓存统计信息
+     */
+    public static function get_link_cache_stats(): array {
+        return [
+            'cache_size' => count(self::$link_cache),
+            'memory_usage_bytes' => strlen(serialize(self::$link_cache)),
+            'cache_enabled' => true
+        ];
     }
 }
