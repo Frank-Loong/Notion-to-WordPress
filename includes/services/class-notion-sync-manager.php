@@ -436,7 +436,7 @@ class Notion_Sync_Manager {
      * @return array 页面数据
      * @throws Exception 如果获取失败
      */
-    public static function get_page_data(string $page_id, Notion_API $notion_api): array {
+    public static function get_page_data(string $page_id, $notion_api): array {
         return $notion_api->get_page($page_id);
     }
 

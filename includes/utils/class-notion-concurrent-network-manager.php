@@ -620,4 +620,192 @@ class Notion_Concurrent_Network_Manager {
             'Concurrent Network'
         );
     }
+
+    /**
+     * 连接池管理
+     *
+     * @since 2.0.0-beta.1
+     * @access private
+     * @var array $connection_pool 连接池
+     */
+    private $connection_pool = [];
+
+    /**
+     * 连接池最大大小
+     *
+     * @since 2.0.0-beta.1
+     * @access private
+     * @var int $max_pool_size 连接池最大大小
+     */
+    private $max_pool_size = 10;
+
+    /**
+     * 数据量预估缓存
+     *
+     * @since 2.0.0-beta.1
+     * @access private
+     * @var array $size_estimation_cache 数据量预估缓存
+     */
+    private $size_estimation_cache = [];
+
+    /**
+     * 初始化连接池
+     *
+     * @since 2.0.0-beta.1
+     * @return void
+     */
+    private function init_connection_pool(): void {
+        if (empty($this->connection_pool)) {
+            for ($i = 0; $i < $this->max_pool_size; $i++) {
+                $this->connection_pool[] = curl_init();
+            }
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    sprintf('初始化连接池: %d个连接', $this->max_pool_size),
+                    'Connection Pool'
+                );
+            }
+        }
+    }
+
+    /**
+     * 从连接池获取连接
+     *
+     * @since 2.0.0-beta.1
+     * @return resource|false cURL句柄或false
+     */
+    private function get_connection_from_pool() {
+        if (!empty($this->connection_pool)) {
+            return array_pop($this->connection_pool);
+        }
+
+        // 如果连接池为空，创建新连接
+        return curl_init();
+    }
+
+    /**
+     * 将连接返回到连接池
+     *
+     * @since 2.0.0-beta.1
+     * @param resource $handle cURL句柄
+     * @return void
+     */
+    private function return_connection_to_pool($handle): void {
+        if (count($this->connection_pool) < $this->max_pool_size) {
+            // 重置连接状态
+            curl_reset($handle);
+            $this->connection_pool[] = $handle;
+        } else {
+            // 连接池已满，关闭连接
+            curl_close($handle);
+        }
+    }
+
+    /**
+     * 清理连接池
+     *
+     * @since 2.0.0-beta.1
+     * @return void
+     */
+    public function cleanup_connection_pool(): void {
+        foreach ($this->connection_pool as $handle) {
+            curl_close($handle);
+        }
+        $this->connection_pool = [];
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log('连接池已清理', 'Connection Pool');
+        }
+    }
+
+    /**
+     * 预估数据库大小
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $filter 过滤条件
+     * @return int 预估的页面数量
+     */
+    public function estimate_database_size(string $database_id, array $filter = []): int {
+        $cache_key = md5($database_id . serialize($filter));
+
+        // 检查缓存
+        if (isset($this->size_estimation_cache[$cache_key])) {
+            return $this->size_estimation_cache[$cache_key];
+        }
+
+        // 执行小样本查询来预估大小
+        $sample_size = 10;
+        $estimation = $sample_size; // 默认预估值
+
+        try {
+            // 这里可以实现更复杂的预估逻辑
+            // 比如查询数据库的元数据或执行小样本查询
+
+            // 简化实现：根据过滤条件调整预估
+            if (empty($filter)) {
+                $estimation = 500; // 无过滤条件时的默认预估
+            } else {
+                $estimation = 100; // 有过滤条件时的预估
+            }
+
+            // 缓存预估结果
+            $this->size_estimation_cache[$cache_key] = $estimation;
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log(
+                    sprintf('数据库大小预估失败: %s', $e->getMessage()),
+                    'Size Estimation'
+                );
+            }
+        }
+
+        return $estimation;
+    }
+
+    /**
+     * 动态计算最优并发数
+     *
+     * @since 2.0.0-beta.1
+     * @param int $estimated_size 预估的数据量
+     * @param int $page_size 每页大小
+     * @return int 最优并发数
+     */
+    public function calculate_optimal_concurrency(int $estimated_size, int $page_size = 100): int {
+        // 计算预估的页面数
+        $estimated_pages = ceil($estimated_size / $page_size);
+
+        // 根据数据量动态调整并发数
+        if ($estimated_pages <= 2) {
+            $optimal_concurrency = 1; // 小数据集使用单线程
+        } elseif ($estimated_pages <= 10) {
+            $optimal_concurrency = min(3, $estimated_pages); // 中等数据集
+        } else {
+            $optimal_concurrency = min($this->max_concurrent_requests, ceil($estimated_pages / 5)); // 大数据集
+        }
+
+        // 考虑系统负载调整
+        if (class_exists('Notion_Adaptive_Batch')) {
+            $system_stats = Notion_Adaptive_Batch::get_adaptive_stats();
+            if ($system_stats['memory_usage_percent'] > 80) {
+                $optimal_concurrency = max(1, floor($optimal_concurrency * 0.7)); // 内存紧张时减少并发
+            }
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log(
+                sprintf(
+                    '动态并发计算: 预估大小=%d, 页面数=%d, 最优并发=%d',
+                    $estimated_size,
+                    $estimated_pages,
+                    $optimal_concurrency
+                ),
+                'Concurrency Calculation'
+            );
+        }
+
+        return $optimal_concurrency;
+    }
 }
