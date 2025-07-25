@@ -231,6 +231,13 @@ window.NotionToWordPressKaTeX = {
     renderAllKatex: renderAllKatex,
     renderKatexElement: renderKatexElement
 };
+
+// 暴露Mermaid函数到全局作用域
+window.NotionToWordPressMermaid = {
+    initMermaid: initMermaid,
+    fallbackMermaidRendering: fallbackMermaidRendering,
+    addPanZoomToMermaid: addPanZoomToMermaid
+};
 /* ---------------- Mermaid 渲染 ---------------- */
 function initMermaid() {
 	// 检测Mermaid是否成功加载，给CDN一些时间
@@ -260,18 +267,22 @@ startOnLoad: false, // 手动控制加载
 theme: 'default',
 securityLevel: 'loose',
 flowchart: {
-useMaxWidth: true, // 恢复Notion原版设置
-htmlLabels: true
+useMaxWidth: false, // 修复：不强制使用最大宽度，让图表保持合适大小
+htmlLabels: true,
+curve: 'basis'
 },
 er: {
-useMaxWidth: true // 恢复Notion原版设置
+useMaxWidth: false // 修复：不强制使用最大宽度
 },
 sequence: {
-useMaxWidth: true, // 恢复Notion原版设置
+useMaxWidth: false, // 修复：不强制使用最大宽度
 noteFontWeight: '14px',
 actorFontSize: '14px',
 messageFontSize: '16px'
-}
+},
+// 添加全局配置确保图表大小合适
+maxTextSize: 90000,
+maxEdges: 100
 });
 
 // 等待DOM完全加载后再处理
@@ -292,6 +303,8 @@ mermaid.run({
 querySelector: '.mermaid, pre.mermaid, pre code.language-mermaid'
 }).then(function() {
 console.log('Mermaid图表渲染成功');
+// 渲染完成后添加缩放和平移功能
+setTimeout(addPanZoomToMermaid, 100);
 }).catch(function(error) {
 console.error('Mermaid渲染错误:', error);
 fallbackMermaidRendering();
@@ -312,26 +325,198 @@ function fallbackMermaidRendering() {
 try {
 console.log('尝试使用回退方法渲染Mermaid图表');
 
-document.querySelectorAll('pre.mermaid, pre code.language-mermaid').forEach(function(element) {
+// 增强的选择器，确保捕获所有可能的Mermaid代码块
+document.querySelectorAll('pre.mermaid, pre code.language-mermaid, code.language-mermaid, pre.language-mermaid').forEach(function(element) {
 var content = element.tagName === 'CODE' ? element.textContent : element.innerHTML;
 var div = document.createElement('div');
 div.className = 'mermaid';
 div.textContent = content.trim();
 
+// 增强的替换逻辑，处理各种嵌套情况
 if (element.tagName === 'CODE') {
-element.parentNode.parentNode.replaceChild(div, element.parentNode);
+// 如果是 code 标签，替换其父级 pre 标签
+var preParent = element.parentNode;
+if (preParent && preParent.tagName === 'PRE') {
+preParent.parentNode.replaceChild(div, preParent);
 } else {
 element.parentNode.replaceChild(div, element);
+}
+} else if (element.tagName === 'PRE') {
+// 如果是 pre 标签，直接替换
+element.parentNode.replaceChild(div, element);
+}
+
+console.log('转换Mermaid代码块:', content.substring(0, 50) + '...');
+});
+
+// 强制重新扫描所有可能遗漏的代码块
+setTimeout(function() {
+document.querySelectorAll('pre, code').forEach(function(element) {
+if (!element.classList.contains('mermaid') && !element.querySelector('.mermaid')) {
+var content = element.textContent || element.innerHTML;
+// 检查是否包含Mermaid关键词
+if (content.includes('graph') || content.includes('flowchart') || content.includes('sequenceDiagram') || content.includes('classDiagram') || content.includes('gantt') || content.includes('pie')) {
+// 确保这确实是Mermaid代码而不是普通文本
+if (content.trim().match(/^(graph|flowchart|sequenceDiagram|classDiagram|gantt|pie|gitgraph)/)) {
+var div = document.createElement('div');
+div.className = 'mermaid';
+div.textContent = content.trim();
+element.parentNode.replaceChild(div, element);
+console.log('发现并转换遗漏的Mermaid内容:', content.substring(0, 50) + '...');
+}
+}
 }
 });
 
 if (typeof mermaid.init === 'function') {
 mermaid.init(undefined, document.querySelectorAll('.mermaid'));
 console.log('使用mermaid.init()方法渲染完成');
+// 渲染完成后添加缩放和平移功能
+setTimeout(addPanZoomToMermaid, 100);
 }
+}, 100);
+
 } catch (fallbackError) {
 console.error('Mermaid回退渲染错误:', fallbackError);
 }
+}
+
+/* ---------------- Mermaid 缩放和平移功能 ---------------- */
+function addPanZoomToMermaid() {
+    console.log('开始为Mermaid图表添加缩放和平移功能');
+
+    document.querySelectorAll('.mermaid').forEach(function(container, index) {
+        const svg = container.querySelector('svg');
+        if (!svg || svg.dataset.panZoomEnabled) {
+            return; // 跳过已经处理过的SVG
+        }
+
+        // 标记为已处理
+        svg.dataset.panZoomEnabled = 'true';
+
+        // 创建控制按钮容器
+        const controlsContainer = document.createElement('div');
+        controlsContainer.className = 'mermaid-controls';
+        controlsContainer.innerHTML = `
+            <div class="mermaid-zoom-controls">
+                <button class="mermaid-btn zoom-in" title="放大">+</button>
+                <button class="mermaid-btn zoom-out" title="缩小">−</button>
+                <button class="mermaid-btn zoom-reset" title="重置">⌂</button>
+                <button class="mermaid-btn zoom-fit" title="适应窗口">⊞</button>
+            </div>
+        `;
+
+        // 将控制按钮插入到容器中
+        container.style.position = 'relative';
+        container.appendChild(controlsContainer);
+
+        // 初始化缩放和平移状态
+        let scale = 1;
+        let translateX = 0;
+        let translateY = 0;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // 获取SVG的原始尺寸
+        const originalViewBox = svg.getAttribute('viewBox');
+        const svgRect = svg.getBoundingClientRect();
+        const originalWidth = svgRect.width;
+        const originalHeight = svgRect.height;
+
+        // 应用变换
+        function applyTransform() {
+            svg.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+            svg.style.transformOrigin = 'center center';
+        }
+
+        // 缩放功能
+        function zoomIn() {
+            scale = Math.min(scale * 1.2, 5); // 最大5倍
+            applyTransform();
+        }
+
+        function zoomOut() {
+            scale = Math.max(scale / 1.2, 0.1); // 最小0.1倍
+            applyTransform();
+        }
+
+        function zoomReset() {
+            scale = 1;
+            translateX = 0;
+            translateY = 0;
+            applyTransform();
+        }
+
+        function zoomFit() {
+            const containerRect = container.getBoundingClientRect();
+            const svgRect = svg.getBoundingClientRect();
+
+            const scaleX = (containerRect.width - 40) / originalWidth;
+            const scaleY = (containerRect.height - 40) / originalHeight;
+            scale = Math.min(scaleX, scaleY, 1); // 不超过原始大小
+
+            translateX = 0;
+            translateY = 0;
+            applyTransform();
+        }
+
+        // 绑定按钮事件
+        controlsContainer.querySelector('.zoom-in').addEventListener('click', zoomIn);
+        controlsContainer.querySelector('.zoom-out').addEventListener('click', zoomOut);
+        controlsContainer.querySelector('.zoom-reset').addEventListener('click', zoomReset);
+        controlsContainer.querySelector('.zoom-fit').addEventListener('click', zoomFit);
+
+        // 鼠标滚轮缩放
+        container.addEventListener('wheel', function(e) {
+            e.preventDefault();
+
+            if (e.deltaY < 0) {
+                zoomIn();
+            } else {
+                zoomOut();
+            }
+        });
+
+        // 鼠标拖拽平移
+        svg.addEventListener('mousedown', function(e) {
+            if (e.button === 0) { // 左键
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                svg.style.cursor = 'grabbing';
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                const deltaX = e.clientX - lastMouseX;
+                const deltaY = e.clientY - lastMouseY;
+
+                translateX += deltaX;
+                translateY += deltaY;
+
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+
+                applyTransform();
+            }
+        });
+
+        document.addEventListener('mouseup', function(e) {
+            if (isDragging) {
+                isDragging = false;
+                svg.style.cursor = 'grab';
+            }
+        });
+
+        // 设置初始样式
+        svg.style.cursor = 'grab';
+        svg.style.userSelect = 'none';
+
+        console.log(`为第${index + 1}个Mermaid图表添加了缩放和平移功能`);
+    });
 }
 
 /* ---------------- 初始化 ---------------- */

@@ -279,15 +279,29 @@
     max-width: 100%;
 }
 
-/* Mermaid 图表样式 */
+/* Mermaid 图表样式 - 统一布局和居中 */
 .mermaid {
     text-align: center;
-    margin: 1.5em auto;
+    margin: 2em auto;
     max-width: 100%;
     overflow-x: auto;
     background: transparent;
-    padding: 0;
+    padding: 1em 0;
     overflow: visible;
+    display: block;
+    width: 100%;
+}
+
+/* 确保Mermaid容器在所有主题中都能正确居中 */
+pre.mermaid {
+    text-align: center;
+    margin: 2em auto;
+    padding: 1em;
+    background: #f9f9f9;
+    border-radius: 5px;
+    border: 1px solid #e0e0e0;
+    overflow-x: auto;
+    max-width: 100%;
 }
 
 /* 保证 Mermaid 渲染后的 SVG 充满容器并字体可读*/
@@ -306,9 +320,100 @@ pre.mermaid > svg,
 /* 避免 svg 缩放太小 */
 .mermaid svg {
     transform: none !important;
+    transition: transform 0.2s ease;
 }
 
+/* ===== Mermaid 缩放和平移控制按钮样式 ===== */
+.mermaid-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 6px;
+    padding: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    backdrop-filter: blur(10px);
+}
 
+.mermaid-zoom-controls {
+    display: flex;
+    gap: 2px;
+}
+
+.mermaid-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #fff;
+    color: #333;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.mermaid-btn:hover {
+    background: #f0f0f0;
+    transform: scale(1.05);
+}
+
+.mermaid-btn:active {
+    transform: scale(0.95);
+    background: #e0e0e0;
+}
+
+/* 深色主题适配 */
+@media (prefers-color-scheme: dark) {
+    .mermaid-controls {
+        background: rgba(40, 40, 40, 0.9);
+    }
+
+    .mermaid-btn {
+        background: #333;
+        color: #fff;
+    }
+
+    .mermaid-btn:hover {
+        background: #444;
+    }
+
+    .mermaid-btn:active {
+        background: #555;
+    }
+}
+
+/* Mermaid 响应式样式 */
+@media (max-width: 768px) {
+    .mermaid,
+    pre.mermaid {
+        margin: 1.5em auto;
+        padding: 0.5em;
+        font-size: 14px;
+    }
+
+    .mermaid svg text {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .mermaid,
+    pre.mermaid {
+        margin: 1em auto;
+        padding: 0.25em;
+        font-size: 12px;
+    }
+
+    .mermaid svg text {
+        font-size: 12px;
+    }
+}
 
 /* 化学方程式样式*/
 .notion-chem-equation {
@@ -317,21 +422,6 @@ pre.mermaid > svg,
     font-size: 1.05em;
     margin: 0 2px;
 }
-
-.mermaid {
-    margin: 2em auto !important;
-    text-align: center;
-    overflow-x: auto;
-    max-width: 100%;
-    padding: 1em;
-    background: #f9f9f9;
-    border-radius: 5px;
-    width: fit-content !important;
-    min-width: 300px;
-    max-width: min(100%, 800px) !important;
-}
-
-
 
 /* 代码块样式优化*/
 .wp-block-code {

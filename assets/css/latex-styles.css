@@ -23,7 +23,7 @@
     display: block;
     margin: 0.3em 0 !important; /* 紧凑间距 */
     text-align: center;
-    font-size: 0.95em; /* 稍微增大，确保复杂公式显示正常 */
+    font-size: 1.1em; /* 调整为更接近Notion原版的大小 */
     line-height: 1.4; /* 增加行高，为上下标和大括号留出空间 */
 }
 
@@ -32,7 +32,7 @@
     display: block;
     margin: 0.3em 0 !important; /* 与上面保持一致 */
     text-align: center;
-    font-size: 0.95em;
+    font-size: 1.1em; /* 调整为更接近Notion原版的大小 */
     line-height: 1.4;
 }
 
