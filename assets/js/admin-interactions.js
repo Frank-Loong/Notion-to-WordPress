@@ -1003,6 +1003,64 @@ jQuery(document).ready(function($) {
         $('#create-database-indexes').on('click', createDatabaseIndexes);
         $('#refresh-index-status').on('click', refreshIndexStatus);
         $('#remove-database-indexes').on('click', removeDatabaseIndexes);
+
+        // CDN配置显示/隐藏
+        $('#cdn_provider').on('change', function() {
+            const customUrlField = $('#custom_cdn_url');
+            if ($(this).val() === 'custom') {
+                customUrlField.show();
+            } else {
+                customUrlField.hide();
+            }
+        });
+
+        // 前端资源优化状态检查
+        if ($('#enable_asset_compression').length > 0) {
+            checkResourceOptimizationStatus();
+        }
     });
+
+    /**
+     * 检查前端资源优化状态
+     */
+    function checkResourceOptimizationStatus() {
+        // 检查是否支持现代浏览器特性
+        const features = {
+            intersectionObserver: 'IntersectionObserver' in window,
+            fetch: 'fetch' in window,
+            performance: 'performance' in window,
+            webp: checkWebPSupport()
+        };
+
+        let statusHtml = '<div class="resource-optimization-status">';
+        statusHtml += '<h4>浏览器兼容性检查:</h4><ul>';
+
+        Object.entries(features).forEach(([feature, supported]) => {
+            const status = supported ? '✅ 支持' : '❌ 不支持';
+            const featureName = {
+                intersectionObserver: 'Intersection Observer (懒加载)',
+                fetch: 'Fetch API (CDN检测)',
+                performance: 'Performance API (性能监控)',
+                webp: 'WebP格式 (图片优化)'
+            }[feature];
+
+            statusHtml += `<li>${featureName}: ${status}</li>`;
+        });
+
+        statusHtml += '</ul></div>';
+
+        // 在前端资源优化设置后添加状态信息
+        $('#performance_monitoring').closest('fieldset').after(statusHtml);
+    }
+
+    /**
+     * 检查WebP支持
+     */
+    function checkWebPSupport() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+    }
 
 })(jQuery);

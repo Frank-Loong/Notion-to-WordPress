@@ -632,6 +632,23 @@ class Notion_To_WordPress {
 			true
 		);
 
+		// 前端资源优化脚本
+		wp_enqueue_script(
+			$this->plugin_name . '-resource-optimizer',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/resource-optimizer.js'),
+			array($this->plugin_name . '-lazy-loading'),
+			$this->version,
+			true
+		);
+
+		// 传递CDN配置到前端
+		$cdn_config = $this->get_cdn_config();
+		wp_localize_script(
+			$this->plugin_name . '-resource-optimizer',
+			'notionCdnConfig',
+			$cdn_config
+		);
+
 		// 注册锚点导航脚本，支持区块锚点跳转
 		wp_enqueue_script(
 			$this->plugin_name . '-anchor-navigation',
@@ -748,5 +765,90 @@ class Notion_To_WordPress {
 		unset( $GLOBALS['notion_formula_placeholders'] );
 
 		return $content;
+	}
+
+	/**
+	 * 获取CDN配置
+	 *
+	 * 为前端资源优化器提供CDN配置信息
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return array CDN配置数组
+	 */
+	private function get_cdn_config(): array {
+		$options = get_option('notion_to_wordpress_options', []);
+
+		// 基础CDN配置
+		$cdn_config = [
+			'enabled' => false,
+			'baseUrl' => '',
+			'fallbackEnabled' => true,
+			'timeout' => 5000,
+			'providers' => [
+				'jsdelivr' => 'https://cdn.jsdelivr.net',
+				'unpkg' => 'https://unpkg.com',
+				'cdnjs' => 'https://cdnjs.cloudflare.com'
+			]
+		];
+
+		// 检查是否启用CDN
+		$enable_cdn = $options['enable_cdn'] ?? false;
+		if ($enable_cdn) {
+			$cdn_provider = $options['cdn_provider'] ?? 'jsdelivr';
+			$custom_cdn_url = $options['custom_cdn_url'] ?? '';
+
+			$cdn_config['enabled'] = true;
+
+			if ($cdn_provider === 'custom' && !empty($custom_cdn_url)) {
+				$cdn_config['baseUrl'] = rtrim($custom_cdn_url, '/');
+			} elseif (isset($cdn_config['providers'][$cdn_provider])) {
+				$cdn_config['baseUrl'] = $cdn_config['providers'][$cdn_provider];
+			}
+		}
+
+		// 性能优化配置
+		$cdn_config['optimization'] = [
+			'compression' => [
+				'enabled' => $options['enable_asset_compression'] ?? true,
+				'level' => $options['compression_level'] ?? 'auto'
+			],
+			'lazyLoading' => [
+				'enhanced' => $options['enhanced_lazy_loading'] ?? true,
+				'preloadThreshold' => $options['preload_threshold'] ?? 2
+			],
+			'performance' => [
+				'monitoring' => $options['performance_monitoring'] ?? true,
+				'reportInterval' => $options['performance_report_interval'] ?? 30000
+			]
+		];
+
+		// 应用过滤器，允许主题或其他插件修改配置
+		return apply_filters('notion_cdn_config', $cdn_config);
+	}
+
+	/**
+	 * 获取资源优化统计信息
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return array 统计信息
+	 */
+	public static function get_resource_optimization_stats(): array {
+		$stats = [
+			'cdn_enabled' => false,
+			'compression_enabled' => false,
+			'lazy_loading_enhanced' => false,
+			'performance_monitoring' => false,
+			'last_optimization_time' => null
+		];
+
+		$options = get_option('notion_to_wordpress_options', []);
+
+		$stats['cdn_enabled'] = $options['enable_cdn'] ?? false;
+		$stats['compression_enabled'] = $options['enable_asset_compression'] ?? true;
+		$stats['lazy_loading_enhanced'] = $options['enhanced_lazy_loading'] ?? true;
+		$stats['performance_monitoring'] = $options['performance_monitoring'] ?? true;
+		$stats['last_optimization_time'] = $options['last_optimization_time'] ?? null;
+
+		return $stats;
 	}
 }

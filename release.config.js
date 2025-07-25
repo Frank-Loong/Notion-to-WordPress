@@ -316,6 +316,46 @@ if (!defined('ABSPATH')) {
             method: 'zip'
         },
 
+        // 前端资源优化设置
+        assets: {
+            // JavaScript压缩合并
+            js: {
+                enabled: true,
+                minify: true,
+                combine: true,
+                sourceMap: false,
+                files: [
+                    'assets/js/lazy-loading.js',
+                    'assets/js/resource-optimizer.js',
+                    'assets/js/admin-interactions.js'
+                ],
+                output: 'assets/js/notion-combined.min.js'
+            },
+
+            // CSS压缩合并
+            css: {
+                enabled: true,
+                minify: true,
+                combine: true,
+                autoprefixer: true,
+                files: [
+                    'assets/css/admin-modern.css',
+                    'assets/css/custom-styles.css',
+                    'assets/css/notion-database.css'
+                ],
+                output: 'assets/css/notion-combined.min.css'
+            },
+
+            // 图片优化
+            images: {
+                enabled: true,
+                quality: 85,
+                progressive: true,
+                formats: ['webp', 'jpg', 'png'],
+                sizes: [320, 640, 1024, 1920]
+            }
+        },
+
         // 验证设置
         validation: {
             maxSize: 50 * 1024 * 1024, // 50MB

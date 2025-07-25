@@ -140,7 +140,46 @@
     // 暴露全局方法
     window.NotionLazyLoading = {
         refresh: refreshLazyImages,
-        config: LAZY_CONFIG
+        config: LAZY_CONFIG,
+
+        // 新增的资源优化相关方法
+        enableResourceOptimization: function() {
+            if (window.NotionResourceOptimizer) {
+                console.log('[懒加载] 启用资源优化集成');
+                return true;
+            }
+            return false;
+        },
+
+        // 获取懒加载统计信息
+        getStats: function() {
+            return {
+                totalImages: document.querySelectorAll('img[data-src]').length,
+                loadedImages: document.querySelectorAll('img.notion-lazy-loaded').length,
+                errorImages: document.querySelectorAll('img.notion-lazy-error').length,
+                observerSupported: supportsIntersectionObserver
+            };
+        },
+
+        // 手动触发图片加载
+        loadImage: loadImage,
+
+        // 预加载指定图片
+        preloadImages: function(urls) {
+            if (!Array.isArray(urls)) return;
+
+            urls.forEach(url => {
+                const img = new Image();
+                img.onload = () => console.log(`[预加载] ${url} 完成`);
+                img.onerror = () => console.warn(`[预加载] ${url} 失败`);
+                img.src = url;
+            });
+        },
+
+        // 获取观察器实例
+        getObserver: function() {
+            return observer;
+        }
     };
 
 })();
@@ -297,9 +336,23 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             FeaturedImageHandler.init();
+
+            // 尝试启用资源优化
+            setTimeout(() => {
+                if (window.NotionLazyLoading) {
+                    window.NotionLazyLoading.enableResourceOptimization();
+                }
+            }, 100);
         });
     } else {
         FeaturedImageHandler.init();
+
+        // 尝试启用资源优化
+        setTimeout(() => {
+            if (window.NotionLazyLoading) {
+                window.NotionLazyLoading.enableResourceOptimization();
+            }
+        }, 100);
     }
 
 })();
