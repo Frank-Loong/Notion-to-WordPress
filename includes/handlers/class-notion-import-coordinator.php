@@ -125,7 +125,29 @@ class Notion_Import_Coordinator {
         $page_id = $page['id'];
 
         try {
-            // 2. 协调元数据提取
+            // 2. 增量检测（如果可用）
+            if (class_exists('Notion_Incremental_Detector')) {
+                // 检查是否存在对应的WordPress文章
+                $existing_post_id = Notion_Database_Helper::batch_get_posts_by_notion_ids([$page_id])[$page_id] ?? 0;
+
+                if ($existing_post_id > 0) {
+                    // 使用增量检测器判断是否需要同步
+                    if (Notion_Incremental_Detector::should_skip_sync($page, $existing_post_id)) {
+                        Notion_Logger::debug_log(
+                            "增量检测器判断页面无需同步，跳过导入: {$page_id}",
+                            'Page Import'
+                        );
+                        return 'skipped'; // 返回特殊值表示跳过
+                    } else {
+                        Notion_Logger::debug_log(
+                            "增量检测器确认页面需要同步: {$page_id}",
+                            'Page Import'
+                        );
+                    }
+                }
+            }
+
+            // 3. 协调元数据提取
             $metadata = $this->coordinate_metadata_extraction($page);
             if (empty($metadata['title'])) {
                 Notion_Logger::debug_log('页面标题为空，跳过导入', 'Page Import');
@@ -146,6 +168,11 @@ class Notion_Import_Coordinator {
 
             // 5. 协调同步状态更新
             $this->coordinate_sync_status_update($page_id, $page['last_edited_time'] ?? '');
+
+            // 6. 更新增量检测哈希值
+            if (class_exists('Notion_Incremental_Detector')) {
+                Notion_Incremental_Detector::update_sync_hashes($page, $post_id);
+            }
 
             Notion_Logger::debug_log('页面导入完成', 'Page Import');
             return true;
@@ -306,36 +333,75 @@ class Notion_Import_Coordinator {
 
             Notion_Logger::info_log('开始处理页面，总数: ' . count($pages), 'Pages Import');
 
-            foreach ($pages as $index => $page) {
-                Notion_Logger::debug_log('处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'), 'Pages Import');
+            // 检查是否启用超级批量模式
+            $options = get_option('notion_to_wordpress_options', []);
+            $performance_mode = $options['enable_performance_mode'] ?? 1;
 
-                try {
-                    // 检查页面是否已存在
-                    $existing_post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page['id']);
-                    Notion_Logger::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
+            if ($performance_mode && count($pages) >= 10) {
+                // 使用超级批量同步模式（适用于大量页面）
+                Notion_Logger::info_log('启用超级批量同步模式', 'Pages Import');
+                $batch_stats = Notion_Sync_Manager::super_batch_sync($pages, $this->notion_api);
 
-                    Notion_Logger::debug_log('开始导入单个页面...', 'Pages Import');
-                    $result = $this->import_notion_page($page);
-                    Notion_Logger::debug_log('单个页面导入结果: ' . ($result ? 'success' : 'failed'), 'Pages Import');
+                // 更新统计数据
+                $stats['created'] += $batch_stats['created'];
+                $stats['updated'] += $batch_stats['updated'];
+                $stats['skipped'] += $batch_stats['skipped'];
+                $stats['errors'] += $batch_stats['errors'];
 
-                    if ($result) {
-                        if ($existing_post_id) {
-                            $stats['updated']++;
-                        } else {
-                            $stats['imported']++;
+                Notion_Logger::info_log(
+                    sprintf('超级批量同步完成: 创建=%d, 更新=%d, 跳过=%d, 错误=%d',
+                        $batch_stats['created'], $batch_stats['updated'],
+                        $batch_stats['skipped'], $batch_stats['errors']),
+                    'Pages Import'
+                );
+            } else {
+                // 使用传统逐个处理模式
+                foreach ($pages as $index => $page) {
+                    if (!$performance_mode) {
+                        Notion_Logger::debug_log('处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'), 'Pages Import');
+                    }
+
+                    try {
+                        // 检查页面是否已存在
+                        $existing_post_id = Notion_To_WordPress_Integrator::get_post_by_notion_id($page['id']);
+                        if (!$performance_mode) {
+                            Notion_Logger::debug_log('页面已存在检查结果: ' . ($existing_post_id ? 'exists (ID: ' . $existing_post_id . ')' : 'new'), 'Pages Import');
                         }
-                    } else {
+
+                        if (!$performance_mode) {
+                            Notion_Logger::debug_log('开始导入单个页面...', 'Pages Import');
+                        }
+                        $result = $this->import_notion_page($page);
+                        if (!$performance_mode) {
+                            Notion_Logger::debug_log('单个页面导入结果: ' . ($result ? 'success' : 'failed'), 'Pages Import');
+                        }
+
+                        if ($result === 'skipped') {
+                            // 增量检测器跳过的页面
+                            $stats['skipped']++;
+                        } elseif ($result) {
+                            // 成功同步的页面
+                            if ($existing_post_id) {
+                                $stats['updated']++;
+                            } else {
+                                $stats['imported']++;
+                            }
+                        } else {
+                            // 同步失败的页面
+                            $stats['failed']++;
+                        }
+                    } catch (Exception $e) {
+                        Notion_Logger::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
+                        $stats['failed']++;
+                    } catch (Error $e) {
+                        Notion_Logger::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
                         $stats['failed']++;
                     }
-                } catch (Exception $e) {
-                    Notion_Logger::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
-                    $stats['failed']++;
-                } catch (Error $e) {
-                    Notion_Logger::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
-                    $stats['failed']++;
-                }
 
-                Notion_Logger::debug_log('页面 ' . ($index + 1) . ' 处理完成', 'Pages Import');
+                    if (!$performance_mode) {
+                        Notion_Logger::debug_log('页面 ' . ($index + 1) . ' 处理完成', 'Pages Import');
+                    }
+                }
             }
 
             Notion_Logger::info_log('所有页面处理完成，统计: ' . print_r($stats, true), 'Pages Import');
@@ -811,11 +877,20 @@ class Notion_Import_Coordinator {
      * @return   string|false          转换后的HTML内容或false
      */
     private function coordinate_content_processing(string $page_id) {
-        Notion_Logger::debug_log('协调内容处理开始', 'Page Import');
+        // 检查是否启用性能模式来决定日志级别
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+        if (!$performance_mode) {
+            Notion_Logger::debug_log('协调内容处理开始', 'Page Import');
+        }
 
         // 获取页面内容
         $blocks = $this->notion_api->get_page_content($page_id);
-        Notion_Logger::debug_log('获取到内容块数量: ' . count($blocks), 'Page Import');
+
+        if (!$performance_mode) {
+            Notion_Logger::debug_log('获取到内容块数量: ' . count($blocks), 'Page Import');
+        }
 
         if (empty($blocks)) {
             return false;

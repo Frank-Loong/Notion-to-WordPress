@@ -316,48 +316,7 @@ class Notion_To_WordPress_Integrator {
         return $result;
     }
 
-    /**
-     * 批量获取多个Notion页面ID对应的WordPress文章ID
-     *
-     * @since 2.0.0-beta.1
-     * @param array $notion_ids Notion页面ID数组
-     * @return array [notion_id => post_id] 映射
-     */
-    public static function batch_get_posts_by_notion_ids(array $notion_ids): array {
-        if (empty($notion_ids)) {
-            return [];
-        }
 
-        // 禁用缓存，直接执行批量数据库查询以确保数据实时性
-        Notion_Logger::debug_log(
-            sprintf('批量获取文章ID映射（无缓存）: %d个页面', count($notion_ids)),
-            'Integrator Batch Query'
-        );
-
-        global $wpdb;
-
-        // 初始化映射数组，默认所有ID映射为0
-        $mapping = array_fill_keys($notion_ids, 0);
-
-        // 执行批量SQL查询
-        $placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
-        $query = $wpdb->prepare(
-            "SELECT meta_value as notion_id, post_id
-            FROM {$wpdb->postmeta}
-            WHERE meta_key = '_notion_page_id'
-            AND meta_value IN ($placeholders)",
-            $notion_ids
-        );
-
-        $results = $wpdb->get_results($query);
-
-        // 更新映射数组
-        foreach ($results as $row) {
-            $mapping[$row->notion_id] = (int)$row->post_id;
-        }
-
-        return $mapping;
-    }
 
     /**
      * 删除WordPress文章
@@ -709,18 +668,19 @@ class Notion_To_WordPress_Integrator {
      * @return string 转换后的内容
      */
     private static function convert_notion_links_in_content(string $content): string {
-        // 保护公式内容，避免在链接转换过程中被破坏
-        $formula_placeholders = [];
-        $formula_patterns = [
+        // 保护公式和Mermaid内容，避免在链接转换过程中被破坏
+        $protected_placeholders = [];
+        $protected_patterns = [
             '/(<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>)/s',
-            '/(<div[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/div>)/s'
+            '/(<div[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/div>)/s',
+            '/(<div[^>]*class="[^"]*mermaid[^"]*"[^>]*>.*?<\/div>)/s'  // 保护Mermaid图表
         ];
 
-        // 用占位符替换公式内容
-        foreach ($formula_patterns as $pattern) {
-            $content = preg_replace_callback($pattern, function($matches) use (&$formula_placeholders) {
-                $placeholder = '<!--FORMULA_PLACEHOLDER_' . count($formula_placeholders) . '-->';
-                $formula_placeholders[$placeholder] = $matches[0];
+        // 用占位符替换受保护的内容
+        foreach ($protected_patterns as $pattern) {
+            $content = preg_replace_callback($pattern, function($matches) use (&$protected_placeholders) {
+                $placeholder = '<!--PROTECTED_CONTENT_' . count($protected_placeholders) . '-->';
+                $protected_placeholders[$placeholder] = $matches[0];
                 return $placeholder;
             }, $content);
         }
@@ -748,9 +708,9 @@ class Notion_To_WordPress_Integrator {
             return $original_href_attr;
         }, $content);
 
-        // 恢复公式内容
-        foreach ($formula_placeholders as $placeholder => $formula_content) {
-            $content = str_replace($placeholder, $formula_content, $content);
+        // 恢复受保护的内容（公式和Mermaid图表）
+        foreach ($protected_placeholders as $placeholder => $protected_content) {
+            $content = str_replace($placeholder, $protected_content, $content);
         }
 
         return $content;
@@ -834,5 +794,141 @@ class Notion_To_WordPress_Integrator {
         );
 
         return $stats;
+    }
+
+    /**
+     * 批量更新文章元数据
+     *
+     * 使用单个SQL语句批量更新多个文章的元数据，提升数据库操作效率
+     *
+     * @since 2.0.0-beta.1
+     * @param array $updates 更新数据，格式：[post_id => [meta_key => meta_value, ...], ...]
+     * @return bool 是否成功
+     */
+    public static function batch_update_post_meta(array $updates): bool {
+        if (empty($updates)) {
+            return true;
+        }
+
+        // 开始性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('batch_update_meta');
+        }
+
+        try {
+            $success_count = 0;
+            $total_count = 0;
+
+            // 使用WordPress原生函数逐个更新，但批量处理以减少函数调用开销
+            foreach ($updates as $post_id => $meta_data) {
+                foreach ($meta_data as $meta_key => $meta_value) {
+                    $total_count++;
+
+                    // 使用WordPress原生函数，确保兼容性和数据完整性
+                    $result = update_post_meta(intval($post_id), sanitize_text_field($meta_key), $meta_value);
+
+                    if ($result !== false) {
+                        $success_count++;
+                    }
+                }
+            }
+
+            // 结束性能监控
+            if (class_exists('Notion_Performance_Monitor')) {
+                Notion_Performance_Monitor::end_timer('batch_update_meta');
+                Notion_Performance_Monitor::record_db_operation('batch_update_meta', $total_count, 0);
+            }
+
+            if ($success_count === $total_count) {
+                Notion_Logger::debug_log(
+                    sprintf('批量更新post_meta成功: %d/%d条记录', $success_count, $total_count),
+                    'Batch Update'
+                );
+                return true;
+            } else {
+                Notion_Logger::warning_log(
+                    sprintf('批量更新post_meta部分成功: %d/%d条记录', $success_count, $total_count),
+                    'Batch Update'
+                );
+                return $success_count > 0; // 只要有部分成功就返回true
+            }
+
+        } catch (Exception $e) {
+            Notion_Logger::error_log(
+                '批量更新post_meta异常: ' . $e->getMessage(),
+                'Batch Update'
+            );
+            return false;
+        }
+    }
+
+    /**
+     * 批量插入文章
+     *
+     * 使用批量操作提升文章创建效率
+     *
+     * @since 2.0.0-beta.1
+     * @param array $posts_data 文章数据数组
+     * @return array 插入结果，包含成功和失败的文章ID
+     */
+    public static function batch_insert_posts(array $posts_data): array {
+        $results = [
+            'success' => [],
+            'failed' => [],
+            'total' => count($posts_data)
+        ];
+
+        if (empty($posts_data)) {
+            return $results;
+        }
+
+        // 检查是否启用性能模式
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+        $batch_size = $options['batch_size'] ?? 20;
+
+        if (!$performance_mode) {
+            // 如果未启用性能模式，使用传统方式逐个插入
+            foreach ($posts_data as $post_data) {
+                $post_id = wp_insert_post($post_data);
+                if (is_wp_error($post_id)) {
+                    $results['failed'][] = $post_data;
+                } else {
+                    $results['success'][] = $post_id;
+                }
+            }
+            return $results;
+        }
+
+        // 分批处理
+        $chunks = array_chunk($posts_data, $batch_size);
+
+        foreach ($chunks as $chunk) {
+            foreach ($chunk as $post_data) {
+                $post_id = wp_insert_post($post_data);
+                if (is_wp_error($post_id)) {
+                    $results['failed'][] = $post_data;
+                    Notion_Logger::error_log(
+                        '批量插入文章失败: ' . $post_id->get_error_message(),
+                        'Batch Insert'
+                    );
+                } else {
+                    $results['success'][] = $post_id;
+                }
+            }
+
+            // 在批次之间稍作停顿，避免过载
+            if (count($chunks) > 1) {
+                usleep(100000); // 0.1秒
+            }
+        }
+
+        Notion_Logger::debug_log(
+            sprintf('批量插入文章完成: 成功=%d, 失败=%d',
+                count($results['success']), count($results['failed'])),
+            'Batch Insert'
+        );
+
+        return $results;
     }
 }

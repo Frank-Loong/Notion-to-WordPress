@@ -44,6 +44,12 @@ define( 'NOTION_TO_WORDPRESS_VERSION', '2.0.0-beta.1' );
  * 核心依赖加载
  */
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-to-wordpress-helper.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database-helper.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-manager.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-adaptive-batch.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-parallel-image-processor.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**

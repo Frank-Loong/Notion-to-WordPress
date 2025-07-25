@@ -38,6 +38,15 @@ class Notion_Content_Converter {
      * @return string HTML 内容
      */
     public static function convert_blocks_to_html(array $blocks, Notion_API $notion_api, string $state_id = null): string {
+        // 检查是否启用性能模式
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+        if ($performance_mode) {
+            return self::convert_blocks_to_html_optimized($blocks, $notion_api, $state_id);
+        }
+
+        // 传统模式处理
         $html = '';
         $list_wrapper = null;
 
@@ -204,6 +213,13 @@ class Notion_Content_Converter {
             }
         }
 
+        // 检查是否有 data-skip-wrapper 属性，如果有则跳过包装
+        if (strpos($block_html, 'data-skip-wrapper="true"') !== false) {
+            // 只添加 ID，不添加额外的类名
+            $safe_id = esc_attr('notion-block-' . $block_id);
+            return self::add_id_only_to_first_tag($block_html, $safe_id);
+        }
+
         // 确保 ID 和类名安全
         // 保持UUID格式的连字符，生成完整的notion-block-前缀ID，以匹配锚点链接
         $safe_id = esc_attr('notion-block-' . $block_id);
@@ -211,6 +227,45 @@ class Notion_Content_Converter {
 
         // 尝试直接在第一层HTML标签上添加ID和类名，避免额外嵌套
         return self::add_attributes_to_first_tag($block_html, $safe_id, $safe_class);
+    }
+
+    /**
+     * 在HTML的第一个标签上只添加ID属性（用于特殊块如Mermaid）
+     *
+     * @param string $html HTML内容
+     * @param string $id 要添加的ID
+     * @return string 修改后的HTML
+     */
+    private static function add_id_only_to_first_tag(string $html, string $id): string {
+        // 如果HTML为空或不包含标签，则用div包装
+        if (empty($html) || !preg_match('/<[^>]+>/', $html)) {
+            return '<div id="' . $id . '">' . $html . '</div>';
+        }
+
+        // 查找第一个HTML标签
+        if (preg_match('/^(\s*)<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^>]*)?)(\s*\/?>)/', $html, $matches)) {
+            $before_tag = $matches[1]; // 标签前的空白
+            $tag_name = $matches[2];   // 标签名
+            $existing_attrs = $matches[3]; // 现有属性
+            $tag_end = $matches[4];    // 标签结束部分
+
+            // 检查是否已有ID属性
+            if (!preg_match('/\bid\s*=/', $existing_attrs)) {
+                $id_attr = ' id="' . $id . '"';
+                $new_attrs = $existing_attrs . $id_attr;
+            } else {
+                $new_attrs = $existing_attrs;
+            }
+
+            // 构建新的开始标签
+            $new_opening_tag = $before_tag . '<' . $tag_name . $new_attrs . $tag_end;
+
+            // 替换原始HTML中的第一个标签
+            return preg_replace('/^(\s*)<([a-zA-Z][a-zA-Z0-9]*)((?:\s+[^>]*)?)(\s*\/?>)/', $new_opening_tag, $html, 1);
+        }
+
+        // 如果无法解析第一个标签，则用div包装（兜底方案）
+        return '<div id="' . $id . '">' . $html . '</div>';
     }
 
     /**
@@ -381,8 +436,20 @@ class Notion_Content_Converter {
 
         // 特殊处理Mermaid图表
         if ($language === 'mermaid') {
-            // Mermaid代码不应该被HTML转义
-            return '<pre class="mermaid">' . $code_content . '</pre>';
+            // Mermaid代码不应该被HTML转义，使用标准的div结构
+            // 添加data-original-code属性保存原始代码，用于复制功能
+            $escaped_code = esc_attr($code_content);
+
+            // 解码可能已经被HTML转义的Mermaid代码
+            // 这是为了修复 --> 被转义成 --&gt; 导致的语法错误
+            $decoded_content = html_entity_decode(trim($code_content), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            // 清理Mermaid代码，移除HTML标签和修复特殊字符
+            $cleaned_content = self::clean_mermaid_code($decoded_content);
+
+            // 确保Mermaid代码不被HTML转义，但保存原始代码用于复制
+            // 添加 data-skip-wrapper 属性，告诉 wrap_block_with_id 函数不要添加额外的类
+            return '<div class="mermaid" data-original-code="' . $escaped_code . '" data-skip-wrapper="true">' . $cleaned_content . '</div>';
         }
 
         $escaped_code = esc_html($code_content);
@@ -1012,6 +1079,258 @@ class Notion_Content_Converter {
 
             return '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
         }
+    }
+
+    /**
+     * 优化版本的块转换方法
+     *
+     * 使用性能优化技术：
+     * - 减少日志调用
+     * - 使用数组拼接而非字符串拼接
+     * - 批量处理相同类型的块
+     * - 减少重复的HTML转义操作
+     *
+     * @since 2.0.0-beta.1
+     * @param array $blocks Notion 块数组
+     * @param Notion_API $notion_api Notion API 实例
+     * @param string $state_id 状态管理器ID
+     * @return string HTML 内容
+     */
+    private static function convert_blocks_to_html_optimized(array $blocks, Notion_API $notion_api, string $state_id = null): string {
+        if (empty($blocks)) {
+            return '';
+        }
+
+        // 开始性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('content_conversion');
+        }
+
+        // 监控内存使用
+        if (class_exists('Notion_Memory_Manager')) {
+            Notion_Memory_Manager::monitor_memory_usage('Content Conversion');
+        }
+
+        // 使用算法优化器预处理文本内容（只对大量内容启用）
+        if (class_exists('Notion_Algorithm_Optimizer') && class_exists('Notion_Text_Processor') && count($blocks) > 10) {
+            $blocks = Notion_Text_Processor::optimized_batch_text_processing($blocks);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    sprintf('算法优化器预处理了 %d 个块（超过阈值10）', count($blocks)),
+                    'Content Converter'
+                );
+            }
+        } elseif (class_exists('Notion_Logger') && count($blocks) <= 10) {
+            Notion_Logger::debug_log(
+                sprintf('跳过算法优化器预处理：块数量 %d 未超过阈值10', count($blocks)),
+                'Content Converter'
+            );
+        }
+
+        // 使用数组收集HTML片段，最后一次性拼接
+        $html_parts = [];
+        $list_wrapper = null;
+        $local_processed_blocks = [];
+
+        // 预处理：批量识别和处理特殊块类型
+        $database_blocks = [];
+        $database_data = [];
+
+        // 一次遍历识别所有特殊块
+        foreach ($blocks as $block) {
+            if (isset($block['type']) && $block['type'] === 'child_database') {
+                $database_blocks[] = $block;
+            }
+        }
+
+        // 批量处理子数据库块
+        if (!empty($database_blocks)) {
+            $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
+        }
+
+        // 主要转换循环 - 优化版本
+        foreach ($blocks as $block_index => $block) {
+            if (in_array($block['id'], $local_processed_blocks)) {
+                continue;
+            }
+            $local_processed_blocks[] = $block['id'];
+
+            // 定期检查内存使用情况（使用自适应频率）
+            $check_frequency = 50;
+            if (class_exists('Notion_Adaptive_Batch')) {
+                // 根据系统性能调整检查频率
+                $stats = Notion_Adaptive_Batch::get_adaptive_stats();
+                if ($stats['memory_usage_percent'] > 70) {
+                    $check_frequency = 25; // 内存紧张时更频繁检查
+                } elseif ($stats['memory_usage_percent'] < 30) {
+                    $check_frequency = 100; // 内存充足时减少检查频率
+                }
+            }
+
+            if ($block_index % $check_frequency === 0 && class_exists('Notion_Memory_Manager')) {
+                if (Notion_Memory_Manager::is_memory_warning()) {
+                    Notion_Memory_Manager::force_garbage_collection();
+                }
+            }
+
+            $block_type = $block['type'];
+
+            // 列表处理逻辑（保持原有逻辑）
+            $is_standard_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item']);
+            $is_todo_item = ($block_type === 'to_do');
+
+            if ($is_standard_list_item || $is_todo_item) {
+                $required_wrapper = $is_todo_item ? 'todo' : ($block_type === 'bulleted_list_item' ? 'ul' : 'ol');
+
+                if ($list_wrapper !== $required_wrapper) {
+                    if ($list_wrapper !== null) {
+                        $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                    }
+                    $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
+                    $list_wrapper = $required_wrapper;
+                }
+            } elseif ($list_wrapper !== null) {
+                $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                $list_wrapper = null;
+            }
+
+            // 块转换 - 使用优化的方法调用
+            $block_html = self::convert_single_block_optimized($block, $notion_api, $database_data);
+
+            if (!empty($block_html)) {
+                // 为块添加ID包装
+                $block_html = self::wrap_block_with_id($block_html, $block['id'], $block_type);
+                $html_parts[] = $block_html;
+            }
+        }
+
+        // 关闭未关闭的列表
+        if ($list_wrapper !== null) {
+            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+        }
+
+        // 一次性拼接所有HTML片段
+        $result = implode('', $html_parts);
+
+        // 处理异步图片（如果启用了异步模式）
+        if (class_exists('Notion_Image_Processor') && Notion_Image_Processor::is_async_image_mode_enabled()) {
+            // 使用并行图片处理器处理收集到的图片
+            $result = Notion_Image_Processor::process_async_images($result);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    '异步图片处理完成',
+                    'Content Conversion'
+                );
+            }
+        }
+
+        // 结束性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('content_conversion');
+        }
+
+        // 清理大型变量以释放内存
+        unset($html_parts, $local_processed_blocks, $database_blocks, $database_data);
+
+        // 强制垃圾回收
+        if (class_exists('Notion_Memory_Manager')) {
+            Notion_Memory_Manager::force_garbage_collection();
+        }
+
+        return $result;
+    }
+
+    /**
+     * 优化版本的单个块转换
+     *
+     * @since 2.0.0-beta.1
+     * @param array $block 块数据
+     * @param Notion_API $notion_api API实例
+     * @param array $database_data 预处理的数据库数据
+     * @return string HTML内容
+     */
+    private static function convert_single_block_optimized(array $block, Notion_API $notion_api, array $database_data = []): string {
+        $block_type = $block['type'];
+        $converter_method = '_convert_block_' . $block_type;
+
+        if (!method_exists(self::class, $converter_method)) {
+            // 减少日志调用 - 只在调试级别记录
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                Notion_Logger::debug_log("未支持的块类型: {$block_type}", 'Block Conversion');
+            }
+            return '<!-- 未支持的块类型: ' . esc_html($block_type) . ' -->';
+        }
+
+        try {
+            // 特殊处理子数据库块
+            if ($block_type === 'child_database') {
+                return self::_convert_block_child_database_with_data($block, $notion_api, $database_data);
+            }
+
+            // 调用相应的转换方法
+            return self::{$converter_method}($block, $notion_api);
+
+        } catch (Exception $e) {
+            // 只记录错误级别的日志
+            Notion_Logger::error_log(
+                "块转换失败: {$block_type} - " . $e->getMessage(),
+                'Block Conversion'
+            );
+            return '<!-- 块转换失败: ' . esc_html($block_type) . ' -->';
+        }
+    }
+
+    /**
+     * 清理Mermaid代码，移除HTML标签和修复特殊字符
+     *
+     * @param string $mermaid_code 原始Mermaid代码
+     * @return string 清理后的Mermaid代码
+     */
+    private static function clean_mermaid_code($mermaid_code) {
+        // 首先处理HTML标签，将<br/>等标签转换为换行符
+        $cleaned = str_replace(['<br/>', '<br>', '<BR/>', '<BR>'], "\n", $mermaid_code);
+
+        // 移除其他HTML标签
+        $cleaned = strip_tags($cleaned);
+
+        // 修复常见的字符转换问题
+        $replacements = [
+            // 修复箭头字符
+            '–>' => '-->',  // em dash 转换为标准箭头
+            '—>' => '-->',  // em dash 转换为标准箭头
+            '&ndash;>' => '-->', // HTML实体转换
+            '&mdash;>' => '-->', // HTML实体转换
+
+            // 修复其他特殊字符
+            '&lt;' => '<',
+            '&gt;' => '>',
+            '&amp;' => '&',
+            '&quot;' => '"',
+            '&#39;' => "'",
+
+            // 标准化换行符
+            "\r\n" => "\n",
+            "\r" => "\n",
+        ];
+
+        foreach ($replacements as $search => $replace) {
+            $cleaned = str_replace($search, $replace, $cleaned);
+        }
+
+        // 清理多余的空行，但保留必要的换行结构
+        $lines = explode("\n", $cleaned);
+        $cleaned_lines = [];
+
+        foreach ($lines as $line) {
+            $trimmed_line = trim($line);
+            if (!empty($trimmed_line)) {
+                $cleaned_lines[] = $trimmed_line;
+            }
+        }
+
+        return implode("\n", $cleaned_lines);
     }
 
 }

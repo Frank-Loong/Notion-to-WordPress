@@ -415,42 +415,7 @@ jQuery(document).ready(function($) {
         }
     });
 
-    // 刷新全部内容
-    $('.refresh-all-content').on('click', function(e) {
-        e.preventDefault();
-        var button = $(this);
-        
-        if (!confirm(notionToWp.i18n.confirm_refresh_all)) {
-            return;
-        }
-        
-        button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.refreshing);
-        
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'notion_to_wordpress_refresh_all',
-                nonce: notionToWp.nonce
-            },
-            success: function(response) {
-                var message = response.success ? response.data.message : (response.data.message || notionToWp.i18n.unknown_error);
-                var status = response.success ? 'success' : 'error';
-                
-                showModal(message, status);
-                
-                if (response.success) {
-                    fetchStats();
-                }
-            },
-            error: function() {
-                showModal(notionToWp.i18n.refresh_error, 'error');
-            },
-            complete: function() {
-                button.prop('disabled', false).html('<span class="dashicons dashicons-admin-generic"></span> ' + notionToWp.i18n.refresh_all);
-            }
-        });
-    });
+
 
     // 刷新单个页面
     $('table').on('click', '.refresh-single', function (e) {

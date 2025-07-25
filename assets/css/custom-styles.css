@@ -279,139 +279,239 @@
     max-width: 100%;
 }
 
-/* Mermaid 图表样式 - 统一布局和居中 */
+/* Mermaid 图表样式 - 现代化设计 */
 .mermaid {
+    position: relative;
     text-align: center;
     margin: 2em auto;
-    max-width: 100%;
-    overflow-x: auto;
-    background: transparent;
-    padding: 1em 0;
-    overflow: visible;
+    max-width: 800px; /* 桌面端限制最大宽度，提升阅读体验 */
+    background: #ffffff;
+    border: 1px solid #e1e4e8;
+    border-radius: 8px;
+    padding: 16px;
+    overflow: hidden;
     display: block;
     width: 100%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* 确保Mermaid容器在所有主题中都能正确居中 */
-pre.mermaid {
-    text-align: center;
-    margin: 2em auto;
-    padding: 1em;
-    background: #f9f9f9;
-    border-radius: 5px;
-    border: 1px solid #e0e0e0;
-    overflow-x: auto;
-    max-width: 100%;
-}
+/* 移除旧的 pre.mermaid 样式，现在统一使用 div.mermaid */
 
-/* 保证 Mermaid 渲染后的 SVG 充满容器并字体可读*/
-pre.mermaid > svg,
+/* Mermaid 渲染后的 SVG 样式 */
 .mermaid > svg {
-    width: 100% !important;
-    height: auto !important;
     max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
 }
 
-/* 调整 Mermaid 节点与文本默认字号*/
+/* 调整 Mermaid 节点与文本默认字号 */
 .mermaid svg text {
-    font-size: 16px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-/* 避免 svg 缩放太小 */
+/* SVG 变换样式 - 移除冲突的 !important 规则 */
 .mermaid svg {
-    transform: none !important;
     transition: transform 0.2s ease;
+    transform-origin: center center;
+    cursor: grab;
 }
 
-/* ===== Mermaid 缩放和平移控制按钮样式 ===== */
+.mermaid svg:active {
+    cursor: grabbing;
+}
+
+/* ===== Mermaid 现代化控制按钮样式 ===== */
 .mermaid-controls {
     position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 1000;
-    background: rgba(255, 255, 255, 0.9);
+    top: 8px;
+    right: 8px;
+    z-index: 100;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #d1d5db;
     border-radius: 6px;
     padding: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8px);
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.mermaid-controls:hover {
+    opacity: 1;
 }
 
 .mermaid-zoom-controls {
     display: flex;
-    gap: 2px;
+    gap: 1px;
 }
 
 .mermaid-btn {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border: none;
-    background: #fff;
-    color: #333;
+    background: transparent;
+    color: #586069;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 16px;
+    font-weight: normal;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     user-select: none;
+    position: relative;
 }
 
 .mermaid-btn:hover {
-    background: #f0f0f0;
-    transform: scale(1.05);
+    background: #f6f8fa;
+    color: #24292e;
 }
 
 .mermaid-btn:active {
+    background: #e1e4e8;
     transform: scale(0.95);
-    background: #e0e0e0;
+}
+
+.mermaid-btn:focus {
+    outline: 2px solid #0366d6;
+    outline-offset: -2px;
+}
+
+/* 按钮工具提示 */
+.mermaid-btn::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #24292e;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 100;
+}
+
+.mermaid-btn:hover::after {
+    opacity: 1;
 }
 
 /* 深色主题适配 */
 @media (prefers-color-scheme: dark) {
     .mermaid-controls {
-        background: rgba(40, 40, 40, 0.9);
+        background: rgba(33, 38, 45, 0.95);
+        border-color: #30363d;
     }
 
     .mermaid-btn {
-        background: #333;
-        color: #fff;
+        color: #8b949e;
     }
 
     .mermaid-btn:hover {
-        background: #444;
+        background: #21262d;
+        color: #f0f6fc;
     }
 
     .mermaid-btn:active {
-        background: #555;
+        background: #30363d;
+    }
+
+    .mermaid-btn::after {
+        background: #f0f6fc;
+        color: #24292e;
+    }
+}
+
+/* 全屏模式样式 */
+.mermaid-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    z-index: 1000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.mermaid-fullscreen .mermaid-controls {
+    top: 20px !important;
+    right: 20px !important;
+}
+
+/* 深色模式下的全屏样式 */
+@media (prefers-color-scheme: dark) {
+    .mermaid-fullscreen {
+        background: #0d1117 !important;
     }
 }
 
 /* Mermaid 响应式样式 */
+
+/* 平板端样式 (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .mermaid {
+        max-width: 90%; /* 平板端使用90%宽度 */
+    }
+}
+
+/* 移动端样式 (≤768px) */
 @media (max-width: 768px) {
-    .mermaid,
-    pre.mermaid {
+    .mermaid {
         margin: 1.5em auto;
-        padding: 0.5em;
+        padding: 12px;
         font-size: 14px;
+        max-width: 100%; /* 移动端使用全宽 */
     }
 
     .mermaid svg text {
+        font-size: 12px;
+    }
+
+    .mermaid-controls {
+        top: 4px;
+        right: 4px;
+        padding: 2px;
+    }
+
+    .mermaid-btn {
+        width: 28px;
+        height: 28px;
         font-size: 14px;
     }
 }
 
 @media (max-width: 480px) {
-    .mermaid,
-    pre.mermaid {
+    .mermaid {
         margin: 1em auto;
-        padding: 0.25em;
+        padding: 8px;
         font-size: 12px;
     }
 
     .mermaid svg text {
+        font-size: 10px;
+    }
+
+    .mermaid-btn {
+        width: 24px;
+        height: 24px;
         font-size: 12px;
+    }
+
+    .mermaid-btn::after {
+        display: none; /* 在小屏幕上隐藏工具提示 */
     }
 }
 

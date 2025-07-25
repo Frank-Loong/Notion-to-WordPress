@@ -282,7 +282,7 @@
             placeholder.innerHTML = `
                 <div class="notion-image-placeholder">
                     <span class="notion-image-icon">🖼️</span>
-                    <span class="notion-image-text">特色图像加载失败</span>
+                    <span class="notion-image-text">图片加载失败</span>
                 </div>
             `;
 

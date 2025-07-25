@@ -432,6 +432,20 @@ class Notion_To_WordPress_Helper {
         return Notion_Security::is_safe_file_type($filename);
     }
 
+    /**
+     * 初始化助手类
+     *
+     * 为了向后兼容性而保留的方法
+     * 实际初始化工作委托给专门的类
+     *
+     * @since 2.0.0-beta.1
+     */
+    public static function init(): void {
+        // 委托给专门的日志系统
+        Notion_Logger::init();
 
+        // 其他初始化工作（如果需要的话）
+        // 目前只需要重新初始化日志系统
+    }
 
 }

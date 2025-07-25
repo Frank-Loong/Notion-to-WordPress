@@ -136,8 +136,12 @@ class Notion_API {
 
         while ($has_more) {
             $endpoint = 'databases/' . $database_id . '/query';
+            // 从配置中获取page_size，默认100
+            $options = get_option('notion_to_wordpress_options', []);
+            $page_size = $options['api_page_size'] ?? 100;
+
             $data = [
-                'page_size' => 100 // 使用API允许的最大值
+                'page_size' => $page_size
             ];
 
             if (!empty($filter)) {
@@ -505,19 +509,49 @@ class Notion_API {
 
         $start_time = microtime(true);
 
-        Notion_Logger::debug_log(
-            sprintf('开始批量API请求: %d个端点，方法: %s', count($endpoints), $method),
-            'Batch API'
-        );
+        // 检查是否启用性能模式
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+        if (!$performance_mode) {
+            Notion_Logger::debug_log(
+                sprintf('开始批量API请求: %d个端点，方法: %s', count($endpoints), $method),
+                'Batch API'
+            );
+        }
 
         try {
+            // 从配置中获取并发数，使用自适应调整
+            $options = get_option('notion_to_wordpress_options', []);
+
+            if (class_exists('Notion_Adaptive_Batch')) {
+                $concurrent_requests = Notion_Adaptive_Batch::get_concurrent_limit();
+
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::debug_log(
+                        "自适应并发数: {$concurrent_requests} (API请求)",
+                        'API Concurrent'
+                    );
+                }
+            } else {
+                $concurrent_requests = $options['concurrent_requests'] ?? 5;
+            }
+
             // 创建并发网络管理器
-            $manager = new Notion_Concurrent_Network_Manager(5); // 最多5个并发请求
+            $manager = new Notion_Concurrent_Network_Manager($concurrent_requests);
 
             // 添加所有请求到队列
             foreach ($endpoints as $index => $endpoint) {
                 $url = $this->api_base . $endpoint;
                 $data = $data_array[$index] ?? [];
+
+                // 根据并发数动态调整超时时间
+                $timeout = 30; // 默认30秒
+                if ($concurrent_requests > 8) {
+                    $timeout = 45; // 高并发时增加超时时间
+                } elseif ($concurrent_requests <= 3) {
+                    $timeout = 20; // 低并发时减少超时时间
+                }
 
                 $args = [
                     'method'  => $method,
@@ -526,7 +560,7 @@ class Notion_API {
                         'Content-Type'   => 'application/json',
                         'Notion-Version' => '2022-06-28'
                     ],
-                    'timeout' => 30
+                    'timeout' => $timeout
                 ];
 
                 if (!empty($data) && $method !== 'GET') {

@@ -55,6 +55,22 @@ class Notion_Logger {
     private static int $max_log_files = 10;
 
     /**
+     * 日志缓冲区
+     *
+     * @access private
+     * @var array
+     */
+    private static array $log_buffer = [];
+
+    /**
+     * 日志缓冲区大小
+     *
+     * @access private
+     * @var int
+     */
+    private static int $buffer_size = 50;
+
+    /**
      * 根据WordPress设置初始化日志级别。
      *
      * @since 2.0.0-beta.1
@@ -64,6 +80,9 @@ class Notion_Logger {
         $options = get_option('notion_to_wordpress_options', []);
         self::$debug_level = isset($options['debug_level']) ? (int)$options['debug_level'] : self::DEBUG_LEVEL_ERROR;
 
+        // 从选项中获取日志缓冲区大小
+        self::$buffer_size = isset($options['log_buffer_size']) ? (int)$options['log_buffer_size'] : 50;
+
         // 如果定义了WP_DEBUG并且为true，则至少启用错误级别日志
         if (defined('WP_DEBUG') && WP_DEBUG === true && self::$debug_level < self::DEBUG_LEVEL_ERROR) {
             self::$debug_level = self::DEBUG_LEVEL_ERROR;
@@ -71,6 +90,9 @@ class Notion_Logger {
 
         // 初始化时执行日志清理
         self::cleanup_logs();
+
+        // 注册关闭时的清理函数
+        register_shutdown_function([self::class, 'flush_log_buffer']);
     }
 
     /**
@@ -84,6 +106,16 @@ class Notion_Logger {
     public static function debug_log($data, $prefix = 'Notion Debug', $level = self::DEBUG_LEVEL_DEBUG) {
         // 如果当前调试级别小于指定级别，则不记录
         if (self::$debug_level < $level) {
+            return;
+        }
+
+        // 检查是否启用性能模式
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+        if ($performance_mode && $level > self::DEBUG_LEVEL_ERROR) {
+            // 性能模式下，只有错误级别的日志才立即写入，其他的加入缓冲区
+            self::add_to_buffer($data, $prefix, $level);
             return;
         }
 
@@ -443,5 +475,78 @@ class Notion_Logger {
      */
     public static function set_debug_level(int $level) {
         self::$debug_level = $level;
+    }
+
+    /**
+     * 添加日志到缓冲区
+     *
+     * @since 2.0.0-beta.1
+     * @param mixed $data 要记录的数据
+     * @param string $prefix 日志前缀
+     * @param int $level 日志级别
+     */
+    private static function add_to_buffer($data, string $prefix, int $level) {
+        self::$log_buffer[] = [
+            'data' => $data,
+            'prefix' => $prefix,
+            'level' => $level,
+            'timestamp' => microtime(true)
+        ];
+
+        // 当缓冲区满时批量写入
+        if (count(self::$log_buffer) >= self::$buffer_size) {
+            self::flush_log_buffer();
+        }
+    }
+
+    /**
+     * 刷新日志缓冲区
+     *
+     * @since 2.0.0-beta.1
+     */
+    public static function flush_log_buffer() {
+        if (empty(self::$log_buffer)) {
+            return;
+        }
+
+        $batch_content = '';
+        foreach (self::$log_buffer as $log_entry) {
+            $log_prefix = date('Y-m-d H:i:s', (int)$log_entry['timestamp']) . ' ' . $log_entry['prefix'] . ': ';
+            $log_content = is_array($log_entry['data']) || is_object($log_entry['data'])
+                ? print_r($log_entry['data'], true)
+                : $log_entry['data'];
+
+            // 限制日志内容大小
+            if (strlen($log_content) > 10000) {
+                $log_content = substr($log_content, 0, 10000) . '... [日志内容已截断]';
+            }
+
+            // 过滤敏感内容
+            $filtered_content = self::filter_sensitive_content($log_content, $log_entry['level']);
+
+            $batch_content .= $log_prefix . $filtered_content . "\n";
+        }
+
+        // 批量写入日志文件
+        if (!empty($batch_content)) {
+            self::log_to_file($batch_content);
+        }
+
+        // 清空缓冲区
+        self::$log_buffer = [];
+    }
+
+    /**
+     * 获取缓冲区状态
+     *
+     * @since 2.0.0-beta.1
+     * @return array 缓冲区状态信息
+     */
+    public static function get_buffer_status(): array {
+        return [
+            'buffer_size' => self::$buffer_size,
+            'current_count' => count(self::$log_buffer),
+            'usage_percentage' => round((count(self::$log_buffer) / self::$buffer_size) * 100, 2)
+        ];
     }
 }

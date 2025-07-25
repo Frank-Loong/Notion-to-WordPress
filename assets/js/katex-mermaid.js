@@ -381,9 +381,9 @@ console.error('Mermaid回退渲染错误:', fallbackError);
 }
 }
 
-/* ---------------- Mermaid 缩放和平移功能 ---------------- */
+/* ---------------- Mermaid 现代化缩放和控制功能 ---------------- */
 function addPanZoomToMermaid() {
-    console.log('开始为Mermaid图表添加缩放和平移功能');
+    console.log('🎨 开始为Mermaid图表添加现代化控制功能');
 
     document.querySelectorAll('.mermaid').forEach(function(container, index) {
         const svg = container.querySelector('svg');
@@ -394,20 +394,47 @@ function addPanZoomToMermaid() {
         // 标记为已处理
         svg.dataset.panZoomEnabled = 'true';
 
-        // 创建控制按钮容器
+        // 创建现代化控制按钮容器
         const controlsContainer = document.createElement('div');
         controlsContainer.className = 'mermaid-controls';
         controlsContainer.innerHTML = `
             <div class="mermaid-zoom-controls">
-                <button class="mermaid-btn zoom-in" title="放大">+</button>
-                <button class="mermaid-btn zoom-out" title="缩小">−</button>
-                <button class="mermaid-btn zoom-reset" title="重置">⌂</button>
-                <button class="mermaid-btn zoom-fit" title="适应窗口">⊞</button>
+                <button class="mermaid-btn zoom-in" title="放大 (Ctrl + +)" aria-label="放大">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                    </svg>
+                </button>
+                <button class="mermaid-btn zoom-out" title="缩小 (Ctrl + -)" aria-label="缩小">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8z"/>
+                    </svg>
+                </button>
+                <button class="mermaid-btn zoom-reset" title="重置缩放 (Ctrl + 0)" aria-label="重置缩放">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    </svg>
+                </button>
+                <button class="mermaid-btn zoom-fit" title="适应窗口" aria-label="适应窗口">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                    </svg>
+                </button>
+                <button class="mermaid-btn copy-code" title="复制源代码 (Ctrl + C)" aria-label="复制源代码">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                        <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                    </svg>
+                </button>
+                <button class="mermaid-btn fullscreen" title="全屏查看 (F)" aria-label="全屏查看">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+                    </svg>
+                </button>
             </div>
         `;
 
         // 将控制按钮插入到容器中
-        container.style.position = 'relative';
         container.appendChild(controlsContainer);
 
         // 初始化缩放和平移状态
@@ -418,8 +445,9 @@ function addPanZoomToMermaid() {
         let lastMouseX = 0;
         let lastMouseY = 0;
 
-        // 获取SVG的原始尺寸
+        // 获取SVG的原始尺寸和容器信息
         const originalViewBox = svg.getAttribute('viewBox');
+        const containerRect = container.getBoundingClientRect();
         const svgRect = svg.getBoundingClientRect();
         const originalWidth = svgRect.width;
         const originalHeight = svgRect.height;
@@ -430,14 +458,23 @@ function addPanZoomToMermaid() {
             svg.style.transformOrigin = 'center center';
         }
 
-        // 缩放功能
+        // 限制平移范围，防止图表移出可视区域太远
+        function constrainTranslation() {
+            const maxTranslate = Math.max(containerRect.width, containerRect.height) * 0.5;
+            translateX = Math.max(-maxTranslate, Math.min(maxTranslate, translateX));
+            translateY = Math.max(-maxTranslate, Math.min(maxTranslate, translateY));
+        }
+
+        // 改进的缩放功能
         function zoomIn() {
-            scale = Math.min(scale * 1.2, 5); // 最大5倍
+            scale = Math.min(scale * 1.25, 8); // 最大8倍，更平滑的缩放
+            constrainTranslation();
             applyTransform();
         }
 
         function zoomOut() {
-            scale = Math.max(scale / 1.2, 0.1); // 最小0.1倍
+            scale = Math.max(scale / 1.25, 0.1); // 最小0.1倍
+            constrainTranslation();
             applyTransform();
         }
 
@@ -449,11 +486,9 @@ function addPanZoomToMermaid() {
         }
 
         function zoomFit() {
-            const containerRect = container.getBoundingClientRect();
-            const svgRect = svg.getBoundingClientRect();
-
-            const scaleX = (containerRect.width - 40) / originalWidth;
-            const scaleY = (containerRect.height - 40) / originalHeight;
+            const currentContainerRect = container.getBoundingClientRect();
+            const scaleX = (currentContainerRect.width - 80) / originalWidth;
+            const scaleY = (currentContainerRect.height - 80) / originalHeight;
             scale = Math.min(scaleX, scaleY, 1); // 不超过原始大小
 
             translateX = 0;
@@ -461,24 +496,136 @@ function addPanZoomToMermaid() {
             applyTransform();
         }
 
+        // 复制源代码功能
+        function copySourceCode() {
+            const originalCode = container.getAttribute('data-original-code');
+            if (originalCode) {
+                navigator.clipboard.writeText(originalCode).then(() => {
+                    showToast('Mermaid 源代码已复制到剪贴板');
+                }).catch(() => {
+                    // 备用方案：使用传统的复制方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = originalCode;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showToast('Mermaid 源代码已复制到剪贴板');
+                });
+            }
+        }
+
+        // 全屏查看功能
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().then(() => {
+                    container.classList.add('mermaid-fullscreen');
+                    showToast('按 ESC 键退出全屏');
+                }).catch(() => {
+                    showToast('浏览器不支持全屏功能');
+                });
+            } else {
+                document.exitFullscreen();
+                container.classList.remove('mermaid-fullscreen');
+            }
+        }
+
+        // 显示提示消息
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'mermaid-toast';
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #24292e;
+                color: white;
+                padding: 8px 16px;
+                border-radius: 4px;
+                font-size: 14px;
+                z-index: 10000;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+            document.body.appendChild(toast);
+
+            // 显示动画
+            setTimeout(() => toast.style.opacity = '1', 10);
+
+            // 3秒后自动消失
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
         // 绑定按钮事件
         controlsContainer.querySelector('.zoom-in').addEventListener('click', zoomIn);
         controlsContainer.querySelector('.zoom-out').addEventListener('click', zoomOut);
         controlsContainer.querySelector('.zoom-reset').addEventListener('click', zoomReset);
         controlsContainer.querySelector('.zoom-fit').addEventListener('click', zoomFit);
+        controlsContainer.querySelector('.copy-code').addEventListener('click', copySourceCode);
+        controlsContainer.querySelector('.fullscreen').addEventListener('click', toggleFullscreen);
 
-        // 鼠标滚轮缩放
+        // 改进的鼠标滚轮缩放
         container.addEventListener('wheel', function(e) {
             e.preventDefault();
 
+            // 计算鼠标位置相对于SVG的坐标
+            const rect = svg.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - rect.width / 2;
+            const mouseY = e.clientY - rect.top - rect.height / 2;
+
+            const oldScale = scale;
+
             if (e.deltaY < 0) {
-                zoomIn();
+                scale = Math.min(scale * 1.1, 8);
             } else {
-                zoomOut();
+                scale = Math.max(scale / 1.1, 0.1);
+            }
+
+            // 以鼠标位置为中心进行缩放
+            const scaleChange = scale / oldScale;
+            translateX = translateX * scaleChange + mouseX * (1 - scaleChange);
+            translateY = translateY * scaleChange + mouseY * (1 - scaleChange);
+
+            constrainTranslation();
+            applyTransform();
+        });
+
+        // 键盘快捷键支持
+        container.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case '+':
+                    case '=':
+                        e.preventDefault();
+                        zoomIn();
+                        break;
+                    case '-':
+                        e.preventDefault();
+                        zoomOut();
+                        break;
+                    case '0':
+                        e.preventDefault();
+                        zoomReset();
+                        break;
+                    case 'c':
+                        e.preventDefault();
+                        copySourceCode();
+                        break;
+                }
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                toggleFullscreen();
             }
         });
 
-        // 鼠标拖拽平移
+        // 确保容器可以接收键盘事件
+        container.setAttribute('tabindex', '0');
+
+        // 改进的鼠标拖拽平移
         svg.addEventListener('mousedown', function(e) {
             if (e.button === 0) { // 左键
                 isDragging = true;
@@ -486,6 +633,9 @@ function addPanZoomToMermaid() {
                 lastMouseY = e.clientY;
                 svg.style.cursor = 'grabbing';
                 e.preventDefault();
+
+                // 防止文本选择
+                document.body.style.userSelect = 'none';
             }
         });
 
@@ -500,14 +650,25 @@ function addPanZoomToMermaid() {
                 lastMouseX = e.clientX;
                 lastMouseY = e.clientY;
 
+                constrainTranslation();
                 applyTransform();
             }
         });
 
-        document.addEventListener('mouseup', function(e) {
+        document.addEventListener('mouseup', function() {
             if (isDragging) {
                 isDragging = false;
                 svg.style.cursor = 'grab';
+                document.body.style.userSelect = '';
+            }
+        });
+
+        // 处理鼠标离开窗口的情况
+        document.addEventListener('mouseleave', function() {
+            if (isDragging) {
+                isDragging = false;
+                svg.style.cursor = 'grab';
+                document.body.style.userSelect = '';
             }
         });
 
@@ -515,7 +676,16 @@ function addPanZoomToMermaid() {
         svg.style.cursor = 'grab';
         svg.style.userSelect = 'none';
 
-        console.log(`为第${index + 1}个Mermaid图表添加了缩放和平移功能`);
+        // 添加焦点样式，支持键盘导航
+        container.style.outline = 'none';
+        container.addEventListener('focus', function() {
+            container.style.boxShadow = '0 0 0 2px #0366d6';
+        });
+        container.addEventListener('blur', function() {
+            container.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
+        });
+
+        console.log(`✅ 为第${index + 1}个Mermaid图表添加了现代化控制功能`);
     });
 }
 

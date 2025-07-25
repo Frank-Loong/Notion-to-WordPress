@@ -195,11 +195,26 @@ class Notion_Image_Processor {
         // 检查是否为Notion临时URL，只有临时URL才需要下载
         if (!self::is_notion_temp_url($url)) {
             // 外部永久链接，直接生成HTML，不下载
-            Notion_Logger::debug_log(
-                "外部永久链接，直接引用: {$url}",
-                'Image Processing'
-            );
+            // 性能模式下减少日志调用
+            $options = get_option('notion_to_wordpress_options', []);
+            $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+            if (!$performance_mode) {
+                Notion_Logger::debug_log(
+                    "外部永久链接，直接引用: {$url}",
+                    'Image Processing'
+                );
+            }
             return self::generate_direct_image_html($url, $caption);
+        }
+
+        // 性能模式：检查是否已经处理过相同的图片
+        if ($performance_mode) {
+            $image_hash = md5($url);
+            $existing_attachment = self::get_existing_attachment_by_hash($image_hash);
+            if ($existing_attachment) {
+                return self::generate_image_html_from_attachment($existing_attachment, $caption);
+            }
         }
 
         // 生成唯一占位符
@@ -302,9 +317,37 @@ class Notion_Image_Processor {
             ];
         }
 
-        // 执行并发下载
-        $responses = self::concurrent_download_images($requests);
-        $state['performance_stats']['concurrent_downloads'] = count($responses);
+        // 执行并发下载（优先使用并行图片处理器）
+        if (class_exists('Notion_Parallel_Image_Processor') && count($requests) > 3) {
+            // 使用新的并行图片处理器处理大批量图片
+            $image_urls = array_column($requests, 'url');
+            $parallel_results = Notion_Parallel_Image_Processor::process_images_parallel($image_urls);
+
+            // 模拟响应格式以兼容现有处理逻辑
+            $responses = [];
+            foreach ($requests as $index => $request) {
+                $url = $request['url'];
+                $attachment_id = $parallel_results[$url] ?? false;
+
+                if ($attachment_id) {
+                    $responses[$index] = [
+                        'response' => ['code' => 200],
+                        'body' => 'parallel_processed',
+                        'attachment_id' => $attachment_id // 添加附件ID以便后续处理
+                    ];
+                } else {
+                    $responses[$index] = new WP_Error('parallel_failed', '并行处理失败');
+                }
+            }
+
+            $state['performance_stats']['concurrent_downloads'] = count($responses);
+            $state['performance_stats']['parallel_processing'] = true;
+        } else {
+            // 降级到原有的并发下载方式
+            $responses = self::concurrent_download_images($requests);
+            $state['performance_stats']['concurrent_downloads'] = count($responses);
+            $state['performance_stats']['parallel_processing'] = false;
+        }
 
         // 处理下载结果
         $success_count = 0;
@@ -327,23 +370,34 @@ class Notion_Image_Processor {
                 }
                 $error_count++;
             } else {
-                // 处理成功下载的图片
-                $attachment_id = self::process_downloaded_image_response($image_info, $response);
-
-                if ($attachment_id) {
-                    // 为所有相同URL的占位符设置相同的附件ID
+                // 检查是否是并行处理的结果
+                if (isset($response['attachment_id'])) {
+                    // 并行处理器已经创建了附件
+                    $attachment_id = $response['attachment_id'];
                     foreach ($url_to_placeholder[$base_url] as $placeholder) {
                         $state['image_placeholders'][$placeholder]['status'] = 'completed';
                         $state['image_placeholders'][$placeholder]['attachment_id'] = $attachment_id;
                     }
                     $success_count++;
                 } else {
-                    // 处理失败
-                    foreach ($url_to_placeholder[$base_url] as $placeholder) {
-                        $state['image_placeholders'][$placeholder]['status'] = 'failed';
-                        $state['image_placeholders'][$placeholder]['attachment_id'] = null;
+                    // 处理成功下载的图片（传统方式）
+                    $attachment_id = self::process_downloaded_image_response($image_info, $response);
+
+                    if ($attachment_id) {
+                        // 为所有相同URL的占位符设置相同的附件ID
+                        foreach ($url_to_placeholder[$base_url] as $placeholder) {
+                            $state['image_placeholders'][$placeholder]['status'] = 'completed';
+                            $state['image_placeholders'][$placeholder]['attachment_id'] = $attachment_id;
+                        }
+                        $success_count++;
+                    } else {
+                        // 处理失败
+                        foreach ($url_to_placeholder[$base_url] as $placeholder) {
+                            $state['image_placeholders'][$placeholder]['status'] = 'failed';
+                            $state['image_placeholders'][$placeholder]['attachment_id'] = null;
+                        }
+                        $error_count++;
                     }
-                    $error_count++;
                 }
             }
         }
@@ -576,10 +630,16 @@ class Notion_Image_Processor {
         $attachment_data = wp_generate_attachment_metadata($attachment_id, $upload['file']);
         wp_update_attachment_metadata($attachment_id, $attachment_data);
 
-        Notion_Logger::debug_log(
-            "图片处理成功: {$image_info['url']} -> 附件ID {$attachment_id}",
-            'Async Image'
-        );
+        // 性能模式下减少成功日志
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+        if (!$performance_mode) {
+            Notion_Logger::debug_log(
+                "图片处理成功: {$image_info['url']} -> 附件ID {$attachment_id}",
+                'Async Image'
+            );
+        }
 
         return $attachment_id;
     }
@@ -614,6 +674,11 @@ class Notion_Image_Processor {
         $state = self::get_state_manager($state_id);
         $state['performance_stats']['processing_time'] = $processing_time;
         self::update_state_manager($state, $state_id);
+
+        // 强制垃圾回收以释放内存
+        if (function_exists('gc_collect_cycles')) {
+            gc_collect_cycles();
+        }
 
         Notion_Logger::info_log(
             sprintf(
@@ -962,5 +1027,59 @@ class Notion_Image_Processor {
         }
 
         return $cleaned;
+    }
+
+    /**
+     * 根据哈希值获取已存在的附件
+     *
+     * @since 2.0.0-beta.1
+     * @param string $hash 图片哈希值
+     * @return int|false 附件ID或false
+     */
+    private static function get_existing_attachment_by_hash(string $hash) {
+        global $wpdb;
+
+        $attachment_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta}
+            WHERE meta_key = '_notion_image_hash'
+            AND meta_value = %s
+            LIMIT 1",
+            $hash
+        ));
+
+        return $attachment_id ? intval($attachment_id) : false;
+    }
+
+    /**
+     * 从附件生成图片HTML
+     *
+     * @since 2.0.0-beta.1
+     * @param int $attachment_id 附件ID
+     * @param string $caption 图片说明
+     * @return string HTML代码
+     */
+    private static function generate_image_html_from_attachment(int $attachment_id, string $caption = ''): string {
+        $image_url = wp_get_attachment_url($attachment_id);
+        $image_alt = get_post_meta($attachment_id, '_wp_attachment_image_alt', true);
+
+        if (!$image_url) {
+            return '<!-- 图片附件不存在 -->';
+        }
+
+        $html = sprintf(
+            '<img src="%s" alt="%s" class="notion-image">',
+            esc_url($image_url),
+            esc_attr($image_alt ?: $caption)
+        );
+
+        if (!empty($caption)) {
+            $html = sprintf(
+                '<figure class="notion-image-figure">%s<figcaption>%s</figcaption></figure>',
+                $html,
+                esc_html($caption)
+            );
+        }
+
+        return $html;
     }
 }

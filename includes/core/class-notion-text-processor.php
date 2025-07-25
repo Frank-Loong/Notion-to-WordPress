@@ -351,15 +351,48 @@ class Notion_Text_Processor {
      * @return string 清理后的文本
      */
     public static function sanitize_text(string $text): string {
+        // 检查是否启用性能模式
+        $options = get_option('notion_to_wordpress_options', []);
+        $performance_mode = $options['enable_performance_mode'] ?? 1;
+
+        if ($performance_mode) {
+            return self::sanitize_text_optimized($text);
+        }
+
+        // 传统模式
         // 移除多余的空白字符
         $text = trim($text);
-        
+
         // 标准化换行符
         $text = str_replace(["\r\n", "\r"], "\n", $text);
-        
+
         // 移除连续的空行
         $text = preg_replace('/\n{3,}/', "\n\n", $text);
-        
+
+        return $text;
+    }
+
+    /**
+     * 优化版本的文本清理
+     *
+     * @since 2.0.0-beta.1
+     * @param string $text 要清理的文本
+     * @return string 清理后的文本
+     */
+    private static function sanitize_text_optimized(string $text): string {
+        // 一次性处理多个操作，减少字符串操作次数
+        $text = trim($text);
+
+        if (empty($text)) {
+            return $text;
+        }
+
+        // 使用更高效的字符串替换
+        $text = strtr($text, ["\r\n" => "\n", "\r" => "\n"]);
+
+        // 使用更高效的正则表达式
+        $text = preg_replace('/\n{3,}/', "\n\n", $text);
+
         return $text;
     }
 
@@ -481,5 +514,98 @@ class Notion_Text_Processor {
         } else {
             return '<span class="notion-equation notion-equation-inline">$' . $expr_escaped . '$</span>';
         }
+    }
+
+    /**
+     * 使用算法优化器进行批量文本处理
+     *
+     * 提升字符串处理效率，减少CPU使用
+     *
+     * @since 2.0.0-beta.1
+     * @param array $text_blocks 文本块数组
+     * @return array 处理后的文本块
+     */
+    public static function optimized_batch_text_processing(array $text_blocks): array {
+        if (empty($text_blocks)) {
+            return [];
+        }
+
+        // 提取所有文本内容
+        $texts = [];
+        foreach ($text_blocks as $index => $block) {
+            $texts[$index] = $block['text'] ?? $block['content'] ?? '';
+        }
+
+        // 使用算法优化器批量处理
+        if (class_exists('Notion_Algorithm_Optimizer')) {
+            $optimized_texts = Notion_Algorithm_Optimizer::optimize_string_operations($texts);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    sprintf('算法优化器处理了 %d 个文本块', count($texts)),
+                    'Text Processor'
+                );
+            }
+        } else {
+            $optimized_texts = self::fallback_text_optimization($texts);
+        }
+
+        // 将处理后的文本放回块中
+        $processed_blocks = [];
+        foreach ($text_blocks as $index => $block) {
+            if (isset($block['text'])) {
+                $block['text'] = $optimized_texts[$index] ?? '';
+            } elseif (isset($block['content'])) {
+                $block['content'] = $optimized_texts[$index] ?? '';
+            }
+            $processed_blocks[] = $block;
+        }
+
+        return $processed_blocks;
+    }
+
+    /**
+     * 降级的文本优化（当算法优化器不可用时）
+     *
+     * @since 2.0.0-beta.1
+     * @param array $texts 文本数组
+     * @return array 优化后的文本
+     */
+    private static function fallback_text_optimization(array $texts): array {
+        $results = [];
+
+        foreach ($texts as $index => $text) {
+            // 基本的文本清理
+            $cleaned = str_replace(["\r\n", "\r"], "\n", $text);
+            $cleaned = preg_replace('/\n{3,}/', "\n\n", $cleaned);
+            $cleaned = trim($cleaned);
+
+            $results[$index] = $cleaned;
+        }
+
+        return $results;
+    }
+
+    /**
+     * 获取文本处理性能统计
+     *
+     * @since 2.0.0-beta.1
+     * @return array 性能统计信息
+     */
+    public static function get_performance_stats(): array {
+        $stats = [
+            'optimizer_available' => class_exists('Notion_Algorithm_Optimizer'),
+            'fallback_mode' => !class_exists('Notion_Algorithm_Optimizer')
+        ];
+
+        if (class_exists('Notion_Algorithm_Optimizer')) {
+            $cache_stats = Notion_Algorithm_Optimizer::get_cache_stats();
+            $stats = array_merge($stats, [
+                'cache_efficiency' => $cache_stats['string_cache_size'] > 0,
+                'memory_usage_mb' => round($cache_stats['memory_usage'] / 1024 / 1024, 2)
+            ]);
+        }
+
+        return $stats;
     }
 }
