@@ -689,4 +689,202 @@ class Notion_Sync_Manager {
 
         return $stats;
     }
+
+    /**
+     * 超级优化的同步数据获取
+     *
+     * 使用临时表+JOIN优化大数据集的同步数据查询
+     *
+     * @since 2.0.0-beta.1
+     * @param array $notion_ids Notion页面ID数组
+     * @return array 同步数据映射
+     */
+    public static function ultra_optimized_get_sync_data(array $notion_ids): array {
+        if (empty($notion_ids)) {
+            return [];
+        }
+
+        // 开始性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('ultra_optimized_sync_data');
+        }
+
+        $start_time = microtime(true);
+
+        // 根据数据量选择最优查询方式
+        if (count($notion_ids) >= 1000) {
+            // 大数据集使用临时表+JOIN优化
+            $sync_data = Notion_Database_Helper::ultra_batch_get_sync_data($notion_ids);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log(
+                    sprintf('使用临时表优化查询 %d 个页面的同步数据', count($notion_ids)),
+                    'Sync Manager Ultra'
+                );
+            }
+        } else {
+            // 中小数据集使用标准批量查询
+            $sync_data = Notion_Database_Helper::batch_get_sync_times($notion_ids);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    sprintf('使用标准批量查询 %d 个页面的同步数据', count($notion_ids)),
+                    'Sync Manager'
+                );
+            }
+        }
+
+        // 结束性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('ultra_optimized_sync_data');
+            $processing_time = microtime(true) - $start_time;
+            Notion_Performance_Monitor::record_custom_metric('sync_data_query_time', $processing_time);
+        }
+
+        return $sync_data;
+    }
+
+    /**
+     * 批量更新同步状态（优化版本）
+     *
+     * 使用优化的数据库批量更新操作
+     *
+     * @since 2.0.0-beta.1
+     * @param array $sync_updates 同步更新数据
+     * @return bool 是否成功
+     */
+    public static function ultra_batch_update_sync_status(array $sync_updates): bool {
+        if (empty($sync_updates)) {
+            return true;
+        }
+
+        // 开始性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('ultra_batch_sync_update');
+        }
+
+        $start_time = microtime(true);
+        $success = false;
+
+        try {
+            // 使用优化的批量更新方法
+            $success = Notion_Database_Helper::batch_update_sync_status($sync_updates);
+
+            if ($success) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::info_log(
+                        sprintf('成功批量更新 %d 个页面的同步状态', count($sync_updates)),
+                        'Sync Manager Ultra'
+                    );
+                }
+            } else {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::warning_log(
+                        sprintf('批量更新 %d 个页面的同步状态失败', count($sync_updates)),
+                        'Sync Manager Ultra'
+                    );
+                }
+            }
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('批量更新同步状态异常: %s', $e->getMessage()),
+                    'Sync Manager Ultra'
+                );
+            }
+            $success = false;
+        }
+
+        // 结束性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::end_timer('ultra_batch_sync_update');
+            $processing_time = microtime(true) - $start_time;
+            Notion_Performance_Monitor::record_custom_metric('sync_status_update_time', $processing_time);
+        }
+
+        return $success;
+    }
+
+    /**
+     * 智能同步数据处理
+     *
+     * 根据数据量和系统负载智能选择最优的处理策略
+     *
+     * @since 2.0.0-beta.1
+     * @param array $pages 页面数据数组
+     * @return array 处理结果统计
+     */
+    public static function smart_sync_data_processing(array $pages): array {
+        $stats = [
+            'total_pages' => count($pages),
+            'query_time' => 0,
+            'update_time' => 0,
+            'method_used' => '',
+            'success' => true
+        ];
+
+        if (empty($pages)) {
+            return $stats;
+        }
+
+        $start_time = microtime(true);
+
+        // 提取Notion ID
+        $notion_ids = array_column($pages, 'id');
+
+        // 智能选择查询方法
+        if (count($notion_ids) >= 1000) {
+            $stats['method_used'] = 'ultra_optimized_temp_table';
+            $sync_data = self::ultra_optimized_get_sync_data($notion_ids);
+        } elseif (count($notion_ids) >= 100) {
+            $stats['method_used'] = 'standard_batch';
+            $sync_data = Notion_Database_Helper::batch_get_sync_times($notion_ids);
+        } else {
+            $stats['method_used'] = 'lightweight';
+            $sync_data = Notion_Database_Helper::batch_get_sync_times($notion_ids);
+        }
+
+        $stats['query_time'] = microtime(true) - $start_time;
+
+        // 准备批量更新数据
+        $update_start = microtime(true);
+        $sync_updates = [];
+
+        foreach ($pages as $page) {
+            $notion_id = $page['id'];
+            $sync_info = $sync_data[$notion_id] ?? null;
+
+            if ($sync_info && isset($sync_info['post_id']) && $sync_info['post_id'] > 0) {
+                $sync_updates[$sync_info['post_id']] = [
+                    'sync_time' => current_time('mysql'),
+                    'content_hash' => md5(serialize($page))
+                ];
+            }
+        }
+
+        // 执行批量更新
+        if (!empty($sync_updates)) {
+            $update_success = self::ultra_batch_update_sync_status($sync_updates);
+            $stats['success'] = $update_success;
+        }
+
+        $stats['update_time'] = microtime(true) - $update_start;
+
+        // 记录统计信息
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '智能同步处理完成: 方法=%s, 页面=%d, 查询耗时=%.3fs, 更新耗时=%.3fs',
+                    $stats['method_used'],
+                    $stats['total_pages'],
+                    $stats['query_time'],
+                    $stats['update_time']
+                ),
+                'Smart Sync Processing'
+            );
+        }
+
+        return $stats;
+    }
 }
