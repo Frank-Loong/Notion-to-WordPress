@@ -355,7 +355,8 @@ class Notion_Import_Coordinator {
                     'Pages Import'
                 );
             } else {
-                // 使用传统逐个处理模式
+                // 使用传统逐个处理模式（优化内存使用）
+                $processed_count = 0;
                 foreach ($pages as $index => $page) {
                     if (!$performance_mode) {
                         Notion_Logger::debug_log('处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'), 'Pages Import');
@@ -374,6 +375,20 @@ class Notion_Import_Coordinator {
                         $result = $this->import_notion_page($page);
                         if (!$performance_mode) {
                             Notion_Logger::debug_log('单个页面导入结果: ' . ($result ? 'success' : 'failed'), 'Pages Import');
+                        }
+                        
+                        // 简单的内存管理：每处理10个页面清理一次内存
+                        $processed_count++;
+                        if ($processed_count % 10 === 0) {
+                            // 释放未使用的变量
+                            unset($existing_post_id, $result);
+                            // 强制垃圾回收
+                            gc_collect_cycles();
+                            
+                            // 记录内存使用情况
+                            $memory_usage = memory_get_usage(true);
+                            $memory_mb = round($memory_usage / 1024 / 1024, 2);
+                            Notion_Logger::debug_log("已处理 {$processed_count} 个页面，当前内存使用: {$memory_mb}MB", 'Memory Management');
                         }
 
                         if ($result === 'skipped') {

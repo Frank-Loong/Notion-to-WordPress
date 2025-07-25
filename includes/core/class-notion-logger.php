@@ -109,7 +109,7 @@ class Notion_Logger {
             return;
         }
 
-        // 检查是否启用性能模式
+        // 检查是否启用性能模式和智能日志过滤
         $options = get_option('notion_to_wordpress_options', []);
         $performance_mode = $options['enable_performance_mode'] ?? 1;
 
@@ -118,6 +118,18 @@ class Notion_Logger {
             self::add_to_buffer($data, $prefix, $level);
             return;
         }
+        
+        // 智能日志过滤：跳过重复的调试信息
+        static $last_messages = [];
+        $message_key = is_string($data) ? substr($data, 0, 50) : serialize($data);
+        $current_time = time();
+        
+        if (isset($last_messages[$message_key]) && 
+            ($current_time - $last_messages[$message_key]) < 5) {
+            // 5秒内的重复消息跳过
+            return;
+        }
+        $last_messages[$message_key] = $current_time;
 
         // 格式化日志前缀
         $log_prefix = date('Y-m-d H:i:s') . ' ' . $prefix . ': ';

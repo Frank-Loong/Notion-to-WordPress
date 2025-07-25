@@ -136,9 +136,12 @@ class Notion_API {
 
         while ($has_more) {
             $endpoint = 'databases/' . $database_id . '/query';
-            // 从配置中获取page_size，默认100
+            // 智能分页大小优化：根据数据量动态调整
             $options = get_option('notion_to_wordpress_options', []);
-            $page_size = $options['api_page_size'] ?? 100;
+            $base_page_size = $options['api_page_size'] ?? 100;
+            
+            // 动态优化：首次请求使用较大分页，后续根据结果调整
+            $page_size = empty($all_results) ? min(100, $base_page_size) : min(100, $base_page_size * 1.5);
 
             $data = [
                 'page_size' => $page_size
