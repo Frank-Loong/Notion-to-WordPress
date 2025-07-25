@@ -22,6 +22,70 @@ if (!defined('ABSPATH')) {
 class Notion_Network_Retry {
 
     /**
+     * 初始化cURL常量（如果未定义）
+     */
+    private static function init_curl_constants() {
+        if (!defined('CURLE_OPERATION_TIMEOUTED')) define('CURLE_OPERATION_TIMEOUTED', 28);
+        if (!defined('CURLE_COULDNT_CONNECT')) define('CURLE_COULDNT_CONNECT', 7);
+        if (!defined('CURLE_COULDNT_RESOLVE_HOST')) define('CURLE_COULDNT_RESOLVE_HOST', 6);
+        if (!defined('CURLE_RECV_ERROR')) define('CURLE_RECV_ERROR', 56);
+        if (!defined('CURLE_SEND_ERROR')) define('CURLE_SEND_ERROR', 55);
+        if (!defined('CURLE_GOT_NOTHING')) define('CURLE_GOT_NOTHING', 52);
+        if (!defined('CURLE_PARTIAL_FILE')) define('CURLE_PARTIAL_FILE', 18);
+        if (!defined('CURLE_URL_MALFORMAT')) define('CURLE_URL_MALFORMAT', 3);
+        if (!defined('CURLE_UNSUPPORTED_PROTOCOL')) define('CURLE_UNSUPPORTED_PROTOCOL', 1);
+        if (!defined('CURLE_SSL_CONNECT_ERROR')) define('CURLE_SSL_CONNECT_ERROR', 35);
+        if (!defined('CURLE_SSL_PEER_CERTIFICATE')) define('CURLE_SSL_PEER_CERTIFICATE', 51);
+    }
+
+    /**
+     * 初始化错误类型数组
+     */
+    private static function init_error_arrays() {
+        self::init_curl_constants();
+
+        if (self::$temporary_errors === null) {
+            self::$temporary_errors = [
+                // cURL错误
+                CURLE_OPERATION_TIMEOUTED,      // 28 - 操作超时
+                CURLE_COULDNT_CONNECT,          // 7  - 无法连接
+                CURLE_COULDNT_RESOLVE_HOST,     // 6  - 无法解析主机
+                CURLE_RECV_ERROR,               // 56 - 接收数据错误
+                CURLE_SEND_ERROR,               // 55 - 发送数据错误
+                CURLE_GOT_NOTHING,              // 52 - 服务器未返回任何内容
+                CURLE_PARTIAL_FILE,             // 18 - 文件传输不完整
+
+                // HTTP状态码
+                429, // Too Many Requests
+                500, // Internal Server Error
+                502, // Bad Gateway
+                503, // Service Unavailable
+                504, // Gateway Timeout
+            ];
+        }
+
+        if (self::$permanent_errors === null) {
+            self::$permanent_errors = [
+                // HTTP状态码
+                400, // Bad Request
+                401, // Unauthorized
+                403, // Forbidden
+                404, // Not Found
+                405, // Method Not Allowed
+                406, // Not Acceptable
+                410, // Gone
+                422, // Unprocessable Entity
+
+                // cURL错误
+                CURLE_URL_MALFORMAT,            // 3  - URL格式错误
+                CURLE_UNSUPPORTED_PROTOCOL,     // 1  - 不支持的协议
+                CURLE_SSL_CONNECT_ERROR,        // 35 - SSL连接错误
+                CURLE_SSL_PEER_CERTIFICATE,     // 51 - SSL证书验证失败
+            ];
+        }
+    }
+
+    /**
      * 默认最大重试次数
      *
      * @since    1.1.2
@@ -46,23 +110,7 @@ class Notion_Network_Retry {
      * @access   private
      * @var      array    $temporary_errors    临时性错误类型数组
      */
-    private static $temporary_errors = [
-        // cURL错误
-        CURLE_OPERATION_TIMEOUTED,      // 28 - 操作超时
-        CURLE_COULDNT_CONNECT,          // 7  - 无法连接
-        CURLE_COULDNT_RESOLVE_HOST,     // 6  - 无法解析主机
-        CURLE_RECV_ERROR,               // 56 - 接收数据错误
-        CURLE_SEND_ERROR,               // 55 - 发送数据错误
-        CURLE_GOT_NOTHING,              // 52 - 服务器未返回任何内容
-        CURLE_PARTIAL_FILE,             // 18 - 文件传输不完整
-        
-        // HTTP状态码
-        429, // Too Many Requests
-        500, // Internal Server Error
-        502, // Bad Gateway
-        503, // Service Unavailable
-        504, // Gateway Timeout
-    ];
+    private static $temporary_errors;
 
     /**
      * 永久性错误类型
@@ -71,23 +119,7 @@ class Notion_Network_Retry {
      * @access   private
      * @var      array    $permanent_errors    永久性错误类型数组
      */
-    private static $permanent_errors = [
-        // HTTP状态码
-        400, // Bad Request
-        401, // Unauthorized
-        403, // Forbidden
-        404, // Not Found
-        405, // Method Not Allowed
-        406, // Not Acceptable
-        410, // Gone
-        422, // Unprocessable Entity
-        
-        // cURL错误
-        CURLE_URL_MALFORMAT,            // 3  - URL格式错误
-        CURLE_UNSUPPORTED_PROTOCOL,     // 1  - 不支持的协议
-        CURLE_SSL_CONNECT_ERROR,        // 35 - SSL连接错误
-        CURLE_SSL_PEER_CERTIFICATE,     // 51 - SSL证书验证失败
-    ];
+    private static $permanent_errors;
 
     /**
      * 重试统计信息
@@ -101,7 +133,12 @@ class Notion_Network_Retry {
         'successful_retries' => 0,
         'failed_retries' => 0,
         'permanent_errors' => 0,
-        'total_delay_time' => 0
+        'total_delay_time' => 0,
+        'smart_retries' => 0,
+        'rate_limit_retries' => 0,
+        'server_error_retries' => 0,
+        'network_error_retries' => 0,
+        'avg_delay_time' => 0
     ];
 
     /**
@@ -115,6 +152,9 @@ class Notion_Network_Retry {
      * @throws   Exception                   如果所有重试都失败
      */
     public static function with_retry(callable $callback, $max_retries = self::DEFAULT_MAX_RETRIES, $base_delay = self::DEFAULT_BASE_DELAY) {
+        // 初始化错误数组
+        self::init_error_arrays();
+
         $last_exception = null;
         $start_time = microtime(true);
         
@@ -137,14 +177,17 @@ class Notion_Network_Retry {
                         'Network Retry'
                     );
                 }
-                
+
+                // 集成性能监控数据（成功情况）
+                self::integrate_with_performance_monitor();
+
                 return $result;
                 
             } catch (Exception $e) {
                 $last_exception = $e;
                 
-                // 检查是否为永久性错误
-                if (self::is_permanent_error($e)) {
+                // 检查是否为永久性错误（使用增强版本）
+                if (self::is_permanent_error_enhanced($e)) {
                     self::$retry_stats['permanent_errors']++;
                     
                     Notion_Logger::debug_log(
@@ -174,9 +217,13 @@ class Notion_Network_Retry {
                     break;
                 }
                 
-                // 计算延迟时间（指数退避）
-                $delay = $base_delay * pow(2, $attempt);
+                // 使用智能延迟计算
+                $delay = self::calculate_smart_delay($attempt, $e, $base_delay);
                 self::$retry_stats['total_delay_time'] += $delay;
+                self::$retry_stats['smart_retries']++;
+
+                // 记录错误类型统计
+                self::record_error_type_stats($e);
                 
                 Notion_Logger::debug_log(
                     sprintf(
@@ -193,7 +240,10 @@ class Notion_Network_Retry {
                 usleep($delay * 1000); // 转换为微秒
             }
         }
-        
+
+        // 集成性能监控数据
+        self::integrate_with_performance_monitor();
+
         // 所有重试都失败，抛出最后一个异常
         throw $last_exception;
     }
@@ -206,6 +256,7 @@ class Notion_Network_Retry {
      * @return   bool                       是否为永久性错误
      */
     public static function is_permanent_error($exception) {
+        self::init_error_arrays();
         $message = $exception->getMessage();
         
         // 检查HTTP状态码
@@ -265,6 +316,7 @@ class Notion_Network_Retry {
      * @return   bool                       是否为临时性错误
      */
     public static function is_temporary_error($exception) {
+        self::init_error_arrays();
         $message = $exception->getMessage();
         
         // 检查HTTP状态码
@@ -329,7 +381,12 @@ class Notion_Network_Retry {
             'successful_retries' => 0,
             'failed_retries' => 0,
             'permanent_errors' => 0,
-            'total_delay_time' => 0
+            'total_delay_time' => 0,
+            'smart_retries' => 0,
+            'rate_limit_retries' => 0,
+            'server_error_retries' => 0,
+            'network_error_retries' => 0,
+            'avg_delay_time' => 0
         ];
 
         Notion_Logger::debug_log(
@@ -495,5 +552,313 @@ class Notion_Network_Retry {
                 'Network Retry'
             );
         }
+    }
+
+    /**
+     * 智能延迟计算方法
+     * 根据错误类型动态调整延迟时间
+     *
+     * @since    2.0.0-beta.1
+     * @param    int         $attempt     当前尝试次数（从0开始）
+     * @param    Exception   $exception   异常对象
+     * @param    int         $base_delay  基础延迟时间（毫秒）
+     * @return   int                      计算后的延迟时间（毫秒）
+     */
+    private static function calculate_smart_delay($attempt, $exception, $base_delay = self::DEFAULT_BASE_DELAY) {
+        $message = $exception->getMessage();
+        $message_lower = strtolower($message);
+
+        // 检查是否为WordPress错误
+        if (is_wp_error($exception)) {
+            $error_code = $exception->get_error_code();
+
+            switch ($error_code) {
+                case 'http_request_failed':
+                case 'rate_limit':
+                case 'too_many_requests':
+                    // 速率限制：使用更长的延迟，指数增长系数为2.5
+                    return (int)($base_delay * pow(2.5, $attempt) * 2);
+
+                case 'server_error':
+                case 'internal_server_error':
+                case 'bad_gateway':
+                case 'service_unavailable':
+                case 'gateway_timeout':
+                    // 服务器错误：使用中等延迟，指数增长系数为1.8
+                    return (int)($base_delay * pow(1.8, $attempt) * 1.5);
+
+                case 'network_timeout':
+                case 'connection_timeout':
+                case 'connect_error':
+                    // 网络超时：使用标准延迟，指数增长系数为2
+                    return (int)($base_delay * pow(2, $attempt));
+
+                default:
+                    // 其他错误：使用标准指数退避
+                    return (int)($base_delay * pow(2, $attempt));
+            }
+        }
+
+        // 检查HTTP状态码
+        if (preg_match('/HTTP错误\s+(\d+)/', $message, $matches)) {
+            $http_code = (int)$matches[1];
+
+            switch ($http_code) {
+                case 429: // Too Many Requests
+                    return (int)($base_delay * pow(2.5, $attempt) * 3); // 最长延迟
+
+                case 500: // Internal Server Error
+                case 502: // Bad Gateway
+                case 503: // Service Unavailable
+                case 504: // Gateway Timeout
+                    return (int)($base_delay * pow(1.8, $attempt) * 1.5);
+
+                default:
+                    return (int)($base_delay * pow(2, $attempt));
+            }
+        }
+
+        // 检查cURL错误
+        if (preg_match('/cURL错误\s+(\d+)/', $message, $matches)) {
+            $curl_code = (int)$matches[1];
+
+            switch ($curl_code) {
+                case CURLE_OPERATION_TIMEOUTED: // 28 - 操作超时
+                case CURLE_RECV_ERROR:          // 56 - 接收数据错误
+                case CURLE_SEND_ERROR:          // 55 - 发送数据错误
+                    return (int)($base_delay * pow(2, $attempt) * 1.2);
+
+                case CURLE_COULDNT_CONNECT:     // 7 - 无法连接
+                case CURLE_COULDNT_RESOLVE_HOST: // 6 - 无法解析主机
+                    return (int)($base_delay * pow(2.2, $attempt) * 1.5);
+
+                default:
+                    return (int)($base_delay * pow(2, $attempt));
+            }
+        }
+
+        // 检查错误消息关键词
+        if (strpos($message_lower, 'rate limit') !== false ||
+            strpos($message_lower, 'too many requests') !== false ||
+            strpos($message_lower, '限制') !== false) {
+            return (int)($base_delay * pow(2.5, $attempt) * 2);
+        }
+
+        if (strpos($message_lower, 'server error') !== false ||
+            strpos($message_lower, 'internal error') !== false ||
+            strpos($message_lower, '服务器错误') !== false) {
+            return (int)($base_delay * pow(1.8, $attempt) * 1.5);
+        }
+
+        if (strpos($message_lower, 'timeout') !== false ||
+            strpos($message_lower, 'connection') !== false ||
+            strpos($message_lower, '超时') !== false ||
+            strpos($message_lower, '连接') !== false) {
+            return (int)($base_delay * pow(2, $attempt) * 1.2);
+        }
+
+        // 默认使用标准指数退避
+        return (int)($base_delay * pow(2, $attempt));
+    }
+
+    /**
+     * 记录错误类型统计
+     *
+     * @since    2.0.0-beta.1
+     * @param    Exception   $exception   异常对象
+     */
+    private static function record_error_type_stats($exception) {
+        $message = $exception->getMessage();
+        $message_lower = strtolower($message);
+
+        // 检查是否为WordPress错误
+        if (is_wp_error($exception)) {
+            $error_code = $exception->get_error_code();
+
+            if (in_array($error_code, ['rate_limit', 'too_many_requests'])) {
+                self::$retry_stats['rate_limit_retries']++;
+                return;
+            }
+
+            if (in_array($error_code, ['server_error', 'internal_server_error', 'bad_gateway', 'service_unavailable', 'gateway_timeout'])) {
+                self::$retry_stats['server_error_retries']++;
+                return;
+            }
+
+            if (in_array($error_code, ['network_timeout', 'connection_timeout', 'connect_error'])) {
+                self::$retry_stats['network_error_retries']++;
+                return;
+            }
+        }
+
+        // 检查HTTP状态码
+        if (preg_match('/HTTP错误\s+(\d+)/', $message, $matches)) {
+            $http_code = (int)$matches[1];
+
+            if ($http_code === 429) {
+                self::$retry_stats['rate_limit_retries']++;
+                return;
+            }
+
+            if (in_array($http_code, [500, 502, 503, 504])) {
+                self::$retry_stats['server_error_retries']++;
+                return;
+            }
+        }
+
+        // 检查错误消息关键词
+        if (strpos($message_lower, 'rate limit') !== false ||
+            strpos($message_lower, 'too many requests') !== false ||
+            strpos($message_lower, '限制') !== false) {
+            self::$retry_stats['rate_limit_retries']++;
+        } elseif (strpos($message_lower, 'server error') !== false ||
+                  strpos($message_lower, 'internal error') !== false ||
+                  strpos($message_lower, '服务器错误') !== false) {
+            self::$retry_stats['server_error_retries']++;
+        } elseif (strpos($message_lower, 'timeout') !== false ||
+                  strpos($message_lower, 'connection') !== false ||
+                  strpos($message_lower, '超时') !== false ||
+                  strpos($message_lower, '连接') !== false) {
+            self::$retry_stats['network_error_retries']++;
+        }
+    }
+
+    /**
+     * 获取增强的重试统计信息，包含智能重试数据
+     *
+     * @since    2.0.0-beta.1
+     * @return   array    增强的重试统计信息数组
+     */
+    public static function get_enhanced_retry_stats() {
+        $stats = self::$retry_stats;
+
+        // 计算平均延迟时间
+        if ($stats['smart_retries'] > 0) {
+            $stats['avg_delay_time'] = round($stats['total_delay_time'] / $stats['smart_retries'], 2);
+        }
+
+        // 计算成功率
+        if ($stats['total_attempts'] > 0) {
+            $stats['success_rate'] = round(($stats['successful_retries'] / $stats['total_attempts']) * 100, 2);
+        } else {
+            $stats['success_rate'] = 0;
+        }
+
+        // 计算错误类型分布
+        $total_errors = $stats['rate_limit_retries'] + $stats['server_error_retries'] + $stats['network_error_retries'];
+        if ($total_errors > 0) {
+            $stats['error_distribution'] = [
+                'rate_limit_percentage' => round(($stats['rate_limit_retries'] / $total_errors) * 100, 2),
+                'server_error_percentage' => round(($stats['server_error_retries'] / $total_errors) * 100, 2),
+                'network_error_percentage' => round(($stats['network_error_retries'] / $total_errors) * 100, 2)
+            ];
+        } else {
+            $stats['error_distribution'] = [
+                'rate_limit_percentage' => 0,
+                'server_error_percentage' => 0,
+                'network_error_percentage' => 0
+            ];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 集成到性能监控系统
+     * 将重试统计信息发送到Notion_Performance_Monitor
+     *
+     * @since    2.0.0-beta.1
+     */
+    public static function integrate_with_performance_monitor() {
+        if (!class_exists('Notion_Performance_Monitor')) {
+            return;
+        }
+
+        $stats = self::get_enhanced_retry_stats();
+
+        // 记录重试性能数据
+        if (method_exists('Notion_Performance_Monitor', 'record_custom_metric')) {
+            Notion_Performance_Monitor::record_custom_metric('network_retry_success_rate', $stats['success_rate']);
+            Notion_Performance_Monitor::record_custom_metric('network_retry_avg_delay', $stats['avg_delay_time']);
+            Notion_Performance_Monitor::record_custom_metric('network_retry_smart_count', $stats['smart_retries']);
+        }
+
+        // 记录到日志以便监控
+        if ($stats['total_attempts'] > 0) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '智能重试统计: 总尝试=%d, 成功率=%.2f%%, 平均延迟=%.2fms, 智能重试=%d',
+                    $stats['total_attempts'],
+                    $stats['success_rate'],
+                    $stats['avg_delay_time'],
+                    $stats['smart_retries']
+                ),
+                'Network Retry Performance'
+            );
+        }
+    }
+
+    /**
+     * 扩展的is_permanent_error方法，增加更多错误类型判断
+     *
+     * @since    2.0.0-beta.1
+     * @param    Exception    $exception    异常对象
+     * @return   bool                       是否为永久性错误
+     */
+    public static function is_permanent_error_enhanced($exception) {
+        // 首先使用原有的判断逻辑
+        if (self::is_permanent_error($exception)) {
+            return true;
+        }
+
+        $message = $exception->getMessage();
+        $message_lower = strtolower($message);
+
+        // 增加更多永久性错误类型判断
+        $additional_permanent_keywords = [
+            'api key',
+            'api_key',
+            'access denied',
+            'insufficient permissions',
+            'quota exceeded',
+            'account suspended',
+            'invalid token',
+            'expired token',
+            'malformed request',
+            'unsupported operation',
+            'resource not found',
+            'method not allowed',
+            'content too large',
+            'payload too large',
+            'API密钥',
+            '访问被拒绝',
+            '权限不足',
+            '配额超出',
+            '账户暂停',
+            '令牌无效',
+            '令牌过期',
+            '请求格式错误',
+            '不支持的操作',
+            '资源未找到',
+            '方法不允许',
+            '内容过大'
+        ];
+
+        foreach ($additional_permanent_keywords as $keyword) {
+            if (strpos($message_lower, $keyword) !== false) {
+                return true;
+            }
+        }
+
+        // 检查特定的HTTP状态码
+        if (preg_match('/HTTP错误\s+(\d+)/', $message, $matches)) {
+            $http_code = (int)$matches[1];
+            $additional_permanent_codes = [407, 408, 409, 411, 412, 413, 414, 415, 416, 417, 426, 428, 431, 451];
+            if (in_array($http_code, $additional_permanent_codes)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
