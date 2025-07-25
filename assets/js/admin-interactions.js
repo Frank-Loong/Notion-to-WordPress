@@ -799,4 +799,210 @@ jQuery(document).ready(function($) {
             }
         }
     });
+
+    // ==================== 数据库索引管理功能 ====================
+
+    /**
+     * 刷新索引状态
+     */
+    function refreshIndexStatus() {
+        const $container = $('#index-status-container');
+        const $createBtn = $('#create-database-indexes');
+        const $removeBtn = $('#remove-database-indexes');
+
+        $container.html('<div class="loading-placeholder"><span class="spinner is-active"></span> 正在检查索引状态...</div>');
+        $createBtn.prop('disabled', true);
+        $removeBtn.hide();
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_get_index_status',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    const status = response.data.status;
+                    const suggestions = response.data.suggestions;
+
+                    let html = '<div class="index-status-grid">';
+
+                    // 索引状态显示
+                    html += '<div class="index-status-item">';
+                    html += '<span class="index-label">meta_key索引:</span>';
+                    html += '<span class="index-status ' + (status.meta_key_index ? 'status-active' : 'status-inactive') + '">';
+                    html += status.meta_key_index ? '✅ 已创建' : '❌ 未创建';
+                    html += '</span></div>';
+
+                    html += '<div class="index-status-item">';
+                    html += '<span class="index-label">复合索引:</span>';
+                    html += '<span class="index-status ' + (status.composite_index ? 'status-active' : 'status-inactive') + '">';
+                    html += status.composite_index ? '✅ 已创建' : '❌ 未创建';
+                    html += '</span></div>';
+
+                    html += '<div class="index-status-item">';
+                    html += '<span class="index-label">总索引数:</span>';
+                    html += '<span class="index-value">' + status.total_indexes + '</span>';
+                    html += '</div>';
+
+                    if (status.table_size > 0) {
+                        html += '<div class="index-status-item">';
+                        html += '<span class="index-label">表大小:</span>';
+                        html += '<span class="index-value">' + formatBytes(status.table_size) + '</span>';
+                        html += '</div>';
+                    }
+
+                    html += '</div>';
+
+                    // 显示建议
+                    if (suggestions && suggestions.length > 0) {
+                        html += '<div class="index-suggestions">';
+                        html += '<h4>优化建议:</h4><ul>';
+                        suggestions.forEach(function(suggestion) {
+                            html += '<li>' + suggestion + '</li>';
+                        });
+                        html += '</ul></div>';
+                    }
+
+                    $container.html(html);
+
+                    // 更新按钮状态
+                    const hasIndexes = status.meta_key_index || status.composite_index;
+                    const needsIndexes = suggestions && suggestions.length > 0;
+
+                    $createBtn.prop('disabled', !needsIndexes);
+                    if (hasIndexes) {
+                        $removeBtn.show();
+                    }
+
+                } else {
+                    $container.html('<div class="error-message">获取索引状态失败: ' + (response.data.message || '未知错误') + '</div>');
+                }
+            },
+            error: function() {
+                $container.html('<div class="error-message">网络错误，无法获取索引状态</div>');
+            }
+        });
+    }
+
+    /**
+     * 创建数据库索引
+     */
+    function createDatabaseIndexes() {
+        const $button = $('#create-database-indexes');
+        const originalText = $button.text();
+
+        $button.prop('disabled', true).html('<span class="spinner is-active"></span> 正在创建索引...');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_create_database_indexes',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    showModal(response.data.message, 'success');
+
+                    // 显示详细结果
+                    if (response.data.data) {
+                        const data = response.data.data;
+                        let details = '创建详情:\n';
+                        if (data.created_indexes.length > 0) {
+                            details += '• 已创建: ' + data.created_indexes.join(', ') + '\n';
+                        }
+                        if (data.skipped_indexes.length > 0) {
+                            details += '• 已跳过: ' + data.skipped_indexes.join(', ') + '\n';
+                        }
+                        if (data.performance_improvement > 0) {
+                            details += '• 性能提升: ' + data.performance_improvement.toFixed(1) + '%\n';
+                        }
+                        details += '• 处理时间: ' + data.processing_time.toFixed(3) + '秒';
+
+                        console.log('索引创建详情:', details);
+                    }
+
+                    // 刷新状态
+                    setTimeout(refreshIndexStatus, 1000);
+                } else {
+                    showModal('索引创建失败: ' + (response.data.message || '未知错误'), 'error');
+                }
+            },
+            error: function() {
+                showModal('网络错误，索引创建失败', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text(originalText);
+            }
+        });
+    }
+
+    /**
+     * 删除数据库索引
+     */
+    function removeDatabaseIndexes() {
+        if (!confirm('确定要删除数据库索引吗？这将降低查询性能。')) {
+            return;
+        }
+
+        const $button = $('#remove-database-indexes');
+        const originalText = $button.text();
+
+        $button.prop('disabled', true).html('<span class="spinner is-active"></span> 正在删除索引...');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_remove_database_indexes',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    showModal(response.data.message, 'success');
+
+                    // 刷新状态
+                    setTimeout(refreshIndexStatus, 1000);
+                } else {
+                    showModal('索引删除失败: ' + (response.data.message || '未知错误'), 'error');
+                }
+            },
+            error: function() {
+                showModal('网络错误，索引删除失败', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text(originalText);
+            }
+        });
+    }
+
+    /**
+     * 格式化字节数
+     */
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // 绑定事件处理器
+    $(document).ready(function() {
+        // 页面加载时刷新索引状态
+        if ($('#index-status-container').length > 0) {
+            refreshIndexStatus();
+        }
+
+        // 绑定按钮事件
+        $('#create-database-indexes').on('click', createDatabaseIndexes);
+        $('#refresh-index-status').on('click', refreshIndexStatus);
+        $('#remove-database-indexes').on('click', removeDatabaseIndexes);
+    });
+
 })(jQuery);

@@ -1400,3 +1400,212 @@ code {
         justify-content: center;
     }
 }
+
+/* ==================== 数据库索引管理样式 ==================== */
+
+/* 索引状态容器 */
+.notion-wp-index-status {
+    background: #fff;
+    border: 1px solid var(--notion-gray-300);
+    border-radius: var(--notion-border-radius);
+    padding: 20px;
+    margin: 16px 0;
+}
+
+/* 索引状态网格 */
+.index-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.index-status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--notion-gray-100);
+    border-radius: 6px;
+    border-left: 4px solid var(--notion-primary);
+}
+
+.index-label {
+    font-weight: 600;
+    color: var(--notion-gray-700);
+    font-size: 14px;
+}
+
+.index-status {
+    font-weight: 500;
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.index-status.status-active {
+    background: var(--notion-accent-light);
+    color: var(--notion-accent);
+}
+
+.index-status.status-inactive {
+    background: var(--notion-danger-light);
+    color: var(--notion-danger);
+}
+
+.index-value {
+    font-weight: 600;
+    color: var(--notion-primary);
+    font-size: 14px;
+}
+
+/* 索引建议 */
+.index-suggestions {
+    background: var(--notion-primary-light);
+    border: 1px solid var(--notion-primary);
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.index-suggestions h4 {
+    margin: 0 0 12px 0;
+    color: var(--notion-primary);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.index-suggestions ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.index-suggestions li {
+    color: var(--notion-gray-700);
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 6px;
+}
+
+/* 索引操作按钮 */
+.notion-wp-index-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.notion-wp-index-actions .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--notion-transition);
+}
+
+.notion-wp-index-actions .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.notion-wp-index-actions .button-primary {
+    background: var(--notion-primary);
+    border-color: var(--notion-primary);
+}
+
+.notion-wp-index-actions .button-primary:hover {
+    background: var(--notion-primary-dark);
+    border-color: var(--notion-primary-dark);
+}
+
+.notion-wp-index-actions .button-link-delete {
+    color: var(--notion-danger);
+    text-decoration: none;
+}
+
+.notion-wp-index-actions .button-link-delete:hover {
+    color: #b91c1c;
+}
+
+/* 索引信息说明 */
+.notion-wp-index-info {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 20px;
+}
+
+.notion-wp-index-info h4 {
+    margin: 0 0 12px 0;
+    color: var(--notion-gray-800);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.notion-wp-index-info ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.notion-wp-index-info li {
+    color: var(--notion-gray-700);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+.notion-wp-index-info li strong {
+    color: var(--notion-gray-800);
+    font-weight: 600;
+}
+
+/* 加载状态 */
+.loading-placeholder {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    color: var(--notion-gray-600);
+    font-size: 14px;
+}
+
+.loading-placeholder .spinner {
+    float: none;
+    margin: 0;
+}
+
+/* 错误消息 */
+.error-message {
+    background: var(--notion-danger-light);
+    color: var(--notion-danger);
+    padding: 12px 16px;
+    border-radius: 6px;
+    border-left: 4px solid var(--notion-danger);
+    font-size: 14px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .index-status-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .notion-wp-index-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .notion-wp-index-actions .button {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .index-status-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}

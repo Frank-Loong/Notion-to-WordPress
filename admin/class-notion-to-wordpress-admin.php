@@ -80,6 +80,9 @@ class Notion_To_WordPress_Admin {
         add_action('wp_ajax_notion_clear_logs', array($this, 'handle_clear_logs_ajax'));
         add_action('wp_ajax_notion_refresh_performance_stats', array($this, 'handle_refresh_performance_stats_ajax'));
         add_action('wp_ajax_notion_reset_performance_stats', array($this, 'handle_reset_performance_stats_ajax'));
+        add_action('wp_ajax_notion_create_database_indexes', array($this, 'handle_create_database_indexes_ajax'));
+        add_action('wp_ajax_notion_get_index_status', array($this, 'handle_get_index_status_ajax'));
+        add_action('wp_ajax_notion_remove_database_indexes', array($this, 'handle_remove_database_indexes_ajax'));
     }
 
     /**
@@ -937,6 +940,133 @@ class Notion_To_WordPress_Admin {
 
         } catch (Exception $e) {
             wp_send_json_error('重置统计失败: ' . $e->getMessage());
+        }
+    }
+
+    // ==================== 数据库索引管理AJAX处理方法 ====================
+
+    /**
+     * 处理创建数据库索引的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_create_database_indexes_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            // 调用数据库助手创建索引
+            $result = Notion_Database_Helper::create_performance_indexes();
+
+            if ($result['success']) {
+                $message = sprintf(
+                    '索引创建成功！创建了%d个索引，性能提升%.1f%%',
+                    count($result['created_indexes']),
+                    $result['performance_improvement']
+                );
+
+                wp_send_json_success([
+                    'message' => $message,
+                    'data' => $result
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => '索引创建失败: ' . implode(', ', $result['errors']),
+                    'data' => $result
+                ]);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '创建索引时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理获取索引状态的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_get_index_status_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            // 获取索引状态
+            $status = Notion_Database_Helper::get_index_status();
+
+            // 获取优化建议
+            $suggestions = Notion_Database_Helper::get_optimization_suggestions();
+
+            wp_send_json_success([
+                'status' => $status,
+                'suggestions' => $suggestions,
+                'message' => '索引状态获取成功'
+            ]);
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '获取索引状态时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理删除数据库索引的AJAX请求（用于测试或回退）
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_remove_database_indexes_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            // 调用数据库助手删除索引
+            $result = Notion_Database_Helper::remove_performance_indexes();
+
+            if ($result['success']) {
+                $message = sprintf(
+                    '索引删除成功！删除了%d个索引',
+                    count($result['removed_indexes'])
+                );
+
+                wp_send_json_success([
+                    'message' => $message,
+                    'data' => $result
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => '索引删除失败: ' . implode(', ', $result['errors']),
+                    'data' => $result
+                ]);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '删除索引时发生异常: ' . $e->getMessage()]);
         }
     }
 
