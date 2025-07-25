@@ -1128,4 +1128,232 @@ class Notion_API {
 
         return $stats;
     }
+
+    /**
+     * 并发获取数据库页面（高性能版本）
+     *
+     * 使用并发网络管理器实现真正的并发数据库页面获取
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $filter 过滤条件
+     * @param bool $with_details 是否获取详细信息
+     * @return array 页面数组
+     */
+    public function get_database_pages_concurrent(string $database_id, array $filter = [], bool $with_details = false): array {
+        // 开始性能监控
+        $start_time = microtime(true);
+        $start_memory = memory_get_usage(true);
+
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('concurrent_database_fetch');
+        }
+
+        try {
+            // 初始化并发网络管理器
+            $concurrent_manager = new Notion_Concurrent_Network_Manager();
+            $concurrent_manager->init_connection_pool();
+
+            // 预估数据库大小
+            $estimated_size = $concurrent_manager->estimate_database_size($database_id, $filter);
+
+            // 计算最优并发数
+            $optimal_concurrency = $concurrent_manager->calculate_optimal_concurrency($estimated_size);
+
+            // 重新初始化管理器使用最优并发数
+            $concurrent_manager = new Notion_Concurrent_Network_Manager($optimal_concurrency);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log(
+                    sprintf(
+                        '开始并发获取数据库页面: ID=%s, 预估大小=%d, 并发数=%d',
+                        $database_id,
+                        $estimated_size,
+                        $optimal_concurrency
+                    ),
+                    'Concurrent Database Fetch'
+                );
+            }
+
+            // 首先获取第一页来确定总页数
+            $first_page_data = $this->get_single_page_data($database_id, $filter, null, 100);
+            $all_results = $first_page_data['results'] ?? [];
+            $has_more = $first_page_data['has_more'] ?? false;
+            $next_cursor = $first_page_data['next_cursor'] ?? null;
+
+            // 如果有更多页面，准备并发请求
+            if ($has_more && $next_cursor) {
+                $concurrent_requests = [];
+                $cursors = [$next_cursor];
+
+                // 预先获取几个cursor来准备并发请求
+                $max_concurrent_pages = min($optimal_concurrency, 10); // 限制最大并发页数
+
+                for ($i = 1; $i < $max_concurrent_pages && $has_more; $i++) {
+                    $temp_data = $this->get_single_page_data($database_id, $filter, $next_cursor, 100);
+                    $all_results = array_merge($all_results, $temp_data['results'] ?? []);
+                    $has_more = $temp_data['has_more'] ?? false;
+                    $next_cursor = $temp_data['next_cursor'] ?? null;
+
+                    if ($has_more && $next_cursor) {
+                        $cursors[] = $next_cursor;
+                    }
+                }
+
+                // 如果还有更多页面，使用并发获取
+                if ($has_more && count($cursors) > 1) {
+                    foreach ($cursors as $cursor) {
+                        if ($cursor) {
+                            $request_data = [
+                                'page_size' => 100,
+                                'start_cursor' => $cursor
+                            ];
+
+                            if (!empty($filter)) {
+                                $request_data['filter'] = $filter;
+                            }
+
+                            $concurrent_manager->add_request(
+                                $this->api_base_url . 'databases/' . $database_id . '/query',
+                                [
+                                    'method' => 'POST',
+                                    'headers' => $this->get_headers(),
+                                    'body' => json_encode($request_data),
+                                    'timeout' => 30
+                                ]
+                            );
+                        }
+                    }
+
+                    // 执行并发请求
+                    $concurrent_responses = $concurrent_manager->execute_with_retry();
+
+                    // 处理并发响应
+                    foreach ($concurrent_responses as $response) {
+                        if ($response['success'] && !empty($response['body'])) {
+                            $response_data = json_decode($response['body'], true);
+                            if (isset($response_data['results'])) {
+                                $all_results = array_merge($all_results, $response_data['results']);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 如果需要详细信息，批量获取页面详情
+            if ($with_details && !empty($all_results)) {
+                $all_results = $this->enrich_pages_with_details_concurrent($all_results, $concurrent_manager);
+            }
+
+            // 清理连接池
+            $concurrent_manager->cleanup_connection_pool();
+
+            // 记录性能统计
+            $processing_time = microtime(true) - $start_time;
+            $memory_used = memory_get_usage(true) - $start_memory;
+
+            if (class_exists('Notion_Performance_Monitor')) {
+                Notion_Performance_Monitor::end_timer('concurrent_database_fetch');
+                Notion_Performance_Monitor::record_custom_metric('concurrent_fetch_time', $processing_time);
+                Notion_Performance_Monitor::record_custom_metric('concurrent_fetch_count', count($all_results));
+                Notion_Performance_Monitor::record_custom_metric('concurrent_fetch_memory', $memory_used);
+            }
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log(
+                    sprintf(
+                        '并发获取完成: 获取%d个页面, 耗时%.3fs, 内存%s',
+                        count($all_results),
+                        $processing_time,
+                        $this->format_bytes($memory_used)
+                    ),
+                    'Concurrent Database Fetch'
+                );
+            }
+
+            return $all_results;
+
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('并发数据库获取失败: %s', $e->getMessage()),
+                    'Concurrent Database Fetch'
+                );
+            }
+
+            // 失败时回退到标准方法
+            return $this->get_database_pages($database_id, $filter, $with_details);
+        }
+    }
+
+    /**
+     * 获取单页数据
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $filter 过滤条件
+     * @param string|null $start_cursor 起始游标
+     * @param int $page_size 页面大小
+     * @return array 页面数据
+     */
+    private function get_single_page_data(string $database_id, array $filter, ?string $start_cursor, int $page_size = 100): array {
+        $endpoint = 'databases/' . $database_id . '/query';
+        $data = ['page_size' => $page_size];
+
+        if (!empty($filter)) {
+            $data['filter'] = $filter;
+        }
+
+        if ($start_cursor) {
+            $data['start_cursor'] = $start_cursor;
+        }
+
+        return $this->send_request($endpoint, 'POST', $data);
+    }
+
+    /**
+     * 并发获取页面详细信息
+     *
+     * @since 2.0.0-beta.1
+     * @param array $pages 页面数组
+     * @param Notion_Concurrent_Network_Manager $concurrent_manager 并发管理器
+     * @return array 包含详细信息的页面数组
+     */
+    private function enrich_pages_with_details_concurrent(array $pages, Notion_Concurrent_Network_Manager $concurrent_manager): array {
+        if (empty($pages)) {
+            return $pages;
+        }
+
+        // 为每个页面添加获取详细信息的请求
+        $page_ids = [];
+        foreach ($pages as $page) {
+            $page_id = $page['id'];
+            $page_ids[] = $page_id;
+
+            $concurrent_manager->add_request(
+                $this->api_base_url . 'pages/' . $page_id,
+                [
+                    'method' => 'GET',
+                    'headers' => $this->get_headers(),
+                    'timeout' => 20
+                ]
+            );
+        }
+
+        // 执行并发请求获取详细信息
+        $detail_responses = $concurrent_manager->execute_with_retry();
+
+        // 将详细信息合并到页面数据中
+        foreach ($detail_responses as $index => $response) {
+            if ($response['success'] && !empty($response['body'])) {
+                $detail_data = json_decode($response['body'], true);
+                if (isset($detail_data['id']) && isset($pages[$index])) {
+                    // 合并详细信息到原始页面数据
+                    $pages[$index] = array_merge($pages[$index], $detail_data);
+                }
+            }
+        }
+
+        return $pages;
+    }
 }
