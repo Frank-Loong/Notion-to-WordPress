@@ -306,8 +306,10 @@ class Notion_To_WordPress_Webhook {
 
             $result = $this->notion_pages->import_notion_page($page);
 
-            if ($result) {
+            if ($result === true) {
                 return sprintf(__('已同步页面: %s', 'notion-to-wordpress'), $page_id);
+            } elseif ($result === 'skipped') {
+                return sprintf(__('页面无需同步（增量检测跳过）: %s', 'notion-to-wordpress'), $page_id);
             } else {
                 return __('页面同步失败', 'notion-to-wordpress');
             }
@@ -375,10 +377,12 @@ class Notion_To_WordPress_Webhook {
 
             $result = $this->notion_pages->import_notion_page($page);
 
-            Notion_Logger::info_log('页面内容同步结果: ' . ($result ? 'success' : 'failed'), 'Notion Webhook');
+            Notion_Logger::info_log('页面内容同步结果: ' . ($result === true ? 'success' : ($result === 'skipped' ? 'skipped' : 'failed')), 'Notion Webhook');
 
-            if ($result) {
+            if ($result === true) {
                 return sprintf(__('已强制同步页面内容: %s', 'notion-to-wordpress'), $page_id);
+            } elseif ($result === 'skipped') {
+                return sprintf(__('页面无需同步（增量检测跳过）: %s', 'notion-to-wordpress'), $page_id);
             } else {
                 Notion_Logger::error_log('页面内容同步失败，import_notion_page返回false');
                 return __('页面内容同步失败', 'notion-to-wordpress');

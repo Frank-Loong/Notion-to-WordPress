@@ -234,12 +234,11 @@ class Notion_API {
      * 获取一个块的直接子块（处理分页）。
      *
      * @since 1.0.8
-     * @access private
      * @param string $block_id 块的 ID。
      * @return array<string, mixed> 子块对象数组。
      * @throws Exception 如果 API 请求失败。
      */
-    private function get_block_children(string $block_id): array {
+    public function get_block_children(string $block_id): array {
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
@@ -901,11 +900,11 @@ class Notion_API {
             // 确保时间格式正确
             $formatted_time = $this->format_timestamp_for_api($last_sync_time);
 
+            // 正确的Notion API时间戳过滤器格式
             $time_filter = [
-                'timestamp' => [
-                    'last_edited_time' => [
-                        'after' => $formatted_time
-                    ]
+                'property' => 'last_edited_time',
+                'last_edited_time' => [
+                    'after' => $formatted_time
                 ]
             ];
         }

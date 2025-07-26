@@ -111,9 +111,9 @@ class Notion_Import_Coordinator {
      *
      * @since    1.0.5
      * @param    array     $page         Notion页面数据
-     * @return   boolean                 导入是否成功
+     * @return   bool|string             导入成功返回true，失败返回false，跳过返回'skipped'
      */
-    public function import_notion_page(array $page): bool {
+    public function import_notion_page(array $page) {
         Notion_Logger::debug_log('import_notion_page() 开始执行（主协调器）', 'Page Import');
 
         // 1. 验证输入数据
