@@ -159,6 +159,10 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-image-processor.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-database-renderer.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-queue-manager.php' );
+
+		// Utils层 - 工具类
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/utils/class-notion-async-processor.php' );
 
 		// Handlers层 - 协调器服务
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/handlers/class-notion-import-coordinator.php' );
