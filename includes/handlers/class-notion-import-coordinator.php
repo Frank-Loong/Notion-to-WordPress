@@ -290,7 +290,10 @@ class Notion_Import_Coordinator {
                 'imported' => 0,
                 'updated' => 0,
                 'failed' => 0,
-                'deleted' => 0
+                'deleted' => 0,
+                'skipped' => 0,
+                'created' => 0,
+                'errors' => 0
             ];
 
             // 如果启用删除检测，先处理删除的页面（使用完整页面列表）

@@ -902,7 +902,6 @@ class Notion_API {
 
             // 正确的Notion API时间戳过滤器格式
             $time_filter = [
-                'property' => 'last_edited_time',
                 'last_edited_time' => [
                     'after' => $formatted_time
                 ]
