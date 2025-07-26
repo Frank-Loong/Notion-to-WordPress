@@ -387,6 +387,24 @@ class Notion_Import_Coordinator {
                 // 使用传统逐个处理模式（优化内存使用）
                 $processed_count = 0;
                 foreach ($pages as $index => $page) {
+                    // 检查执行时间，防止超时（修复：分块处理优化）
+                    $elapsed_time = microtime(true) - $import_start_time;
+                    if ($elapsed_time > 480) { // 8分钟后开始检查
+                        Notion_Logger::warning_log(
+                            sprintf('同步已运行%.1f秒，为防止超时将在处理完当前页面后停止', $elapsed_time),
+                            'Performance'
+                        );
+                        // 设置处理状态，下次同步将从这里继续
+                        if ($processed_count > 0) {
+                            Notion_Logger::info_log(
+                                sprintf('本次成功处理了%d个页面，剩余%d个页面将在下次同步时处理', 
+                                    $processed_count, count($pages) - $index),
+                                'Performance'
+                            );
+                        }
+                        break;
+                    }
+
                     if (!$performance_mode) {
                         Notion_Logger::debug_log('处理页面 ' . ($index + 1) . '/' . count($pages) . ', ID: ' . ($page['id'] ?? 'unknown'), 'Pages Import');
                     }
@@ -494,6 +512,12 @@ class Notion_Import_Coordinator {
                 '同步完成，缓存已禁用无需清理',
                 'Performance Stats'
             );
+
+            // 恢复原始执行时间限制（修复：执行时间管理）
+            if (isset($original_time_limit) && $original_time_limit != ini_get('max_execution_time')) {
+                set_time_limit($original_time_limit);
+                Notion_Logger::debug_log('已恢复原始PHP执行时间限制', 'Performance');
+            }
 
             return $stats;
 

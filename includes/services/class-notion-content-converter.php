@@ -60,9 +60,30 @@ class Notion_Content_Converter {
             }
         }
 
-        // 如果有子数据库块，使用新的批量处理器
+        // 如果有子数据库块，使用新的批量处理器（修复：增强错误处理）
         if (!empty($database_blocks)) {
-            $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
+            try {
+                $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
+                
+                // 验证批量处理结果
+                if (empty($database_data)) {
+                    Notion_Logger::debug_log(
+                        '批量处理返回空数据，将使用标准处理模式',
+                        'Child Database Batch'
+                    );
+                } else {
+                    Notion_Logger::debug_log(
+                        sprintf('批量处理成功，获取到 %d 个数据库的预处理数据', count($database_data)),
+                        'Child Database Batch'
+                    );
+                }
+            } catch (Exception $e) {
+                Notion_Logger::error_log(
+                    '子数据库批量处理失败: ' . $e->getMessage(),
+                    'Child Database Batch'
+                );
+                $database_data = []; // 确保是空数组，触发标准处理
+            }
         }
 
         // 为这次转换创建本地的已处理块列表，避免跨调用的状态污染
@@ -1188,9 +1209,30 @@ class Notion_Content_Converter {
             }
         }
 
-        // 批量处理子数据库块
+        // 批量处理子数据库块（修复：增强错误处理）
         if (!empty($database_blocks)) {
-            $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
+            try {
+                $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
+                
+                // 验证批量处理结果
+                if (empty($database_data)) {
+                    Notion_Logger::debug_log(
+                        '优化模式：批量处理返回空数据，将回退到标准处理',
+                        'Child Database Batch'
+                    );
+                } else {
+                    Notion_Logger::debug_log(
+                        sprintf('优化模式：批量处理成功，获取到 %d 个数据库的预处理数据', count($database_data)),
+                        'Child Database Batch'
+                    );
+                }
+            } catch (Exception $e) {
+                Notion_Logger::error_log(
+                    '优化模式：子数据库批量处理失败: ' . $e->getMessage(),
+                    'Child Database Batch'
+                );
+                $database_data = []; // 确保是空数组，触发标准处理
+            }
         }
 
         // 主要转换循环 - 优化版本
