@@ -42,14 +42,36 @@ $(document).ready(function() {
     
     // 渲染每个Mermaid图表
     mermaidElements.forEach((element, index) => {
-        const mermaidCode = element.textContent || element.innerText;
+        let mermaidCode = element.textContent || element.innerText;
         
         if (!mermaidCode.trim()) {
             console.log(`跳过空的Mermaid图表 #${index}`);
             return;
         }
         
+        // 额外的字符清理，确保Mermaid语法正确
+        mermaidCode = mermaidCode
+            // 处理可能的HTML实体
+            .replace(/--&gt;/g, '-->')
+            .replace(/-&gt;/g, '->')
+            .replace(/&gt;&gt;/g, '>>')
+            .replace(/&gt;/g, '>')
+            .replace(/&lt;/g, '<')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .replace(/&amp;/g, '&')
+            // 处理Unicode字符问题
+            .replace(/–>/g, '-->')  // em dash
+            .replace(/—>/g, '-->')  // em dash
+            .replace(/–/g, '-')     // em dash to hyphen
+            .replace(/—/g, '-')     // em dash to hyphen
+            // 处理其他可能的箭头字符
+            .replace(/»/g, '>')     // right guillemet
+            .replace(/«/g, '<')     // left guillemet
+            .trim();
+        
         console.log(`渲染Mermaid图表 #${index}:`, mermaidCode.substring(0, 50) + '...');
+        console.log(`完整Mermaid代码 #${index}:`, mermaidCode);
         
         try {
             // 为每个元素设置唯一ID
@@ -63,9 +85,12 @@ $(document).ready(function() {
                     console.log(`Mermaid图表 #${index} 渲染成功`);
                 }).catch(err => {
                     console.error(`Mermaid图表 #${index} 渲染失败:`, err);
+                    console.error(`失败的代码:`, mermaidCode);
                     element.innerHTML = '<div style="color: red; border: 1px solid red; padding: 10px;">Mermaid渲染失败: ' + err.message + '</div>';
                 });
             } else if (typeof mermaid.init === 'function') {
+                // 清空元素内容并设置代码
+                element.textContent = mermaidCode;
                 // 使用旧版API
                 mermaid.init(undefined, element);
                 console.log(`Mermaid图表 #${index} 渲染完成（旧版API）`);
@@ -73,6 +98,7 @@ $(document).ready(function() {
             
         } catch (error) {
             console.error(`处理Mermaid图表 #${index} 时出错:`, error);
+            console.error(`出错的代码:`, mermaidCode);
             element.innerHTML = '<div style="color: red; border: 1px solid red; padding: 10px;">Mermaid处理失败: ' + error.message + '</div>';
         }
     });

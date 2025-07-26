@@ -434,26 +434,48 @@ class Notion_Content_Converter {
             }
         }
 
-        // 特殊处理Mermaid图表 - 简化处理，避免过度转义
+        // 特殊处理Mermaid图表 - 修复字符编码问题
         if ($language === 'mermaid') {
             // 直接使用原始代码，只做最基本的清理
             $mermaid_code = trim($code_content);
             
-            // 只处理最关键的HTML实体，避免破坏Mermaid语法
+            // 处理HTML实体和特殊字符
             $mermaid_code = str_replace([
+                // HTML实体
                 '--&gt;', 
                 '-&gt;',
+                '&gt;&gt;',
                 '&gt;',
                 '&lt;',
                 '&quot;',
-                '&#39;'
+                '&#39;',
+                '&amp;',
+                // Unicode字符问题
+                '–>', // em dash + >
+                '—>', // em dash + >
+                '–', // em dash
+                '—', // em dash
+                // 其他可能的箭头问题
+                '»', // right guillemet
+                '«', // left guillemet
             ], [
+                // 正确的Mermaid语法
                 '-->', 
                 '->',
+                '>>',
                 '>',
                 '<',
                 '"',
-                "'"
+                "'",
+                '&',
+                // 修复为正确的连字符
+                '-->', 
+                '-->', 
+                '-', 
+                '-',
+                // 修复guillemets
+                '>',
+                '<',
             ], $mermaid_code);
             
             // 直接输出，不进行额外的HTML转义
