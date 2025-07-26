@@ -676,11 +676,20 @@ class Notion_To_WordPress {
 		wp_enqueue_script( 'katex-mhchem' );
 		wp_enqueue_script( 'katex-auto-render' );
 
-		// 处理公式与Mermaid渲染的脚本
+		// KaTeX渲染脚本
 		wp_enqueue_script(
 			$this->plugin_name . '-katex-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
-			array('jquery', 'mermaid', 'katex', 'katex-mhchem', 'katex-auto-render'),
+			array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
+			$this->version,
+			true
+		);
+
+		// 简化的Mermaid渲染脚本
+		wp_enqueue_script(
+			$this->plugin_name . '-simple-mermaid',
+			Notion_To_WordPress_Helper::plugin_url('assets/js/simple-mermaid.js'),
+			array('jquery', 'mermaid'),
 			$this->version,
 			true
 		);

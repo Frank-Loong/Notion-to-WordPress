@@ -434,22 +434,30 @@ class Notion_Content_Converter {
             }
         }
 
-        // 特殊处理Mermaid图表
+        // 特殊处理Mermaid图表 - 简化处理，避免过度转义
         if ($language === 'mermaid') {
-            // Mermaid代码不应该被HTML转义，使用标准的div结构
-            // 添加data-original-code属性保存原始代码，用于复制功能
-            $escaped_code = esc_attr($code_content);
-
-            // 解码可能已经被HTML转义的Mermaid代码
-            // 这是为了修复 --> 被转义成 --&gt; 导致的语法错误
-            $decoded_content = html_entity_decode(trim($code_content), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
-            // 清理Mermaid代码，移除HTML标签和修复特殊字符
-            $cleaned_content = self::clean_mermaid_code($decoded_content);
-
-            // 确保Mermaid代码不被HTML转义，但保存原始代码用于复制
-            // 添加 data-skip-wrapper 属性，告诉 wrap_block_with_id 函数不要添加额外的类
-            return '<div class="mermaid" data-original-code="' . $escaped_code . '" data-skip-wrapper="true">' . $cleaned_content . '</div>';
+            // 直接使用原始代码，只做最基本的清理
+            $mermaid_code = trim($code_content);
+            
+            // 只处理最关键的HTML实体，避免破坏Mermaid语法
+            $mermaid_code = str_replace([
+                '--&gt;', 
+                '-&gt;',
+                '&gt;',
+                '&lt;',
+                '&quot;',
+                '&#39;'
+            ], [
+                '-->', 
+                '->',
+                '>',
+                '<',
+                '"',
+                "'"
+            ], $mermaid_code);
+            
+            // 直接输出，不进行额外的HTML转义
+            return '<div class="mermaid">' . $mermaid_code . '</div>';
         }
 
         $escaped_code = esc_html($code_content);
