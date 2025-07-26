@@ -247,6 +247,13 @@ class Notion_Import_Coordinator {
         try {
             // 开始性能监控
             $import_start_time = microtime(true);
+            // 增加执行时间限制以防止超时（修复：解决PHP执行超时问题）
+            $original_time_limit = ini_get('max_execution_time');
+            if ($original_time_limit < 600) {
+                set_time_limit(600); // 设置为10分钟
+                Notion_Logger::info_log('已增加PHP执行时间限制到600秒', 'Performance');
+            }
+
             $performance_stats = [
                 'total_time' => 0,
                 'api_calls' => 0,
@@ -1189,12 +1196,19 @@ class Notion_Import_Coordinator {
      * @return array 变更的页面列表
      */
     private function get_changed_pages_only(string $last_sync_time): array {
-        // 构建基础的时间戳过滤条件
+        // 验证时间戳有效性
+        if (empty($last_sync_time) || trim($last_sync_time) === '') {
+            Notion_Logger::warning_log(
+                "无效的同步时间戳，使用全量获取",
+                'Incremental Sync'
+            );
+            return $this->notion_api->get_database_pages($this->database_id);
+        }
+
+        // 构建基础的时间戳过滤条件（修复：使用正确的Notion API格式）
         $filter = [
-            'timestamp' => [
-                'last_edited_time' => [
-                    'after' => $last_sync_time
-                ]
+            'last_edited_time' => [
+                'after' => $last_sync_time
             ]
         ];
         

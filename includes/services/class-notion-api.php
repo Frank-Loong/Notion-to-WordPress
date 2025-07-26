@@ -147,7 +147,7 @@ class Notion_API {
                 'page_size' => $page_size
             ];
 
-            if (!empty($filter)) {
+            if ($this->is_valid_filter($filter)) {
                 $data['filter'] = $filter;
             }
 
@@ -900,12 +900,14 @@ class Notion_API {
             // 确保时间格式正确
             $formatted_time = $this->format_timestamp_for_api($last_sync_time);
 
-            // 正确的Notion API时间戳过滤器格式
-            $time_filter = [
-                'last_edited_time' => [
-                    'after' => $formatted_time
-                ]
-            ];
+            // 只有在格式化后的时间有效时才创建过滤器
+            if (!empty($formatted_time)) {
+                $time_filter = [
+                    'last_edited_time' => [
+                        'after' => $formatted_time
+                    ]
+                ];
+            }
         }
 
         // 构建复合过滤器
@@ -929,6 +931,22 @@ class Notion_API {
             $final_filter = ['and' => $filters];
         }
 
+        // 验证最终过滤器的有效性
+        if (!$this->is_valid_filter($final_filter)) {
+            // 如果过滤器无效，记录警告并使用无过滤器的查询
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log(
+                    sprintf(
+                        'API层增量过滤器无效，使用全量查询: 数据库=%s, 时间戳=%s',
+                        $database_id,
+                        $last_sync_time ?: '无'
+                    ),
+                    'Smart Incremental Fetch'
+                );
+            }
+            $final_filter = []; // 清空过滤器，使用全量查询
+        }
+
         // 记录过滤器信息
         if (class_exists('Notion_Logger')) {
             Notion_Logger::info_log(
@@ -943,8 +961,10 @@ class Notion_API {
         }
 
         try {
-            // 使用过滤器获取数据
-            $filtered_pages = $this->get_database_pages($database_id, $final_filter, $with_details);
+            // 使用过滤器获取数据（只有在有有效过滤器时才传递）
+            $filtered_pages = $this->is_valid_filter($final_filter) 
+                ? $this->get_database_pages($database_id, $final_filter, $with_details)
+                : $this->get_database_pages($database_id, [], $with_details);
 
             // 记录过滤效果统计
             $processing_time = microtime(true) - $start_time;
@@ -1060,21 +1080,66 @@ class Notion_API {
      * @return string 格式化后的时间戳
      */
     private function format_timestamp_for_api(string $timestamp): string {
+        // 如果为空或无效，返回null以避免API错误
+        if (empty($timestamp) || trim($timestamp) === '') {
+            return '';
+        }
+
         // 如果已经是ISO 8601格式，直接返回
-        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/', $timestamp)) {
-            return $timestamp;
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/', $timestamp)) {
+            // 确保时间戳以Z结尾（UTC格式）
+            return rtrim($timestamp, 'Z') . 'Z';
         }
 
         // 尝试解析并转换为ISO 8601格式
         try {
             $date = new DateTime($timestamp);
-            return $date->format('c'); // ISO 8601格式
+            // 转换为UTC时间并格式化为ISO 8601
+            $date->setTimezone(new DateTimeZone('UTC'));
+            return $date->format('Y-m-d\TH:i:s\Z');
         } catch (Exception $e) {
-            // 如果解析失败，返回当前时间前1小时
-            $date = new DateTime();
-            $date->modify('-1 hour');
-            return $date->format('c');
+            // 如果解析失败，记录错误并返回空字符串
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::warning_log(
+                    "时间戳格式化失败: {$timestamp} - " . $e->getMessage(),
+                    'API Time Format'
+                );
+            }
+            return '';
         }
+    }
+
+    /**
+     * 验证过滤器是否有效
+     * 
+     * 检查过滤器是否包含有效的过滤条件，避免传递空过滤器导致API错误
+     *
+     * @since 2.0.0-beta.1
+     * @param array $filter 过滤器数组
+     * @return bool 是否为有效过滤器
+     */
+    private function is_valid_filter(array $filter): bool {
+        // 如果过滤器为空，返回false
+        if (empty($filter)) {
+            return false;
+        }
+
+        // 检查是否包含有效的过滤条件
+        $valid_filter_keys = [
+            'and', 'or', 'title', 'rich_text', 'number', 'checkbox', 'select', 
+            'multi_select', 'status', 'date', 'people', 'files', 'url', 'email', 
+            'phone_number', 'relation', 'created_by', 'created_time', 
+            'last_edited_by', 'last_edited_time', 'formula', 'unique_id', 'rollup'
+        ];
+
+        // 检查过滤器是否包含至少一个有效的键
+        foreach ($valid_filter_keys as $key) {
+            if (isset($filter[$key]) && !empty($filter[$key])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
