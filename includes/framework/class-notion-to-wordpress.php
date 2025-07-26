@@ -509,124 +509,172 @@ class Notion_To_WordPress {
 		);
 
 		// ---------------- 公式相关（KaTeX） ----------------
-		// 允许通过过滤器自定义CDN前缀
-		$cdn_prefix = apply_filters( 'ntw_cdn_prefix', 'https://cdn.jsdelivr.net' );
+		// 获取CDN配置
+		$cdn_config = $this->get_cdn_config();
+		$cdn_enabled = $cdn_config['enabled'] ?? false;
+		$cdn_base_url = $cdn_config['baseUrl'] ?? 'https://cdn.jsdelivr.net';
+		
+		// 如果CDN未启用，使用本地资源
+		if (!$cdn_enabled) {
+			// 使用本地KaTeX资源
+			wp_enqueue_style(
+				'katex',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.css'),
+				array(),
+				$this->version
+			);
+		} else {
+			// 使用CDN资源
+			wp_enqueue_style(
+				'katex',
+				$cdn_base_url . '/npm/katex@0.16.22/dist/katex.min.css',
+				array(),
+				'0.16.22'
+			);
+			
+			// 本地兜底样式
+			wp_enqueue_style(
+				'katex-fallback',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.css'),
+				array(),
+				$this->version
+			);
+		}
 
-		// KaTeX 样式
-		wp_enqueue_style(
-			'katex',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.css',
-			array(),
-			'0.16.22'
-		);
+		if (!$cdn_enabled) {
+			// 使用本地JavaScript资源
+			wp_register_script(
+				'katex',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js'),
+				array(),
+				$this->version,
+				true
+			);
+			
+			wp_register_script(
+				'katex-mhchem',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
+				array( 'katex' ),
+				$this->version,
+				true
+			);
+			
+			wp_register_script(
+				'katex-auto-render',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
+				array( 'katex' ),
+				$this->version,
+				true
+			);
+			
+			wp_enqueue_script(
+				'mermaid',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js'),
+				array(),
+				$this->version,
+				true
+			);
+		} else {
+			// 使用CDN JavaScript资源
+			wp_register_script(
+				'katex',
+				$cdn_base_url . '/npm/katex@0.16.22/dist/katex.min.js',
+				array(),
+				'0.16.22',
+				true
+			);
 
-		// 本地兜底样式
-		wp_enqueue_style(
-			'katex-fallback',
-			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.css'),
-			array(),
-			$this->version
-		);
+			// 本地兜底脚本
+			wp_register_script(
+				'katex-fallback',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js'),
+				array(),
+				$this->version,
+				true
+			);
 
-		// KaTeX 主库 - CDN优先
-		wp_register_script(
-			'katex',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/katex.min.js',
-			array(),
-			'0.16.22',
-			true
-		);
+			// mhchem 扩展（化学公式）依赖 KaTeX
+			wp_register_script(
+				'katex-mhchem',
+				$cdn_base_url . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+				array( 'katex' ),
+				'0.16.22',
+				true
+			);
 
-		// 本地兜底脚本
-		wp_register_script(
-			'katex-fallback',
-			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js'),
-			array(),
-			$this->version,
-			true
-		);
+			// mhchem 本地兜底
+			wp_register_script(
+				'katex-mhchem-fallback',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
+				array( 'katex-fallback' ),
+				$this->version,
+				true
+			);
 
-		// mhchem 扩展（化学公式）依赖 KaTeX
-		wp_register_script(
-			'katex-mhchem',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
-			array( 'katex' ),
-			'0.16.22',
-			true
-		);
+			// KaTeX auto-render 扩展，依赖 KaTeX
+			wp_register_script(
+				'katex-auto-render',
+				$cdn_base_url . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
+				array( 'katex' ),
+				'0.16.22',
+				true
+			);
 
-		// mhchem 本地兜底
-		wp_register_script(
-			'katex-mhchem-fallback',
-			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
-			array( 'katex-fallback' ),
-			$this->version,
-			true
-		);
+			// auto-render 本地兜底
+			wp_register_script(
+				'katex-auto-render-fallback',
+				Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
+				array( 'katex-fallback' ),
+				$this->version,
+				true
+			);
+			
+			// Mermaid - CDN优先，本地兜底
+			wp_enqueue_script(
+				'mermaid',
+				$cdn_base_url . '/npm/mermaid@11/dist/mermaid.min.js',
+				array(),
+				'11.7.0',
+				true
+			);
 
-		// KaTeX auto-render 扩展，依赖 KaTeX
-		wp_register_script(
-			'katex-auto-render',
-			$cdn_prefix . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
-			array( 'katex' ),
-			'0.16.22',
-			true
-		);
+			// 添加CDN兜底逻辑
+			wp_add_inline_script( 'katex', "
+				// KaTeX CDN兜底逻辑
+				if (typeof katex === 'undefined') {
+					console.log('KaTeX CDN failed, loading fallback...');
+					var script = document.createElement('script');
+					script.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js') . "';
+					script.onload = function() {
+						// 加载mhchem兜底
+						var mhchemScript = document.createElement('script');
+						mhchemScript.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js') . "';
+						document.head.appendChild(mhchemScript);
 
-		// auto-render 本地兜底
-		wp_register_script(
-			'katex-auto-render-fallback',
-			Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
-			array( 'katex-fallback' ),
-			$this->version,
-			true
-		);
+						// 加载auto-render兜底
+						var autoRenderScript = document.createElement('script');
+						autoRenderScript.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js') . "';
+						document.head.appendChild(autoRenderScript);
+					};
+					document.head.appendChild(script);
+				}
+			" );
+			
+			// Mermaid CDN兜底逻辑
+			wp_add_inline_script( 'mermaid', "
+				if (typeof mermaid === 'undefined') {
+					console.log('Mermaid CDN failed, loading fallback...');
+					var script = document.createElement('script');
+					script.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js') . "';
+					document.head.appendChild(script);
+				}
+			" );
+		}
 
 		// 按顺序入队 KaTeX 相关脚本
 		wp_enqueue_script( 'katex' );
 		wp_enqueue_script( 'katex-mhchem' );
 		wp_enqueue_script( 'katex-auto-render' );
-
-		// 添加CDN兜底逻辑
-		wp_add_inline_script( 'katex', "
-			// KaTeX CDN兜底逻辑
-			if (typeof katex === 'undefined') {
-				console.log('KaTeX CDN failed, loading fallback...');
-				var script = document.createElement('script');
-				script.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/katex.min.js') . "';
-				script.onload = function() {
-					// 加载mhchem兜底
-					var mhchemScript = document.createElement('script');
-					mhchemScript.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/mhchem.min.js') . "';
-					document.head.appendChild(mhchemScript);
-
-					// 加载auto-render兜底
-					var autoRenderScript = document.createElement('script');
-					autoRenderScript.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/katex/auto-render.min.js') . "';
-					document.head.appendChild(autoRenderScript);
-				};
-				document.head.appendChild(script);
-			}
-		" );
-
-		// ---------------- Mermaid - CDN优先，本地兜底 ----------------
-		wp_enqueue_script(
-			'mermaid',
-			$cdn_prefix . '/npm/mermaid@11/dist/mermaid.min.js',
-			array(),
-			'11.7.0',
-			true
-		);
-
-		// Mermaid CDN兜底逻辑
-		wp_add_inline_script( 'mermaid', "
-			if (typeof mermaid === 'undefined') {
-				console.log('Mermaid CDN failed, loading fallback...');
-				var script = document.createElement('script');
-				script.src = '" . Notion_To_WordPress_Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js') . "';
-				document.head.appendChild(script);
-			}
-		" );
 
 		// 处理公式与Mermaid渲染的脚本
 		wp_enqueue_script(

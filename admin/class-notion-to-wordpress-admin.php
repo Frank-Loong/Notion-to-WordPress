@@ -327,6 +327,19 @@ class Notion_To_WordPress_Admin {
         $options['log_buffer_size'] = isset( $_POST['log_buffer_size'] ) ? min( 200, max( 10, intval( $_POST['log_buffer_size'] ) ) ) : 50;
         $options['enable_performance_mode'] = isset( $_POST['enable_performance_mode'] ) ? 1 : 0;
 
+        // CDN 配置
+        $options['enable_cdn'] = isset( $_POST['enable_cdn'] ) ? 1 : 0;
+        $options['cdn_provider'] = isset( $_POST['cdn_provider'] ) ? sanitize_text_field( $_POST['cdn_provider'] ) : 'jsdelivr';
+        $options['custom_cdn_url'] = isset( $_POST['custom_cdn_url'] ) ? esc_url_raw( $_POST['custom_cdn_url'] ) : '';
+        
+        // CDN 相关的性能优化选项
+        $options['enable_asset_compression'] = isset( $_POST['enable_asset_compression'] ) ? 1 : 0;
+        $options['compression_level'] = isset( $_POST['compression_level'] ) ? sanitize_text_field( $_POST['compression_level'] ) : 'auto';
+        $options['enhanced_lazy_loading'] = isset( $_POST['enhanced_lazy_loading'] ) ? 1 : 0;
+        $options['preload_threshold'] = isset( $_POST['preload_threshold'] ) ? min( 10, max( 1, intval( $_POST['preload_threshold'] ) ) ) : 2;
+        $options['performance_monitoring'] = isset( $_POST['performance_monitoring'] ) ? 1 : 0;
+        $options['performance_report_interval'] = isset( $_POST['performance_report_interval'] ) ? min( 60000, max( 5000, intval( $_POST['performance_report_interval'] ) ) ) : 30000;
+
         // Field Mapping
         if ( isset( $_POST['field_mapping'] ) && is_array( $_POST['field_mapping'] ) ) {
             $options['field_mapping'] = array_map( 'sanitize_text_field', $_POST['field_mapping'] );
