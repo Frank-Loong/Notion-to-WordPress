@@ -83,6 +83,11 @@ class Notion_To_WordPress_Admin {
         add_action('wp_ajax_notion_create_database_indexes', array($this, 'handle_create_database_indexes_ajax'));
         add_action('wp_ajax_notion_get_index_status', array($this, 'handle_get_index_status_ajax'));
         add_action('wp_ajax_notion_remove_database_indexes', array($this, 'handle_remove_database_indexes_ajax'));
+        add_action('wp_ajax_notion_get_queue_status', array($this, 'handle_get_queue_status_ajax'));
+        add_action('wp_ajax_notion_cancel_queue_task', array($this, 'handle_cancel_queue_task_ajax'));
+        add_action('wp_ajax_notion_cleanup_queue', array($this, 'handle_cleanup_queue_ajax'));
+        add_action('wp_ajax_notion_get_async_status', array($this, 'handle_get_async_status_ajax'));
+        add_action('wp_ajax_notion_control_async_operation', array($this, 'handle_control_async_operation_ajax'));
     }
 
     /**
@@ -1067,6 +1072,221 @@ class Notion_To_WordPress_Admin {
 
         } catch (Exception $e) {
             wp_send_json_error(['message' => '删除索引时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    // ==================== 队列管理AJAX处理方法 ====================
+
+    /**
+     * 处理获取队列状态的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_get_queue_status_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            if (class_exists('Notion_Queue_Manager')) {
+                $queue_status = Notion_Queue_Manager::get_queue_status();
+
+                wp_send_json_success([
+                    'status' => $queue_status,
+                    'message' => '队列状态获取成功'
+                ]);
+            } else {
+                wp_send_json_error(['message' => '队列管理器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '获取队列状态时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理取消队列任务的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_cancel_queue_task_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $task_id = sanitize_text_field($_POST['task_id'] ?? '');
+
+        if (empty($task_id)) {
+            wp_send_json_error(['message' => '任务ID不能为空']);
+            return;
+        }
+
+        try {
+            if (class_exists('Notion_Queue_Manager')) {
+                $result = Notion_Queue_Manager::cancel_task($task_id);
+
+                if ($result) {
+                    wp_send_json_success(['message' => '任务已成功取消']);
+                } else {
+                    wp_send_json_error(['message' => '任务取消失败，可能任务不存在或已完成']);
+                }
+            } else {
+                wp_send_json_error(['message' => '队列管理器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '取消任务时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理清理队列的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_cleanup_queue_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            if (class_exists('Notion_Queue_Manager')) {
+                $cleaned_count = Notion_Queue_Manager::cleanup_completed_tasks();
+
+                wp_send_json_success([
+                    'message' => "已清理 {$cleaned_count} 个已完成的任务",
+                    'cleaned_count' => $cleaned_count
+                ]);
+            } else {
+                wp_send_json_error(['message' => '队列管理器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '清理队列时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理获取异步状态的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_get_async_status_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            if (class_exists('Notion_Async_Processor')) {
+                $async_status = Notion_Async_Processor::get_async_status();
+
+                wp_send_json_success([
+                    'status' => $async_status,
+                    'message' => '异步状态获取成功'
+                ]);
+            } else {
+                wp_send_json_error(['message' => '异步处理器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '获取异步状态时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理控制异步操作的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_control_async_operation_ajax() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $action = sanitize_text_field($_POST['action_type'] ?? '');
+
+        if (empty($action)) {
+            wp_send_json_error(['message' => '操作类型不能为空']);
+            return;
+        }
+
+        try {
+            if (class_exists('Notion_Async_Processor')) {
+                $result = false;
+                $message = '';
+
+                switch ($action) {
+                    case 'pause':
+                        $result = Notion_Async_Processor::pause_async_operation();
+                        $message = $result ? '异步操作已暂停' : '暂停失败，可能没有运行中的操作';
+                        break;
+
+                    case 'resume':
+                        $result = Notion_Async_Processor::resume_async_operation();
+                        $message = $result ? '异步操作已恢复' : '恢复失败，可能没有暂停的操作';
+                        break;
+
+                    case 'stop':
+                        $result = Notion_Async_Processor::stop_async_operation();
+                        $message = $result ? '异步操作已停止' : '停止失败，可能没有运行中的操作';
+                        break;
+
+                    default:
+                        wp_send_json_error(['message' => '未知的操作类型']);
+                        return;
+                }
+
+                if ($result) {
+                    wp_send_json_success(['message' => $message]);
+                } else {
+                    wp_send_json_error(['message' => $message]);
+                }
+            } else {
+                wp_send_json_error(['message' => '异步处理器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '控制异步操作时发生异常: ' . $e->getMessage()]);
         }
     }
 

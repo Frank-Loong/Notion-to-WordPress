@@ -1018,6 +1018,18 @@ jQuery(document).ready(function($) {
         if ($('#enable_asset_compression').length > 0) {
             checkResourceOptimizationStatus();
         }
+
+        // 异步处理状态检查
+        if ($('#async-status-container').length > 0) {
+            refreshAsyncStatus();
+        }
+
+        // 绑定异步处理按钮事件
+        $('#refresh-async-status').on('click', refreshAsyncStatus);
+        $('#pause-async-operation').on('click', function() { controlAsyncOperation('pause'); });
+        $('#resume-async-operation').on('click', function() { controlAsyncOperation('resume'); });
+        $('#stop-async-operation').on('click', function() { controlAsyncOperation('stop'); });
+        $('#cleanup-queue').on('click', cleanupQueue);
     });
 
     /**
@@ -1061,6 +1073,265 @@ jQuery(document).ready(function($) {
         canvas.width = 1;
         canvas.height = 1;
         return canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+    }
+
+    // ==================== 异步处理管理功能 ====================
+
+    /**
+     * 刷新异步状态
+     */
+    function refreshAsyncStatus() {
+        const $asyncContainer = $('#async-status-container');
+        const $queueContainer = $('#queue-status-container');
+
+        $asyncContainer.html('<div class="loading-placeholder"><span class="spinner is-active"></span> 正在检查异步状态...</div>');
+        $queueContainer.html('<div class="loading-placeholder"><span class="spinner is-active"></span> 正在检查队列状态...</div>');
+
+        // 获取异步状态
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_get_async_status',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    displayAsyncStatus(response.data.status);
+                } else {
+                    $asyncContainer.html('<div class="error-message">获取异步状态失败: ' + (response.data.message || '未知错误') + '</div>');
+                }
+            },
+            error: function() {
+                $asyncContainer.html('<div class="error-message">网络错误，无法获取异步状态</div>');
+            }
+        });
+
+        // 获取队列状态
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_get_queue_status',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    displayQueueStatus(response.data.status);
+                } else {
+                    $queueContainer.html('<div class="error-message">获取队列状态失败: ' + (response.data.message || '未知错误') + '</div>');
+                }
+            },
+            error: function() {
+                $queueContainer.html('<div class="error-message">网络错误，无法获取队列状态</div>');
+            }
+        });
+    }
+
+    /**
+     * 显示异步状态
+     */
+    function displayAsyncStatus(status) {
+        const $container = $('#async-status-container');
+
+        let html = '<div class="async-status-grid">';
+
+        // 状态显示
+        html += '<div class="async-status-item">';
+        html += '<span class="status-label">当前状态:</span>';
+        html += '<span class="status-value status-' + status.status + '">';
+
+        const statusText = {
+            'idle': '空闲',
+            'running': '运行中',
+            'paused': '已暂停',
+            'error': '错误'
+        };
+
+        html += statusText[status.status] || status.status;
+        html += '</span></div>';
+
+        if (status.operation) {
+            html += '<div class="async-status-item">';
+            html += '<span class="status-label">当前操作:</span>';
+            html += '<span class="status-value">' + status.operation + '</span>';
+            html += '</div>';
+        }
+
+        if (status.data_count > 0) {
+            html += '<div class="async-status-item">';
+            html += '<span class="status-label">数据量:</span>';
+            html += '<span class="status-value">' + status.data_count + '</span>';
+            html += '</div>';
+        }
+
+        if (status.progress > 0) {
+            html += '<div class="async-status-item">';
+            html += '<span class="status-label">进度:</span>';
+            html += '<span class="status-value">' + status.progress + '%</span>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+
+        $container.html(html);
+
+        // 更新按钮状态
+        updateAsyncButtons(status.status);
+    }
+
+    /**
+     * 显示队列状态
+     */
+    function displayQueueStatus(status) {
+        const $container = $('#queue-status-container');
+
+        let html = '<div class="queue-status-grid">';
+
+        html += '<div class="queue-status-item">';
+        html += '<span class="status-label">总任务数:</span>';
+        html += '<span class="status-value">' + status.total_tasks + '</span>';
+        html += '</div>';
+
+        html += '<div class="queue-status-item">';
+        html += '<span class="status-label">待处理:</span>';
+        html += '<span class="status-value">' + status.pending + '</span>';
+        html += '</div>';
+
+        html += '<div class="queue-status-item">';
+        html += '<span class="status-label">处理中:</span>';
+        html += '<span class="status-value">' + status.processing + '</span>';
+        html += '</div>';
+
+        html += '<div class="queue-status-item">';
+        html += '<span class="status-label">已完成:</span>';
+        html += '<span class="status-value">' + status.completed + '</span>';
+        html += '</div>';
+
+        html += '<div class="queue-status-item">';
+        html += '<span class="status-label">失败:</span>';
+        html += '<span class="status-value">' + status.failed + '</span>';
+        html += '</div>';
+
+        html += '<div class="queue-status-item">';
+        html += '<span class="status-label">重试中:</span>';
+        html += '<span class="status-value">' + status.retrying + '</span>';
+        html += '</div>';
+
+        html += '</div>';
+
+        $container.html(html);
+    }
+
+    /**
+     * 更新异步操作按钮状态
+     */
+    function updateAsyncButtons(status) {
+        const $pauseBtn = $('#pause-async-operation');
+        const $resumeBtn = $('#resume-async-operation');
+        const $stopBtn = $('#stop-async-operation');
+
+        // 隐藏所有按钮
+        $pauseBtn.hide();
+        $resumeBtn.hide();
+        $stopBtn.hide();
+
+        // 根据状态显示相应按钮
+        switch (status) {
+            case 'running':
+                $pauseBtn.show();
+                $stopBtn.show();
+                break;
+            case 'paused':
+                $resumeBtn.show();
+                $stopBtn.show();
+                break;
+        }
+    }
+
+    /**
+     * 控制异步操作
+     */
+    function controlAsyncOperation(actionType) {
+        const actionText = {
+            'pause': '暂停',
+            'resume': '恢复',
+            'stop': '停止'
+        };
+
+        const $button = $('#' + actionType + '-async-operation');
+        const originalText = $button.text();
+
+        $button.prop('disabled', true).html('<span class="spinner is-active"></span> 正在' + actionText[actionType] + '...');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_control_async_operation',
+                action_type: actionType,
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    showModal(response.data.message, 'success');
+
+                    // 刷新状态
+                    setTimeout(refreshAsyncStatus, 1000);
+                } else {
+                    showModal('操作失败: ' + (response.data.message || '未知错误'), 'error');
+                }
+            },
+            error: function() {
+                showModal('网络错误，操作失败', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text(originalText);
+            }
+        });
+    }
+
+    /**
+     * 清理队列
+     */
+    function cleanupQueue() {
+        if (!confirm('确定要清理已完成的队列任务吗？')) {
+            return;
+        }
+
+        const $button = $('#cleanup-queue');
+        const originalText = $button.text();
+
+        $button.prop('disabled', true).html('<span class="spinner is-active"></span> 正在清理...');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            dataType: 'json',
+            data: {
+                action: 'notion_cleanup_queue',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    showModal(response.data.message, 'success');
+
+                    // 刷新状态
+                    setTimeout(refreshAsyncStatus, 1000);
+                } else {
+                    showModal('清理失败: ' + (response.data.message || '未知错误'), 'error');
+                }
+            },
+            error: function() {
+                showModal('网络错误，清理失败', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text(originalText);
+            }
+        });
     }
 
 })(jQuery);

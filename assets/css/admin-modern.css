@@ -1609,3 +1609,176 @@ code {
         gap: 8px;
     }
 }
+
+/* ==================== 异步处理管理样式 ==================== */
+
+/* 异步状态容器 */
+.notion-wp-async-status,
+.notion-wp-queue-status {
+    background: #fff;
+    border: 1px solid var(--notion-gray-300);
+    border-radius: var(--notion-border-radius);
+    padding: 20px;
+    margin: 16px 0;
+}
+
+/* 异步状态网格 */
+.async-status-grid,
+.queue-status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.async-status-item,
+.queue-status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--notion-gray-100);
+    border-radius: 6px;
+    border-left: 4px solid var(--notion-primary);
+}
+
+.status-label {
+    font-weight: 600;
+    color: var(--notion-gray-700);
+    font-size: 13px;
+}
+
+.status-value {
+    font-weight: 500;
+    color: var(--notion-gray-800);
+    font-size: 14px;
+}
+
+/* 状态颜色 */
+.status-value.status-idle {
+    color: var(--notion-gray-600);
+}
+
+.status-value.status-running {
+    color: var(--notion-primary);
+    animation: pulse 2s infinite;
+}
+
+.status-value.status-paused {
+    color: #f59e0b;
+}
+
+.status-value.status-error {
+    color: var(--notion-danger);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* 异步操作按钮 */
+.notion-wp-async-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 20px 0;
+    flex-wrap: wrap;
+}
+
+.notion-wp-async-actions .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--notion-transition);
+    font-size: 13px;
+    padding: 6px 12px;
+}
+
+.notion-wp-async-actions .button .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+}
+
+.notion-wp-async-actions .button-secondary {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: var(--notion-gray-700);
+}
+
+.notion-wp-async-actions .button-secondary:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+.notion-wp-async-actions .button-link-delete {
+    color: var(--notion-danger);
+    text-decoration: none;
+    background: transparent;
+    border: 1px solid var(--notion-danger);
+}
+
+.notion-wp-async-actions .button-link-delete:hover {
+    color: #fff;
+    background: var(--notion-danger);
+}
+
+/* 异步信息说明 */
+.notion-wp-async-info {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 20px;
+}
+
+.notion-wp-async-info h4 {
+    margin: 0 0 12px 0;
+    color: var(--notion-gray-800);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.notion-wp-async-info ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.notion-wp-async-info li {
+    color: var(--notion-gray-700);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+.notion-wp-async-info li strong {
+    color: var(--notion-gray-800);
+    font-weight: 600;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .async-status-grid,
+    .queue-status-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .notion-wp-async-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .notion-wp-async-actions .button {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .async-status-item,
+    .queue-status-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+}

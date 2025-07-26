@@ -842,6 +842,60 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 </ul>
                             </div>
 
+                            <!-- 异步处理架构管理部分 -->
+                            <div class="notion-wp-performance-card">
+                                <h3><?php esc_html_e('⚡ 异步处理架构', 'notion-to-wordpress'); ?></h3>
+                                <p><?php esc_html_e('异步处理架构可以解决大批量操作超时问题，显著提升用户体验。支持队列管理、错误恢复和智能调度。', 'notion-to-wordpress'); ?></p>
+
+                                <div class="notion-wp-async-status" id="async-status-container">
+                                    <div class="loading-placeholder">
+                                        <span class="spinner is-active"></span>
+                                        <?php esc_html_e('正在检查异步状态...', 'notion-to-wordpress'); ?>
+                                    </div>
+                                </div>
+
+                                <div class="notion-wp-queue-status" id="queue-status-container">
+                                    <div class="loading-placeholder">
+                                        <span class="spinner is-active"></span>
+                                        <?php esc_html_e('正在检查队列状态...', 'notion-to-wordpress'); ?>
+                                    </div>
+                                </div>
+
+                                <div class="notion-wp-async-actions">
+                                    <button type="button" class="button button-secondary" id="refresh-async-status">
+                                        <span class="dashicons dashicons-update"></span>
+                                        <?php esc_html_e('刷新状态', 'notion-to-wordpress'); ?>
+                                    </button>
+                                    <button type="button" class="button button-secondary" id="pause-async-operation" style="display: none;">
+                                        <span class="dashicons dashicons-controls-pause"></span>
+                                        <?php esc_html_e('暂停操作', 'notion-to-wordpress'); ?>
+                                    </button>
+                                    <button type="button" class="button button-secondary" id="resume-async-operation" style="display: none;">
+                                        <span class="dashicons dashicons-controls-play"></span>
+                                        <?php esc_html_e('恢复操作', 'notion-to-wordpress'); ?>
+                                    </button>
+                                    <button type="button" class="button button-link-delete" id="stop-async-operation" style="display: none;">
+                                        <span class="dashicons dashicons-controls-stop"></span>
+                                        <?php esc_html_e('停止操作', 'notion-to-wordpress'); ?>
+                                    </button>
+                                    <button type="button" class="button button-secondary" id="cleanup-queue">
+                                        <span class="dashicons dashicons-trash"></span>
+                                        <?php esc_html_e('清理队列', 'notion-to-wordpress'); ?>
+                                    </button>
+                                </div>
+
+                                <div class="notion-wp-async-info">
+                                    <h4><?php esc_html_e('异步处理说明', 'notion-to-wordpress'); ?></h4>
+                                    <ul>
+                                        <li><strong>队列系统</strong>: <?php esc_html_e('大批量操作自动分解为小批次，避免超时', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>错误恢复</strong>: <?php esc_html_e('失败的操作自动重试，提高成功率', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>智能调度</strong>: <?php esc_html_e('根据系统负载智能调整处理速度', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>状态监控</strong>: <?php esc_html_e('实时监控处理进度和系统状态', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>用户体验</strong>: <?php esc_html_e('后台处理，不阻塞用户操作', 'notion-to-wordpress'); ?></li>
+                                    </ul>
+                                </div>
+                            </div>
+
                             <!-- 数据库索引优化部分 -->
                             <div class="notion-wp-performance-card">
                                 <h3><?php esc_html_e('🗄️ 数据库索引优化', 'notion-to-wordpress'); ?></h3>

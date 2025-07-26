@@ -263,6 +263,16 @@ class Notion_To_WordPress {
 		// 新增：添加新的cron事件
 		$this->loader->add_action('notion_to_wordpress_cron_update', $this->notion_pages, 'update_post_from_notion_cron', 10, 1);
 		$this->loader->add_action('notion_to_wordpress_log_cleanup', 'Notion_To_WordPress_Helper', 'run_log_cleanup');
+
+		// 队列系统集成
+		if (class_exists('Notion_Queue_Manager')) {
+			Notion_Queue_Manager::init();
+		}
+
+		// 异步处理器集成
+		if (class_exists('Notion_Async_Processor')) {
+			Notion_Async_Processor::init();
+		}
 	}
 
 	/**
