@@ -81,6 +81,14 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败或返回错误。
      */
     private function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
+        // 🚀 性能优化：检查会话缓存
+        if ($method === 'GET' && class_exists('Notion_Session_Cache')) {
+            $cached_response = Notion_Session_Cache::get_cached_api_response($endpoint, $data);
+            if ($cached_response !== null) {
+                return $cached_response;
+            }
+        }
+
         $url = $this->api_base . $endpoint;
         $args = [
             'method'  => $method,
@@ -89,7 +97,7 @@ class Notion_API {
                 'Content-Type'   => 'application/json',
                 'Notion-Version' => '2022-06-28'
             ],
-            'timeout' => 30
+            'timeout' => 20  // 🚀 性能优化：调整为20秒，平衡性能与完整性
         ];
 
         if (!empty($data) && $method !== 'GET') {
@@ -110,7 +118,22 @@ class Notion_API {
         }
 
         $body = wp_remote_retrieve_body($response);
-        return json_decode($body, true) ?: [];
+        $decoded_response = json_decode($body, true) ?: [];
+
+        // 🚀 性能优化：智能缓存GET请求的响应
+        if ($method === 'GET' && class_exists('Notion_Session_Cache')) {
+            // 根据端点类型设置不同的缓存时间
+            $cache_ttl = 300; // 默认5分钟
+            if (strpos($endpoint, '/children') !== false) {
+                $cache_ttl = 600; // 子内容缓存10分钟
+            } elseif (strpos($endpoint, '/databases/') !== false) {
+                $cache_ttl = 900; // 数据库查询缓存15分钟
+            }
+
+            Notion_Session_Cache::cache_api_response($endpoint, $data, $decoded_response, $cache_ttl);
+        }
+
+        return $decoded_response;
     }
 
     /**
@@ -195,7 +218,12 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败。
      */
     public function get_page_content(string $block_id, int $depth = 0, int $max_depth = 5): array {
-        // 检查递归深度限制 - 降低到5层以减少API调用
+        // 🚀 性能优化：使用批量并发获取替代递归
+        if ($depth === 0) {
+            return $this->get_page_content_batch_optimized($block_id, $max_depth);
+        }
+
+        // 检查递归深度限制
         if ($depth >= $max_depth) {
             return [];
         }
@@ -228,6 +256,220 @@ class Notion_API {
         }
 
         return $blocks;
+    }
+
+    /**
+     * 🚀 批量并发获取页面内容（高性能版本）
+     *
+     * 使用广度优先遍历 + 批量API调用，替代递归方式
+     *
+     * @param string $page_id 页面ID
+     * @param int $max_depth 最大深度
+     * @return array 完整的内容块数组
+     */
+    private function get_page_content_batch_optimized(string $page_id, int $max_depth = 5): array {
+        $all_blocks = [];
+        $blocks_to_process = [$page_id => 0]; // block_id => depth
+        $processed_blocks = [];
+        $start_time = microtime(true);
+        $timeout_limit = 18; // 18秒超时保护
+
+        while (!empty($blocks_to_process) && count($processed_blocks) < 1000) { // 安全限制
+            // 🚀 超时保护：避免深层递归导致超时
+            if ((microtime(true) - $start_time) > $timeout_limit) {
+                Notion_Logger::warning_log(
+                    "批量内容获取超时保护触发，已处理 " . count($processed_blocks) . " 个块",
+                    'Timeout Protection'
+                );
+                break;
+            }
+            $current_batch = [];
+            $current_depths = [];
+
+            // 收集当前批次要处理的块
+            foreach ($blocks_to_process as $block_id => $depth) {
+                if ($depth < $max_depth && !isset($processed_blocks[$block_id])) {
+                    $current_batch[] = $block_id;
+                    $current_depths[$block_id] = $depth;
+                    $processed_blocks[$block_id] = true;
+                }
+            }
+
+            if (empty($current_batch)) {
+                break;
+            }
+
+            // 🚀 批量获取所有块的子内容
+            try {
+                $batch_results = $this->batch_get_block_children_optimized($current_batch);
+
+                foreach ($batch_results as $block_id => $children) {
+                    $depth = $current_depths[$block_id];
+
+                    if ($block_id === $page_id) {
+                        // 根页面的内容
+                        $all_blocks = $children;
+                    } else {
+                        // 找到父块并添加子内容
+                        $this->attach_children_to_parent($all_blocks, $block_id, $children);
+                    }
+
+                    // 收集下一层需要处理的块
+                    foreach ($children as $child) {
+                        if ($child['has_children'] && !isset($processed_blocks[$child['id']])) {
+                            // 跳过已知问题块类型
+                            if (!isset($child['type']) || !in_array($child['type'], [
+                                'child_database', 'child_page', 'link_preview', 'unsupported'
+                            ])) {
+                                $blocks_to_process[$child['id']] = $depth + 1;
+                            }
+                        }
+                    }
+                }
+
+            } catch (Exception $e) {
+                Notion_Logger::warning_log(
+                    '批量获取块内容失败: ' . $e->getMessage(),
+                    'Batch Content'
+                );
+                break;
+            }
+
+            // 清理已处理的块
+            foreach ($current_batch as $block_id) {
+                unset($blocks_to_process[$block_id]);
+            }
+        }
+
+        return $all_blocks;
+    }
+
+    /**
+     * 将子内容附加到父块
+     *
+     * @param array &$blocks 块数组（引用传递）
+     * @param string $parent_id 父块ID
+     * @param array $children 子块数组
+     */
+    private function attach_children_to_parent(array &$blocks, string $parent_id, array $children): void {
+        foreach ($blocks as &$block) {
+            if ($block['id'] === $parent_id) {
+                $block['children'] = $children;
+                return;
+            }
+
+            if (isset($block['children']) && is_array($block['children'])) {
+                $this->attach_children_to_parent($block['children'], $parent_id, $children);
+            }
+        }
+    }
+
+    /**
+     * 🚀 批量获取多个块的子内容（优化版本）
+     *
+     * @param array $block_ids 块ID数组
+     * @return array 块ID => 子内容数组的映射
+     */
+    private function batch_get_block_children_optimized(array $block_ids): array {
+        if (empty($block_ids)) {
+            return [];
+        }
+
+        // 🚀 智能分批：根据测试结果，每批5个以避免超时
+        $batch_size = 5;
+        $all_results = [];
+        $batches = array_chunk($block_ids, $batch_size);
+
+        foreach ($batches as $batch_index => $batch) {
+            try {
+                Notion_Logger::debug_log(
+                    "处理批次 " . ($batch_index + 1) . "/" . count($batches) . "，包含 " . count($batch) . " 个块",
+                    'Batch Optimization'
+                );
+
+                $batch_results = $this->batch_get_block_children($batch);
+                $all_results = array_merge($all_results, $batch_results);
+
+                // 批次间短暂延迟，避免API限制
+                if ($batch_index < count($batches) - 1) {
+                    usleep(200000); // 0.2秒延迟
+                }
+
+            } catch (Exception $e) {
+                Notion_Logger::warning_log(
+                    "批次 " . ($batch_index + 1) . " 处理失败，回退到单个处理: " . $e->getMessage(),
+                    'Batch Fallback'
+                );
+
+                // 回退到单个处理
+                foreach ($batch as $block_id) {
+                    try {
+                        $all_results[$block_id] = $this->get_block_children($block_id);
+                    } catch (Exception $e) {
+                        $all_results[$block_id] = [];
+                    }
+                }
+            }
+        }
+
+        return $all_results;
+    }
+
+    /**
+     * 并发获取块子内容
+     *
+     * @param array $block_ids 块ID数组
+     * @return array 结果数组
+     */
+    private function concurrent_get_block_children(array $block_ids): array {
+        $requests = [];
+        $results = [];
+
+        // 准备并发请求
+        foreach ($block_ids as $block_id) {
+            $requests[] = [
+                'url' => $this->api_base . "blocks/{$block_id}/children",
+                'method' => 'GET',
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $this->api_key,
+                    'Content-Type' => 'application/json',
+                    'Notion-Version' => '2022-06-28'
+                ],
+                'block_id' => $block_id
+            ];
+        }
+
+        // 发送并发请求
+        try {
+            $responses = $this->batch_send_requests($requests);
+
+            foreach ($responses as $i => $response) {
+                $block_id = $requests[$i]['block_id'];
+
+                if (isset($response['results'])) {
+                    $results[$block_id] = $response['results'];
+                } else {
+                    $results[$block_id] = [];
+                }
+            }
+
+        } catch (Exception $e) {
+            // 并发失败时回退到串行处理
+            Notion_Logger::warning_log(
+                '并发获取失败，回退到串行: ' . $e->getMessage(),
+                'Concurrent Fallback'
+            );
+
+            foreach ($block_ids as $block_id) {
+                try {
+                    $results[$block_id] = $this->get_block_children($block_id);
+                } catch (Exception $e) {
+                    $results[$block_id] = [];
+                }
+            }
+        }
+
+        return $results;
     }
 
     /**

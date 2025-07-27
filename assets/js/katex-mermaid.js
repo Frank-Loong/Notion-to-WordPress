@@ -11,7 +11,7 @@
  * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
-(function($) {
+(function() {
 'use strict';
 
 /* ---------------- 资源加载检测 ---------------- */
@@ -499,19 +499,51 @@ function addPanZoomToMermaid() {
         // 复制源代码功能
         function copySourceCode() {
             const originalCode = container.getAttribute('data-original-code');
+            console.log('🔧 复制功能调试:', {
+                container: container,
+                originalCode: originalCode,
+                hasAttribute: container.hasAttribute('data-original-code')
+            });
+
             if (originalCode) {
-                navigator.clipboard.writeText(originalCode).then(() => {
-                    showToast('Mermaid 源代码已复制到剪贴板');
-                }).catch(() => {
-                    // 备用方案：使用传统的复制方法
-                    const textArea = document.createElement('textarea');
-                    textArea.value = originalCode;
-                    document.body.appendChild(textArea);
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                    showToast('Mermaid 源代码已复制到剪贴板');
-                });
+                // 优先使用现代API
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(originalCode).then(() => {
+                        showToast('✅ Mermaid 源代码已复制到剪贴板');
+                    }).catch((err) => {
+                        console.error('复制失败:', err);
+                        fallbackCopy(originalCode);
+                    });
+                } else {
+                    fallbackCopy(originalCode);
+                }
+            } else {
+                showToast('❌ 未找到源代码，无法复制');
+                console.warn('未找到 data-original-code 属性');
+            }
+        }
+
+        // 备用复制方法
+        function fallbackCopy(text) {
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                textArea.setSelectionRange(0, 99999); // 移动端兼容
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                if (successful) {
+                    showToast('✅ Mermaid 源代码已复制到剪贴板');
+                } else {
+                    showToast('❌ 复制失败，请手动复制');
+                }
+            } catch (err) {
+                console.error('备用复制方法失败:', err);
+                showToast('❌ 复制失败，请手动复制');
             }
         }
 
@@ -690,13 +722,14 @@ function addPanZoomToMermaid() {
 }
 
 /* ---------------- 初始化 ---------------- */
-$(function () {
-// KaTeX 已作为依赖加载，直接渲染
-renderAllKatex();
+// 使用原生JavaScript，不依赖jQuery
+document.addEventListener('DOMContentLoaded', function() {
+    // KaTeX 已作为依赖加载，直接渲染
+    renderAllKatex();
 
-// Mermaid 延迟初始化，避免与渲染冲突
-setTimeout(initMermaid, 500);
+    // Mermaid 延迟初始化，避免与渲染冲突
+    setTimeout(initMermaid, 500);
 });
 
-})(jQuery);
+})();
 

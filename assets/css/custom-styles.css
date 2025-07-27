@@ -279,20 +279,22 @@
     max-width: 100%;
 }
 
-/* Mermaid 图表样式 - 现代化设计 */
+/* Mermaid 图表样式 - GitHub风格设计 */
 .mermaid {
     position: relative;
     text-align: center;
-    margin: 2em auto;
-    max-width: 800px; /* 桌面端限制最大宽度，提升阅读体验 */
+    margin: 1.5em auto;
+    max-width: 750px; /* 适应页面容器宽度 */
     background: #ffffff;
-    border: 1px solid #e1e4e8;
-    border-radius: 8px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
     padding: 16px;
-    overflow: hidden;
+    overflow: hidden; /* 隐藏溢出，工具栏在内部右下角 */
     display: block;
-    width: 100%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: auto;
+    box-shadow: 0 1px 3px rgba(27, 31, 36, 0.12);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+    min-height: 100px; /* 确保有足够空间显示工具栏 */
 }
 
 /* 移除旧的 pre.mermaid 样式，现在统一使用 div.mermaid */
@@ -322,57 +324,61 @@
     cursor: grabbing;
 }
 
-/* ===== Mermaid 现代化控制按钮样式 ===== */
+/* ===== Mermaid GitHub风格控制按钮样式 ===== */
 .mermaid-controls {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    bottom: 6px; /* GitHub风格：右下角位置 */
+    right: 6px;
     z-index: 100;
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    padding: 4px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    backdrop-filter: blur(8px);
-    opacity: 0.8;
-    transition: opacity 0.2s ease;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(27, 31, 36, 0.15);
+    border-radius: 4px;
+    padding: 2px;
+    box-shadow: 0 1px 2px rgba(27, 31, 36, 0.08);
+    backdrop-filter: blur(2px);
+    opacity: 0.7;
+    transition: all 0.15s ease;
+    font-size: 0; /* 移除按钮间隙 */
 }
 
 .mermaid-controls:hover {
     opacity: 1;
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .mermaid-zoom-controls {
     display: flex;
-    gap: 1px;
+    gap: 0; /* 紧密排列 */
 }
 
 .mermaid-btn {
-    width: 32px;
-    height: 32px;
+    width: 22px;
+    height: 22px;
     border: none;
     background: transparent;
-    color: #586069;
-    border-radius: 4px;
+    color: #656d76;
+    border-radius: 2px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
     font-weight: normal;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: all 0.12s ease;
     user-select: none;
     position: relative;
+    margin: 0;
+    padding: 0;
 }
 
 .mermaid-btn:hover {
-    background: #f6f8fa;
-    color: #24292e;
+    background: #f3f4f6;
+    color: #24292f;
 }
 
 .mermaid-btn:active {
-    background: #e1e4e8;
-    transform: scale(0.95);
+    background: #e5e7ea;
+    transform: scale(0.96);
 }
 
 .mermaid-btn:focus {
@@ -380,34 +386,75 @@
     outline-offset: -2px;
 }
 
-/* 按钮工具提示 */
+/* 按钮工具提示 - 精致版（上方显示） */
 .mermaid-btn::after {
     content: attr(title);
     position: absolute;
-    bottom: -28px;
+    top: -26px; /* 在按钮上方显示 */
     left: 50%;
     transform: translateX(-50%);
-    background: #24292e;
+    background: rgba(36, 41, 46, 0.9);
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
     white-space: nowrap;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.2s ease;
-    z-index: 100;
+    transition: opacity 0.15s ease;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
 }
 
 .mermaid-btn:hover::after {
     opacity: 1;
 }
 
+/* 响应式设计 - 移动端优化 */
+@media (max-width: 768px) {
+    .mermaid {
+        margin: 1em 0;
+        padding: 12px;
+        border-radius: 4px;
+    }
+
+    .mermaid-controls {
+        bottom: 4px;
+        right: 4px;
+        padding: 2px;
+    }
+
+    .mermaid-btn {
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+
+    .mermaid-btn::after {
+        font-size: 10px;
+        top: -24px; /* 移动端也在上方显示 */
+        bottom: auto;
+    }
+}
+
+/* GitHub风格的容器适配 */
+.mermaid {
+    /* 确保不超出父容器 */
+    box-sizing: border-box;
+    max-width: calc(100% - 2em);
+}
+
 /* 深色主题适配 */
 @media (prefers-color-scheme: dark) {
-    .mermaid-controls {
-        background: rgba(33, 38, 45, 0.95);
+    .mermaid {
+        background: #0d1117;
         border-color: #30363d;
+    }
+
+    .mermaid-controls {
+        background: rgba(33, 38, 45, 0.9);
+        border-color: #30363d;
+        backdrop-filter: blur(4px);
     }
 
     .mermaid-btn {
@@ -415,12 +462,12 @@
     }
 
     .mermaid-btn:hover {
-        background: #21262d;
+        background: #30363d;
         color: #f0f6fc;
     }
 
     .mermaid-btn:active {
-        background: #30363d;
+        background: #282e33;
     }
 
     .mermaid-btn::after {
@@ -446,15 +493,44 @@
     justify-content: center !important;
 }
 
+/* 全屏模式下保持工具栏在右下角，稍微大一些 */
 .mermaid-fullscreen .mermaid-controls {
-    top: 20px !important;
+    bottom: 20px !important;
     right: 20px !important;
+    top: auto !important;
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(27, 31, 36, 0.15) !important;
+    border-radius: 6px !important;
+    padding: 4px !important;
+    box-shadow: 0 2px 8px rgba(27, 31, 36, 0.15) !important;
+}
+
+/* 全屏模式下的按钮稍微大一些 */
+.mermaid-fullscreen .mermaid-btn {
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 14px !important;
+    border-radius: 3px !important;
+}
+
+/* 全屏模式下的工具提示调整 */
+.mermaid-fullscreen .mermaid-btn::after {
+    top: -28px !important;
+    font-size: 11px !important;
+    padding: 3px 7px !important;
 }
 
 /* 深色模式下的全屏样式 */
 @media (prefers-color-scheme: dark) {
     .mermaid-fullscreen {
         background: #0d1117 !important;
+    }
+
+    .mermaid-fullscreen .mermaid-controls {
+        background: rgba(33, 38, 45, 0.9) !important;
+        border-color: #30363d !important;
+        padding: 4px !important;
+        border-radius: 6px !important;
     }
 }
 

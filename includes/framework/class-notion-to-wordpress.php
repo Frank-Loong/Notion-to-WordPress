@@ -163,6 +163,7 @@ class Notion_To_WordPress {
 
 		// Utils层 - 工具类
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/utils/class-notion-async-processor.php' );
+		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/utils/class-notion-session-cache.php' );
 
 		// Handlers层 - 协调器服务
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/handlers/class-notion-import-coordinator.php' );
@@ -681,15 +682,6 @@ class Notion_To_WordPress {
 			$this->plugin_name . '-katex-mermaid',
 			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
 			array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
-			$this->version,
-			true
-		);
-
-		// 简化的Mermaid渲染脚本
-		wp_enqueue_script(
-			$this->plugin_name . '-simple-mermaid',
-			Notion_To_WordPress_Helper::plugin_url('assets/js/simple-mermaid.js'),
-			array('jquery', 'mermaid'),
 			$this->version,
 			true
 		);

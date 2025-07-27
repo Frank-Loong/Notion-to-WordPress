@@ -33,6 +33,194 @@ class Notion_Database_Renderer {
     const VIEW_TYPE_BOARD = 'board';
 
     /**
+     * 🚀 批量预处理多个子数据库（优化版本）
+     *
+     * @param array $child_databases 子数据库数组
+     * @param Notion_API $notion_api API实例
+     * @return array 预处理数据
+     */
+    public static function batch_preprocess_child_databases_optimized(array $child_databases, Notion_API $notion_api): array {
+        if (empty($child_databases)) {
+            return [];
+        }
+
+        Notion_Logger::debug_log(
+            sprintf('开始批量预处理 %d 个子数据库', count($child_databases)),
+            'Database Batch Preprocess'
+        );
+
+        $preprocessed_data = [];
+        $start_time = microtime(true);
+
+        try {
+            // 提取所有数据库ID
+            $database_ids = array_map(function($db) {
+                return $db['id'];
+            }, $child_databases);
+
+            // 🚀 使用批量API调用获取数据库信息
+            $batch_info = $notion_api->batch_get_databases($database_ids);
+
+            // 🚀 智能批量查询数据库内容（限制每个数据库的记录数）
+            foreach ($database_ids as $db_id) {
+                try {
+                    // 限制每个数据库最多获取20条记录，避免超时
+                    $records = $notion_api->get_database_pages($db_id, [], false);
+                    $limited_records = array_slice($records, 0, 20);
+
+                    $preprocessed_data[$db_id] = [
+                        'info' => $batch_info[$db_id] ?? [],
+                        'records' => $limited_records,
+                        'processed_at' => time(),
+                        'record_count' => count($limited_records),
+                        'total_available' => count($records)
+                    ];
+
+                } catch (Exception $e) {
+                    Notion_Logger::warning_log(
+                        "预处理数据库 {$db_id} 失败: " . $e->getMessage(),
+                        'Database Preprocess Error'
+                    );
+
+                    $preprocessed_data[$db_id] = [
+                        'info' => [],
+                        'records' => [],
+                        'processed_at' => time(),
+                        'error' => $e->getMessage()
+                    ];
+                }
+            }
+
+            $processing_time = microtime(true) - $start_time;
+            Notion_Logger::debug_log(
+                sprintf('批量预处理完成，耗时 %.2f 秒，成功处理 %d/%d 个数据库',
+                    $processing_time,
+                    count($preprocessed_data),
+                    count($child_databases)
+                ),
+                'Database Batch Success'
+            );
+
+        } catch (Exception $e) {
+            Notion_Logger::error_log(
+                '批量预处理失败: ' . $e->getMessage(),
+                'Database Batch Error'
+            );
+        }
+
+        return $preprocessed_data;
+    }
+
+    /**
+     * 🚀 从预处理数据渲染数据库
+     *
+     * @param string $database_id 数据库ID
+     * @param string $database_title 数据库标题
+     * @param array $preprocessed_data 预处理数据
+     * @return string HTML内容
+     */
+    public static function render_from_preprocessed_data(string $database_id, string $database_title, array $preprocessed_data): string {
+        if (isset($preprocessed_data['error'])) {
+            return '<div class="notion-child-database-error" style="border: 1px solid #e74c3c; padding: 10px; margin: 10px 0; background: #fdf2f2;">
+                <strong>📊 数据库: ' . esc_html($database_title) . '</strong><br>
+                <small style="color: #e74c3c;">预处理失败: ' . esc_html($preprocessed_data['error']) . '</small>
+            </div>';
+        }
+
+        $database_info = $preprocessed_data['info'] ?? [];
+        $records = $preprocessed_data['records'] ?? [];
+        $record_count = $preprocessed_data['record_count'] ?? 0;
+        $total_available = $preprocessed_data['total_available'] ?? 0;
+
+        if (empty($records)) {
+            return '<div class="notion-child-database-empty" style="border: 1px dashed #ccc; padding: 10px; margin: 10px 0; background: #f9f9f9;">
+                <strong>📊 数据库: ' . esc_html($database_title) . '</strong><br>
+                <small style="color: #666;">暂无数据</small>
+            </div>';
+        }
+
+        // 构建数据库数据结构
+        $database_data = [
+            'database_info' => $database_info,
+            'records' => $records
+        ];
+
+        // 使用标准渲染方法
+        $html = self::render_database($database_data);
+
+        // 添加记录数量信息
+        if ($total_available > $record_count) {
+            $html .= '<div class="notion-database-info" style="font-size: 12px; color: #666; margin-top: 5px;">
+                显示 ' . $record_count . ' / ' . $total_available . ' 条记录（为提升性能已限制显示数量）
+            </div>';
+        }
+
+        return $html;
+    }
+
+    /**
+     * 🚀 带超时保护的子数据库渲染
+     *
+     * @param string $database_id 数据库ID
+     * @param string $database_title 数据库标题
+     * @param Notion_API $notion_api API实例
+     * @param int $timeout_seconds 超时秒数
+     * @return string HTML内容
+     */
+    public static function render_child_database_with_timeout(string $database_id, string $database_title, Notion_API $notion_api, int $timeout_seconds = 10): string {
+        $start_time = microtime(true);
+
+        try {
+            // 设置超时处理
+            set_time_limit($timeout_seconds + 5);
+
+            // 获取数据库信息
+            $database_info = $notion_api->get_database($database_id);
+
+            // 检查超时
+            if ((microtime(true) - $start_time) > $timeout_seconds) {
+                throw new Exception('获取数据库信息超时');
+            }
+
+            // 获取数据库记录（限制数量）
+            $records = $notion_api->get_database_pages($database_id, [], false);
+            $limited_records = array_slice($records, 0, 15); // 限制15条
+
+            // 检查超时
+            if ((microtime(true) - $start_time) > $timeout_seconds) {
+                throw new Exception('获取数据库记录超时');
+            }
+
+            $database_data = [
+                'database_info' => $database_info,
+                'records' => $limited_records
+            ];
+
+            $html = self::render_database($database_data);
+
+            $processing_time = microtime(true) - $start_time;
+            Notion_Logger::debug_log(
+                sprintf('子数据库渲染完成: %s，耗时 %.2f 秒', $database_title, $processing_time),
+                'Child Database Render'
+            );
+
+            return $html;
+
+        } catch (Exception $e) {
+            $processing_time = microtime(true) - $start_time;
+            Notion_Logger::warning_log(
+                sprintf('子数据库渲染超时: %s，耗时 %.2f 秒 - %s', $database_title, $processing_time, $e->getMessage()),
+                'Child Database Timeout'
+            );
+
+            return '<div class="notion-child-database-timeout" style="border: 1px solid #f39c12; padding: 10px; margin: 10px 0; background: #fef9e7;">
+                <strong>📊 数据库: ' . esc_html($database_title) . '</strong><br>
+                <small style="color: #f39c12;">渲染超时，请稍后重试</small>
+            </div>';
+        }
+    }
+
+    /**
      * 渲染子数据库
      *
      * @since 1.1.3

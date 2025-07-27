@@ -29,6 +29,33 @@ if (!defined('ABSPATH')) {
 class Notion_Content_Converter {
 
     /**
+     * 🚀 预处理的数据库数据存储
+     * @var array
+     */
+    private static $preprocessed_database_data = [];
+
+    /**
+     * 🚀 注入预处理的数据库数据
+     *
+     * @param array $preprocessed_data 预处理数据
+     */
+    public static function inject_preprocessed_data(array $preprocessed_data): void {
+        self::$preprocessed_database_data = $preprocessed_data;
+
+        Notion_Logger::debug_log(
+            sprintf('注入预处理数据: %d 个数据库', count($preprocessed_data)),
+            'Preprocessed Data Injection'
+        );
+    }
+
+    /**
+     * 🚀 清理预处理数据
+     */
+    public static function clear_preprocessed_data(): void {
+        self::$preprocessed_database_data = [];
+    }
+
+    /**
      * 将 Notion 块数组转换为 HTML 内容
      *
      * @since 2.0.0-beta.1
@@ -60,29 +87,35 @@ class Notion_Content_Converter {
             }
         }
 
-        // 如果有子数据库块，使用新的批量处理器（修复：增强错误处理）
+        // 🚀 恢复子数据库批量处理 - 使用优化后的智能处理
+        $database_data = [];
+
         if (!empty($database_blocks)) {
+            Notion_Logger::debug_log(
+                sprintf('开始智能处理 %d 个子数据库', count($database_blocks)),
+                'Child Database Batch'
+            );
+
             try {
-                $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
-                
-                // 验证批量处理结果
-                if (empty($database_data)) {
-                    Notion_Logger::debug_log(
-                        '批量处理返回空数据，将使用标准处理模式',
-                        'Child Database Batch'
-                    );
-                } else {
-                    Notion_Logger::debug_log(
-                        sprintf('批量处理成功，获取到 %d 个数据库的预处理数据', count($database_data)),
-                        'Child Database Batch'
-                    );
-                }
-            } catch (Exception $e) {
-                Notion_Logger::error_log(
-                    '子数据库批量处理失败: ' . $e->getMessage(),
-                    'Child Database Batch'
+                // 使用优化后的批量处理
+                $database_data = Notion_Database_Renderer::batch_preprocess_child_databases_optimized(
+                    $database_blocks,
+                    $notion_api
                 );
-                $database_data = []; // 确保是空数组，触发标准处理
+
+                Notion_Logger::debug_log(
+                    sprintf('成功预处理 %d 个子数据库', count($database_data)),
+                    'Child Database Success'
+                );
+
+            } catch (Exception $e) {
+                Notion_Logger::warning_log(
+                    '子数据库批量处理失败，回退到单个处理: ' . $e->getMessage(),
+                    'Child Database Fallback'
+                );
+
+                // 回退到单个处理
+                $database_data = [];
             }
         }
 
@@ -499,8 +532,8 @@ class Notion_Content_Converter {
                 '<',
             ], $mermaid_code);
             
-            // 直接输出，不进行额外的HTML转义
-            return '<div class="mermaid">' . $mermaid_code . '</div>';
+            // 直接输出，添加原始代码属性用于复制功能
+            return '<pre class="mermaid" data-original-code="' . esc_attr($mermaid_code) . '">' . $mermaid_code . '</pre>';
         }
 
         $escaped_code = esc_html($code_content);
@@ -911,35 +944,42 @@ class Notion_Content_Converter {
         $database_title = $block['child_database']['title'] ?? '未命名数据库';
         $database_id = $block['id'];
 
-        // 调试：输出完整的child_database块结构
+        // 🚀 恢复子数据库渲染 - 使用优化后的智能渲染
         Notion_Logger::debug_log(
-            'child_database块完整结构: ' . json_encode($block, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
-            'Child Database Block Debug'
+            "开始智能渲染子数据库: {$database_title} (ID: {$database_id})",
+            'Child Database Render'
         );
 
         try {
-            // 使用数据库渲染器处理子数据库
-            $rendered_content = Notion_Database_Renderer::render_child_database($database_id, $database_title, $notion_api);
-
-            if (!empty($rendered_content)) {
-                Notion_Logger::info_log(
-                    "子数据库渲染成功: {$database_title} (ID: {$database_id})",
-                    'Child Database'
+            // 检查是否有预处理数据
+            if (isset(self::$preprocessed_database_data[$database_id])) {
+                $preprocessed_data = self::$preprocessed_database_data[$database_id];
+                return Notion_Database_Renderer::render_from_preprocessed_data(
+                    $database_id,
+                    $database_title,
+                    $preprocessed_data
                 );
-                return $rendered_content;
-            } else {
-                Notion_Logger::warning_log(
-                    "子数据库渲染为空: {$database_title} (ID: {$database_id})",
-                    'Child Database'
-                );
-                return '<div class="notion-child-database-empty">数据库 "' . esc_html($database_title) . '" 暂无内容</div>';
             }
-        } catch (Exception $e) {
-            Notion_Logger::error_log(
-                "子数据库渲染失败: {$database_title} (ID: {$database_id}) - " . $e->getMessage(),
-                'Child Database'
+
+            // 回退到标准渲染（带超时保护）
+            return Notion_Database_Renderer::render_child_database_with_timeout(
+                $database_id,
+                $database_title,
+                $notion_api,
+                10 // 10秒超时
             );
-            return '<div class="notion-child-database-error">数据库 "' . esc_html($database_title) . '" 加载失败</div>';
+
+        } catch (Exception $e) {
+            Notion_Logger::warning_log(
+                "子数据库渲染失败: {$database_title} - " . $e->getMessage(),
+                'Child Database Error'
+            );
+
+            // 失败时返回简化版本
+            return '<div class="notion-child-database-error" style="border: 1px solid #e74c3c; padding: 10px; margin: 10px 0; background: #fdf2f2;">
+                <strong>📊 数据库: ' . esc_html($database_title) . '</strong><br>
+                <small style="color: #e74c3c;">渲染失败，请稍后重试</small>
+            </div>';
         }
     }
 
@@ -1209,29 +1249,28 @@ class Notion_Content_Converter {
             }
         }
 
-        // 批量处理子数据库块（修复：增强错误处理）
+        // 🚀 恢复优化模式的子数据库批量处理
+        $database_data = [];
+
         if (!empty($database_blocks)) {
+            Notion_Logger::debug_log(
+                sprintf('优化模式：智能处理 %d 个子数据库', count($database_blocks)),
+                'Child Database Optimized'
+            );
+
             try {
-                $database_data = Notion_Database_Renderer::batch_process_child_databases($database_blocks, $notion_api);
-                
-                // 验证批量处理结果
-                if (empty($database_data)) {
-                    Notion_Logger::debug_log(
-                        '优化模式：批量处理返回空数据，将回退到标准处理',
-                        'Child Database Batch'
-                    );
-                } else {
-                    Notion_Logger::debug_log(
-                        sprintf('优化模式：批量处理成功，获取到 %d 个数据库的预处理数据', count($database_data)),
-                        'Child Database Batch'
-                    );
-                }
-            } catch (Exception $e) {
-                Notion_Logger::error_log(
-                    '优化模式：子数据库批量处理失败: ' . $e->getMessage(),
-                    'Child Database Batch'
+                // 使用高性能批量处理
+                $database_data = Notion_Database_Renderer::batch_preprocess_child_databases_optimized(
+                    $database_blocks,
+                    $notion_api
                 );
-                $database_data = []; // 确保是空数组，触发标准处理
+
+            } catch (Exception $e) {
+                Notion_Logger::warning_log(
+                    '优化模式子数据库处理失败: ' . $e->getMessage(),
+                    'Optimized Database Fallback'
+                );
+                $database_data = [];
             }
         }
 

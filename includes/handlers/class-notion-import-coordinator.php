@@ -75,6 +75,20 @@ class Notion_Import_Coordinator {
      * @return   bool    是否启用并发优化
      */
     private function is_concurrent_optimization_enabled(): bool {
+        // 🚀 性能优化：重新启用保守的并发优化
+        $performance_config = get_option('notion_to_wordpress_performance_config', []);
+
+        // 检查系统负载（如果可用）
+        if (function_exists('sys_getloadavg')) {
+            $load = sys_getloadavg();
+            if ($load[0] > 2.0) { // 系统负载过高时禁用
+                return false;
+            }
+        }
+
+        // 默认启用，但使用保守参数
+        return $performance_config['enable_concurrent_optimization'] ?? true;
+
         // 从性能配置中读取并发优化设置
         $performance_config = get_option('notion_to_wordpress_performance_config', []);
 
