@@ -87,7 +87,8 @@ class Notion_Import_Coordinator {
 
         // 默认策略：根据数据量智能启用
         // 对于小于20页的数据集，并发优化通常会降低性能
-        return $performance_config['enable_concurrent_optimization'] ?? true;
+        return isset($performance_config['enable_concurrent_optimization']) ?
+               $performance_config['enable_concurrent_optimization'] : true;
     }
 
     /**
