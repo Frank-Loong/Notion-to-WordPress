@@ -1200,14 +1200,42 @@ class Notion_Content_Converter {
         // 智能选择处理器
         $block_count = count($blocks);
         $use_lightweight = false;
+        $memory_status = null;
 
         if (class_exists('Notion_Memory_Manager')) {
             $use_lightweight = Notion_Memory_Manager::is_lightweight_mode($block_count, true);
             Notion_Memory_Manager::monitor_memory_usage('Content Conversion');
+
+            // 获取内存状态
+            $memory_usage = Notion_Memory_Manager::get_memory_usage();
+            $memory_status = [
+                'usage_percentage' => $memory_usage['usage_percentage'],
+                'current_mb' => $memory_usage['current_mb'],
+                'limit_mb' => $memory_usage['limit_mb']
+            ];
+        }
+
+        // 强制使用流式处理的条件
+        $force_stream_processing = false;
+        if ($memory_status) {
+            // 内存使用率超过70%或当前使用超过180MB时强制使用流式处理
+            $force_stream_processing = ($memory_status['usage_percentage'] > 70) ||
+                                     ($memory_status['current_mb'] > 180) ||
+                                     ($block_count > 100);
         }
 
         // 智能选择处理方式
-        if ($use_lightweight && class_exists('Notion_Stream_Processor')) {
+        if (($use_lightweight || $force_stream_processing) && class_exists('Notion_Stream_Processor')) {
+            if (class_exists('Notion_Logger') && $force_stream_processing) {
+                Notion_Logger::debug_log(
+                    sprintf('强制启用流式处理: 内存%.1f%% (%.1fMB), %d个块',
+                        $memory_status['usage_percentage'],
+                        $memory_status['current_mb'],
+                        $block_count
+                    ),
+                    'Content Converter'
+                );
+            }
             return self::convert_blocks_lightweight($blocks, $notion_api, $state_id);
         }
 
@@ -1481,80 +1509,88 @@ class Notion_Content_Converter {
             return '';
         }
 
-        // 使用轻量级流式处理器
-        $processor = function($block_chunk) use ($notion_api, $state_id) {
-            $html_parts = [];
-            $list_wrapper = null;
-
-            foreach ($block_chunk as $block) {
-                $block_type = $block['type'];
-
-                // 简化的列表处理
-                $is_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item', 'to_do']);
-
-                if ($is_list_item) {
-                    $required_wrapper = ($block_type === 'to_do') ? 'todo' :
-                                       ($block_type === 'bulleted_list_item' ? 'ul' : 'ol');
-
-                    if ($list_wrapper !== $required_wrapper) {
-                        if ($list_wrapper !== null) {
-                            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                        }
-                        $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
-                        $list_wrapper = $required_wrapper;
-                    }
-                } elseif ($list_wrapper !== null) {
-                    $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-                    $list_wrapper = null;
-                }
-
-                // 简化的块转换（不使用复杂的优化）
-                $block_html = self::convert_single_block_simple($block, $notion_api);
-
-                if (!empty($block_html)) {
-                    $html_parts[] = $block_html;
-                }
-            }
-
-            // 关闭未关闭的列表
-            if ($list_wrapper !== null) {
-                $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
-            }
-
-            return $html_parts;
-        };
-
-        // 使用轻量级流式处理器处理数据
-        $config = class_exists('Notion_Memory_Manager') ?
-                  Notion_Memory_Manager::get_lightweight_config() :
-                  ['chunk_size' => 50];
-
-        $html_chunks = Notion_Stream_Processor::process_data_stream($blocks, $processor, $config['chunk_size']);
-
-        // 合并结果
-        $all_html_parts = [];
-        foreach ($html_chunks as $chunk) {
-            if (is_array($chunk)) {
-                $all_html_parts = array_merge($all_html_parts, $chunk);
-            }
+        // 开始性能监控
+        if (class_exists('Notion_Performance_Monitor')) {
+            Notion_Performance_Monitor::start_timer('content_conversion_lightweight');
         }
 
-        $final_html = implode("\n", $all_html_parts);
+        // 使用新的流式处理器处理大数据集
+        if (class_exists('Notion_Stream_Processor')) {
+            $final_html = Notion_Stream_Processor::process_large_dataset($blocks, $notion_api, $state_id);
+        } else {
+            // 回退到原始处理逻辑
+            $final_html = self::convert_blocks_lightweight_fallback($blocks, $notion_api, $state_id);
+        }
 
         // 结束性能监控
         if (class_exists('Notion_Performance_Monitor')) {
-            Notion_Performance_Monitor::end_timer('content_conversion');
+            Notion_Performance_Monitor::end_timer('content_conversion_lightweight');
         }
 
         // 记录轻量级处理统计
-        if (class_exists('Notion_Logger')) {
+        if (class_exists('Notion_Logger') && class_exists('Notion_Stream_Processor')) {
+            $stats = Notion_Stream_Processor::get_processing_stats();
             Notion_Logger::debug_log(
-                sprintf('轻量级内容转换完成: %d个块', count($blocks)),
+                sprintf('流式内容转换完成: %d个块，耗时%.2fms，峰值内存%.2fMB',
+                    $stats['total_processed'],
+                    $stats['processing_time'],
+                    $stats['memory_peak'] / 1024 / 1024
+                ),
                 'Content Converter Lightweight'
             );
         }
 
         return $final_html;
+    }
+
+    /**
+     * 轻量级处理的回退方法
+     *
+     * @param array $blocks Notion块数组
+     * @param Notion_API $notion_api API实例
+     * @param string $state_id 状态ID
+     * @return string HTML内容
+     */
+    private static function convert_blocks_lightweight_fallback(array $blocks, Notion_API $notion_api, string $state_id = null): string {
+        $html_parts = [];
+        $list_wrapper = null;
+
+        foreach ($blocks as $block) {
+            $block_type = $block['type'] ?? 'unknown';
+
+            // 简化的列表处理
+            $is_list_item = in_array($block_type, ['bulleted_list_item', 'numbered_list_item', 'to_do']);
+
+            if ($is_list_item) {
+                $required_wrapper = ($block_type === 'to_do') ? 'todo' :
+                                   ($block_type === 'bulleted_list_item' ? 'ul' : 'ol');
+
+                if ($list_wrapper !== $required_wrapper) {
+                    if ($list_wrapper !== null) {
+                        $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                    }
+                    $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
+                    $list_wrapper = $required_wrapper;
+                }
+            } elseif ($list_wrapper !== null) {
+                $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                $list_wrapper = null;
+            }
+
+            // 简化的块转换
+            $block_html = self::convert_single_block_simple($block, $notion_api);
+
+            if (!empty($block_html)) {
+                $html_parts[] = $block_html;
+            }
+        }
+
+        // 关闭未关闭的列表
+        if ($list_wrapper !== null) {
+            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+        }
+
+        return implode("\n", $html_parts);
     }
 
     /**
