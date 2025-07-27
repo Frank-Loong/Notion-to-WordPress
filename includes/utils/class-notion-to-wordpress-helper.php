@@ -28,17 +28,8 @@ if (!defined('ABSPATH')) {
 
 class Notion_To_WordPress_Helper {
 
-    // ==================== 向后兼容常量 ====================
-
-    /**
-     * 调试级别常量 - 保留以确保向后兼容性
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger 类中的常量代替
-     */
-    const DEBUG_LEVEL_NONE = 0;    // 不记录任何日志
-    const DEBUG_LEVEL_ERROR = 1;   // 只记录错误
-    const DEBUG_LEVEL_WARNING = 2; // 记录警告
-    const DEBUG_LEVEL_INFO = 3;    // 记录错误、警告和信息
-    const DEBUG_LEVEL_DEBUG = 4;   // 记录所有内容，包括详细调试信息
+    // ==================== 已移除废弃常量 ====================
+    // 注意：调试级别常量已移除，请使用 Notion_Logger 类中的常量
 
     // ==================== 纯工具方法 ====================
 
@@ -222,215 +213,13 @@ class Notion_To_WordPress_Helper {
         return sprintf("%.2f %s", $bytes / pow(1024, $factor), $units[$factor]);
     }
 
-    // ==================== 委托方法（向后兼容） ====================
+    // ==================== 已移除废弃的委托方法 ====================
+    // 注意：所有委托方法已移除，请直接使用对应的专门类：
+    // - 日志功能 → Notion_Logger
+    // - 安全过滤 → Notion_Security
+    // - 文本处理 → Notion_Text_Processor
+    // - HTTP请求 → Notion_HTTP_Client
 
-    /**
-     * 优化版的日志记录方法。
-     *
-     * @since    1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::debug_log() 代替
-     * @param    mixed     $data       要记录的数据（字符串、数组或对象）。
-     * @param    string    $prefix     日志条目的前缀。
-     * @param    int       $level      此日志条目的级别。
-     */
-    public static function debug_log($data, $prefix = 'Notion Debug', $level = self::DEBUG_LEVEL_DEBUG) {
-        // 委托给专门的日志记录器
-        Notion_Logger::debug_log($data, $prefix, $level);
-    }
-
-    /**
-     * 记录错误级别的日志消息。
-     *
-     * @since    1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::error_log() 代替
-     * @param    mixed     $data       要记录的数据。
-     * @param    string    $prefix     日志前缀。
-     */
-    public static function error_log($data, $prefix = 'Notion Error') {
-        Notion_Logger::error_log($data, $prefix);
-    }
-
-    /**
-     * 记录信息级别的日志消息。
-     *
-     * @since    1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::info_log() 代替
-     * @param    mixed     $data       要记录的数据。
-     * @param    string    $prefix     日志前缀。
-     */
-    public static function info_log($data, $prefix = 'Notion Info') {
-        Notion_Logger::info_log($data, $prefix);
-    }
-
-    /**
-     * 记录警告级别的日志消息。
-     *
-     * @since    2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::warning_log() 代替
-     * @param    mixed     $data       要记录的数据。
-     * @param    string    $prefix     日志前缀。
-     */
-    public static function warning_log($data, $prefix = 'Notion Warning') {
-        Notion_Logger::warning_log($data, $prefix);
-    }
-
-    /**
-     * 生成一个安全的、唯一的令牌。
-     *
-     * @since    1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_HTTP_Client::generate_token() 代替
-     * @param    int       $length     令牌的长度。
-     * @return   string                 生成的唯一令牌。
-     */
-    public static function generate_token($length = 32) {
-        // 委托给专门的HTTP客户端
-        return Notion_HTTP_Client::generate_token($length);
-    }
-
-
-
-    /**
-     * 完整的 Rich Text 处理方法
-     *
-     * 支持所有格式化功能：粗体、斜体、删除线、下划线、代码、颜色、链接、公式等
-     *
-     * @since    2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 使用 Notion_Text_Processor::extract_rich_text_complete() 代替
-     * @param    array     $rich_text    富文本数组
-     * @return   string                  格式化的HTML文本
-     */
-    public static function extract_rich_text_complete(array $rich_text): string {
-        // 委托给专门的文本处理器
-        return Notion_Text_Processor::extract_rich_text_complete($rich_text);
-    }
-
-
-
-    /**
-     * 从 Notion 的富文本（rich_text）数组中提取纯文本内容。
-     *
-     * @since    1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Text_Processor::get_text_from_rich_text() 代替
-     * @param    array   $rich_text  Notion 的富文本对象数组。
-     * @return   string              连接后的纯文本字符串。
-     */
-    public static function get_text_from_rich_text(array $rich_text): string {
-        // 委托给专门的文本处理器
-        return Notion_Text_Processor::get_text_from_rich_text($rich_text);
-    }
-
-    /**
-     * 检测是否为 Notion 锚点链接
-     *
-     * @since    2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 使用 Notion_Text_Processor::is_notion_anchor_link() 代替
-     * @param    string    $href    链接地址
-     * @return   bool              是否为 Notion 锚点链接
-     */
-    public static function is_notion_anchor_link(string $href): bool {
-        // 委托给专门的文本处理器
-        return Notion_Text_Processor::is_notion_anchor_link($href);
-    }
-
-    /**
-     * 将 Notion 锚点链接转换为本地锚点
-     *
-     * @since    2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 使用 Notion_Text_Processor::convert_notion_anchor_to_local() 代替
-     * @param    string    $href    原始链接地址
-     * @return   string             转换后的本地锚点链接
-     */
-    public static function convert_notion_anchor_to_local(string $href): string {
-        // 委托给专门的文本处理器
-        return Notion_Text_Processor::convert_notion_anchor_to_local($href);
-    }
-
-    /**
-     * 使用自定义的规则集来清理 HTML 内容，以确保安全。
-     *
-     * 此函数扩展了 WordPress 的 `wp_kses_post`，以允许
-     * 插件功能所需的特定标签和属性（如 iframe、Mermaid 的 pre 标签等）。
-     *
-     * @since    1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Security::custom_kses() 代替
-     * @param    string    $content    需要清理的 HTML 内容。
-     * @return   string                清理和过滤后的安全 HTML。
-     */
-    public static function custom_kses($content) {
-        // 委托给专门的安全过滤器
-        return Notion_Security::custom_kses($content);
-    }
-
-    /**
-     * 获取日志文件列表。
-     *
-     * @since 1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::get_log_files() 代替
-     * @return array 文件名数组。
-     */
-    public static function get_log_files(): array {
-        return Notion_Logger::get_log_files();
-    }
-    
-    /**
-     * 获取特定日志文件的内容。
-     *
-     * @since 1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::get_log_content() 代替
-     * @param string $filename 日志文件名。
-     * @return string|false 文件内容或在失败时返回 false。
-     */
-    public static function get_log_content(string $filename): string {
-        return Notion_Logger::get_log_content($filename);
-    }
-
-    /**
-     * 清理所有日志文件。
-     *
-     * @since 1.0.8
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::clear_logs() 代替
-     * @return bool 是否成功。
-     */
-    public static function clear_logs(): bool {
-        return Notion_Logger::clear_logs();
-    }
-    
-    /**
-     * 执行日志清理任务。
-     *
-     * @since 2.0.0
-     * @deprecated 2.0.0-beta.1 使用 Notion_Logger::run_log_cleanup() 代替
-     */
-    public static function run_log_cleanup() {
-        Notion_Logger::run_log_cleanup();
-    }
-
-    /**
-     * 安全地获取远程内容
-     *
-     * @since 1.0.9
-     * @deprecated 2.0.0-beta.1 使用 Notion_HTTP_Client::safe_remote_get() 代替
-     * @param string $url 要获取的URL
-     * @param array $args 请求参数
-     * @return array|WP_Error 响应数组或错误对象
-     */
-    public static function safe_remote_get(string $url, array $args = []) {
-        // 委托给专门的HTTP客户端
-        return Notion_HTTP_Client::safe_remote_get($url, $args);
-    }
-
-    /**
-     * 验证文件类型是否安全
-     *
-     * @since 1.0.9
-     * @deprecated 2.0.0-beta.1 使用 Notion_Security::is_safe_file_type() 代替
-     * @param string $filename 文件名
-     * @return bool 是否为安全的文件类型
-     */
-    public static function is_safe_file_type(string $filename): bool {
-        // 委托给专门的安全过滤器
-        return Notion_Security::is_safe_file_type($filename);
-    }
 
     /**
      * 初始化助手类
@@ -442,10 +231,9 @@ class Notion_To_WordPress_Helper {
      */
     public static function init(): void {
         // 委托给专门的日志系统
-        Notion_Logger::init();
-
-        // 其他初始化工作（如果需要的话）
-        // 目前只需要重新初始化日志系统
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::init();
+        }
     }
 
 }
