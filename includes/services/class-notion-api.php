@@ -77,15 +77,19 @@ class Notion_API {
     public function __construct(string $api_key) {
         $this->api_key = $api_key;
 
-        // 🚀 性能优化：初始化智能API合并器
+        // 🚀 性能优化：初始化智能API合并器（避免循环依赖）
         $options = get_option('notion_to_wordpress_options', []);
         $this->enable_api_merging = $options['enable_api_merging'] ?? true;
 
         if ($this->enable_api_merging && class_exists('Notion_Smart_API_Merger')) {
-            $this->api_merger = new Notion_Smart_API_Merger($this);
+            $this->api_merger = new Notion_Smart_API_Merger();
+            $this->api_merger->set_notion_api($this);
 
-            if (class_exists('Notion_Logger')) {
+            // 减少日志频率：只在首次启用时记录
+            static $merger_logged = false;
+            if (class_exists('Notion_Logger') && !$merger_logged) {
                 Notion_Logger::debug_log('智能API合并器已启用', 'API Merger');
+                $merger_logged = true;
             }
         }
     }
@@ -112,37 +116,71 @@ class Notion_API {
      * @throws   Exception             如果 API 请求失败或返回错误。
      */
     public function send_request_with_merging(string $endpoint, string $method = 'GET', array $data = [], bool $force_immediate = false): array {
-        // 如果启用了智能合并且不是强制立即执行
+        // 如果启用了智能合并且不是强制立即执行且是GET请求
         if ($this->enable_api_merging && $this->api_merger && !$force_immediate && $method === 'GET') {
-            // 使用智能合并器处理请求
+            // 🔧 修复：使用同步等待机制处理合并请求
+            $request_id = uniqid('sync_req_', true);
             $result = null;
             $exception = null;
+            $completed = false;
 
-            $this->api_merger->queue_request($endpoint, $method, $data, function($response, $error) use (&$result, &$exception) {
+            // 创建同步回调
+            $callback = function($response, $error) use (&$result, &$exception, &$completed) {
                 if ($error) {
                     $exception = $error;
                 } else {
                     $result = $response;
                 }
-            });
+                $completed = true;
+            };
 
-            // 如果有异常，抛出
-            if ($exception) {
-                throw $exception;
+            // 将请求加入队列
+            $immediate_result = $this->api_merger->queue_request($endpoint, $method, $data, $callback);
+
+            // 如果立即返回了结果（批处理被触发）
+            if ($immediate_result !== null) {
+                if ($completed) {
+                    if ($exception) {
+                        throw $exception;
+                    }
+                    return $result;
+                }
             }
 
-            // 如果有结果，返回
-            if ($result !== null) {
-                return $result;
+            // 如果没有立即完成，等待一个短暂的时间让批处理完成
+            $max_wait_time = 100; // 100ms最大等待时间
+            $wait_interval = 5;   // 5ms检查间隔
+            $waited = 0;
+
+            while (!$completed && $waited < $max_wait_time) {
+                usleep($wait_interval * 1000); // 转换为微秒
+                $waited += $wait_interval;
+
+                // 检查是否需要强制刷新
+                if ($waited >= 50 && $this->api_merger->get_queue_size() > 0) {
+                    $this->api_merger->force_flush();
+                }
             }
 
-            // 如果没有立即结果，强制刷新合并器
-            $batch_results = $this->api_merger->force_flush();
+            // 如果在等待时间内完成了
+            if ($completed) {
+                if ($exception) {
+                    throw $exception;
+                }
+                if ($result !== null) {
+                    return $result;
+                }
+            }
 
-            // 从批处理结果中找到对应的结果
-            foreach ($batch_results as $batch_result) {
-                if (!is_wp_error($batch_result)) {
-                    return $batch_result;
+            // 如果仍未完成，强制刷新并回退
+            if (!$completed) {
+                $this->api_merger->force_flush();
+
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::debug_log(
+                        "智能合并超时，回退到直接API调用: {$endpoint}",
+                        'API Merger Fallback'
+                    );
                 }
             }
         }

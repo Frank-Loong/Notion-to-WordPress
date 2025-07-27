@@ -276,33 +276,37 @@ class Notion_Concurrent_Network_Manager {
     }
 
     /**
-     * 创建cURL句柄
+     * 创建cURL句柄（使用连接池优化）
      *
      * @since    1.1.2
      * @access   private
      */
     private function create_curl_handles() {
+        // 🚀 初始化连接池
+        $this->init_connection_pool();
+
         foreach ($this->requests as $request_id => $request) {
-            $curl_handle = curl_init();
-            
+            // 🚀 从连接池获取优化的连接
+            $curl_handle = $this->get_connection_from_pool();
+
             if ($curl_handle === false) {
                 Notion_Logger::error_log(
-                    "无法创建cURL句柄，请求ID: {$request_id}",
+                    "无法获取cURL句柄，请求ID: {$request_id}",
                     'Concurrent Network'
                 );
                 continue;
             }
-            
+
             $this->configure_curl_handle($curl_handle, $request);
             $this->curl_handles[$request_id] = $curl_handle;
-            
+
             // 添加到multi handle
             curl_multi_add_handle($this->multi_handle, $curl_handle);
         }
     }
 
     /**
-     * 配置cURL句柄
+     * 配置cURL句柄（增强版，支持Keep-Alive和HTTP/2）
      *
      * @since    1.1.2
      * @access   private
@@ -312,8 +316,8 @@ class Notion_Concurrent_Network_Manager {
     private function configure_curl_handle($curl_handle, $request) {
         $url = $request['url'];
         $args = $request['args'];
-        
-        // 基本配置
+
+        // 🚀 增强配置：基本设置 + Keep-Alive + HTTP/2
         curl_setopt_array($curl_handle, [
             CURLOPT_URL            => $url,
             CURLOPT_RETURNTRANSFER => true,
@@ -324,6 +328,16 @@ class Notion_Concurrent_Network_Manager {
             CURLOPT_USERAGENT      => $args['user-agent'],
             CURLOPT_SSL_VERIFYPEER => true,
             CURLOPT_SSL_VERIFYHOST => 2,
+
+            // 🚀 HTTP/2和Keep-Alive优化（如果句柄是新创建的，这些可能已设置）
+            CURLOPT_HTTP_VERSION   => CURL_HTTP_VERSION_2_0,
+            CURLOPT_TCP_KEEPALIVE  => 1,
+            CURLOPT_FORBID_REUSE   => false,
+            CURLOPT_FRESH_CONNECT  => false,
+
+            // 🚀 性能优化设置
+            CURLOPT_TCP_NODELAY    => 1,
+            CURLOPT_ENCODING       => '',
         ]);
         
         // 设置HTTP方法
@@ -387,20 +401,38 @@ class Notion_Concurrent_Network_Manager {
     }
 
     /**
-     * 处理响应结果
+     * 处理响应结果（增强版，包含连接池统计）
      *
      * @since    1.1.2
      * @access   private
      */
     private function process_responses() {
+        $total_response_time = 0;
+        $successful_requests = 0;
+
         foreach ($this->curl_handles as $request_id => $curl_handle) {
             $response_data = curl_multi_getcontent($curl_handle);
             $http_code = curl_getinfo($curl_handle, CURLINFO_HTTP_CODE);
             $error_code = curl_errno($curl_handle);
             $error_message = curl_error($curl_handle);
 
+            // 🚀 收集性能统计信息
+            $info = curl_getinfo($curl_handle);
+            $response_time = $info['total_time'] ?? 0;
+            $total_response_time += $response_time;
+
+            // 检查是否使用了HTTP/2
+            if (isset($info['http_version']) && $info['http_version'] >= 3) {
+                // HTTP/2或更高版本
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::debug_log("请求 {$request_id} 使用HTTP/2", 'Connection Pool');
+                }
+            }
+
             if ($error_code !== 0) {
                 // cURL错误
+                $this->pool_stats['connection_errors']++;
+
                 $this->responses[$request_id] = new WP_Error(
                     'curl_error',
                     sprintf('cURL错误 %d: %s', $error_code, $error_message)
@@ -413,6 +445,8 @@ class Notion_Concurrent_Network_Manager {
 
             } elseif ($http_code >= 400) {
                 // HTTP错误
+                $this->pool_stats['connection_errors']++;
+
                 $this->responses[$request_id] = new WP_Error(
                     'http_error',
                     sprintf('HTTP错误 %d', $http_code)
@@ -425,20 +459,47 @@ class Notion_Concurrent_Network_Manager {
 
             } else {
                 // 成功响应
+                $successful_requests++;
+
                 $this->responses[$request_id] = [
                     'body'     => $response_data,
                     'response' => [
                         'code'    => $http_code,
                         'message' => $this->get_http_status_message($http_code)
                     ],
-                    'headers'  => $this->parse_response_headers($curl_handle)
+                    'headers'  => $this->parse_response_headers($curl_handle),
+                    'stats'    => [
+                        'response_time' => $response_time,
+                        'http_version' => $info['http_version'] ?? 0,
+                        'connect_time' => $info['connect_time'] ?? 0
+                    ]
                 ];
 
                 Notion_Logger::debug_log(
-                    "请求成功 (ID: {$request_id}): HTTP {$http_code}",
+                    "请求成功 (ID: {$request_id}): HTTP {$http_code}, 响应时间: {$response_time}s",
                     'Concurrent Network'
                 );
             }
+
+            // 🚀 将连接返回到连接池
+            $this->return_connection_to_pool($curl_handle);
+        }
+
+        // 🚀 更新平均响应时间统计
+        if ($successful_requests > 0) {
+            $avg_response_time = $total_response_time / $successful_requests;
+            $this->pool_stats['average_response_time'] = round($avg_response_time, 4);
+        }
+
+        if (class_exists('Notion_Logger')) {
+            $stats = $this->get_connection_pool_stats();
+            Notion_Logger::debug_log(
+                sprintf('批次完成 - 复用率: %s%%, 平均响应时间: %ss',
+                    $stats['reuse_rate'],
+                    $stats['average_response_time']
+                ),
+                'Connection Pool'
+            );
         }
     }
 
@@ -640,6 +701,25 @@ class Notion_Concurrent_Network_Manager {
     private $max_pool_size = 10;
 
     /**
+     * 连接池统计信息
+     *
+     * @since 2.0.0-beta.1
+     * @access private
+     * @var array $pool_stats 连接池统计
+     */
+    private $pool_stats = [
+        'total_requests' => 0,
+        'pool_hits' => 0,
+        'pool_misses' => 0,
+        'connections_created' => 0,
+        'connections_reused' => 0,
+        'http2_connections' => 0,
+        'keepalive_connections' => 0,
+        'average_response_time' => 0,
+        'connection_errors' => 0
+    ];
+
+    /**
      * 数据量预估缓存
      *
      * @since 2.0.0-beta.1
@@ -649,7 +729,7 @@ class Notion_Concurrent_Network_Manager {
     private $size_estimation_cache = [];
 
     /**
-     * 初始化连接池
+     * 初始化优化连接池（支持Keep-Alive和HTTP/2）
      *
      * @since 2.0.0-beta.1
      * @return void
@@ -657,12 +737,13 @@ class Notion_Concurrent_Network_Manager {
     private function init_connection_pool(): void {
         if (empty($this->connection_pool)) {
             for ($i = 0; $i < $this->max_pool_size; $i++) {
-                $this->connection_pool[] = curl_init();
+                // 🚀 使用优化的cURL句柄
+                $this->connection_pool[] = $this->create_optimized_curl_handle();
             }
 
             if (class_exists('Notion_Logger')) {
                 Notion_Logger::debug_log(
-                    sprintf('初始化连接池: %d个连接', $this->max_pool_size),
+                    sprintf('初始化优化连接池: %d个Keep-Alive连接', $this->max_pool_size),
                     'Connection Pool'
                 );
             }
@@ -670,18 +751,116 @@ class Notion_Concurrent_Network_Manager {
     }
 
     /**
-     * 从连接池获取连接
+     * 从连接池获取优化的连接
      *
      * @since 2.0.0-beta.1
      * @return resource|false cURL句柄或false
      */
     private function get_connection_from_pool() {
+        $this->pool_stats['total_requests']++;
+
         if (!empty($this->connection_pool)) {
-            return array_pop($this->connection_pool);
+            $handle = array_pop($this->connection_pool);
+
+            // 🚀 性能优化：验证连接健康状态
+            if ($this->is_connection_healthy($handle)) {
+                $this->pool_stats['pool_hits']++;
+                $this->pool_stats['connections_reused']++;
+
+                // 🔇 减少日志频率：每10次复用记录一次
+                static $reuse_count = 0;
+                $reuse_count++;
+                if (class_exists('Notion_Logger') && $reuse_count % 10 === 0) {
+                    Notion_Logger::debug_log(
+                        sprintf('连接池复用统计: 已复用%d次连接', $reuse_count),
+                        'Connection Pool'
+                    );
+                }
+
+                return $handle;
+            } else {
+                // 连接不健康，关闭并创建新连接
+                curl_close($handle);
+                $this->pool_stats['pool_misses']++;
+                return $this->create_optimized_curl_handle();
+            }
         }
 
-        // 如果连接池为空，创建新连接
-        return curl_init();
+        // 如果连接池为空，创建新的优化连接
+        $this->pool_stats['pool_misses']++;
+        return $this->create_optimized_curl_handle();
+    }
+
+    /**
+     * 创建优化的cURL句柄（支持Keep-Alive和HTTP/2）
+     *
+     * @since 2.0.0-beta.1
+     * @return resource cURL句柄
+     */
+    private function create_optimized_curl_handle() {
+        $handle = curl_init();
+
+        // 🚀 HTTP Keep-Alive和连接复用优化
+        curl_setopt_array($handle, [
+            // HTTP/2支持（如果服务器支持）
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+
+            // Keep-Alive连接复用
+            CURLOPT_TCP_KEEPALIVE => 1,
+            CURLOPT_TCP_KEEPIDLE => 120,      // 120秒空闲后开始发送keep-alive包
+            CURLOPT_TCP_KEEPINTVL => 60,      // keep-alive包间隔60秒
+
+            // 连接复用设置
+            CURLOPT_FORBID_REUSE => false,    // 允许连接复用
+            CURLOPT_FRESH_CONNECT => false,   // 不强制新连接
+
+            // DNS缓存优化
+            CURLOPT_DNS_CACHE_TIMEOUT => 300, // DNS缓存5分钟
+
+            // SSL/TLS优化
+            CURLOPT_SSL_SESSIONID_CACHE => true, // 启用SSL会话缓存
+
+            // 压缩支持
+            CURLOPT_ENCODING => '',           // 支持所有编码格式
+
+            // 连接超时优化
+            CURLOPT_CONNECTTIMEOUT => 10,     // 连接超时10秒
+            CURLOPT_TCP_NODELAY => 1,         // 禁用Nagle算法，减少延迟
+        ]);
+
+        // 🚀 更新统计信息
+        $this->pool_stats['connections_created']++;
+        $this->pool_stats['http2_connections']++;
+        $this->pool_stats['keepalive_connections']++;
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log('创建优化cURL句柄（Keep-Alive + HTTP/2）', 'Connection Pool');
+        }
+
+        return $handle;
+    }
+
+    /**
+     * 检查连接健康状态
+     *
+     * @since 2.0.0-beta.1
+     * @param resource $handle cURL句柄
+     * @return bool 连接是否健康
+     */
+    private function is_connection_healthy($handle): bool {
+        if (!is_resource($handle)) {
+            return false;
+        }
+
+        // 检查连接是否仍然有效
+        $info = curl_getinfo($handle);
+
+        // 如果连接时间过长（超过5分钟），认为不健康
+        if (isset($info['connect_time']) && $info['connect_time'] > 300) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -807,5 +986,125 @@ class Notion_Concurrent_Network_Manager {
         }
 
         return $optimal_concurrency;
+    }
+
+    /**
+     * 获取连接池统计信息
+     *
+     * @since 2.0.0-beta.1
+     * @return array 连接池统计数据
+     */
+    public function get_connection_pool_stats(): array {
+        $stats = $this->pool_stats;
+
+        // 计算连接复用率
+        if ($stats['total_requests'] > 0) {
+            $stats['reuse_rate'] = round(($stats['pool_hits'] / $stats['total_requests']) * 100, 2);
+        } else {
+            $stats['reuse_rate'] = 0;
+        }
+
+        // 添加当前连接池状态
+        $stats['current_pool_size'] = count($this->connection_pool);
+        $stats['max_pool_size'] = $this->max_pool_size;
+        $stats['pool_utilization'] = round((($this->max_pool_size - count($this->connection_pool)) / $this->max_pool_size) * 100, 2);
+
+        return $stats;
+    }
+
+    /**
+     * 重置连接池统计信息
+     *
+     * @since 2.0.0-beta.1
+     * @return bool 重置是否成功
+     */
+    public function reset_connection_pool_stats(): bool {
+        $this->pool_stats = [
+            'total_requests' => 0,
+            'pool_hits' => 0,
+            'pool_misses' => 0,
+            'connections_created' => 0,
+            'connections_reused' => 0,
+            'http2_connections' => 0,
+            'keepalive_connections' => 0,
+            'average_response_time' => 0,
+            'connection_errors' => 0
+        ];
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log('连接池统计信息已重置', 'Connection Pool');
+        }
+
+        return true;
+    }
+
+    /**
+     * 获取连接池健康状态
+     *
+     * @since 2.0.0-beta.1
+     * @return array 健康状态信息
+     */
+    public function get_connection_pool_health(): array {
+        $stats = $this->get_connection_pool_stats();
+
+        $health = [
+            'status' => 'healthy',
+            'issues' => [],
+            'recommendations' => []
+        ];
+
+        // 检查连接复用率
+        if ($stats['reuse_rate'] < 50 && $stats['total_requests'] > 10) {
+            $health['status'] = 'warning';
+            $health['issues'][] = '连接复用率过低 (' . $stats['reuse_rate'] . '%)';
+            $health['recommendations'][] = '考虑增加连接池大小或检查Keep-Alive配置';
+        }
+
+        // 检查错误率
+        if ($stats['connection_errors'] > 0) {
+            $error_rate = round(($stats['connection_errors'] / $stats['total_requests']) * 100, 2);
+            if ($error_rate > 5) {
+                $health['status'] = 'critical';
+                $health['issues'][] = '连接错误率过高 (' . $error_rate . '%)';
+                $health['recommendations'][] = '检查网络连接和服务器配置';
+            }
+        }
+
+        // 检查池利用率
+        if ($stats['pool_utilization'] > 90) {
+            $health['status'] = 'warning';
+            $health['issues'][] = '连接池利用率过高 (' . $stats['pool_utilization'] . '%)';
+            $health['recommendations'][] = '考虑增加连接池大小';
+        }
+
+        return $health;
+    }
+
+    /**
+     * 强制刷新连接池（关闭所有连接并重新创建）
+     *
+     * @since 2.0.0-beta.1
+     * @return bool 刷新是否成功
+     */
+    public function refresh_connection_pool(): bool {
+        try {
+            // 清理现有连接池
+            $this->cleanup_connection_pool();
+
+            // 重新初始化
+            $this->init_connection_pool();
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log('连接池已强制刷新', 'Connection Pool');
+            }
+
+            return true;
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log('连接池刷新失败: ' . $e->getMessage(), 'Connection Pool');
+            }
+
+            return false;
+        }
     }
 }

@@ -1,13 +1,17 @@
 <?php
+declare(strict_types=1);
+
 /**
  * 智能API调用合并器
  * 
  * 基于DataLoader模式实现智能API调用合并，优化Notion API的批处理效率
  * 
- * @package    Notion_To_WordPress
- * @subpackage Notion_To_WordPress/includes/utils
  * @since      2.0.0-beta.1
- * @author     Frank Loong <frankloong@gmail.com>
+ * @version    2.0.0-beta.1
+ * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 // 防止直接访问
@@ -95,11 +99,11 @@ class Notion_Smart_API_Merger {
     
     /**
      * 构造函数
-     * 
+     *
      * @since 2.0.0-beta.1
-     * @param Notion_API $notion_api Notion API实例
+     * @param Notion_API|null $notion_api Notion API实例（可选，避免循环依赖）
      */
-    public function __construct(Notion_API $notion_api) {
+    public function __construct(?Notion_API $notion_api = null) {
         $this->notion_api = $notion_api;
         $this->last_flush_time = microtime(true);
         
@@ -108,16 +112,31 @@ class Notion_Smart_API_Merger {
         $this->batch_timeout = $options['api_merge_timeout'] ?? 50;
         $this->min_batch_size = $options['api_merge_min_batch'] ?? 5;
         $this->max_batch_size = $options['api_merge_max_batch'] ?? 15;
-        
-        if (class_exists('Notion_Logger')) {
+
+        // 减少日志频率：只在配置变更或首次启用时记录
+        static $logged_config = null;
+        $current_config = sprintf('%d-%d-%d', $this->batch_timeout, $this->min_batch_size, $this->max_batch_size);
+
+        if (class_exists('Notion_Logger') && $logged_config !== $current_config) {
             Notion_Logger::debug_log(
-                sprintf('智能API合并器初始化: 窗口=%dms, 批处理大小=%d-%d', 
+                sprintf('智能API合并器配置: 窗口=%dms, 批处理大小=%d-%d',
                     $this->batch_timeout, $this->min_batch_size, $this->max_batch_size),
                 'API Merger'
             );
+            $logged_config = $current_config;
         }
     }
-    
+
+    /**
+     * 设置Notion API实例（避免循环依赖）
+     *
+     * @since 2.0.0-beta.1
+     * @param Notion_API $notion_api Notion API实例
+     */
+    public function set_notion_api(Notion_API $notion_api): void {
+        $this->notion_api = $notion_api;
+    }
+
     /**
      * 添加请求到合并队列
      * 
@@ -143,11 +162,13 @@ class Notion_Smart_API_Merger {
         
         // 添加到队列
         $this->pending_requests[] = $request;
-        
-        if (class_exists('Notion_Logger')) {
+
+        // 🔇 减少日志频率：只在队列大小达到特定阈值时记录
+        $queue_size = count($this->pending_requests);
+        if (class_exists('Notion_Logger') && ($queue_size % 5 === 0 || $queue_size === 1)) {
             Notion_Logger::debug_log(
-                sprintf('请求加入合并队列: %s %s (队列大小: %d)', 
-                    $method, $endpoint, count($this->pending_requests)),
+                sprintf('API合并队列状态: %s %s (队列大小: %d)',
+                    $method, $endpoint, $queue_size),
                 'API Merger'
             );
         }
@@ -203,10 +224,11 @@ class Notion_Smart_API_Merger {
         
         $batch_start_time = microtime(true);
         $original_count = count($this->pending_requests);
-        
-        if (class_exists('Notion_Logger')) {
+
+        // 🔇 减少日志频率：只在批处理大小≥3时记录
+        if (class_exists('Notion_Logger') && $original_count >= 3) {
             Notion_Logger::debug_log(
-                sprintf('开始刷新批处理: %d个请求', $original_count),
+                sprintf('开始批处理: %d个请求', $original_count),
                 'API Merger'
             );
         }
@@ -225,13 +247,18 @@ class Notion_Smart_API_Merger {
         
         // 更新统计
         $this->update_merge_ratio();
-        
+
         $batch_duration = (microtime(true) - $batch_start_time) * 1000;
-        
-        if (class_exists('Notion_Logger')) {
+
+        //减少日志频率：只在有实际合并效果或批处理较大时记录
+        $merged_count = count($merged_groups);
+        $has_merge_effect = $original_count > $merged_count;
+
+        if (class_exists('Notion_Logger') && ($has_merge_effect || $original_count >= 3)) {
             Notion_Logger::debug_log(
-                sprintf('批处理完成: 原始%d个请求 → 合并为%d组，耗时%.2fms', 
-                    $original_count, count($merged_groups), $batch_duration),
+                sprintf('批处理完成: %d个请求 → %d组，耗时%.2fms%s',
+                    $original_count, $merged_count, $batch_duration,
+                    $has_merge_effect ? ' (已合并)' : ''),
                 'API Merger'
             );
         }
