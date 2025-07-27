@@ -149,6 +149,12 @@ class Notion_API {
 
             if ($this->is_valid_filter($filter)) {
                 $data['filter'] = $filter;
+
+                // 调试：记录发送给API的过滤器
+                Notion_Logger::debug_log(
+                    "发送给API的过滤器: " . json_encode($filter, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+                    'API Filter Debug'
+                );
             }
 
             if ($start_cursor) {
@@ -902,7 +908,9 @@ class Notion_API {
 
             // 只有在格式化后的时间有效时才创建过滤器
             if (!empty($formatted_time)) {
+                // 根据官方文档：https://developers.notion.com/reference/post-database-query-filter#timestamp
                 $time_filter = [
+                    'timestamp' => 'last_edited_time',
                     'last_edited_time' => [
                         'after' => $formatted_time
                     ]
@@ -1146,7 +1154,8 @@ class Notion_API {
             'and', 'or', 'title', 'rich_text', 'number', 'checkbox', 'select',
             'multi_select', 'status', 'date', 'people', 'files', 'url', 'email',
             'phone_number', 'relation', 'created_by', 'created_time',
-            'last_edited_by', 'last_edited_time', 'formula', 'unique_id', 'rollup'
+            'last_edited_by', 'last_edited_time', 'formula', 'unique_id', 'rollup',
+            'timestamp', 'property'  // 添加时间戳过滤器和属性过滤器支持
         ];
 
         $found_valid_keys = [];

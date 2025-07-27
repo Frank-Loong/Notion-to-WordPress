@@ -1279,11 +1279,19 @@ class Notion_Import_Coordinator {
         }
 
         // 构建符合Notion API规范的时间戳过滤条件
+        // 根据官方文档：https://developers.notion.com/reference/post-database-query-filter#timestamp
         $filter = [
+            'timestamp' => 'last_edited_time',
             'last_edited_time' => [
                 'after' => $formatted_time
             ]
         ];
+
+        // 调试：记录过滤器内容
+        Notion_Logger::debug_log(
+            "构建的时间戳过滤器: " . json_encode($filter, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+            'Filter Debug'
+        );
 
         // 验证过滤器结构并记录调试信息
         $is_valid = $this->notion_api->is_valid_filter($filter);

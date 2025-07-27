@@ -1199,7 +1199,9 @@ class Notion_Sync_Manager {
             $filter = [];
             if (!empty($last_sync_time)) {
                 $formatted_time = $notion_api->format_timestamp_for_api($last_sync_time);
+                // 根据官方文档：https://developers.notion.com/reference/post-database-query-filter#timestamp
                 $filter = [
+                    'timestamp' => 'last_edited_time',
                     'last_edited_time' => [
                         'after' => $formatted_time
                     ]
