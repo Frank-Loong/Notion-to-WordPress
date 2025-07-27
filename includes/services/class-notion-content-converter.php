@@ -35,6 +35,12 @@ class Notion_Content_Converter {
     private static $preprocessed_database_data = [];
 
     /**
+     * 🚀 数据预加载器集成标志
+     * @var bool
+     */
+    private static $preloader_enabled = false;
+
+    /**
      * 🚀 注入预处理的数据库数据
      *
      * @param array $preprocessed_data 预处理数据
@@ -45,6 +51,32 @@ class Notion_Content_Converter {
         Notion_Logger::debug_log(
             sprintf('注入预处理数据: %d 个数据库', count($preprocessed_data)),
             'Preprocessed Data Injection'
+        );
+    }
+
+    /**
+     * 🚀 启用数据预加载器集成
+     *
+     * @param array $context 预加载上下文
+     */
+    public static function enable_data_preloader(array $context = []): void {
+        if (!class_exists('Notion_Data_Preloader')) {
+            return;
+        }
+
+        self::$preloader_enabled = true;
+
+        // 预加载相关数据
+        if (!empty($context)) {
+            Notion_Data_Preloader::preload_related_data($context);
+        }
+
+        // 启用查询监控
+        Notion_Data_Preloader::enable_query_monitoring();
+
+        Notion_Logger::debug_log(
+            '数据预加载器已启用，开始批量数据预加载',
+            'Data Preloader Integration'
         );
     }
 

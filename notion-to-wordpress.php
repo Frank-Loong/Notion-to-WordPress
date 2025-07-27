@@ -51,6 +51,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-parallel-image-processor.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-task-scheduler.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-data-preloader.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**
