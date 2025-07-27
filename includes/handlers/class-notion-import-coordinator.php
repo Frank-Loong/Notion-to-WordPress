@@ -1269,7 +1269,7 @@ class Notion_Import_Coordinator {
         }
 
         // 使用API类的时间戳格式化方法确保格式正确
-        $formatted_time = $this->format_timestamp_for_api($last_sync_time);
+        $formatted_time = $this->notion_api->format_timestamp_for_api($last_sync_time);
         if (empty($formatted_time)) {
             Notion_Logger::warning_log(
                 "时间戳格式化失败，使用全量获取: {$last_sync_time}",
@@ -1280,11 +1280,21 @@ class Notion_Import_Coordinator {
 
         // 构建符合Notion API规范的时间戳过滤条件
         $filter = [
-            'timestamp' => 'last_edited_time',
             'last_edited_time' => [
                 'after' => $formatted_time
             ]
         ];
+
+        // 验证过滤器结构并记录调试信息
+        $is_valid = $this->notion_api->is_valid_filter($filter);
+        Notion_Logger::debug_log(
+            sprintf(
+                "过滤器构建完成: %s, 验证结果: %s",
+                json_encode($filter, JSON_UNESCAPED_UNICODE),
+                $is_valid ? '有效' : '无效'
+            ),
+            'Filter Debug'
+        );
 
         Notion_Logger::info_log(
             "API前置过滤条件: last_edited_time > {$formatted_time}",
@@ -1369,7 +1379,16 @@ class Notion_Import_Coordinator {
                 }
             }
 
-            // 记录降级操作
+            // 记录降级操作详细信息
+            $fallback_context = [
+                'original_error_type' => $error_type,
+                'original_error_message' => $e->getMessage(),
+                'original_error_code' => $e->getCode(),
+                'last_sync_time' => $last_sync_time,
+                'formatted_time' => $formatted_time ?? 'N/A',
+                'fallback_reason' => '增量同步失败，尝试全量获取'
+            ];
+
             Notion_Logger::warning_log(
                 sprintf(
                     "增量同步失败，降级到全量获取 [原因: %s]",
@@ -1378,8 +1397,18 @@ class Notion_Import_Coordinator {
                 'Incremental Sync Fallback'
             );
 
+            Notion_Logger::debug_log(
+                "降级操作详细上下文: " . print_r($fallback_context, true),
+                'Fallback Debug'
+            );
+
             // 降级到全量获取
             try {
+                Notion_Logger::info_log(
+                    "开始执行全量获取作为降级方案",
+                    'Incremental Sync Fallback'
+                );
+
                 $fallback_pages = $this->notion_api->get_database_pages($this->database_id);
 
                 Notion_Logger::info_log(
@@ -1390,15 +1419,52 @@ class Notion_Import_Coordinator {
                     'Incremental Sync Fallback'
                 );
 
+                // 记录降级成功的性能影响
+                if (count($fallback_pages) > 50) {
+                    Notion_Logger::warning_log(
+                        sprintf(
+                            "降级到全量获取导致性能影响：获取了 %d 个页面，建议检查过滤器配置",
+                            count($fallback_pages)
+                        ),
+                        'Performance Impact'
+                    );
+                }
+
                 return $fallback_pages;
 
             } catch (Exception $fallback_e) {
+                $fallback_error_type = $this->classify_api_error($fallback_e);
+
                 Notion_Logger::error_log(
-                    "全量获取也失败: " . $fallback_e->getMessage(),
+                    sprintf(
+                        "全量获取也失败 [错误类型: %s]: %s",
+                        $fallback_error_type,
+                        $fallback_e->getMessage()
+                    ),
                     'Incremental Sync Critical'
                 );
 
+                // 记录完整的错误上下文用于调试
+                $critical_context = [
+                    'original_error' => $error_context,
+                    'fallback_error_type' => $fallback_error_type,
+                    'fallback_error_message' => $fallback_e->getMessage(),
+                    'fallback_error_code' => $fallback_e->getCode(),
+                    'database_id' => $this->database_id,
+                    'api_key_status' => !empty($this->notion_api) ? 'available' : 'missing'
+                ];
+
+                Notion_Logger::debug_log(
+                    "关键错误完整上下文: " . print_r($critical_context, true),
+                    'Critical Error Debug'
+                );
+
                 // 返回空数组，避免完全中断同步流程
+                Notion_Logger::warning_log(
+                    "所有获取方式均失败，返回空结果以避免中断同步流程",
+                    'Incremental Sync Critical'
+                );
+
                 return [];
             }
         }
@@ -1506,41 +1572,99 @@ class Notion_Import_Coordinator {
         $message = strtolower($e->getMessage());
         $code = $e->getCode();
 
+        // 记录错误分类开始
+        Notion_Logger::debug_log(
+            sprintf(
+                "开始分类API错误: 代码=%d, 消息=%s",
+                $code,
+                $e->getMessage()
+            ),
+            'Error Classification'
+        );
+
+        // 过滤器相关错误（优先检查，因为这是当前修复的重点）
+        if (strpos($message, 'filter') !== false ||
+            strpos($message, 'should be defined') !== false ||
+            strpos($message, 'invalid filter') !== false ||
+            strpos($message, 'filter validation') !== false ||
+            strpos($message, 'property') !== false && strpos($message, 'does not exist') !== false ||
+            strpos($message, 'timestamp') !== false && strpos($message, 'invalid') !== false ||
+            ($code === 400 && (strpos($message, 'body') !== false || strpos($message, 'request') !== false))) {
+
+            Notion_Logger::debug_log(
+                "错误分类结果: FILTER_ERROR - 过滤器相关错误",
+                'Error Classification'
+            );
+            return 'FILTER_ERROR';
+        }
+
         // 网络相关错误
         if (strpos($message, 'timeout') !== false ||
             strpos($message, 'connection') !== false ||
             strpos($message, 'network') !== false ||
-            $code === 28 || $code === 7) {
+            strpos($message, 'curl') !== false ||
+            $code === 28 || $code === 7 || $code === 6) {
+
+            Notion_Logger::debug_log(
+                "错误分类结果: NETWORK_ERROR - 网络连接错误",
+                'Error Classification'
+            );
             return 'NETWORK_ERROR';
         }
 
         // API限制错误
         if (strpos($message, 'rate limit') !== false ||
             strpos($message, 'too many requests') !== false ||
+            strpos($message, 'quota') !== false ||
             $code === 429) {
+
+            Notion_Logger::debug_log(
+                "错误分类结果: RATE_LIMIT_ERROR - API限制错误",
+                'Error Classification'
+            );
             return 'RATE_LIMIT_ERROR';
         }
 
         // 服务器错误
         if ($code >= 500 && $code < 600) {
+            Notion_Logger::debug_log(
+                "错误分类结果: SERVER_ERROR - 服务器错误",
+                'Error Classification'
+            );
             return 'SERVER_ERROR';
         }
 
         // 认证错误
         if (strpos($message, 'unauthorized') !== false ||
             strpos($message, 'authentication') !== false ||
+            strpos($message, 'api key') !== false ||
+            strpos($message, 'forbidden') !== false ||
             $code === 401 || $code === 403) {
+
+            Notion_Logger::debug_log(
+                "错误分类结果: AUTH_ERROR - 认证错误",
+                'Error Classification'
+            );
             return 'AUTH_ERROR';
         }
 
-        // 过滤器格式错误
-        if (strpos($message, 'filter') !== false ||
-            strpos($message, 'should be defined') !== false ||
-            $code === 400) {
-            return 'FILTER_ERROR';
+        // 数据库访问错误
+        if (strpos($message, 'database') !== false &&
+            (strpos($message, 'not found') !== false || strpos($message, 'access') !== false) ||
+            $code === 404) {
+
+            Notion_Logger::debug_log(
+                "错误分类结果: DATABASE_ERROR - 数据库访问错误",
+                'Error Classification'
+            );
+            return 'DATABASE_ERROR';
         }
 
         // 其他错误
+        Notion_Logger::debug_log(
+            "错误分类结果: UNKNOWN_ERROR - 未知错误类型",
+            'Error Classification'
+        );
         return 'UNKNOWN_ERROR';
     }
 
@@ -1561,43 +1685,19 @@ class Notion_Import_Coordinator {
             'SERVER_ERROR'
         ];
 
-        return in_array($error_type, $retryable_errors);
+        // 记录重试决策
+        $should_retry = in_array($error_type, $retryable_errors);
+        Notion_Logger::debug_log(
+            sprintf(
+                "重试决策: 错误类型=%s, 是否重试=%s",
+                $error_type,
+                $should_retry ? '是' : '否'
+            ),
+            'Retry Decision'
+        );
+
+        return $should_retry;
     }
 
-    /**
-     * 格式化时间戳为API兼容格式
-     *
-     * 委托给Notion_API类的format_timestamp_for_api方法
-     *
-     * @since 2.0.0-beta.1
-     * @param string $timestamp 时间戳
-     * @return string 格式化后的时间戳
-     */
-    private function format_timestamp_for_api(string $timestamp): string {
-        // 如果为空或无效，返回空字符串以避免API错误
-        if (empty($timestamp) || trim($timestamp) === '') {
-            return '';
-        }
 
-        // 如果已经是ISO 8601格式，直接返回
-        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/', $timestamp)) {
-            // 确保时间戳以Z结尾（UTC格式）
-            return rtrim($timestamp, 'Z') . 'Z';
-        }
-
-        // 尝试解析并转换为ISO 8601格式
-        try {
-            $date = new DateTime($timestamp);
-            // 转换为UTC时间并格式化为ISO 8601
-            $date->setTimezone(new DateTimeZone('UTC'));
-            return $date->format('Y-m-d\TH:i:s\Z');
-        } catch (Exception $e) {
-            // 如果解析失败，记录错误并返回空字符串
-            Notion_Logger::warning_log(
-                "时间戳格式化失败: {$timestamp} - " . $e->getMessage(),
-                'API Time Format'
-            );
-            return '';
-        }
-    }
 }

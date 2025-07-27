@@ -1,4 +1,4 @@
-** [🏠 主页](../README-zh_CN.md) • **📚 用户指南** • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
+[🏠 主页](../README-zh_CN.md) • **📚 用户指南** • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 语言：** [English](Wiki.md) • **中文**
 
@@ -1701,23 +1701,20 @@ document.addEventListener('DOMContentLoaded', function() {
 **GitHub：** [@Frank-Loong](https://github.com/Frank-Loong)
 **项目主页：** [Notion-to-WordPress](https://github.com/Frank-Loong/Notion-to-WordPress)
 
----
-
-<div align="center">
-
 **📚 用户指南结束**
 
 *感谢您阅读 Notion to WordPress 用户指南！*
 
 **🎉 如果这份指南对您有帮助，请考虑：**
 
-⭐ 给项目点个 Star
+- ⭐ 给项目点个 Star
+- 🔄 分享给其他需要的用户
+- 💬 在社区中分享您的使用经验
+- 🐛 报告文档中的错误或改进建议
 
-🔄 分享给其他需要的用户
+---
 
-💬 在社区中分享您的使用经验
-
-🐛 报告文档中的错误或改进建议
+<div align="center">
 
 **[⬆️ 返回顶部](#-notion-to-wordpress---用户指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
 

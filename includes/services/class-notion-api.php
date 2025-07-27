@@ -1079,7 +1079,7 @@ class Notion_API {
      * @param string $timestamp 时间戳
      * @return string 格式化后的时间戳
      */
-    private function format_timestamp_for_api(string $timestamp): string {
+    public function format_timestamp_for_api(string $timestamp): string {
         // 如果为空或无效，返回null以避免API错误
         if (empty($timestamp) || trim($timestamp) === '') {
             return '';
@@ -1118,28 +1118,82 @@ class Notion_API {
      * @param array $filter 过滤器数组
      * @return bool 是否为有效过滤器
      */
-    private function is_valid_filter(array $filter): bool {
+    public function is_valid_filter(array $filter): bool {
+        // 记录过滤器验证开始
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log(
+                sprintf(
+                    "开始验证过滤器: %s",
+                    json_encode($filter, JSON_UNESCAPED_UNICODE)
+                ),
+                'Filter Validation'
+            );
+        }
+
         // 如果过滤器为空，返回false
         if (empty($filter)) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    "过滤器验证失败: 过滤器为空",
+                    'Filter Validation'
+                );
+            }
             return false;
         }
 
         // 检查是否包含有效的过滤条件
         $valid_filter_keys = [
-            'and', 'or', 'title', 'rich_text', 'number', 'checkbox', 'select', 
-            'multi_select', 'status', 'date', 'people', 'files', 'url', 'email', 
-            'phone_number', 'relation', 'created_by', 'created_time', 
+            'and', 'or', 'title', 'rich_text', 'number', 'checkbox', 'select',
+            'multi_select', 'status', 'date', 'people', 'files', 'url', 'email',
+            'phone_number', 'relation', 'created_by', 'created_time',
             'last_edited_by', 'last_edited_time', 'formula', 'unique_id', 'rollup'
         ];
 
+        $found_valid_keys = [];
+        $invalid_keys = [];
+
         // 检查过滤器是否包含至少一个有效的键
-        foreach ($valid_filter_keys as $key) {
-            if (isset($filter[$key]) && !empty($filter[$key])) {
-                return true;
+        foreach ($filter as $key => $value) {
+            if (in_array($key, $valid_filter_keys)) {
+                if (!empty($value)) {
+                    $found_valid_keys[] = $key;
+                }
+            } else {
+                $invalid_keys[] = $key;
             }
         }
 
-        return false;
+        // 记录详细的验证结果
+        if (class_exists('Notion_Logger')) {
+            if (!empty($found_valid_keys)) {
+                Notion_Logger::debug_log(
+                    sprintf(
+                        "过滤器验证成功: 找到有效键 [%s]",
+                        implode(', ', $found_valid_keys)
+                    ),
+                    'Filter Validation'
+                );
+            }
+
+            if (!empty($invalid_keys)) {
+                Notion_Logger::warning_log(
+                    sprintf(
+                        "过滤器包含无效键: [%s]",
+                        implode(', ', $invalid_keys)
+                    ),
+                    'Filter Validation'
+                );
+            }
+
+            if (empty($found_valid_keys)) {
+                Notion_Logger::debug_log(
+                    "过滤器验证失败: 未找到有效的过滤键",
+                    'Filter Validation'
+                );
+            }
+        }
+
+        return !empty($found_valid_keys);
     }
 
     /**

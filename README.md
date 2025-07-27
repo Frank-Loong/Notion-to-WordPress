@@ -6,18 +6,14 @@
 
 # <img src="assets/icon.svg" width="80" height="80" align="center"> Notion-to-WordPress
 
-> 🚀 Transform Notion into WordPress with one click — Say goodbye to copy-pasting and achieve fully automated content publishing and synchronization
+🚀 Transform Notion into WordPress with one click — Say goodbye to copy-pasting and achieve fully automated content publishing and synchronization
 
 ![GitHub Stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![Release](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/frank-loong/notion-to-wordpress)
-
----
 
 ## Overview
 **Notion-to-WordPress** is a modern WP plugin that syncs every block of your Notion database—posts, pages, images, math, Mermaid charts—straight to WordPress and keeps them in perfect harmony.
 
 *Write in Notion, rank with WordPress. Stop copying, start creating.*
-
----
 
 ## 🖼️ Demo Showcase
 
@@ -36,8 +32,6 @@
   <em>▲ One-click sync: Notion content instantly published to WordPress, pixel-perfect</em>
 </p>
 
----
-
 ## Highlights
 - **⚡ Lightning-fast import** – manual, one-click refresh, scheduled Cron, or instant Webhook
 - **🧠 Smart incremental sync** – only syncs changed content for optimal performance
@@ -52,16 +46,12 @@
 
 > Need help or dive deeper? Visit the [User Guidei 📚](./docs/Wiki.md) – English | [中文](./docs/Wiki.zh_CN.md), which includes templates, screenshots, and troubleshooting. 
 
----
-
 ## Quick Start
 
 ### 🚀 3-Step Setup
 1. **Install** – upload the ZIP in `Plugins → Add New` and activate
 2. **Configure** – get your Notion API token and database ID
 3. **Sync** – click "Manual Sync" and watch your content appear in WordPress!
-
----
 
 ## 🚀 Key Features
 
@@ -76,10 +66,16 @@
 - **Rich Content Support** – Math, diagrams, images, and more
 
 ## 💡 Use Cases
-Perfect for blogs, knowledge bases, team collaboration, and online courses. Write in Notion's familiar interface, publish to WordPress automatically.
-| Real-time publishing | Webhook triggers instant sync | Live updates as you type |
+### **Content Creation**
+- **Blogs & News Sites** – Write in Notion's familiar interface, publish to WordPress automatically
+- **Knowledge Bases** – Create organized documentation with Notion's hierarchy
+- **Team Collaboration** – Collaborative writing in Notion, professional publishing in WordPress
+- **Online Courses** – Structure learning materials in Notion, deliver through WordPress
 
----
+### **Publishing Workflow**
+- **Real-time Publishing** – Webhook triggers instant sync when content changes
+- **Scheduled Updates** – Queue content for future publishing
+- **Draft Management** – Keep works-in-progress in Notion until ready
 
 ## 📈 Performance & Reliability
 
@@ -89,22 +85,12 @@ Perfect for blogs, knowledge bases, team collaboration, and online courses. Writ
 - **Error Recovery** – Advanced error handling with detailed logging
 - **Enterprise Grade** – Security hardened following WordPress standards
 
----
-
-## 🌟 Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
-
----
-
 ## Contributing ⭐
 If this project helps you, please smash that **Star**! PRs, issues, translations and ideas are warmly welcome.
 
 * [🚀 Developer Guide](./docs/DEVELOPER_GUIDE.md) - Complete development and contributing guide
 * [Open an Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 * [Feature Requests](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
-
----
 
 ## Acknowledgments
 
@@ -116,9 +102,20 @@ This project was inspired by and references the following excellent open-source 
 
 We extend our heartfelt gratitude to these projects and their maintainers for their contributions to the open-source community, which made this project possible.
 
+## 📄 License
+
+This project is open-source under the [GPL-3.0](LICENSE) license.
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+
 ---
 
-## License
-GPL-3.0-or-later
+<div align="center">
 
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+**[⬆️ Back to Top](#overview) • [📚 User Guide](docs/Wiki.md) • [📊 Project Overview](docs/PROJECT_OVERVIEW.md) • [🚀 Developer Guide](docs/DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)**
+
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+
+</div>

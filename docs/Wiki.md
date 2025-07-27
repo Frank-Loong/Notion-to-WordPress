@@ -1,4 +1,4 @@
-** [🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
+[🏠 Home](../README.md) • **📚 User Guide** • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)
 
 **🌐 Language:** **English** • [中文](Wiki.zh_CN.md)
 
@@ -1701,25 +1701,22 @@ We appreciate all community members who contribute to the project:
 **GitHub:** [@Frank-Loong](https://github.com/Frank-Loong)
 **Project Homepage:** [Notion-to-WordPress](https://github.com/Frank-Loong/Notion-to-WordPress)
 
----
-
-<div align="center">
-
 **📚 User Guide End**
 
 *Thank you for reading the Notion to WordPress User Guide!*
 
 **🎉 If this guide helped you, please consider:**
 
-⭐ Give the project a Star
+- ⭐ Give the project a Star
+- 🔄 Share with other users who need it
+- 💬 Share your usage experience in the community
+- 🐛 Report errors or improvement suggestions in documentation
 
-🔄 Share with other users who need it
+---
 
-💬 Share your usage experience in the community
+<div align="center">
 
-🐛 Report errors or improvement suggestions in documentation
-
-**[⬆️ Back to Top](#-notion-to-wordpress---complete-user-guide) • [🏠 Home](../README.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版本](Wiki.zh_CN.md)**
+**[⬆️ Back to Top](#-notion-to-wordpress---user-guide) • [🏠 Home](../README.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版本](Wiki.zh_CN.md)**
 
  © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
 

@@ -1200,10 +1200,8 @@ class Notion_Sync_Manager {
             if (!empty($last_sync_time)) {
                 $formatted_time = $notion_api->format_timestamp_for_api($last_sync_time);
                 $filter = [
-                    'timestamp' => [
-                        'last_edited_time' => [
-                            'after' => $formatted_time
-                        ]
+                    'last_edited_time' => [
+                        'after' => $formatted_time
                     ]
                 ];
             }

@@ -6,11 +6,14 @@
 
 # <img src="assets/icon.svg" width="80" height="80" align="center"> Notion-to-WordPress
 
-> 🚀 一键将 Notion 变身 WordPress — 告别复制粘贴，实现全自动内容发布与同步
+🚀 一键将 Notion 变身 WordPress — 告别复制粘贴，实现全自动内容发布与同步
 
 ![GitHub Stars](https://img.shields.io/github/stars/Frank-Loong/Notion-to-WordPress?style=social) ![Release](https://img.shields.io/github/v/tag/Frank-Loong/Notion-to-WordPress) ![License](https://img.shields.io/github/license/frank-loong/notion-to-wordpress)
 
----
+## 简介
+**Notion-to-WordPress** 是一款现代化 WordPress 插件，让你无需写一行代码，就能把 Notion 数据库里的文章、页面、图片、数学公式、Mermaid 图表等内容批量同步到 WordPress，并保持实时更新。
+
+*告别重复粘贴，专注内容创作，让 Notion 成为你的「内容 CMS」，WordPress 负责高可用发布与 SEO。*
 
 ## 🖼️ 效果演示
 
@@ -29,15 +32,6 @@
   <em>▲ 一键同步，内容完美还原到 WordPress，所见即所得</em>
 </p>
 
----
-
-## 简介
-**Notion-to-WordPress** 是一款现代化 WordPress 插件，让你无需写一行代码，就能把 Notion 数据库里的文章、页面、图片、数学公式、Mermaid 图表等内容批量同步到 WordPress，并保持实时更新。
-
-*告别重复粘贴，专注内容创作，让 Notion 成为你的「内容 CMS」，WordPress 负责高可用发布与 SEO。*
-
----
-
 ## 核心特性
 - **⚡ 极速同步**：支持手动、一键刷新、定时 Cron 以及 Notion Webhook 四种触发方式
 - **🧠 智能增量同步**：仅同步变更内容，优化性能表现
@@ -52,16 +46,12 @@
 
 > 需要帮助或想了解所有高级玩法？访问 [📚 用户指南](./docs/Wiki.zh_CN.md) – 中文 | [English](./docs/Wiki.md)，包含模板、截图和故障排除。
 
----
-
 ## 快速上手
 
 ### 🚀 三步上手
 1. **安装**：下载 ZIP → WordPress 后台上传 → 激活插件
 2. **配置**：获取 Notion API 密钥和数据库 ID
 3. **同步**：点击「手动同步」，观看内容出现在 WordPress！
-
----
 
 ## 🚀 核心功能
 
@@ -76,10 +66,16 @@
 - **丰富内容支持** – 数学公式、图表、图片等
 
 ## 💡 使用场景
-适用于博客、知识库、团队协作和在线课程。在熟悉的Notion界面中写作，自动发布到WordPress。
-| 实时发布 | Webhook触发即时同步 | 边写边更新 |
+### **内容创作**
+- **博客与新闻站点** – 在熟悉的 Notion 界面中写作，自动发布到 WordPress
+- **知识库** – 利用 Notion 的层次结构创建有组织的文档
+- **团队协作** – 在 Notion 中协作写作，在 WordPress 中专业发布
+- **在线课程** – 在 Notion 中构建学习材料，通过 WordPress 交付
 
----
+### **发布工作流**
+- **实时发布** – Webhook 触发器在内容变更时即时同步
+- **定时更新** – 为未来发布安排内容队列
+- **草稿管理** – 在 Notion 中保存进行中的工作，直到准备就绪
 
 ## 📈 性能与可靠性
 
@@ -89,22 +85,12 @@
 - **错误恢复** – 高级错误处理与详细日志记录
 - **企业级** – 遵循WordPress标准的安全加固
 
----
-
-## 🌟 Star 历史
-
-[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
-
----
-
 ## 贡献 ⭐
 如果这个项目帮助到了你，请 **点个 ⭐Star 支持一下**！同时欢迎 PR、Issue、翻译与任何形式的贡献。
 
 * [🚀 开发者指南](./docs/DEVELOPER_GUIDE-zh_CN.md) - 完整的开发和贡献指南
 * [提交 Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 * [功能请求](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)
-
----
 
 ## 致谢与参考
 
@@ -116,9 +102,20 @@
 
 感谢这些项目及其维护者对开源社区的贡献，正是有了他们的努力，才让本项目得以实现。
 
+## 📄 许可证
+
+本项目基于 [GPL-3.0](LICENSE) 许可证开源。
+
+## 🌟 Star 历史
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Frank-Loong/Notion-to-WordPress&type=Date)](https://www.star-history.com/#Frank-Loong/Notion-to-WordPress&Date)
+
 ---
 
-## License
-GPL-3.0-or-later
+<div align="center">
 
-> © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+**[⬆️ 返回顶部](#简介) • [📚 用户指南](docs/Wiki.zh_CN.md) • [📊 项目概览](docs/PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](docs/DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)**
+
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+
+</div>
