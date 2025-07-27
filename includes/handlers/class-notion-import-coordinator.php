@@ -247,11 +247,30 @@ class Notion_Import_Coordinator {
         try {
             // 开始性能监控
             $import_start_time = microtime(true);
-            // 增加执行时间限制以防止超时（修复：解决PHP执行超时问题）
-            $original_time_limit = ini_get('max_execution_time');
-            if ($original_time_limit < 600) {
-                set_time_limit(600); // 设置为10分钟
-                Notion_Logger::info_log('已增加PHP执行时间限制到600秒', 'Performance');
+            // 动态设置执行时间限制（修复：智能超时管理）
+            $original_time_limit = intval(ini_get('max_execution_time'));
+            $optimal_time_limit = $this->calculate_optimal_timeout($incremental);
+
+            if ($original_time_limit < $optimal_time_limit) {
+                set_time_limit($optimal_time_limit);
+                Notion_Logger::info_log(
+                    sprintf(
+                        '已动态调整PHP执行时间限制：%d秒 → %d秒 [模式: %s]',
+                        $original_time_limit,
+                        $optimal_time_limit,
+                        $incremental ? '增量' : '全量'
+                    ),
+                    'Performance'
+                );
+            } else {
+                Notion_Logger::debug_log(
+                    sprintf(
+                        '当前执行时间限制充足：%d秒 [推荐: %d秒]',
+                        $original_time_limit,
+                        $optimal_time_limit
+                    ),
+                    'Performance'
+                );
             }
 
             $performance_stats = [
@@ -387,22 +406,42 @@ class Notion_Import_Coordinator {
                 // 使用传统逐个处理模式（优化内存使用）
                 $processed_count = 0;
                 foreach ($pages as $index => $page) {
-                    // 检查执行时间，防止超时（修复：分块处理优化）
-                    $elapsed_time = microtime(true) - $import_start_time;
-                    if ($elapsed_time > 480) { // 8分钟后开始检查
+                    // 智能超时检查和预警（修复：动态超时管理）
+                    $timeout_status = $this->check_timeout_status($import_start_time, $optimal_time_limit);
+
+                    if ($timeout_status['should_stop']) {
                         Notion_Logger::warning_log(
-                            sprintf('同步已运行%.1f秒，为防止超时将在处理完当前页面后停止', $elapsed_time),
+                            sprintf(
+                                '同步已运行%.1f秒，达到安全阈值(%.1f%%)，为防止超时将在处理完当前页面后停止',
+                                $timeout_status['elapsed_time'],
+                                $timeout_status['usage_percentage']
+                            ),
                             'Performance'
                         );
+
                         // 设置处理状态，下次同步将从这里继续
                         if ($processed_count > 0) {
                             Notion_Logger::info_log(
-                                sprintf('本次成功处理了%d个页面，剩余%d个页面将在下次同步时处理', 
-                                    $processed_count, count($pages) - $index),
+                                sprintf(
+                                    '本次成功处理了%d个页面，剩余%d个页面将在下次同步时处理 [效率: %.2f页面/秒]',
+                                    $processed_count,
+                                    count($pages) - $index,
+                                    $processed_count / $timeout_status['elapsed_time']
+                                ),
                                 'Performance'
                             );
                         }
                         break;
+                    } elseif ($timeout_status['should_warn']) {
+                        Notion_Logger::info_log(
+                            sprintf(
+                                '超时预警：已使用%.1f%%执行时间 [%d/%d页面已处理]',
+                                $timeout_status['usage_percentage'],
+                                $processed_count,
+                                count($pages)
+                            ),
+                            'Performance Warning'
+                        );
                     }
 
                     if (!$performance_mode) {
@@ -514,8 +553,8 @@ class Notion_Import_Coordinator {
             );
 
             // 恢复原始执行时间限制（修复：执行时间管理）
-            if (isset($original_time_limit) && $original_time_limit != ini_get('max_execution_time')) {
-                set_time_limit($original_time_limit);
+            if (isset($original_time_limit) && $original_time_limit != intval(ini_get('max_execution_time'))) {
+                set_time_limit(intval($original_time_limit));
                 Notion_Logger::debug_log('已恢复原始PHP执行时间限制', 'Performance');
             }
 
@@ -1211,7 +1250,7 @@ class Notion_Import_Coordinator {
 
     /**
      * 仅获取变更的页面（API层面前置过滤）
-     * 
+     *
      * 这是核心的前置过滤方法，直接在API层面过滤，
      * 大幅减少数据传输和处理时间
      *
@@ -1229,18 +1268,29 @@ class Notion_Import_Coordinator {
             return $this->notion_api->get_database_pages($this->database_id);
         }
 
-        // 构建基础的时间戳过滤条件（修复：使用正确的Notion API格式）
+        // 使用API类的时间戳格式化方法确保格式正确
+        $formatted_time = $this->format_timestamp_for_api($last_sync_time);
+        if (empty($formatted_time)) {
+            Notion_Logger::warning_log(
+                "时间戳格式化失败，使用全量获取: {$last_sync_time}",
+                'Incremental Sync'
+            );
+            return $this->notion_api->get_database_pages($this->database_id);
+        }
+
+        // 构建符合Notion API规范的时间戳过滤条件
         $filter = [
+            'timestamp' => 'last_edited_time',
             'last_edited_time' => [
-                'after' => $last_sync_time
+                'after' => $formatted_time
             ]
         ];
-        
+
         Notion_Logger::info_log(
-            "API前置过滤条件: last_edited_time > {$last_sync_time}",
+            "API前置过滤条件: last_edited_time > {$formatted_time}",
             'Incremental Sync'
         );
-        
+
         try {
             // 使用过滤条件获取页面
             $pages = $this->notion_api->get_database_pages($this->database_id, $filter, true);
@@ -1266,13 +1316,288 @@ class Notion_Import_Coordinator {
             return $pages;
             
         } catch (Exception $e) {
+            // 分析错误类型并记录详细信息
+            $error_type = $this->classify_api_error($e);
+            $error_context = [
+                'database_id' => $this->database_id,
+                'last_sync_time' => $last_sync_time,
+                'formatted_time' => $formatted_time ?? 'N/A',
+                'error_type' => $error_type,
+                'error_code' => $e->getCode(),
+                'error_message' => $e->getMessage(),
+                'error_trace' => $e->getTraceAsString()
+            ];
+
             Notion_Logger::error_log(
-                "前置过滤失败，降级到全量获取: " . $e->getMessage(),
-                'Incremental Sync'
+                sprintf(
+                    "增量同步API过滤失败 [%s]: %s",
+                    $error_type,
+                    $e->getMessage()
+                ),
+                'Incremental Sync Error'
             );
-            
+
+            Notion_Logger::debug_log(
+                "错误详细上下文: " . print_r($error_context, true),
+                'Incremental Sync Debug'
+            );
+
+            // 根据错误类型决定是否重试
+            if ($this->should_retry_api_call($error_type)) {
+                Notion_Logger::warning_log(
+                    "检测到临时性错误，尝试重试一次",
+                    'Incremental Sync Retry'
+                );
+
+                try {
+                    // 等待1秒后重试
+                    sleep(1);
+                    $pages = $this->notion_api->get_database_pages($this->database_id, $filter, true);
+
+                    Notion_Logger::info_log(
+                        "重试成功，获取到 " . count($pages) . " 个页面",
+                        'Incremental Sync Retry'
+                    );
+
+                    return $pages;
+
+                } catch (Exception $retry_e) {
+                    Notion_Logger::warning_log(
+                        "重试失败: " . $retry_e->getMessage(),
+                        'Incremental Sync Retry'
+                    );
+                }
+            }
+
+            // 记录降级操作
+            Notion_Logger::warning_log(
+                sprintf(
+                    "增量同步失败，降级到全量获取 [原因: %s]",
+                    $error_type
+                ),
+                'Incremental Sync Fallback'
+            );
+
             // 降级到全量获取
-            return $this->notion_api->get_database_pages($this->database_id);
+            try {
+                $fallback_pages = $this->notion_api->get_database_pages($this->database_id);
+
+                Notion_Logger::info_log(
+                    sprintf(
+                        "全量获取成功，共获取 %d 个页面（降级模式）",
+                        count($fallback_pages)
+                    ),
+                    'Incremental Sync Fallback'
+                );
+
+                return $fallback_pages;
+
+            } catch (Exception $fallback_e) {
+                Notion_Logger::error_log(
+                    "全量获取也失败: " . $fallback_e->getMessage(),
+                    'Incremental Sync Critical'
+                );
+
+                // 返回空数组，避免完全中断同步流程
+                return [];
+            }
+        }
+    }
+
+    /**
+     * 计算最优超时时间
+     *
+     * 根据同步模式和系统性能动态计算合适的超时时间
+     *
+     * @since 2.0.0-beta.1
+     * @param bool $incremental 是否为增量同步
+     * @return int 推荐的超时时间（秒）
+     */
+    private function calculate_optimal_timeout(bool $incremental): int {
+        // 基础超时时间
+        $base_timeout = $incremental ? 300 : 600; // 增量5分钟，全量10分钟
+
+        // 根据系统性能调整
+        $memory_limit = $this->parse_memory_limit(ini_get('memory_limit'));
+        $performance_factor = 1.0;
+
+        // 内存充足时可以延长超时时间
+        if ($memory_limit >= 512 * 1024 * 1024) { // 512MB+
+            $performance_factor = 1.5;
+        } elseif ($memory_limit >= 256 * 1024 * 1024) { // 256MB+
+            $performance_factor = 1.2;
+        } elseif ($memory_limit < 128 * 1024 * 1024) { // <128MB
+            $performance_factor = 0.8;
+        }
+
+        // 检查是否在CLI环境（通常有更宽松的限制）
+        if (php_sapi_name() === 'cli') {
+            $performance_factor *= 2.0;
+        }
+
+        $optimal_timeout = intval($base_timeout * $performance_factor);
+
+        // 确保不超过合理范围
+        $optimal_timeout = max(300, min(1800, $optimal_timeout)); // 5分钟到30分钟
+
+        return $optimal_timeout;
+    }
+
+    /**
+     * 解析内存限制字符串为字节数
+     *
+     * @since 2.0.0-beta.1
+     * @param string $memory_limit 内存限制字符串（如 "256M", "1G"）
+     * @return int 字节数
+     */
+    private function parse_memory_limit(string $memory_limit): int {
+        $memory_limit = trim($memory_limit);
+        $last_char = strtolower(substr($memory_limit, -1));
+        $value = intval($memory_limit);
+
+        switch ($last_char) {
+            case 'g':
+                $value *= 1024 * 1024 * 1024;
+                break;
+            case 'm':
+                $value *= 1024 * 1024;
+                break;
+            case 'k':
+                $value *= 1024;
+                break;
+        }
+
+        return $value;
+    }
+
+    /**
+     * 检查超时状态
+     *
+     * 检查当前执行时间状态，决定是否需要预警或停止
+     *
+     * @since 2.0.0-beta.1
+     * @param float $start_time 开始时间
+     * @param int $time_limit 时间限制
+     * @return array 超时状态信息
+     */
+    private function check_timeout_status(float $start_time, int $time_limit): array {
+        $elapsed_time = microtime(true) - $start_time;
+        $usage_percentage = ($elapsed_time / $time_limit) * 100;
+
+        return [
+            'elapsed_time' => $elapsed_time,
+            'time_limit' => $time_limit,
+            'usage_percentage' => $usage_percentage,
+            'should_warn' => $usage_percentage >= 60 && $usage_percentage < 80, // 60-80%预警
+            'should_stop' => $usage_percentage >= 80 // 80%停止
+        ];
+    }
+
+    /**
+     * 分类API错误类型
+     *
+     * 根据异常信息判断错误类型，用于决定处理策略
+     *
+     * @since 2.0.0-beta.1
+     * @param Exception $e 异常对象
+     * @return string 错误类型
+     */
+    private function classify_api_error(Exception $e): string {
+        $message = strtolower($e->getMessage());
+        $code = $e->getCode();
+
+        // 网络相关错误
+        if (strpos($message, 'timeout') !== false ||
+            strpos($message, 'connection') !== false ||
+            strpos($message, 'network') !== false ||
+            $code === 28 || $code === 7) {
+            return 'NETWORK_ERROR';
+        }
+
+        // API限制错误
+        if (strpos($message, 'rate limit') !== false ||
+            strpos($message, 'too many requests') !== false ||
+            $code === 429) {
+            return 'RATE_LIMIT_ERROR';
+        }
+
+        // 服务器错误
+        if ($code >= 500 && $code < 600) {
+            return 'SERVER_ERROR';
+        }
+
+        // 认证错误
+        if (strpos($message, 'unauthorized') !== false ||
+            strpos($message, 'authentication') !== false ||
+            $code === 401 || $code === 403) {
+            return 'AUTH_ERROR';
+        }
+
+        // 过滤器格式错误
+        if (strpos($message, 'filter') !== false ||
+            strpos($message, 'should be defined') !== false ||
+            $code === 400) {
+            return 'FILTER_ERROR';
+        }
+
+        // 其他错误
+        return 'UNKNOWN_ERROR';
+    }
+
+    /**
+     * 判断是否应该重试API调用
+     *
+     * 根据错误类型决定是否值得重试
+     *
+     * @since 2.0.0-beta.1
+     * @param string $error_type 错误类型
+     * @return bool 是否应该重试
+     */
+    private function should_retry_api_call(string $error_type): bool {
+        // 这些错误类型值得重试
+        $retryable_errors = [
+            'NETWORK_ERROR',
+            'RATE_LIMIT_ERROR',
+            'SERVER_ERROR'
+        ];
+
+        return in_array($error_type, $retryable_errors);
+    }
+
+    /**
+     * 格式化时间戳为API兼容格式
+     *
+     * 委托给Notion_API类的format_timestamp_for_api方法
+     *
+     * @since 2.0.0-beta.1
+     * @param string $timestamp 时间戳
+     * @return string 格式化后的时间戳
+     */
+    private function format_timestamp_for_api(string $timestamp): string {
+        // 如果为空或无效，返回空字符串以避免API错误
+        if (empty($timestamp) || trim($timestamp) === '') {
+            return '';
+        }
+
+        // 如果已经是ISO 8601格式，直接返回
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/', $timestamp)) {
+            // 确保时间戳以Z结尾（UTC格式）
+            return rtrim($timestamp, 'Z') . 'Z';
+        }
+
+        // 尝试解析并转换为ISO 8601格式
+        try {
+            $date = new DateTime($timestamp);
+            // 转换为UTC时间并格式化为ISO 8601
+            $date->setTimezone(new DateTimeZone('UTC'));
+            return $date->format('Y-m-d\TH:i:s\Z');
+        } catch (Exception $e) {
+            // 如果解析失败，记录错误并返回空字符串
+            Notion_Logger::warning_log(
+                "时间戳格式化失败: {$timestamp} - " . $e->getMessage(),
+                'API Time Format'
+            );
+            return '';
         }
     }
 }
