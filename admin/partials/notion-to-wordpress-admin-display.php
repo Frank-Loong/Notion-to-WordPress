@@ -9,7 +9,6 @@ declare(strict_types=1);
  * @since      1.0.9
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
- * @subpackage Notion_To_WordPress/admin/partials
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress

@@ -4,12 +4,12 @@
  * 专门为新的Notion_Database_Renderer类设计的简洁样式，
  * 移除了复杂的Grid布局和JavaScript交互，专注于静态展示。
  *
- * @since 1.1.3
- * @version 2.0.0-beta.1
- * @package Notion_To_WordPress
- * @author Frank-Loong
- * @license GPL-3.0-or-later
- * @link https://github.com/Frank-Loong/Notion-to-WordPress
+ * @since      1.1.3
+ * @version    2.0.0-beta.1
+ * @package    Notion_To_WordPress
+ * @author     Frank-Loong
+ * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 /* ================ 通用数据库样式 ================ */
