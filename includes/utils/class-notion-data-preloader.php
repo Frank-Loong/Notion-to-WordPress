@@ -87,7 +87,8 @@ class Notion_Data_Preloader {
             $processing_time = microtime(true) - $start_time;
             self::$query_stats['query_times'][] = $processing_time;
 
-            if (class_exists('Notion_Logger')) {
+            // 减少日志记录，仅在非性能模式下记录
+            if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
                 Notion_Logger::debug_log(
                     sprintf('数据预加载完成，耗时%.2fms', $processing_time * 1000),
                     'Data Preloader'
@@ -135,13 +136,22 @@ class Notion_Data_Preloader {
 
         global $wpdb;
 
-        // 批量查询所有元数据
+        // 批量查询所有元数据（优化版）
         $placeholders = implode(',', array_fill(0, count($uncached_ids), '%d'));
+
+        // 限制查询的meta_key，只获取常用的
+        $common_meta_keys = [
+            'notion_page_id', 'notion_last_sync', 'notion_blocks_hash',
+            '_edit_last', '_edit_lock', '_wp_page_template'
+        ];
+        $meta_key_placeholders = implode(',', array_fill(0, count($common_meta_keys), '%s'));
+
         $query = $wpdb->prepare(
-            "SELECT post_id, meta_key, meta_value 
-            FROM {$wpdb->postmeta} 
-            WHERE post_id IN ($placeholders)",
-            $uncached_ids
+            "SELECT post_id, meta_key, meta_value
+            FROM {$wpdb->postmeta}
+            WHERE post_id IN ($placeholders)
+            AND meta_key IN ($meta_key_placeholders)",
+            array_merge($uncached_ids, $common_meta_keys)
         );
 
         $results = $wpdb->get_results($query);

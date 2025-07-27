@@ -26,13 +26,13 @@ if (!defined('ABSPATH')) {
 class Notion_Stream_Processor {
     
     /**
-     * 处理配置常量
+     * 处理配置常量（优化版）
      */
     const DEFAULT_CHUNK_SIZE = 50;           // 默认分块大小
-    const MIN_CHUNK_SIZE = 10;               // 最小分块大小
-    const MAX_CHUNK_SIZE = 200;              // 最大分块大小
-    const MEMORY_CHECK_FREQUENCY = 5;        // 内存检查频率
-    const GC_TRIGGER_THRESHOLD = 0.75;       // 垃圾回收触发阈值
+    const MIN_CHUNK_SIZE = 20;               // 最小分块大小
+    const MAX_CHUNK_SIZE = 100;              // 最大分块大小（减少以提高稳定性）
+    const MEMORY_CHECK_FREQUENCY = 10;       // 内存检查频率（减少检查频率）
+    const GC_TRIGGER_THRESHOLD = 0.8;        // 垃圾回收触发阈值
     const MEMORY_LIMIT_THRESHOLD = 256;      // 内存限制阈值(MB)
     
     /**
@@ -67,10 +67,11 @@ class Notion_Stream_Processor {
         // 重置统计信息
         self::reset_stats();
         
-        // 动态调整分块大小
-        $optimal_chunk_size = self::calculate_optimal_chunk_size(count($data), $chunk_size);
-        
-        if (class_exists('Notion_Logger')) {
+        // 简化：使用固定分块大小，避免动态调整的开销
+        $optimal_chunk_size = min($chunk_size, self::MAX_CHUNK_SIZE);
+
+        // 减少日志记录
+        if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
             Notion_Logger::debug_log(
                 sprintf('流式处理开始: %d项数据，分块大小: %d', count($data), $optimal_chunk_size),
                 'Stream Processor'
@@ -81,26 +82,16 @@ class Notion_Stream_Processor {
         $chunks = array_chunk($data, $optimal_chunk_size);
         
         foreach ($chunks as $chunk_index => $chunk) {
-            // 内存监控和动态调整
+            // 简化内存监控：仅在必要时检查
             if ($chunk_index % self::MEMORY_CHECK_FREQUENCY === 0) {
-                $memory_status = self::check_memory_status();
-                
-                if ($memory_status['needs_gc']) {
-                    self::trigger_garbage_collection();
-                }
-                
-                if ($memory_status['needs_chunk_adjustment']) {
-                    $new_chunk_size = self::adjust_chunk_size($optimal_chunk_size, $memory_status);
-                    if ($new_chunk_size !== $optimal_chunk_size) {
-                        $optimal_chunk_size = $new_chunk_size;
-                        self::$processing_stats['chunk_size_adjustments']++;
-                        
-                        // 重新分块剩余数据
-                        $remaining_data = array_slice($data, $chunk_index * $optimal_chunk_size);
-                        $chunks = array_merge(
-                            array_slice($chunks, 0, $chunk_index),
-                            array_chunk($remaining_data, $optimal_chunk_size)
-                        );
+                $current_memory = memory_get_usage(true);
+                $memory_limit = self::get_memory_limit();
+
+                // 简化的内存检查
+                if ($current_memory > ($memory_limit * 0.8)) {
+                    if (function_exists('gc_collect_cycles')) {
+                        gc_collect_cycles();
+                        self::$processing_stats['gc_triggered']++;
                     }
                 }
             }

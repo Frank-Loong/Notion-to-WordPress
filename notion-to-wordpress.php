@@ -41,6 +41,13 @@ define( 'NOTION_TO_WORDPRESS_FILE', __FILE__ );
 define( 'NOTION_TO_WORDPRESS_VERSION', '2.0.0-beta.1' );
 
 /**
+ * 性能模式常量 - 启用后将减少日志记录和统计收集
+ */
+if ( ! defined( 'NOTION_PERFORMANCE_MODE' ) ) {
+    define( 'NOTION_PERFORMANCE_MODE', true ); // 默认启用性能模式
+}
+
+/**
  * 核心依赖加载
  */
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-to-wordpress-helper.php';
@@ -52,6 +59,11 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-paral
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-task-scheduler.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-data-preloader.php';
+// 修复：加载关键的流式处理器类
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-stream-processor.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-concurrent-network-manager.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-network-retry.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-smart-api-merger.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**

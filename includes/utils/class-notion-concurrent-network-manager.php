@@ -96,11 +96,30 @@ class Notion_Concurrent_Network_Manager {
      */
     public function __construct($max_concurrent = 5) {
         $this->max_concurrent_requests = max(1, min(10, $max_concurrent));
-        
-        Notion_Logger::debug_log(
-            "初始化并发网络管理器，最大并发数: {$this->max_concurrent_requests}",
-            'Concurrent Network'
-        );
+
+        // 提高PHP执行时间限制
+        if (function_exists('set_time_limit')) {
+            set_time_limit(120); // 设置为2分钟
+        }
+
+        // 减少日志记录
+        if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+            Notion_Logger::debug_log(
+                "初始化并发网络管理器，最大并发数: {$this->max_concurrent_requests}",
+                'Concurrent Network'
+            );
+        }
+    }
+
+    /**
+     * 检查是否为性能模式
+     *
+     * @since 2.0.0-beta.1
+     * @return bool
+     */
+    private function is_performance_mode(): bool {
+        // 检查是否设置了性能模式
+        return defined('NOTION_PERFORMANCE_MODE') && NOTION_PERFORMANCE_MODE;
     }
 
     /**
@@ -376,13 +395,15 @@ class Notion_Concurrent_Network_Manager {
     }
 
     /**
-     * 执行并发请求
+     * 执行并发请求（优化版）
      *
      * @since    1.1.2
      * @access   private
      */
     private function execute_requests() {
         $running = null;
+        $start_time = microtime(true);
+        $max_execution_time = 90; // 最大执行时间90秒
 
         // 开始执行
         do {
@@ -392,9 +413,21 @@ class Notion_Concurrent_Network_Manager {
                 throw new Exception("cURL multi exec错误: " . curl_multi_strerror($status));
             }
 
-            // 等待活动
+            // 检查执行时间，避免超时
+            $elapsed_time = microtime(true) - $start_time;
+            if ($elapsed_time > $max_execution_time) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::error_log(
+                        sprintf('并发请求执行超时 (%.2f秒)，强制终止', $elapsed_time),
+                        'Concurrent Network'
+                    );
+                }
+                break;
+            }
+
+            // 等待活动，减少CPU占用
             if ($running > 0) {
-                curl_multi_select($this->multi_handle, 0.1);
+                curl_multi_select($this->multi_handle, 0.2); // 增加等待时间
             }
 
         } while ($running > 0);
@@ -475,10 +508,13 @@ class Notion_Concurrent_Network_Manager {
                     ]
                 ];
 
-                Notion_Logger::debug_log(
-                    "请求成功 (ID: {$request_id}): HTTP {$http_code}, 响应时间: {$response_time}s",
-                    'Concurrent Network'
-                );
+                // 减少日志记录，仅在非性能模式下记录
+                if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+                    Notion_Logger::debug_log(
+                        "请求成功 (ID: {$request_id}): HTTP {$http_code}, 响应时间: {$response_time}s",
+                        'Concurrent Network'
+                    );
+                }
             }
 
             // 🚀 将连接返回到连接池
@@ -491,7 +527,8 @@ class Notion_Concurrent_Network_Manager {
             $this->pool_stats['average_response_time'] = round($avg_response_time, 4);
         }
 
-        if (class_exists('Notion_Logger')) {
+        // 减少日志记录，仅在非性能模式下记录
+        if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
             $stats = $this->get_connection_pool_stats();
             Notion_Logger::debug_log(
                 sprintf('批次完成 - 复用率: %s%%, 平均响应时间: %ss',
@@ -736,14 +773,18 @@ class Notion_Concurrent_Network_Manager {
      */
     private function init_connection_pool(): void {
         if (empty($this->connection_pool)) {
-            for ($i = 0; $i < $this->max_pool_size; $i++) {
+            // 优化：减少连接池大小，提高复用效率
+            $pool_size = min(3, $this->max_concurrent_requests);
+
+            for ($i = 0; $i < $pool_size; $i++) {
                 // 🚀 使用优化的cURL句柄
                 $this->connection_pool[] = $this->create_optimized_curl_handle();
             }
 
-            if (class_exists('Notion_Logger')) {
+            // 减少日志记录，仅在非性能模式下记录
+            if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
                 Notion_Logger::debug_log(
-                    sprintf('初始化优化连接池: %d个Keep-Alive连接', $this->max_pool_size),
+                    sprintf('初始化连接池: %d个连接', $pool_size),
                     'Connection Pool'
                 );
             }
@@ -833,7 +874,8 @@ class Notion_Concurrent_Network_Manager {
         $this->pool_stats['http2_connections']++;
         $this->pool_stats['keepalive_connections']++;
 
-        if (class_exists('Notion_Logger')) {
+        // 减少日志记录，仅在非性能模式下记录
+        if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
             Notion_Logger::debug_log('创建优化cURL句柄（Keep-Alive + HTTP/2）', 'Connection Pool');
         }
 

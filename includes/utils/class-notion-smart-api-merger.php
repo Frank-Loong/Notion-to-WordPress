@@ -39,31 +39,31 @@ class Notion_Smart_API_Merger {
     private $pending_requests = [];
     
     /**
-     * 批处理窗口时间（毫秒）
-     * 
+     * 批处理窗口时间（毫秒）- 优化版
+     *
      * @since 2.0.0-beta.1
      * @access private
      * @var int $batch_timeout 批处理窗口时间
      */
-    private $batch_timeout = 50;
-    
+    private $batch_timeout = 100; // 增加到100ms，允许更多请求合并
+
     /**
-     * 最小批处理大小
-     * 
+     * 最小批处理大小 - 优化版
+     *
      * @since 2.0.0-beta.1
      * @access private
      * @var int $min_batch_size 最小批处理大小
      */
-    private $min_batch_size = 5;
-    
+    private $min_batch_size = 3; // 减少到3，更快触发批处理
+
     /**
-     * 最大批处理大小
-     * 
+     * 最大批处理大小 - 优化版
+     *
      * @since 2.0.0-beta.1
      * @access private
      * @var int $max_batch_size 最大批处理大小
      */
-    private $max_batch_size = 15;
+    private $max_batch_size = 25; // 增加到25，减少API调用次数
     
     /**
      * 上次刷新时间
@@ -107,23 +107,25 @@ class Notion_Smart_API_Merger {
         $this->notion_api = $notion_api;
         $this->last_flush_time = microtime(true);
         
-        // 从配置中获取批处理参数
+        // 从配置中获取批处理参数（优化版）
         $options = get_option('notion_to_wordpress_options', []);
-        $this->batch_timeout = $options['api_merge_timeout'] ?? 50;
-        $this->min_batch_size = $options['api_merge_min_batch'] ?? 5;
-        $this->max_batch_size = $options['api_merge_max_batch'] ?? 15;
+        $this->batch_timeout = $options['api_merge_timeout'] ?? 100; // 默认100ms
+        $this->min_batch_size = $options['api_merge_min_batch'] ?? 3; // 默认3个
+        $this->max_batch_size = $options['api_merge_max_batch'] ?? 25; // 默认25个
 
-        // 减少日志频率：只在配置变更或首次启用时记录
-        static $logged_config = null;
-        $current_config = sprintf('%d-%d-%d', $this->batch_timeout, $this->min_batch_size, $this->max_batch_size);
+        // 减少日志频率：只在非性能模式下记录
+        if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
+            static $logged_config = null;
+            $current_config = sprintf('%d-%d-%d', $this->batch_timeout, $this->min_batch_size, $this->max_batch_size);
 
-        if (class_exists('Notion_Logger') && $logged_config !== $current_config) {
-            Notion_Logger::debug_log(
-                sprintf('智能API合并器配置: 窗口=%dms, 批处理大小=%d-%d',
-                    $this->batch_timeout, $this->min_batch_size, $this->max_batch_size),
-                'API Merger'
-            );
-            $logged_config = $current_config;
+            if ($logged_config !== $current_config) {
+                Notion_Logger::debug_log(
+                    sprintf('智能API合并器配置: 窗口=%dms, 批处理大小=%d-%d',
+                        $this->batch_timeout, $this->min_batch_size, $this->max_batch_size),
+                    'API Merger'
+                );
+                $logged_config = $current_config;
+            }
         }
     }
 

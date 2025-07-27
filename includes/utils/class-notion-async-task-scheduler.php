@@ -72,11 +72,14 @@ class Notion_Async_Task_Scheduler {
      * 初始化调度器
      */
     public static function init(): void {
-        // 检查Action Scheduler是否可用
+        // 检查Action Scheduler是否可用（优化版）
         if (!self::is_action_scheduler_available()) {
-            if (class_exists('Notion_Logger')) {
+            // 尝试启用基础的WordPress Cron作为替代
+            self::init_fallback_scheduler();
+
+            if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
                 Notion_Logger::warning_log(
-                    'Action Scheduler不可用，回退到基础异步处理',
+                    'Action Scheduler不可用，启用WordPress Cron回退机制',
                     'Async Task Scheduler'
                 );
             }
@@ -110,14 +113,42 @@ class Notion_Async_Task_Scheduler {
     }
     
     /**
-     * 检查Action Scheduler是否可用
+     * 检查Action Scheduler是否可用（优化版）
      */
     public static function is_action_scheduler_available(): bool {
-        return function_exists('as_schedule_single_action') && 
-               function_exists('as_get_scheduled_actions') &&
-               function_exists('as_unschedule_all_actions');
+        // 缓存检查结果，避免重复检查
+        static $is_available = null;
+
+        if ($is_available === null) {
+            $is_available = function_exists('as_schedule_single_action') &&
+                           function_exists('as_get_scheduled_actions') &&
+                           function_exists('as_unschedule_all_actions') &&
+                           class_exists('ActionScheduler');
+
+            // 尝试安装Action Scheduler（如果WooCommerce可用）
+            if (!$is_available && function_exists('WC')) {
+                $is_available = true; // WooCommerce包含Action Scheduler
+            }
+        }
+
+        return $is_available;
     }
-    
+
+    /**
+     * 初始化回退调度器（使用WordPress Cron）
+     */
+    private static function init_fallback_scheduler(): void {
+        // 注册WordPress Cron事件
+        add_action('notion_fallback_content_processing', [__CLASS__, 'handle_fallback_content_processing']);
+        add_action('notion_fallback_image_processing', [__CLASS__, 'handle_fallback_image_processing']);
+        add_action('notion_fallback_batch_import', [__CLASS__, 'handle_fallback_batch_import']);
+
+        // 确保WordPress Cron正常工作
+        if (!wp_next_scheduled('notion_fallback_heartbeat')) {
+            wp_schedule_event(time(), 'hourly', 'notion_fallback_heartbeat');
+        }
+    }
+
     /**
      * 调度内容处理任务
      * 

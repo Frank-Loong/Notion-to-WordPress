@@ -51,26 +51,15 @@ class Notion_Memory_Manager {
         $start_memory = memory_get_usage(true);
         $results = [];
         
-        // 动态调整分块大小
-        $optimal_chunk_size = self::calculate_optimal_chunk_size(count($data), $chunk_size);
+        // 简化：使用固定分块大小，避免动态调整开销
+        $optimal_chunk_size = min($chunk_size, 50); // 限制最大分块大小
         $chunks = array_chunk($data, $optimal_chunk_size);
         
         foreach ($chunks as $chunk_index => $chunk) {
-            // 检查内存使用情况
-            if (self::is_memory_critical()) {
+            // 简化内存检查：仅在关键时刻检查
+            if ($chunk_index % 10 === 0 && self::is_memory_critical()) {
                 // 强制垃圾回收
                 self::force_garbage_collection();
-                
-                // 如果内存仍然紧张，减少分块大小
-                if (self::is_memory_critical()) {
-                    $optimal_chunk_size = max(10, intval($optimal_chunk_size / 2));
-                    // 重新分块剩余数据
-                    $remaining_data = array_slice($data, $chunk_index * $optimal_chunk_size);
-                    $chunks = array_merge(
-                        array_slice($chunks, 0, $chunk_index),
-                        array_chunk($remaining_data, $optimal_chunk_size)
-                    );
-                }
             }
             
             // 处理当前块
@@ -96,11 +85,11 @@ class Notion_Memory_Manager {
         $end_memory = memory_get_usage(true);
         $memory_saved = $start_memory - $end_memory;
         
-        // 记录内存优化效果
-        if (class_exists('Notion_Logger')) {
+        // 减少日志记录，仅在非性能模式下记录
+        if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
             Notion_Logger::debug_log(
-                sprintf('流式处理完成: 处理%d项，节省内存%s', 
-                    count($data), 
+                sprintf('流式处理完成: 处理%d项，节省内存%s',
+                    count($data),
                     size_format(abs($memory_saved))
                 ),
                 'Memory Manager'
