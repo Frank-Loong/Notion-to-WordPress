@@ -6,6 +6,7 @@
  * 基于现有的异步处理基础设施扩展
  *
  * @since      2.0.0-beta.1
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/includes/utils
  * @author     Frank-Loong
@@ -96,31 +97,57 @@ class Notion_Async_Processor {
             }
             return false;
         }
-        
+
+        // 优先使用新的任务调度器
+        if (class_exists('Notion_Async_Task_Scheduler') &&
+            Notion_Async_Task_Scheduler::is_action_scheduler_available()) {
+
+            switch ($operation) {
+                case self::OPERATION_IMPORT:
+                    return Notion_Async_Task_Scheduler::schedule_content_processing($data, $options);
+
+                case self::OPERATION_UPDATE:
+                    return Notion_Async_Task_Scheduler::schedule_incremental_sync($data, $options);
+
+                case self::OPERATION_IMAGE_PROCESS:
+                    return Notion_Async_Task_Scheduler::schedule_image_processing($data, $options);
+
+                case self::OPERATION_DELETE:
+                    // 删除操作作为清理任务处理
+                    $cleanup_data = array_merge($data, ['cleanup_type' => 'delete']);
+                    return Notion_Async_Task_Scheduler::schedule_cleanup($cleanup_data, $options);
+
+                default:
+                    // 未知操作类型，使用内容处理
+                    return Notion_Async_Task_Scheduler::schedule_content_processing($data, $options);
+            }
+        }
+
+        // 回退到原有逻辑
         // 更新异步状态
         self::update_async_status($operation, self::STATUS_RUNNING, [
             'started_at' => current_time('mysql'),
             'data_count' => count($data),
             'options' => $options
         ]);
-        
+
         // 根据数据量决定处理方式
         if (count($data) > ($options['queue_threshold'] ?? 50)) {
             // 大批量操作使用队列
             if (class_exists('Notion_Queue_Manager')) {
                 $task_id = Notion_Queue_Manager::enqueue_batch_operation($operation, $data, $options);
-                
+
                 if (class_exists('Notion_Logger')) {
                     Notion_Logger::info_log(
                         "大批量异步操作已加入队列: {$operation}, 数据量: " . count($data) . ", 任务ID: {$task_id}",
                         'Async Processor'
                     );
                 }
-                
+
                 return $task_id;
             }
         }
-        
+
         // 小批量操作直接处理
         return self::process_small_batch($operation, $data, $options);
     }

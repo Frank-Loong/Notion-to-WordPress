@@ -50,6 +50,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-adaptive-
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-parallel-image-processor.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-task-scheduler.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**
@@ -85,6 +86,11 @@ register_deactivation_hook( NOTION_TO_WORDPRESS_FILE, 'deactivate_notion_to_word
 function run_notion_to_wordpress() {
 	$plugin = new Notion_To_WordPress();
 	$plugin->run();
+
+	// 初始化异步任务调度器
+	if (class_exists('Notion_Async_Task_Scheduler')) {
+		Notion_Async_Task_Scheduler::init();
+	}
 }
 
 run_notion_to_wordpress(); 

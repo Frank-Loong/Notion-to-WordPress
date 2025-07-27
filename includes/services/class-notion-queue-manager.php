@@ -6,6 +6,7 @@
  * 增强错误恢复和重试机制，改进cron调度的智能化程度
  *
  * @since      2.0.0-beta.1
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @subpackage Notion_To_WordPress/includes/services
  * @author     Frank-Loong
