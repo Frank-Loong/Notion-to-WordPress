@@ -55,7 +55,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-manager.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-adaptive-batch.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-parallel-image-processor.php';
+
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-task-scheduler.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-data-preloader.php';

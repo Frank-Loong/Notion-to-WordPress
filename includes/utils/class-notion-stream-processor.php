@@ -419,7 +419,7 @@ class Notion_Stream_Processor {
                 default:
                     // 对于复杂块类型，回退到原始转换器
                     if (class_exists('Notion_Content_Converter')) {
-                        return Notion_Content_Converter::convert_single_block_simple($block, $notion_api);
+                        return Notion_Content_Converter::convert_single_block_optimized($block, $notion_api, []);
                     }
                     return '';
             }
