@@ -587,9 +587,10 @@ class Notion_Async_Task_Scheduler {
 
             foreach ($images as $index => $image) {
                 try {
-                    // 使用并行图片处理器
-                    if (class_exists('Notion_Parallel_Image_Processor')) {
-                        $result = Notion_Parallel_Image_Processor::process_single_image($image, $options);
+                    // 使用图片处理器
+                    if (class_exists('Notion_Image_Processor')) {
+                        // 对于单个图片，直接使用基础处理方法
+                        $result = self::process_image_basic($image, $options);
                         $results[] = $result;
                         $processed_count++;
                     } else {

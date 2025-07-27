@@ -23,6 +23,14 @@ if (!defined('ABSPATH')) {
 class Notion_Image_Processor {
 
     /**
+     * 并发处理常量
+     */
+    const DEFAULT_MAX_CONCURRENT = 5;      // 默认最大并发数
+    const MAX_CONCURRENT_LIMIT = 10;       // 最大并发限制
+    const REQUEST_TIMEOUT = 30;            // 请求超时时间（秒）
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 最大图片大小（10MB）
+
+    /**
      * 状态管理器实例存储
      *
      * @since 2.0.0-beta.1
@@ -317,11 +325,11 @@ class Notion_Image_Processor {
             ];
         }
 
-        // 执行并发下载（优先使用并行图片处理器）
-        if (class_exists('Notion_Parallel_Image_Processor') && count($requests) > 3) {
-            // 使用新的并行图片处理器处理大批量图片
+        // 简化的策略选择：<5张图片用sequential，≥5张用parallel
+        if (count($requests) >= 5) {
+            // 使用并行处理
             $image_urls = array_column($requests, 'url');
-            $parallel_results = Notion_Parallel_Image_Processor::process_images_parallel($image_urls);
+            $parallel_results = self::process_images_parallel($image_urls);
 
             // 模拟响应格式以兼容现有处理逻辑
             $responses = [];
@@ -1081,5 +1089,202 @@ class Notion_Image_Processor {
         }
 
         return $html;
+    }
+
+    /**
+     * 并行处理图片（整合自Parallel_Image_Processor）
+     *
+     * 简化的并行图片处理，移除复杂的预估和分组逻辑
+     *
+     * @since 2.0.0-beta.1
+     * @param array $image_urls 图片URL数组
+     * @param int $max_concurrent 最大并发数
+     * @return array [url => attachment_id] 映射，失败的返回false
+     */
+    public static function process_images_parallel(array $image_urls, int $max_concurrent = self::DEFAULT_MAX_CONCURRENT): array {
+        if (empty($image_urls)) {
+            return [];
+        }
+
+        // 记录开始时间
+        $start_time = microtime(true);
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf('开始并行处理 %d 个图片', count($image_urls)),
+                'Image Processor'
+            );
+        }
+
+        // 限制并发数在合理范围内
+        $max_concurrent = max(1, min($max_concurrent, self::MAX_CONCURRENT_LIMIT));
+
+        $results = [];
+
+        // 分块处理以控制并发数
+        $chunks = array_chunk($image_urls, $max_concurrent);
+
+        foreach ($chunks as $chunk_index => $chunk) {
+            // 监控内存使用
+            if (class_exists('Notion_Memory_Manager')) {
+                Notion_Memory_Manager::monitor_memory_usage('Parallel Image Processing');
+            }
+
+            $chunk_results = self::process_image_chunk_parallel($chunk);
+            $results = array_merge($results, $chunk_results);
+
+            // 短暂休息以避免过载
+            if ($chunk_index < count($chunks) - 1) {
+                usleep(100000); // 0.1秒
+            }
+        }
+
+        // 记录性能统计
+        $processing_time = microtime(true) - $start_time;
+        $success_count = count(array_filter($results));
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::info_log(
+                sprintf(
+                    '并行处理完成: %d/%d 成功, 耗时 %.2f 秒',
+                    $success_count,
+                    count($image_urls),
+                    $processing_time
+                ),
+                'Image Processor'
+            );
+        }
+
+        return $results;
+    }
+
+    /**
+     * 处理图片块（并行）
+     *
+     * @since 2.0.0-beta.1
+     * @param array $image_urls 图片URL数组
+     * @return array [url => attachment_id] 映射
+     */
+    private static function process_image_chunk_parallel(array $image_urls): array {
+        if (empty($image_urls)) {
+            return [];
+        }
+
+        // 使用现有的并发网络管理器
+        if (class_exists('Notion_Concurrent_Network_Manager')) {
+            $manager = new Notion_Concurrent_Network_Manager(count($image_urls));
+
+            // 添加请求到管理器
+            foreach ($image_urls as $index => $url) {
+                $manager->add_request($index, $url, [
+                    'timeout' => self::REQUEST_TIMEOUT,
+                    'user-agent' => 'Notion-to-WordPress/2.0.0'
+                ]);
+            }
+
+            // 执行并发请求
+            $responses = $manager->execute();
+        } else {
+            // 降级到顺序处理
+            $responses = [];
+            foreach ($image_urls as $index => $url) {
+                $responses[$index] = wp_remote_get($url, [
+                    'timeout' => self::REQUEST_TIMEOUT,
+                    'user-agent' => 'Notion-to-WordPress/2.0.0'
+                ]);
+            }
+        }
+
+        $results = [];
+
+        foreach ($image_urls as $index => $url) {
+            $response = $responses[$index] ?? null;
+
+            if (is_wp_error($response)) {
+                $results[$url] = false;
+                continue;
+            }
+
+            $response_code = wp_remote_retrieve_response_code($response);
+            if ($response_code !== 200) {
+                $results[$url] = false;
+                continue;
+            }
+
+            $image_data = wp_remote_retrieve_body($response);
+            if (empty($image_data)) {
+                $results[$url] = false;
+                continue;
+            }
+
+            // 检查图片大小
+            if (strlen($image_data) > self::MAX_IMAGE_SIZE) {
+                if (class_exists('Notion_Logger')) {
+                    Notion_Logger::warning_log(
+                        sprintf('图片过大，跳过: %s (%.2f MB)', $url, strlen($image_data) / 1024 / 1024),
+                        'Image Processor'
+                    );
+                }
+                $results[$url] = false;
+                continue;
+            }
+
+            // 下载并保存图片
+            $attachment_id = self::save_image_to_media_library($url, $image_data);
+            $results[$url] = $attachment_id;
+        }
+
+        return $results;
+    }
+
+    /**
+     * 保存图片到媒体库
+     *
+     * @since 2.0.0-beta.1
+     * @param string $url 图片URL
+     * @param string $image_data 图片数据
+     * @return int|false 附件ID或false
+     */
+    private static function save_image_to_media_library(string $url, string $image_data) {
+        // 生成文件名
+        $filename = basename(parse_url($url, PHP_URL_PATH));
+        if (empty($filename) || !preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $filename)) {
+            $filename = 'notion-image-' . uniqid() . '.jpg';
+        }
+
+        // 获取上传目录
+        $upload_dir = wp_upload_dir();
+        if ($upload_dir['error']) {
+            return false;
+        }
+
+        $file_path = $upload_dir['path'] . '/' . $filename;
+
+        // 保存文件
+        if (file_put_contents($file_path, $image_data) === false) {
+            return false;
+        }
+
+        // 创建附件
+        $attachment = [
+            'post_mime_type' => wp_check_filetype($filename)['type'],
+            'post_title' => sanitize_file_name($filename),
+            'post_content' => '',
+            'post_status' => 'inherit'
+        ];
+
+        $attachment_id = wp_insert_attachment($attachment, $file_path);
+
+        if (is_wp_error($attachment_id)) {
+            unlink($file_path); // 删除文件
+            return false;
+        }
+
+        // 生成缩略图
+        require_once(ABSPATH . 'wp-admin/includes/image.php');
+        $attachment_data = wp_generate_attachment_metadata($attachment_id, $file_path);
+        wp_update_attachment_metadata($attachment_id, $attachment_data);
+
+        return $attachment_id;
     }
 }

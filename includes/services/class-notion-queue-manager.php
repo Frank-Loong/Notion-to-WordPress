@@ -496,10 +496,10 @@ class Notion_Queue_Manager {
         $error_count = 0;
         $errors = [];
 
-        if (class_exists('Notion_Parallel_Image_Processor')) {
+        if (class_exists('Notion_Image_Processor')) {
             try {
                 $image_urls = array_column($batch_data, 'url');
-                $results = Notion_Parallel_Image_Processor::process_images_parallel($image_urls);
+                $results = Notion_Image_Processor::process_images_parallel($image_urls);
 
                 foreach ($results as $url => $attachment_id) {
                     if ($attachment_id) {
