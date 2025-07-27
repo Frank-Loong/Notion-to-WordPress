@@ -77,20 +77,25 @@ class Notion_API {
     public function __construct(string $api_key) {
         $this->api_key = $api_key;
 
-        // 🚀 性能优化：初始化智能API合并器（避免循环依赖）
+        // 🚀 性能优化：单例模式初始化智能API合并器（避免重复初始化和内存泄漏）
         $options = get_option('notion_to_wordpress_options', []);
         $this->enable_api_merging = $options['enable_api_merging'] ?? true;
 
         if ($this->enable_api_merging && class_exists('Notion_Smart_API_Merger')) {
-            $this->api_merger = new Notion_Smart_API_Merger();
-            $this->api_merger->set_notion_api($this);
+            // 单例检查：避免重复创建API合并器实例
+            static $global_api_merger = null;
 
-            // 减少日志频率：只在首次启用时记录
-            static $merger_logged = false;
-            if (class_exists('Notion_Logger') && !$merger_logged) {
-                Notion_Logger::debug_log('智能API合并器已启用', 'API Merger');
-                $merger_logged = true;
+            if ($global_api_merger === null) {
+                $global_api_merger = new Notion_Smart_API_Merger();
+
+                // 减少日志频率：只在首次创建时记录
+                if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
+                    Notion_Logger::debug_log('智能API合并器已创建（单例模式）', 'API Merger');
+                }
             }
+
+            $this->api_merger = $global_api_merger;
+            $this->api_merger->set_notion_api($this);
         }
     }
 

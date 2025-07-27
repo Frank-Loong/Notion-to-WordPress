@@ -294,10 +294,14 @@ class Notion_Database_Renderer {
      * @return string HTML内容
      */
     private static function render_empty_database(string $title): string {
+        // 延迟翻译：确保在WordPress初始化完成后调用翻译函数
+        $default_title = function_exists('__') ? __('数据库', 'notion-to-wordpress') : '数据库';
+        $empty_text = function_exists('__') ? __('暂无数据', 'notion-to-wordpress') : '暂无数据';
+
         return sprintf(
             '<div class="notion-database-empty"><h4>%s</h4><p>%s</p></div>',
-            esc_html($title ?: __('数据库', 'notion-to-wordpress')),
-            esc_html__('暂无数据', 'notion-to-wordpress')
+            esc_html($title ?: $default_title),
+            esc_html($empty_text)
         );
     }    /**
      * 渲染表格视图 - 简化版
@@ -317,7 +321,7 @@ class Notion_Database_Renderer {
                 }
             }
         }
-        $title = $title ?: __('表格视图', 'notion-to-wordpress');
+        $title = $title ?: (function_exists('__') ? __('表格视图', 'notion-to-wordpress') : '表格视图');
         $properties = $database_info['properties'] ?? [];
         
         $html = '<div class="notion-database notion-database-table">';
@@ -346,7 +350,7 @@ class Notion_Database_Renderer {
      */
     private static function render_table_header(array $properties): string {
         $html = '<thead><tr>';
-        $html .= '<th class="notion-table-header-cell">' . __('标题', 'notion-to-wordpress') . '</th>';
+        $html .= '<th class="notion-table-header-cell">' . (function_exists('__') ? __('标题', 'notion-to-wordpress') : '标题') . '</th>';
         
         foreach ($properties as $prop_name => $prop_config) {
             $prop_type = $prop_config['type'] ?? '';
@@ -577,7 +581,7 @@ class Notion_Database_Renderer {
             }
         }
         
-        return __('无标题', 'notion-to-wordpress');
+        return function_exists('__') ? __('无标题', 'notion-to-wordpress') : '无标题';
     }    /**
      * 提取记录图标
      *

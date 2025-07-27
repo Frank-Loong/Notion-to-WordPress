@@ -71,7 +71,40 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-w
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
  */
 function activate_notion_to_wordpress() {
+	// 检查Action Scheduler依赖
+	check_action_scheduler_dependency();
+
 	Notion_To_WordPress::activate();
+}
+
+/**
+ * 检查Action Scheduler依赖
+ *
+ * @since 2.0.0-beta.1
+ */
+function check_action_scheduler_dependency() {
+	// 检查Action Scheduler是否可用
+	if (!function_exists('as_schedule_single_action')) {
+		// 显示管理员通知
+		add_action('admin_notices', function() {
+			echo '<div class="notice notice-warning is-dismissible">';
+			echo '<p><strong>Notion to WordPress:</strong> 建议安装 WooCommerce 或 Action Scheduler 插件以获得更好的异步处理性能。插件将使用WordPress Cron作为回退方案。</p>';
+			echo '</div>';
+		});
+
+		// 记录到日志
+		if (class_exists('Notion_Logger')) {
+			Notion_Logger::warning_log(
+				'Action Scheduler不可用，将使用WordPress Cron作为回退方案。建议安装WooCommerce或Action Scheduler插件。',
+				'Plugin Activation'
+			);
+		}
+	} else {
+		// Action Scheduler可用，记录成功信息
+		if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
+			Notion_Logger::info_log('Action Scheduler已检测到，异步处理性能将得到优化', 'Plugin Activation');
+		}
+	}
 }
 
 /**
