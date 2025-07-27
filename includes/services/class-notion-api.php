@@ -24,6 +24,7 @@ if (!defined('ABSPATH')) {
 // 加载并发网络管理器和重试机制（Utils层）
 require_once plugin_dir_path(__FILE__) . '../utils/class-notion-concurrent-network-manager.php';
 require_once plugin_dir_path(__FILE__) . '../utils/class-notion-network-retry.php';
+require_once plugin_dir_path(__FILE__) . '../utils/class-notion-smart-api-merger.php';
 
 class Notion_API {
 
@@ -45,6 +46,24 @@ class Notion_API {
      */
     private string $api_base = 'https://api.notion.com/v1/';
 
+    /**
+     * 智能API调用合并器实例
+     *
+     * @since    2.0.0-beta.1
+     * @access   private
+     * @var      Notion_Smart_API_Merger|null
+     */
+    private ?Notion_Smart_API_Merger $api_merger = null;
+
+    /**
+     * 是否启用智能API合并
+     *
+     * @since    2.0.0-beta.1
+     * @access   private
+     * @var      bool
+     */
+    private bool $enable_api_merging = true;
+
     // 注意：API缓存已移除以支持增量同步的实时性
     // 增量同步依赖准确的last_edited_time进行时间戳比较
     // API缓存会返回过时的时间戳，破坏增量同步的核心逻辑
@@ -57,6 +76,18 @@ class Notion_API {
      */
     public function __construct(string $api_key) {
         $this->api_key = $api_key;
+
+        // 🚀 性能优化：初始化智能API合并器
+        $options = get_option('notion_to_wordpress_options', []);
+        $this->enable_api_merging = $options['enable_api_merging'] ?? true;
+
+        if ($this->enable_api_merging && class_exists('Notion_Smart_API_Merger')) {
+            $this->api_merger = new Notion_Smart_API_Merger($this);
+
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log('智能API合并器已启用', 'API Merger');
+            }
+        }
     }
 
     /**
@@ -70,17 +101,67 @@ class Notion_API {
     }
 
     /**
+     * 向 Notion API 发送请求（智能合并版本）
+     *
+     * @since    2.0.0-beta.1
+     * @param    string    $endpoint    API 端点，不包含基础 URL。
+     * @param    string    $method      HTTP 请求方法 (e.g., 'GET', 'POST')。
+     * @param    array<string, mixed>     $data        要发送的请求数据。
+     * @param    bool      $force_immediate 是否强制立即执行，跳过合并
+     * @return   array<string, mixed>                  解码后的 JSON 响应。
+     * @throws   Exception             如果 API 请求失败或返回错误。
+     */
+    public function send_request_with_merging(string $endpoint, string $method = 'GET', array $data = [], bool $force_immediate = false): array {
+        // 如果启用了智能合并且不是强制立即执行
+        if ($this->enable_api_merging && $this->api_merger && !$force_immediate && $method === 'GET') {
+            // 使用智能合并器处理请求
+            $result = null;
+            $exception = null;
+
+            $this->api_merger->queue_request($endpoint, $method, $data, function($response, $error) use (&$result, &$exception) {
+                if ($error) {
+                    $exception = $error;
+                } else {
+                    $result = $response;
+                }
+            });
+
+            // 如果有异常，抛出
+            if ($exception) {
+                throw $exception;
+            }
+
+            // 如果有结果，返回
+            if ($result !== null) {
+                return $result;
+            }
+
+            // 如果没有立即结果，强制刷新合并器
+            $batch_results = $this->api_merger->force_flush();
+
+            // 从批处理结果中找到对应的结果
+            foreach ($batch_results as $batch_result) {
+                if (!is_wp_error($batch_result)) {
+                    return $batch_result;
+                }
+            }
+        }
+
+        // 回退到直接发送请求
+        return $this->send_request($endpoint, $method, $data);
+    }
+
+    /**
      * 向 Notion API 发送请求。
-     * 这是一个通用的私有方法，用于处理所有类型的 API 请求。
+     * 这是一个通用的方法，用于处理所有类型的 API 请求。
      * @since    1.0.8
-     * @access   private
      * @param    string    $endpoint    API 端点，不包含基础 URL。
      * @param    string    $method      HTTP 请求方法 (e.g., 'GET', 'POST')。
      * @param    array<string, mixed>     $data        要发送的请求数据。
      * @return   array<string, mixed>                  解码后的 JSON 响应。
      * @throws   Exception             如果 API 请求失败或返回错误。
      */
-    private function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
+    public function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
         // 🚀 性能优化：检查会话缓存
         if ($method === 'GET' && class_exists('Notion_Session_Cache')) {
             $cached_response = Notion_Session_Cache::get_cached_api_response($endpoint, $data);
@@ -493,7 +574,8 @@ class Notion_API {
             }
 
             try {
-                $response = $this->send_request($endpoint, 'GET');
+                // 🚀 性能优化：使用智能合并发送请求
+                $response = $this->send_request_with_merging($endpoint, 'GET');
 
                 if (isset($response['results'])) {
                     $all_results = array_merge($all_results, $response['results']);
