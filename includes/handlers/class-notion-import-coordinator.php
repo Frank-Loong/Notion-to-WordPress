@@ -78,7 +78,14 @@ class Notion_Import_Coordinator {
         // 从性能配置中读取并发优化设置
         $performance_config = get_option('notion_to_wordpress_performance_config', []);
 
-        // 默认启用并发优化，除非明确禁用
+        // 智能判断：小数据集禁用并发优化，避免开销大于收益
+        $force_disable = $performance_config['enable_concurrent_optimization'] === false;
+        if ($force_disable) {
+            return false;
+        }
+
+        // 默认策略：根据数据量智能启用
+        // 对于小于20页的数据集，并发优化通常会降低性能
         return $performance_config['enable_concurrent_optimization'] ?? true;
     }
 
@@ -1219,20 +1226,20 @@ class Notion_Import_Coordinator {
      * 用于API层面的增量过滤
      *
      * @since 2.0.0-beta.1
-     * @return string ISO 8601 格式的时间戳
+     * @return string|null ISO 8601 格式的时间戳，null表示首次同步
      */
-    private function get_last_sync_timestamp(): string {
+    private function get_last_sync_timestamp(): ?string {
         $options = get_option('notion_to_wordpress_options', []);
         $last_sync = $options['last_sync_time'] ?? '';
         
         // 处理空值、无效值和MySQL默认值
-        if (empty($last_sync) || 
-            $last_sync === '0000-00-00 00:00:00' || 
+        if (empty($last_sync) ||
+            $last_sync === '0000-00-00 00:00:00' ||
             strtotime($last_sync) === false) {
-            // 如果没有有效的上次同步时间，使用24小时前作为起始点
-            $last_sync = date('c', strtotime('-24 hours'));
+            // 首次同步：不使用时间过滤，获取所有页面
+            $last_sync = null;
             Notion_Logger::info_log(
-                "首次同步或无效同步时间，使用24小时前作为起始时间: {$last_sync}",
+                "首次同步：将获取所有页面（不使用时间过滤）",
                 'Incremental Sync'
             );
         } else {
@@ -1255,14 +1262,14 @@ class Notion_Import_Coordinator {
      * 大幅减少数据传输和处理时间
      *
      * @since 2.0.0-beta.1
-     * @param string $last_sync_time 最后同步时间
+     * @param string|null $last_sync_time 最后同步时间，null表示首次同步
      * @return array 变更的页面列表
      */
-    private function get_changed_pages_only(string $last_sync_time): array {
-        // 验证时间戳有效性
-        if (empty($last_sync_time) || trim($last_sync_time) === '') {
-            Notion_Logger::warning_log(
-                "无效的同步时间戳，使用全量获取",
+    private function get_changed_pages_only(?string $last_sync_time): array {
+        // 首次同步：获取所有页面
+        if (is_null($last_sync_time) || empty($last_sync_time) || trim($last_sync_time) === '') {
+            Notion_Logger::info_log(
+                "首次同步或无效同步时间戳，获取所有页面",
                 'Incremental Sync'
             );
             return $this->notion_api->get_database_pages($this->database_id);

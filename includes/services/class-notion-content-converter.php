@@ -1176,19 +1176,19 @@ class Notion_Content_Converter {
             return self::convert_blocks_to_html_ultra_optimized($blocks, $notion_api, $state_id);
         }
 
-        // 使用算法优化器预处理文本内容（只对大量内容启用）
-        if (class_exists('Notion_Algorithm_Optimizer') && class_exists('Notion_Text_Processor') && count($blocks) > 10) {
+        // 使用算法优化器预处理文本内容（降低阈值，让小数据集也能受益）
+        if (class_exists('Notion_Algorithm_Optimizer') && class_exists('Notion_Text_Processor') && count($blocks) > 3) {
             $blocks = Notion_Text_Processor::optimized_batch_text_processing($blocks);
 
             if (class_exists('Notion_Logger')) {
                 Notion_Logger::debug_log(
-                    sprintf('算法优化器预处理了 %d 个块（超过阈值10）', count($blocks)),
+                    sprintf('算法优化器预处理了 %d 个块（超过阈值3）', count($blocks)),
                     'Content Converter'
                 );
             }
-        } elseif (class_exists('Notion_Logger') && count($blocks) <= 10) {
+        } elseif (class_exists('Notion_Logger') && count($blocks) <= 3) {
             Notion_Logger::debug_log(
-                sprintf('跳过算法优化器预处理：块数量 %d 未超过阈值10', count($blocks)),
+                sprintf('跳过算法优化器预处理：块数量 %d 未超过阈值3', count($blocks)),
                 'Content Converter'
             );
         }

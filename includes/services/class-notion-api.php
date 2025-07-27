@@ -149,12 +149,6 @@ class Notion_API {
 
             if ($this->is_valid_filter($filter)) {
                 $data['filter'] = $filter;
-
-                // 调试：记录发送给API的过滤器
-                Notion_Logger::debug_log(
-                    "发送给API的过滤器: " . json_encode($filter, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
-                    'API Filter Debug'
-                );
             }
 
             if ($start_cursor) {
@@ -1142,7 +1136,7 @@ class Notion_API {
         if (empty($filter)) {
             if (class_exists('Notion_Logger')) {
                 Notion_Logger::debug_log(
-                    "过滤器验证失败: 过滤器为空",
+                    "无过滤器：将获取所有页面（首次同步或全量获取）",
                     'Filter Validation'
                 );
             }
