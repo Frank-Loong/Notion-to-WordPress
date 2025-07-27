@@ -79,7 +79,8 @@ class Notion_Import_Coordinator {
         $performance_config = get_option('notion_to_wordpress_performance_config', []);
 
         // 智能判断：小数据集禁用并发优化，避免开销大于收益
-        $force_disable = $performance_config['enable_concurrent_optimization'] === false;
+        $force_disable = isset($performance_config['enable_concurrent_optimization']) &&
+                        $performance_config['enable_concurrent_optimization'] === false;
         if ($force_disable) {
             return false;
         }
