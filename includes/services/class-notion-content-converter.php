@@ -55,12 +55,12 @@ class Notion_Content_Converter {
     }
 
     /**
-     * 🚀 启用数据预加载器集成
+     * 🚀 启用数据预加载器集成（整合到Database_Helper）
      *
      * @param array $context 预加载上下文
      */
     public static function enable_data_preloader(array $context = []): void {
-        if (!class_exists('Notion_Data_Preloader')) {
+        if (!class_exists('Notion_Database_Helper')) {
             return;
         }
 
@@ -68,15 +68,12 @@ class Notion_Content_Converter {
 
         // 预加载相关数据
         if (!empty($context)) {
-            Notion_Data_Preloader::preload_related_data($context);
+            Notion_Database_Helper::preload_related_data($context);
         }
-
-        // 启用查询监控
-        Notion_Data_Preloader::enable_query_monitoring();
 
         Notion_Logger::debug_log(
             '数据预加载器已启用，开始批量数据预加载',
-            'Data Preloader Integration'
+            'Database Helper Integration'
         );
     }
 
@@ -1315,9 +1312,9 @@ class Notion_Content_Converter {
 
             // 定期检查内存使用情况（使用自适应频率）
             $check_frequency = 50;
-            if (class_exists('Notion_Adaptive_Batch')) {
+            if (class_exists('Notion_Memory_Manager')) {
                 // 根据系统性能调整检查频率
-                $stats = Notion_Adaptive_Batch::get_adaptive_stats();
+                $stats = Notion_Memory_Manager::get_adaptive_stats();
                 if ($stats['memory_usage_percent'] > 70) {
                     $check_frequency = 25; // 内存紧张时更频繁检查
                 } elseif ($stats['memory_usage_percent'] < 30) {

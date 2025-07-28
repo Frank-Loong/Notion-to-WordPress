@@ -74,13 +74,26 @@
 
 #### 🎯 官方推荐模板
 
-<div align="center">
+<div>
 
-| 模板类型 | 特点 | 链接 | 推荐场景 |
-|---------|------|------|----------|
-| 📝 **中文博客模板** | 完整字段配置，中文优化 | [复制模板](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) | 中文博客、个人网站 |
-| 📚 **English Blog Template** | 英文环境优化，国际化支持 | [Copy Template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) | 英文博客、国际网站 |
+| 模板类型 | 语言环境 | 主要特点 | 推荐场景 | 操作 |
+|---------|----------|----------|----------|------|
+| 📝 **中文博客模板** | 🇨🇳 中文 | 完整字段配置、中文优化、SEO友好 | 中文博客、个人网站、技术分享 | [📋 复制模板](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) |
+| 📚 **English Blog Template** | 🇺🇸 English | International support, SEO optimized | English blogs, global websites | [📋 Copy Template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) |
 
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="../images/template-zh_CN.png" alt="中文模板预览" 
+width="500">
+<h4>🇨🇳 中文模板预览</h4>
+</td>
+<td align="center" width="50%">
+<img src="../images/template.png" alt="English Template Preview" width="500">
+<h4>🇺🇸 English Template Preview</h4>
+</td>
+</tr>
+</table>
 </div>
 
 #### 🔗 NotionNext 生态兼容
@@ -139,7 +152,7 @@ wp core version
 - 使用你的 Notion 账号登录
 
 <div align="center">
-  <img src="../docs/images/notion-integrations-zh_CN.png" alt="Notion 集成页面" width="800">
+  <img src="../images/notion-integrations-zh_CN.png" alt="Notion 集成页面" width="800">
   <p><em>Notion 集成管理界面</em></p>
 </div>
 
@@ -162,7 +175,7 @@ wp core version
 - ⚠️ **重要：** 请妥善保存此密钥，后续配置需要使用
 
 <div align="center">
-  <img src="../docs/images/notion-internal-integration-key-zh_CN.png" alt="复制内部集成密钥" width="800">
+  <img src="../images/notion-internal-integration-key-zh_CN.png" alt="复制内部集成密钥" width="800">
   <p><em>复制并保存你的内部集成秘钥</em></p>
 </div>
 
@@ -179,7 +192,7 @@ wp core version
 - 点击 "**添加连接**" 完成添加
 
 <div align="center">
-  <img src="../docs/images/notion-database-id-zh_CN.png" alt="添加集成并复制数据库ID" width="800">
+  <img src="../images/notion-database-id-zh_CN.png" alt="添加集成并复制数据库ID" width="800">
   <p><em>将集成连接到数据库并复制数据库ID</em></p>
 </div>
 
@@ -212,7 +225,7 @@ wp core version
 - 进入 `插件` → `添加新插件` → `上传插件`
 
 <div align="center">
-  <img src="../docs/images/install-zh_CN.png" alt="WordPress插件安装" width="800">
+  <img src="../images/install-zh_CN.png" alt="WordPress插件安装" width="800">
   <p><em>WordPress 插件上传界面</em></p>
 </div>
 
@@ -289,7 +302,7 @@ wp plugin list | grep notion-to-wordpress
 - **Database ID（数据库 ID）：** 粘贴第一步获取的 32 位数据库 ID
 
 <div align="center">
-  <img src="../docs/images/wordpress-config-zh_CN.png" alt="WordPress配置" width="600">
+  <img src="../images/wordpress-config-zh_CN.png" alt="WordPress配置" width="600">
   <p><em>在 WordPress 中配置 Notion 集成信息</em></p>
 </div>
 

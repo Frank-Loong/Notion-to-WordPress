@@ -53,7 +53,7 @@ class Notion_To_WordPress_i18n {
         load_plugin_textdomain(
             'notion-to-wordpress',
             false,
-            dirname(dirname(plugin_basename(__FILE__))) . '/languages/'
+            dirname(dirname(dirname(plugin_basename(__FILE__)))) . '/languages/'
         );
 
         self::$textdomain_loaded = true;
@@ -97,7 +97,7 @@ class Notion_To_WordPress_i18n {
             unload_textdomain( 'notion-to-wordpress' );
 
             // 强制加载指定语言的翻译
-            $plugin_dir = dirname( dirname( plugin_basename( __FILE__ ) ) );
+            $plugin_dir = dirname( dirname( dirname( plugin_basename( __FILE__ ) ) ) );
             $mo_file = WP_PLUGIN_DIR . '/' . $plugin_dir . '/languages/notion-to-wordpress-' . $plugin_language . '.mo';
 
             if ( file_exists( $mo_file ) ) {

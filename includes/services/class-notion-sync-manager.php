@@ -555,9 +555,9 @@ class Notion_Sync_Manager {
 
         $options = get_option('notion_to_wordpress_options', []);
 
-        // 使用自适应批量大小调整器
-        if (class_exists('Notion_Adaptive_Batch')) {
-            $batch_size = Notion_Adaptive_Batch::get_optimal_batch_size('database_operations');
+        // 使用自适应批量大小调整器（整合到Memory_Manager）
+        if (class_exists('Notion_Memory_Manager')) {
+            $batch_size = Notion_Memory_Manager::get_optimal_batch_size('database_operations');
 
             if (class_exists('Notion_Logger')) {
                 Notion_Logger::debug_log(
@@ -626,9 +626,9 @@ class Notion_Sync_Manager {
 
         $options = get_option('notion_to_wordpress_options', []);
 
-        // 使用自适应批量大小调整器
-        if (class_exists('Notion_Adaptive_Batch')) {
-            $batch_size = Notion_Adaptive_Batch::get_optimal_batch_size('database_operations');
+        // 使用自适应批量大小调整器（整合到Memory_Manager）
+        if (class_exists('Notion_Memory_Manager')) {
+            $batch_size = Notion_Memory_Manager::get_optimal_batch_size('database_operations');
 
             if (class_exists('Notion_Logger')) {
                 Notion_Logger::debug_log(

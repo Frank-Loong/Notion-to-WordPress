@@ -255,6 +255,17 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_index_status', $this->admin, 'handle_get_index_status' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_create_database_indexes', $this->admin, 'handle_create_database_indexes' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_remove_database_indexes', $this->admin, 'handle_remove_database_indexes' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_async_status', $this->admin, 'handle_get_async_status' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_queue_status', $this->admin, 'handle_get_queue_status' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_control_async_operation', $this->admin, 'handle_control_async_operation' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cleanup_queue', $this->admin, 'handle_cleanup_queue' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_queue_task', $this->admin, 'handle_cancel_queue_task' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_performance_stats', $this->admin, 'handle_refresh_performance_stats' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_reset_performance_stats', $this->admin, 'handle_reset_performance_stats' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -438,7 +449,7 @@ class Notion_To_WordPress {
 
 			),
 			'custom_field_mappings' => array(),
-			'debug_level'         => Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR,
+			'debug_level'         => Notion_Logger::DEBUG_LEVEL_ERROR,
 		);
 
 		// 获取现有选项，并与默认值合并

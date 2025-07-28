@@ -1,6 +1,6 @@
 /**
  * 管理界面交互脚本
- * 
+ *
  * 处理 Notion to WordPress 插件后台页面的所有用户交互，包括表单提交、AJAX 请求、标签页切换和动态内容更新。
  *
  * @since 1.0.8
@@ -10,6 +10,145 @@
  * @license GPL-3.0-or-later
  * @link https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
+// 全局函数：刷新异步状态
+function refreshAsyncStatus() {
+    const $ = jQuery;
+    const $refreshButton = $('#refresh-async-status');
+
+    // 显示加载状态
+    $refreshButton.prop('disabled', true).html('<span class="spinner is-active"></span> 刷新中...');
+
+    // 获取异步状态
+    $.ajax({
+        url: notionToWp.ajax_url,
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            action: 'notion_to_wordpress_get_async_status',
+            nonce: notionToWp.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                updateAsyncStatusDisplay(response.data.status);
+            } else {
+                showStatusError('async', '获取异步状态失败: ' + (response.data.message || '未知错误'));
+            }
+        },
+        error: function(xhr, status, error) {
+            showStatusError('async', '网络错误，无法获取异步状态: ' + error);
+        }
+    });
+
+    // 获取队列状态
+    $.ajax({
+        url: notionToWp.ajax_url,
+        type: 'POST',
+        dataType: 'json',
+        data: {
+            action: 'notion_to_wordpress_get_queue_status',
+            nonce: notionToWp.nonce
+        },
+        success: function(response) {
+            if (response.success) {
+                updateQueueStatusDisplay(response.data.status);
+            } else {
+                showStatusError('queue', '获取队列状态失败: ' + (response.data.message || '未知错误'));
+            }
+        },
+        error: function(xhr, status, error) {
+            showStatusError('queue', '网络错误，无法获取队列状态: ' + error);
+        },
+        complete: function() {
+            // 恢复按钮状态
+            $refreshButton.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> 刷新状态');
+        }
+    });
+}
+
+// 辅助函数：显示状态错误
+function showStatusError(type, message) {
+    const $ = jQuery;
+    const containerId = type === 'async' ? '#async-status-container' : '#queue-status-container';
+    const $container = $(containerId);
+
+    $container.html('<div class="error-message" style="color: #d63638; padding: 10px; background: #fef7f7; border: 1px solid #d63638; border-radius: 4px;">' + message + '</div>');
+}
+
+// 辅助函数：更新异步状态显示
+function updateAsyncStatusDisplay(statusData) {
+    const $ = jQuery;
+    const $container = $('#async-status-container');
+
+    // 更新状态指示器
+    const statusValue = typeof statusData === 'object' ? statusData.status : statusData;
+    const $statusDisplay = $container.find('.async-status-display');
+
+    // 移除所有状态类
+    $statusDisplay.removeClass('status-idle status-running status-paused status-error');
+
+    // 添加新的状态类和文本
+    let statusClass = 'status-idle';
+    let statusText = '空闲';
+
+    if (statusValue === 'running') {
+        statusClass = 'status-running';
+        statusText = '运行中';
+    } else if (statusValue === 'paused') {
+        statusClass = 'status-paused';
+        statusText = '已暂停';
+    } else if (statusValue === 'error') {
+        statusClass = 'status-error';
+        statusText = '错误';
+    }
+
+    $statusDisplay.addClass(statusClass);
+    $statusDisplay.find('.status-value').text(statusText);
+
+    // 更新详细信息（如果有的话）
+    if (typeof statusData === 'object' && statusData.operation) {
+        // 这里可以添加更多的详细信息更新逻辑
+        console.log('异步状态详情:', statusData);
+    }
+}
+
+// 辅助函数：更新队列状态显示
+function updateQueueStatusDisplay(queueData) {
+    const $ = jQuery;
+    const $container = $('#queue-status-container');
+
+    // 更新各个统计数字
+    const stats = ['total_tasks', 'pending', 'processing', 'completed', 'failed'];
+    stats.forEach(function(stat) {
+        const value = queueData[stat] || queueData[stat === 'total_tasks' ? 'total' : stat] || 0;
+        $container.find('.queue-stat-item').each(function() {
+            const $item = $(this);
+            const label = $item.find('.stat-label').text();
+
+            if ((stat === 'total_tasks' && label.includes('总任务')) ||
+                (stat === 'pending' && label.includes('等待中')) ||
+                (stat === 'processing' && label.includes('处理中')) ||
+                (stat === 'completed' && label.includes('已完成')) ||
+                (stat === 'failed' && label.includes('失败'))) {
+                $item.find('.stat-value').text(value);
+            }
+        });
+    });
+
+    console.log('队列状态详情:', queueData);
+}
+
+// 全局函数：显示异步状态（保持向后兼容）
+function displayAsyncStatus(statusData) {
+    // 直接调用新的更新函数
+    updateAsyncStatusDisplay(statusData);
+}
+
+// 全局函数：显示队列状态（保持向后兼容）
+function displayQueueStatus(status) {
+    // 直接调用新的更新函数
+    updateQueueStatusDisplay(status);
+}
 
 jQuery(document).ready(function($) {
     const $overlay = $('#loading-overlay');
@@ -56,6 +195,8 @@ jQuery(document).ready(function($) {
         e.preventDefault();
         var tabId = $(this).data('tab');
 
+        console.log('Notion to WordPress: 切换到标签页:', tabId);
+
         $('.notion-wp-menu-item').removeClass('active');
         $('.notion-wp-tab-content').removeClass('active');
 
@@ -64,14 +205,35 @@ jQuery(document).ready(function($) {
         // 添加淡入效果
         $('#' + tabId).addClass('active').hide().fadeIn(300);
 
+        console.log('Notion to WordPress: 标签页', tabId, '已激活');
+
         // 保存用户的标签选择到本地存储
         localStorage.setItem('notion_wp_active_tab', tabId);
+
+        // 当切换到性能监控tab时，重新初始化相关功能
+        if (tabId === 'performance') {
+            console.log('Notion to WordPress: 性能监控标签页已激活，准备刷新状态');
+            setTimeout(function() {
+                // 重新检查异步状态
+                if ($('#async-status-container').length > 0) {
+                    console.log('Notion to WordPress: 找到异步状态容器，开始刷新');
+                    refreshAsyncStatus();
+                } else {
+                    console.log('Notion to WordPress: 未找到异步状态容器');
+                }
+            }, 350); // 等待淡入动画完成后再执行
+        }
     });
     
-    // 从本地存储中恢复上次选择的标签
+    // 从本地存储中恢复上次选择的标签，如果没有则默认激活性能监控标签页
     const lastActiveTab = localStorage.getItem('notion_wp_active_tab');
     if (lastActiveTab) {
+        console.log('Notion to WordPress: 恢复上次选择的标签页:', lastActiveTab);
         $('.notion-wp-menu-item[data-tab="' + lastActiveTab + '"]').click();
+    } else {
+        // 默认激活性能监控标签页
+        console.log('Notion to WordPress: 默认激活性能监控标签页');
+        $('.notion-wp-menu-item[data-tab="performance"]').click();
     }
     
     // 显示/隐藏密码
@@ -506,6 +668,7 @@ jQuery(document).ready(function($) {
                  $('.notion-stats-grid .stat-card h3, .notion-stats-grid .stat-card span').removeClass('loading');
             }
         });
+    }
 
     // 刷新验证令牌
     $('#refresh-verification-token').on('click', function(e) {
@@ -550,7 +713,6 @@ jQuery(document).ready(function($) {
             }
         });
     });
-    }
 
     // 表单验证和 AJAX 提交
     $('#notion-to-wordpress-settings-form').on('submit', function(e) {
@@ -819,7 +981,7 @@ jQuery(document).ready(function($) {
             type: 'POST',
             dataType: 'json',
             data: {
-                action: 'notion_get_index_status',
+                action: 'notion_to_wordpress_get_index_status',
                 nonce: notionToWp.nonce
             },
             success: function(response) {
@@ -901,7 +1063,7 @@ jQuery(document).ready(function($) {
             type: 'POST',
             dataType: 'json',
             data: {
-                action: 'notion_create_database_indexes',
+                action: 'notion_to_wordpress_create_database_indexes',
                 nonce: notionToWp.nonce
             },
             success: function(response) {
@@ -959,7 +1121,7 @@ jQuery(document).ready(function($) {
             type: 'POST',
             dataType: 'json',
             data: {
-                action: 'notion_remove_database_indexes',
+                action: 'notion_to_wordpress_remove_database_indexes',
                 nonce: notionToWp.nonce
             },
             success: function(response) {
@@ -1019,10 +1181,10 @@ jQuery(document).ready(function($) {
             checkResourceOptimizationStatus();
         }
 
-        // 异步处理状态检查
-        if ($('#async-status-container').length > 0) {
-            refreshAsyncStatus();
-        }
+        // 异步处理状态检查 - 内容现在是服务器端渲染的，不需要自动刷新
+        // if ($('#async-status-container').length > 0) {
+        //     refreshAsyncStatus();
+        // }
 
         // 绑定异步处理按钮事件
         $('#refresh-async-status').on('click', refreshAsyncStatus);
@@ -1076,262 +1238,77 @@ jQuery(document).ready(function($) {
     }
 
     // ==================== 异步处理管理功能 ====================
+    // 注意：异步状态相关的全局函数已在文件开头定义
 
-    /**
-     * 刷新异步状态
-     */
-    function refreshAsyncStatus() {
-        const $asyncContainer = $('#async-status-container');
-        const $queueContainer = $('#queue-status-container');
-
-        $asyncContainer.html('<div class="loading-placeholder"><span class="spinner is-active"></span> 正在检查异步状态...</div>');
-        $queueContainer.html('<div class="loading-placeholder"><span class="spinner is-active"></span> 正在检查队列状态...</div>');
-
-        // 获取异步状态
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            dataType: 'json',
-            data: {
-                action: 'notion_get_async_status',
-                nonce: notionToWp.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    displayAsyncStatus(response.data.status);
-                } else {
-                    $asyncContainer.html('<div class="error-message">获取异步状态失败: ' + (response.data.message || '未知错误') + '</div>');
-                }
-            },
-            error: function() {
-                $asyncContainer.html('<div class="error-message">网络错误，无法获取异步状态</div>');
-            }
-        });
-
-        // 获取队列状态
-        $.ajax({
-            url: notionToWp.ajax_url,
-            type: 'POST',
-            dataType: 'json',
-            data: {
-                action: 'notion_get_queue_status',
-                nonce: notionToWp.nonce
-            },
-            success: function(response) {
-                if (response.success) {
-                    displayQueueStatus(response.data.status);
-                } else {
-                    $queueContainer.html('<div class="error-message">获取队列状态失败: ' + (response.data.message || '未知错误') + '</div>');
-                }
-            },
-            error: function() {
-                $queueContainer.html('<div class="error-message">网络错误，无法获取队列状态</div>');
-            }
-        });
-    }
-
-    /**
-     * 显示异步状态
-     */
-    function displayAsyncStatus(status) {
-        const $container = $('#async-status-container');
-
-        let html = '<div class="async-status-grid">';
-
-        // 状态显示
-        html += '<div class="async-status-item">';
-        html += '<span class="status-label">当前状态:</span>';
-        html += '<span class="status-value status-' + status.status + '">';
-
-        const statusText = {
-            'idle': '空闲',
-            'running': '运行中',
-            'paused': '已暂停',
-            'error': '错误'
-        };
-
-        html += statusText[status.status] || status.status;
-        html += '</span></div>';
-
-        if (status.operation) {
-            html += '<div class="async-status-item">';
-            html += '<span class="status-label">当前操作:</span>';
-            html += '<span class="status-value">' + status.operation + '</span>';
-            html += '</div>';
-        }
-
-        if (status.data_count > 0) {
-            html += '<div class="async-status-item">';
-            html += '<span class="status-label">数据量:</span>';
-            html += '<span class="status-value">' + status.data_count + '</span>';
-            html += '</div>';
-        }
-
-        if (status.progress > 0) {
-            html += '<div class="async-status-item">';
-            html += '<span class="status-label">进度:</span>';
-            html += '<span class="status-value">' + status.progress + '%</span>';
-            html += '</div>';
-        }
-
-        html += '</div>';
-
-        $container.html(html);
-
-        // 更新按钮状态
-        updateAsyncButtons(status.status);
-    }
-
-    /**
-     * 显示队列状态
-     */
-    function displayQueueStatus(status) {
-        const $container = $('#queue-status-container');
-
-        let html = '<div class="queue-status-grid">';
-
-        html += '<div class="queue-status-item">';
-        html += '<span class="status-label">总任务数:</span>';
-        html += '<span class="status-value">' + status.total_tasks + '</span>';
-        html += '</div>';
-
-        html += '<div class="queue-status-item">';
-        html += '<span class="status-label">待处理:</span>';
-        html += '<span class="status-value">' + status.pending + '</span>';
-        html += '</div>';
-
-        html += '<div class="queue-status-item">';
-        html += '<span class="status-label">处理中:</span>';
-        html += '<span class="status-value">' + status.processing + '</span>';
-        html += '</div>';
-
-        html += '<div class="queue-status-item">';
-        html += '<span class="status-label">已完成:</span>';
-        html += '<span class="status-value">' + status.completed + '</span>';
-        html += '</div>';
-
-        html += '<div class="queue-status-item">';
-        html += '<span class="status-label">失败:</span>';
-        html += '<span class="status-value">' + status.failed + '</span>';
-        html += '</div>';
-
-        html += '<div class="queue-status-item">';
-        html += '<span class="status-label">重试中:</span>';
-        html += '<span class="status-value">' + status.retrying + '</span>';
-        html += '</div>';
-
-        html += '</div>';
-
-        $container.html(html);
-    }
-
-    /**
-     * 更新异步操作按钮状态
-     */
-    function updateAsyncButtons(status) {
-        const $pauseBtn = $('#pause-async-operation');
-        const $resumeBtn = $('#resume-async-operation');
-        const $stopBtn = $('#stop-async-operation');
-
-        // 隐藏所有按钮
-        $pauseBtn.hide();
-        $resumeBtn.hide();
-        $stopBtn.hide();
-
-        // 根据状态显示相应按钮
-        switch (status) {
-            case 'running':
-                $pauseBtn.show();
-                $stopBtn.show();
-                break;
-            case 'paused':
-                $resumeBtn.show();
-                $stopBtn.show();
-                break;
-        }
-    }
-
-    /**
-     * 控制异步操作
-     */
-    function controlAsyncOperation(actionType) {
-        const actionText = {
-            'pause': '暂停',
-            'resume': '恢复',
-            'stop': '停止'
-        };
-
-        const $button = $('#' + actionType + '-async-operation');
+    // 性能监控页面事件处理
+    $('#refresh-performance-stats').on('click', function() {
+        const $button = $(this);
         const originalText = $button.text();
 
-        $button.prop('disabled', true).html('<span class="spinner is-active"></span> 正在' + actionText[actionType] + '...');
+        $button.prop('disabled', true).text('刷新中...');
 
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
-            dataType: 'json',
             data: {
-                action: 'notion_control_async_operation',
-                action_type: actionType,
+                action: 'notion_to_wordpress_refresh_performance_stats',
                 nonce: notionToWp.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    showModal(response.data.message, 'success');
-
-                    // 刷新状态
-                    setTimeout(refreshAsyncStatus, 1000);
+                    showToast('性能统计已刷新', 'success');
+                    // 刷新页面以显示最新数据
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 } else {
-                    showModal('操作失败: ' + (response.data.message || '未知错误'), 'error');
+                    showToast(response.data || '刷新失败', 'error');
                 }
             },
             error: function() {
-                showModal('网络错误，操作失败', 'error');
+                showToast('网络错误，请重试', 'error');
             },
             complete: function() {
                 $button.prop('disabled', false).text(originalText);
             }
         });
-    }
+    });
 
-    /**
-     * 清理队列
-     */
-    function cleanupQueue() {
-        if (!confirm('确定要清理已完成的队列任务吗？')) {
+    $('#reset-performance-stats').on('click', function() {
+        if (!confirm('确定要重置所有性能统计数据吗？此操作不可撤销。')) {
             return;
         }
 
-        const $button = $('#cleanup-queue');
+        const $button = $(this);
         const originalText = $button.text();
 
-        $button.prop('disabled', true).html('<span class="spinner is-active"></span> 正在清理...');
+        $button.prop('disabled', true).text('重置中...');
 
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
-            dataType: 'json',
             data: {
-                action: 'notion_cleanup_queue',
+                action: 'notion_to_wordpress_reset_performance_stats',
                 nonce: notionToWp.nonce
             },
             success: function(response) {
                 if (response.success) {
-                    showModal(response.data.message, 'success');
-
-                    // 刷新状态
-                    setTimeout(refreshAsyncStatus, 1000);
+                    showToast('性能统计已重置', 'success');
+                    // 刷新页面以显示重置后的数据
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 } else {
-                    showModal('清理失败: ' + (response.data.message || '未知错误'), 'error');
+                    showToast(response.data || '重置失败', 'error');
                 }
             },
             error: function() {
-                showModal('网络错误，清理失败', 'error');
+                showToast('网络错误，请重试', 'error');
             },
             complete: function() {
                 $button.prop('disabled', false).text(originalText);
             }
         });
-    }
+    });
 
 })(jQuery);

@@ -284,7 +284,7 @@
     position: relative;
     text-align: center;
     margin: 1.5em auto;
-    max-width: 750px; /* 适应页面容器宽度 */
+    max-width: 100%; /* 适应页面容器宽度 */
     background: #ffffff;
     border: 1px solid #d0d7de;
     border-radius: 6px;
@@ -441,7 +441,7 @@
 .mermaid {
     /* 确保不超出父容器 */
     box-sizing: border-box;
-    max-width: calc(100% - 2em);
+    max-width: 650px;
 }
 
 /* 深色主题适配 */

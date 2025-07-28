@@ -74,13 +74,26 @@ To ensure optimal sync results, you need to prepare a Notion database that meets
 
 #### 🎯 Official Recommended Templates
 
-<div align="center">
+<div>
 
 | Template Type | Features | Link | Recommended Use Case |
 |---------------|----------|------|----------------------|
 | 📝 **Chinese Blog Template** | Complete field configuration, Chinese optimized | [Copy Template](https://frankloong.notion.site/22a7544376be808abbadc3d09fde153d?v=22a7544376be813dba3c000c778c0099&source=copy_link) | Chinese blogs, personal websites |
 | 📚 **English Blog Template** | English environment optimized, internationalization support | [Copy Template](https://frankloong.notion.site/22a7544376be80799930fc75da738a5b?v=22a7544376be819793c8000cc2623ae3&source=copy_link) | English blogs, international websites |
 
+<table>
+<tr>
+<td align="center" width="50%">
+<img src="../images/template-zh_CN.png" alt="中文模板预览" 
+width="500">
+<h4>🇨🇳 中文模板预览</h4>
+</td>
+<td align="center" width="50%">
+<img src="../images/template.png" alt="English Template Preview" width="500">
+<h4>🇺🇸 English Template Preview</h4>
+</td>
+</tr>
+</table>
 </div>
 
 #### 🔗 NotionNext Ecosystem Compatibility
@@ -139,7 +152,7 @@ This chapter will guide you through the complete process from Notion configurati
 - Log in with your Notion account
 
 <div align="center">
-  <img src="../docs/images/notion-integrations.png" alt="Notion Integrations Page" width="800">
+  <img src="../images/notion-integrations.png" alt="Notion Integrations Page" width="800">
   <p><em>Notion Integration Management Interface</em></p>
 </div>
 
@@ -162,7 +175,7 @@ This chapter will guide you through the complete process from Notion configurati
 - ⚠️ **Important:** Please save this key securely, it will be needed for subsequent configuration
 
 <div align="center">
-  <img src="../docs/images/notion-internal-integration-key.png" alt="Copy Internal Integration Token" width="800">
+  <img src="../images/notion-internal-integration-key.png" alt="Copy Internal Integration Token" width="800">
   <p><em>Copy and save your Internal Integration Token</em></p>
 </div>
 
@@ -179,7 +192,7 @@ This chapter will guide you through the complete process from Notion configurati
 - Click "**Add Connection**" to complete the addition.
 
 <div align="center">
-  <img src="../docs/images/notion-database-id.png" alt="Add Integration and Copy Database ID" width="800">
+  <img src="../images/notion-database-id.png" alt="Add Integration and Copy Database ID" width="800">
   <p><em>Link your integration to database and copy Database ID</em></p>
 </div>
 
@@ -212,7 +225,7 @@ This chapter will guide you through the complete process from Notion configurati
 - Go to `Plugins` → `Add New` → `Upload Plugin`
 
 <div align="center">
-  <img src="../docs/images/install.png" alt="WordPress Plugin Installation" width="800">
+  <img src="../images/install.png" alt="WordPress Plugin Installation" width="800">
   <p><em>WordPress Plugin Upload Interface</em></p>
 </div>
 
@@ -289,7 +302,7 @@ Plugin settings page includes the following main sections:
 - **Database ID:** Paste the 32-character database ID obtained in step 1
 
 <div align="center">
-  <img src="../docs/images/wordpress-config.png" alt="WordPress Configuration" width="600">
+  <img src="../images/wordpress-config.png" alt="WordPress Configuration" width="600">
   <p><em>Configure Notion integration information in WordPress</em></p>
 </div>
 

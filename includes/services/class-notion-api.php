@@ -893,8 +893,8 @@ class Notion_API {
             // 从配置中获取并发数，使用自适应调整
             $options = get_option('notion_to_wordpress_options', []);
 
-            if (class_exists('Notion_Adaptive_Batch')) {
-                $concurrent_requests = Notion_Adaptive_Batch::get_concurrent_limit();
+            if (class_exists('Notion_Memory_Manager')) {
+                $concurrent_requests = Notion_Memory_Manager::get_concurrent_limit();
 
                 if (class_exists('Notion_Logger')) {
                     Notion_Logger::debug_log(

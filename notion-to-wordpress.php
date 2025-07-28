@@ -53,12 +53,13 @@ if ( ! defined( 'NOTION_PERFORMANCE_MODE' ) ) {
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-to-wordpress-helper.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database-helper.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-manager.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-adaptive-batch.php';
+
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-task-scheduler.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-data-preloader.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-config-simplifier.php';
+
 // 修复：加载关键的流式处理器类
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-stream-processor.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-concurrent-network-manager.php';

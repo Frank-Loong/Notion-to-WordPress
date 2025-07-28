@@ -859,10 +859,29 @@ class Notion_Database_Helper {
         return $results;
     }
 
-    // ==================== 数据预加载器集成方法 ====================
+    // ==================== 数据预加载器集成方法（整合自Data_Preloader） ====================
 
     /**
-     * 优化的批量获取文章元数据（集成数据预加载器）
+     * 预加载的数据缓存（整合自Data_Preloader）
+     * @var array
+     */
+    private static $preloaded_cache = [];
+
+    /**
+     * 查询性能统计（整合自Data_Preloader）
+     * @var array
+     */
+    private static $query_stats = [
+        'total_queries' => 0,
+        'cache_hits' => 0,
+        'batch_queries' => 0,
+        'single_queries' => 0,
+        'query_times' => [],
+        'n_plus_one_detected' => 0
+    ];
+
+    /**
+     * 优化的批量获取文章元数据（整合自Data_Preloader）
      *
      * @param array $post_ids 文章ID数组
      * @param string $meta_key 元数据键名
@@ -873,17 +892,68 @@ class Notion_Database_Helper {
             return [];
         }
 
-        // 如果数据预加载器可用，使用它
-        if (class_exists('Notion_Data_Preloader')) {
-            return Notion_Data_Preloader::batch_get_post_meta($post_ids, $meta_key);
+        $start_time = microtime(true);
+        self::$query_stats['batch_queries']++;
+
+        // 检查缓存
+        $cache_key = 'post_meta_' . md5(serialize($post_ids) . $meta_key);
+        if (isset(self::$preloaded_cache['post_meta'][$cache_key])) {
+            self::$query_stats['cache_hits']++;
+            return self::$preloaded_cache['post_meta'][$cache_key];
         }
 
-        // 回退到原始批量查询
-        return self::batch_get_notion_metadata($post_ids);
+        // 执行批量查询
+        if ($meta_key) {
+            $result = self::batch_get_specific_meta($post_ids, $meta_key);
+        } else {
+            $result = self::batch_get_notion_metadata($post_ids);
+        }
+
+        // 缓存结果
+        self::$preloaded_cache['post_meta'][$cache_key] = $result;
+
+        $processing_time = microtime(true) - $start_time;
+        self::$query_stats['query_times'][] = $processing_time;
+        self::$query_stats['total_queries']++;
+
+        return $result;
     }
 
     /**
-     * 优化的批量获取Notion关联（集成数据预加载器）
+     * 批量获取特定元数据（整合自Data_Preloader）
+     *
+     * @param array $post_ids 文章ID数组
+     * @param string $meta_key 元数据键名
+     * @return array [post_id => meta_value] 映射
+     */
+    private static function batch_get_specific_meta(array $post_ids, string $meta_key): array {
+        if (empty($post_ids) || empty($meta_key)) {
+            return [];
+        }
+
+        global $wpdb;
+
+        $placeholders = implode(',', array_fill(0, count($post_ids), '%d'));
+        $query = $wpdb->prepare(
+            "SELECT post_id, meta_value
+            FROM {$wpdb->postmeta}
+            WHERE post_id IN ($placeholders)
+            AND meta_key = %s",
+            array_merge($post_ids, [$meta_key])
+        );
+
+        $results = $wpdb->get_results($query);
+        $mapping = array_fill_keys($post_ids, null);
+
+        foreach ($results as $row) {
+            $mapping[$row->post_id] = $row->meta_value;
+        }
+
+        return $mapping;
+    }
+
+    /**
+     * 优化的批量获取Notion关联（整合自Data_Preloader）
      *
      * @param array $notion_ids Notion页面ID数组
      * @return array [notion_id => post_id] 映射
@@ -893,17 +963,80 @@ class Notion_Database_Helper {
             return [];
         }
 
-        // 如果数据预加载器可用，使用它
-        if (class_exists('Notion_Data_Preloader')) {
-            return Notion_Data_Preloader::batch_get_posts_by_notion_ids($notion_ids);
+        $start_time = microtime(true);
+        self::$query_stats['batch_queries']++;
+
+        // 检查缓存
+        $cache_key = 'notion_associations_' . md5(serialize($notion_ids));
+        if (isset(self::$preloaded_cache['notion_associations'][$cache_key])) {
+            self::$query_stats['cache_hits']++;
+            return self::$preloaded_cache['notion_associations'][$cache_key];
         }
 
-        // 回退到原始批量查询
-        return self::batch_get_posts_by_notion_ids($notion_ids);
+        // 执行批量查询
+        $result = self::batch_get_posts_by_notion_ids($notion_ids);
+
+        // 缓存结果
+        self::$preloaded_cache['notion_associations'][$cache_key] = $result;
+
+        $processing_time = microtime(true) - $start_time;
+        self::$query_stats['query_times'][] = $processing_time;
+        self::$query_stats['total_queries']++;
+
+        return $result;
     }
 
     /**
-     * 智能查询优化器
+     * 批量获取文章分类数据（整合自Data_Preloader）
+     *
+     * @param array $post_ids 文章ID数组
+     * @param string $taxonomy 分类法名称
+     * @return array [post_id => taxonomy_data] 映射
+     */
+    public static function batch_get_post_terms(array $post_ids, string $taxonomy = ''): array {
+        if (empty($post_ids)) {
+            return [];
+        }
+
+        $start_time = microtime(true);
+        self::$query_stats['batch_queries']++;
+
+        global $wpdb;
+
+        $placeholders = implode(',', array_fill(0, count($post_ids), '%d'));
+        $taxonomy_condition = $taxonomy ? $wpdb->prepare("AND tt.taxonomy = %s", $taxonomy) : '';
+
+        $query = $wpdb->prepare(
+            "SELECT tr.object_id as post_id, t.name, t.slug, tt.taxonomy
+            FROM {$wpdb->term_relationships} tr
+            INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+            INNER JOIN {$wpdb->terms} t ON tt.term_id = t.term_id
+            WHERE tr.object_id IN ($placeholders) $taxonomy_condition",
+            $post_ids
+        );
+
+        $results = $wpdb->get_results($query);
+        $mapping = array_fill_keys($post_ids, []);
+
+        foreach ($results as $row) {
+            if (!isset($mapping[$row->post_id][$row->taxonomy])) {
+                $mapping[$row->post_id][$row->taxonomy] = [];
+            }
+            $mapping[$row->post_id][$row->taxonomy][] = [
+                'name' => $row->name,
+                'slug' => $row->slug
+            ];
+        }
+
+        $processing_time = microtime(true) - $start_time;
+        self::$query_stats['query_times'][] = $processing_time;
+        self::$query_stats['total_queries']++;
+
+        return $mapping;
+    }
+
+    /**
+     * 智能查询优化器（整合自Data_Preloader）
      *
      * 根据查询类型和数据量自动选择最优查询策略
      *
@@ -924,11 +1057,7 @@ class Notion_Database_Helper {
                 break;
 
             case 'post_terms':
-                if (class_exists('Notion_Data_Preloader')) {
-                    $result = Notion_Data_Preloader::batch_get_post_terms($params['post_ids'], $params['taxonomy'] ?? '');
-                } else {
-                    $result = [];
-                }
+                $result = self::batch_get_post_terms($params['post_ids'], $params['taxonomy'] ?? '');
                 break;
 
             default:
@@ -949,30 +1078,163 @@ class Notion_Database_Helper {
     }
 
     /**
-     * 获取数据库查询性能统计
+     * 获取缓存的数据（整合自Data_Preloader）
+     *
+     * @param string $cache_type 缓存类型
+     * @param mixed $key 缓存键
+     * @return mixed 缓存的数据，不存在返回null
+     */
+    public static function get_cached_data(string $cache_type, $key) {
+        return self::$preloaded_cache[$cache_type][$key] ?? null;
+    }
+
+    /**
+     * 设置缓存数据（整合自Data_Preloader）
+     *
+     * @param string $cache_type 缓存类型
+     * @param mixed $key 缓存键
+     * @param mixed $value 缓存值
+     */
+    public static function set_cached_data(string $cache_type, $key, $value): void {
+        self::$preloaded_cache[$cache_type][$key] = $value;
+    }
+
+    /**
+     * 清理缓存（整合自Data_Preloader）
+     *
+     * @param string $cache_type 缓存类型，为空则清理所有
+     */
+    public static function clear_cache(string $cache_type = ''): void {
+        if ($cache_type) {
+            unset(self::$preloaded_cache[$cache_type]);
+        } else {
+            self::$preloaded_cache = [];
+        }
+
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::debug_log(
+                $cache_type ? "清理缓存类型: {$cache_type}" : "清理所有缓存",
+                'Database Helper Cache'
+            );
+        }
+    }
+
+    /**
+     * 获取数据库查询性能统计（整合自Data_Preloader）
      *
      * @return array 性能统计数据
      */
     public static function get_performance_stats(): array {
-        $stats = [
-            'database_helper' => [
-                'queries_executed' => 0,
-                'avg_response_time' => 0,
-                'optimization_enabled' => class_exists('Notion_Data_Preloader')
-            ]
-        ];
+        $stats = self::$query_stats;
 
-        // 如果数据预加载器可用，获取其统计信息
-        if (class_exists('Notion_Data_Preloader')) {
-            $stats['data_preloader'] = Notion_Data_Preloader::get_query_stats();
-            $stats['preload_suggestions'] = Notion_Data_Preloader::get_preload_suggestions();
+        // 计算平均查询时间
+        if (!empty($stats['query_times'])) {
+            $stats['avg_query_time'] = array_sum($stats['query_times']) / count($stats['query_times']);
+            $stats['max_query_time'] = max($stats['query_times']);
+            $stats['min_query_time'] = min($stats['query_times']);
+        } else {
+            $stats['avg_query_time'] = 0;
+            $stats['max_query_time'] = 0;
+            $stats['min_query_time'] = 0;
+        }
+
+        // 计算缓存命中率
+        if ($stats['total_queries'] > 0) {
+            $stats['cache_hit_rate'] = ($stats['cache_hits'] / $stats['total_queries']) * 100;
+        } else {
+            $stats['cache_hit_rate'] = 0;
+        }
+
+        // 计算批量查询比例
+        if ($stats['total_queries'] > 0) {
+            $stats['batch_query_ratio'] = ($stats['batch_queries'] / $stats['total_queries']) * 100;
+        } else {
+            $stats['batch_query_ratio'] = 0;
         }
 
         return $stats;
     }
 
     /**
-     * 生成数据库优化报告
+     * 重置查询统计（整合自Data_Preloader）
+     */
+    public static function reset_query_stats(): void {
+        self::$query_stats = [
+            'total_queries' => 0,
+            'cache_hits' => 0,
+            'batch_queries' => 0,
+            'single_queries' => 0,
+            'query_times' => [],
+            'n_plus_one_detected' => 0
+        ];
+    }
+
+    /**
+     * 预加载相关数据（整合自Data_Preloader）
+     *
+     * @param array $context 上下文数据，包含需要预加载的信息
+     * @return bool 预加载是否成功
+     */
+    public static function preload_related_data(array $context): bool {
+        $start_time = microtime(true);
+
+        try {
+            // 预加载WordPress文章元数据
+            if (!empty($context['post_ids'])) {
+                self::optimized_batch_get_post_meta($context['post_ids']);
+            }
+
+            // 预加载Notion页面关联数据
+            if (!empty($context['notion_ids'])) {
+                self::optimized_batch_get_posts_by_notion_ids($context['notion_ids']);
+            }
+
+            // 预加载分类和标签数据
+            if (!empty($context['post_ids'])) {
+                self::batch_get_post_terms($context['post_ids']);
+            }
+
+            $processing_time = microtime(true) - $start_time;
+            self::$query_stats['query_times'][] = $processing_time;
+
+            return true;
+        } catch (Exception $e) {
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log(
+                    sprintf('数据预加载失败: %s', $e->getMessage()),
+                    'Database Helper Preload'
+                );
+            }
+            return false;
+        }
+    }
+
+    /**
+     * 优化现有的数据库查询（整合自Data_Preloader）
+     *
+     * @param callable $query_callback 查询回调函数
+     * @param array $context 查询上下文
+     * @return mixed 查询结果
+     */
+    public static function optimize_query(callable $query_callback, array $context = []) {
+        $start_time = microtime(true);
+
+        // 预加载相关数据
+        if (!empty($context)) {
+            self::preload_related_data($context);
+        }
+
+        // 执行查询
+        $result = call_user_func($query_callback);
+
+        $processing_time = microtime(true) - $start_time;
+        self::$query_stats['query_times'][] = $processing_time;
+
+        return $result;
+    }
+
+    /**
+     * 生成数据库优化报告（整合自Data_Preloader）
      *
      * @return string 格式化的优化报告
      */
@@ -987,14 +1249,10 @@ class Notion_Database_Helper {
         $report .= sprintf("- 总索引数: %d\n", $index_status['total_indexes']);
         $report .= sprintf("- 表大小: %.2fMB\n", $index_status['table_size'] / 1024 / 1024);
 
-        // 数据预加载器状态
-        if (class_exists('Notion_Data_Preloader')) {
-            $report .= "\n数据预加载器: 已启用\n";
-            $preloader_report = Notion_Data_Preloader::generate_performance_report();
-            $report .= $preloader_report;
-        } else {
-            $report .= "\n数据预加载器: 未启用\n";
-        }
+        // 数据预加载器状态（已整合到Database Helper）
+        $report .= "\n数据预加载器: 已整合到Database Helper\n";
+        $report .= "预加载缓存项数: " . count(self::$preloaded_cache) . "\n";
+        $report .= "查询统计: " . json_encode(self::$query_stats) . "\n";
 
         // 优化建议
         $suggestions = self::get_optimization_suggestions();
@@ -1005,17 +1263,46 @@ class Notion_Database_Helper {
             }
         }
 
-        if (class_exists('Notion_Data_Preloader')) {
-            $preload_suggestions = Notion_Data_Preloader::get_preload_suggestions();
-            if (!empty($preload_suggestions)) {
-                $report .= "\n=== 预加载建议 ===\n";
-                foreach ($preload_suggestions as $suggestion) {
-                    $priority = $suggestion['priority'] === 'high' ? '[高优先级]' : '[中优先级]';
-                    $report .= "- {$priority} " . $suggestion['message'] . "\n";
-                }
+        // 预加载建议（已整合功能）
+        $preload_suggestions = self::get_preload_suggestions();
+        if (!empty($preload_suggestions)) {
+            $report .= "\n=== 预加载建议 ===\n";
+            foreach ($preload_suggestions as $suggestion) {
+                $priority = $suggestion['priority'] === 'high' ? '[高优先级]' : '[中优先级]';
+                $report .= "- {$priority} " . $suggestion['message'] . "\n";
             }
         }
 
         return $report;
+    }
+
+    /**
+     * 获取预加载建议
+     *
+     * @since 2.0.0-beta.1
+     * @return array 预加载建议列表
+     */
+    private static function get_preload_suggestions(): array {
+        $suggestions = [];
+
+        // 检查查询统计
+        if (self::$query_stats['n_plus_one_detected'] > 0) {
+            $suggestions[] = [
+                'priority' => 'high',
+                'message' => '检测到N+1查询问题，建议启用预加载功能'
+            ];
+        }
+
+        if (self::$query_stats['cache_hits'] > 0) {
+            $hit_rate = self::$query_stats['cache_hits'] / self::$query_stats['total_queries'];
+            if ($hit_rate < 0.5) {
+                $suggestions[] = [
+                    'priority' => 'medium',
+                    'message' => '缓存命中率较低(' . round($hit_rate * 100, 1) . '%)，建议优化缓存策略'
+                ];
+            }
+        }
+
+        return $suggestions;
     }
 }

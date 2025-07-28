@@ -70,24 +70,6 @@ class Notion_To_WordPress_Admin {
         $this->version = $version;
         $this->notion_api = $notion_api;
         $this->notion_pages = $notion_pages;
-
-        // 注册AJAX处理器
-        add_action('wp_ajax_save_notion_settings', array($this, 'handle_save_settings_ajax'));
-        add_action('wp_ajax_notion_test_connection', array($this, 'handle_test_connection_ajax'));
-        add_action('wp_ajax_notion_manual_sync', array($this, 'handle_manual_sync_ajax'));
-        add_action('wp_ajax_notion_full_sync', array($this, 'handle_full_sync_ajax'));
-        add_action('wp_ajax_notion_view_logs', array($this, 'handle_view_logs_ajax'));
-        add_action('wp_ajax_notion_clear_logs', array($this, 'handle_clear_logs_ajax'));
-        add_action('wp_ajax_notion_refresh_performance_stats', array($this, 'handle_refresh_performance_stats_ajax'));
-        add_action('wp_ajax_notion_reset_performance_stats', array($this, 'handle_reset_performance_stats_ajax'));
-        add_action('wp_ajax_notion_create_database_indexes', array($this, 'handle_create_database_indexes_ajax'));
-        add_action('wp_ajax_notion_get_index_status', array($this, 'handle_get_index_status_ajax'));
-        add_action('wp_ajax_notion_remove_database_indexes', array($this, 'handle_remove_database_indexes_ajax'));
-        add_action('wp_ajax_notion_get_queue_status', array($this, 'handle_get_queue_status_ajax'));
-        add_action('wp_ajax_notion_cancel_queue_task', array($this, 'handle_cancel_queue_task_ajax'));
-        add_action('wp_ajax_notion_cleanup_queue', array($this, 'handle_cleanup_queue_ajax'));
-        add_action('wp_ajax_notion_get_async_status', array($this, 'handle_get_async_status_ajax'));
-        add_action('wp_ajax_notion_control_async_operation', array($this, 'handle_control_async_operation_ajax'));
     }
 
     /**
@@ -297,7 +279,7 @@ class Notion_To_WordPress_Admin {
         }
 
         // Debug Level
-        $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR;
+        $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Notion_Logger::DEBUG_LEVEL_ERROR;
 
         // 新增设置项
         // iframe 白名单域名
@@ -320,7 +302,16 @@ class Notion_To_WordPress_Admin {
         // 向后兼容：根据新的 plugin_language 设置旧的 force_english_ui
         $options['force_english_ui'] = ( $plugin_language === 'en_US' ) ? 1 : 0;
 
-        // 性能优化配置
+        // 简化配置处理
+        if (isset($_POST['performance_level'])) {
+            $options['performance_level'] = sanitize_text_field($_POST['performance_level']);
+        }
+
+        if (isset($_POST['field_template'])) {
+            $options['field_template'] = sanitize_text_field($_POST['field_template']);
+        }
+
+        // 性能优化配置（保持向后兼容）
         $options['api_page_size'] = isset( $_POST['api_page_size'] ) ? min( 200, max( 50, intval( $_POST['api_page_size'] ) ) ) : 100;
         $options['concurrent_requests'] = isset( $_POST['concurrent_requests'] ) ? min( 15, max( 3, intval( $_POST['concurrent_requests'] ) ) ) : 5;
         $options['batch_size'] = isset( $_POST['batch_size'] ) ? min( 100, max( 10, intval( $_POST['batch_size'] ) ) ) : 20;
@@ -364,6 +355,17 @@ class Notion_To_WordPress_Admin {
             $options['custom_field_mappings'] = $custom_field_mappings;
         }
 
+        // 应用简化配置（如果配置简化器可用）
+        if (class_exists('Notion_Config_Simplifier')) {
+            // 首次迁移现有配置
+            if (!isset($options['config_migrated'])) {
+                $options = Notion_Config_Simplifier::migrate_legacy_config($options);
+            }
+
+            // 应用简化配置到详细配置
+            $options = Notion_Config_Simplifier::apply_simplified_config($options);
+        }
+
         return $options;
     }
 
@@ -402,8 +404,10 @@ class Notion_To_WordPress_Admin {
 
         update_option( 'notion_to_wordpress_options', $options );
 
-        // 重新初始化调试级别
-        Notion_To_WordPress_Helper::init();
+        // 重新初始化日志系统
+        if (class_exists('Notion_Logger')) {
+            Notion_Logger::init();
+        }
 
         // 缓存功能已移除，使用增量同步替代
 
@@ -551,12 +555,18 @@ class Notion_To_WordPress_Admin {
             $incremental = isset($_POST['incremental']) ? (bool) $_POST['incremental'] : true;
             $check_deletions = isset($_POST['check_deletions']) ? (bool) $_POST['check_deletions'] : true;
 
-            Notion_To_WordPress_Helper::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Manual Sync');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Manual Sync');
+            }
 
             // 执行导入
-            Notion_To_WordPress_Helper::info_log('开始执行import_pages()', 'Manual Sync');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log('开始执行import_pages()', 'Manual Sync');
+            }
             $result = $notion_pages->import_pages($check_deletions, $incremental);
-            Notion_To_WordPress_Helper::info_log('import_pages()执行完成，结果: ' . print_r($result, true), 'Manual Sync');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log('import_pages()执行完成，结果: ' . print_r($result, true), 'Manual Sync');
+            }
 
             // 更新最后同步时间
             update_option( 'notion_to_wordpress_last_sync', current_time( 'mysql' ) );
@@ -577,8 +587,10 @@ class Notion_To_WordPress_Admin {
             ] );
             
         } catch ( Exception $e ) {
-            Notion_To_WordPress_Helper::error_log('捕获异常: ' . $e->getMessage(), 'Manual Sync');
-            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Manual Sync');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log('捕获异常: ' . $e->getMessage(), 'Manual Sync');
+                Notion_Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Manual Sync');
+            }
             wp_send_json_error( [ 'message' => __('导入失败: ', 'notion-to-wordpress') . $e->getMessage() ] );
         }
     }
@@ -746,7 +758,7 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            $success = Notion_To_WordPress_Helper::clear_logs();
+            $success = Notion_Logger::clear_logs();
             
             if ($success) {
                 wp_send_json_success(['message' => __('所有日志文件已清除', 'notion-to-wordpress')]);
@@ -770,7 +782,7 @@ class Notion_To_WordPress_Admin {
             wp_send_json_error(['message' => __('未指定日志文件', 'notion-to-wordpress')]);
         }
 
-        $content = Notion_To_WordPress_Helper::get_log_content($file);
+        $content = Notion_Logger::get_log_content($file);
 
         // 如果返回错误信息，则视为失败
         if (strpos($content, __('无效', 'notion-to-wordpress')) === 0 || strpos($content, __('不存在', 'notion-to-wordpress')) !== false) {
@@ -838,7 +850,9 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            Notion_To_WordPress_Helper::info_log('权限检查成功', 'Debug Test');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log('权限检查成功', 'Debug Test');
+            }
 
             $test_data = [
                 'php_version' => PHP_VERSION,
@@ -851,16 +865,22 @@ class Notion_To_WordPress_Admin {
                 'ajax_url' => admin_url('admin-ajax.php')
             ];
 
-            Notion_To_WordPress_Helper::info_log('测试数据: ' . print_r($test_data, true), 'Debug Test');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::info_log('测试数据: ' . print_r($test_data, true), 'Debug Test');
+            }
             wp_send_json_success(['message' => __('调试测试成功', 'notion-to-wordpress'), 'data' => $test_data]);
 
         } catch (Exception $e) {
-            Notion_To_WordPress_Helper::error_log('测试异常: ' . $e->getMessage(), 'Debug Test');
-            Notion_To_WordPress_Helper::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Debug Test');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log('测试异常: ' . $e->getMessage(), 'Debug Test');
+                Notion_Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Debug Test');
+            }
             wp_send_json_error(['message' => __('测试失败: ', 'notion-to-wordpress') . $e->getMessage()]);
         } catch (Error $e) {
-            Notion_To_WordPress_Helper::error_log('测试错误: ' . $e->getMessage(), 'Debug Test');
-            Notion_To_WordPress_Helper::error_log('错误堆栈: ' . $e->getTraceAsString(), 'Debug Test');
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log('测试错误: ' . $e->getMessage(), 'Debug Test');
+                Notion_Logger::error_log('错误堆栈: ' . $e->getTraceAsString(), 'Debug Test');
+            }
             wp_send_json_error(['message' => __('测试错误: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
     }
@@ -870,9 +890,9 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_refresh_performance_stats_ajax() {
-        // 验证nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'notion_admin_nonce')) {
+    public function handle_refresh_performance_stats() {
+        // 验证nonce - 使用统一的 nonce 名称
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_die('安全验证失败');
         }
 
@@ -921,9 +941,9 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_reset_performance_stats_ajax() {
-        // 验证nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'notion_admin_nonce')) {
+    public function handle_reset_performance_stats() {
+        // 验证nonce - 使用统一的 nonce 名称
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_die('安全验证失败');
         }
 
@@ -968,7 +988,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_create_database_indexes_ajax() {
+    public function handle_create_database_indexes() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1013,7 +1033,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_get_index_status_ajax() {
+    public function handle_get_index_status() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1049,7 +1069,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_remove_database_indexes_ajax() {
+    public function handle_remove_database_indexes() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1095,7 +1115,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_get_queue_status_ajax() {
+    public function handle_get_queue_status() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1117,7 +1137,24 @@ class Notion_To_WordPress_Admin {
                     'message' => '队列状态获取成功'
                 ]);
             } else {
-                wp_send_json_error(['message' => '队列管理器不可用']);
+                // 提供默认队列状态而不是错误（字段名匹配JavaScript期望）
+                $default_queue_status = [
+                    'total_tasks' => 0,
+                    'pending' => 0,
+                    'processing' => 0,
+                    'completed' => 0,
+                    'failed' => 0,
+                    'retrying' => 0,
+                    'queue_size' => 0,
+                    'is_processing' => false,
+                    'last_processed' => '',
+                    'next_scheduled' => ''
+                ];
+
+                wp_send_json_success([
+                    'status' => $default_queue_status,
+                    'message' => '队列管理器不可用，返回默认状态'
+                ]);
             }
 
         } catch (Exception $e) {
@@ -1130,7 +1167,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_cancel_queue_task_ajax() {
+    public function handle_cancel_queue_task() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1173,7 +1210,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_cleanup_queue_ajax() {
+    public function handle_cleanup_queue() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1208,7 +1245,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_get_async_status_ajax() {
+    public function handle_get_async_status() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1230,7 +1267,21 @@ class Notion_To_WordPress_Admin {
                     'message' => '异步状态获取成功'
                 ]);
             } else {
-                wp_send_json_error(['message' => '异步处理器不可用']);
+                // 提供默认状态而不是错误
+                $default_status = [
+                    'status' => 'idle',
+                    'operation' => '',
+                    'started_at' => '',
+                    'updated_at' => '',
+                    'data_count' => 0,
+                    'progress' => 0,
+                    'details' => []
+                ];
+
+                wp_send_json_success([
+                    'status' => $default_status,
+                    'message' => '异步处理器不可用，返回默认状态'
+                ]);
             }
 
         } catch (Exception $e) {
@@ -1243,7 +1294,7 @@ class Notion_To_WordPress_Admin {
      *
      * @since 2.0.0-beta.1
      */
-    public function handle_control_async_operation_ajax() {
+    public function handle_control_async_operation() {
         // 验证nonce
         if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
             wp_send_json_error(['message' => '安全验证失败']);
@@ -1300,6 +1351,36 @@ class Notion_To_WordPress_Admin {
 
         } catch (Exception $e) {
             wp_send_json_error(['message' => '控制异步操作时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理智能推荐AJAX请求
+     *
+     * @since    2.0.0-beta.1
+     */
+    public function handle_smart_recommendations(): void {
+        // 验证nonce - 使用统一的 nonce 名称
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'notion_to_wordpress_nonce')) {
+            wp_send_json_error('安全验证失败');
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('权限不足');
+            return;
+        }
+
+        try {
+            if (class_exists('Notion_Config_Simplifier')) {
+                $recommendations = Notion_Config_Simplifier::detect_optimal_config();
+                wp_send_json_success($recommendations);
+            } else {
+                wp_send_json_error('配置简化器不可用');
+            }
+        } catch (Exception $e) {
+            wp_send_json_error('获取推荐配置失败: ' . $e->getMessage());
         }
     }
 

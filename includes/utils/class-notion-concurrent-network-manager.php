@@ -1008,8 +1008,8 @@ class Notion_Concurrent_Network_Manager {
         }
 
         // 考虑系统负载调整
-        if (class_exists('Notion_Adaptive_Batch')) {
-            $system_stats = Notion_Adaptive_Batch::get_adaptive_stats();
+        if (class_exists('Notion_Memory_Manager')) {
+            $system_stats = Notion_Memory_Manager::get_adaptive_stats();
             if ($system_stats['memory_usage_percent'] > 80) {
                 $optimal_concurrency = max(1, floor($optimal_concurrency * 0.7)); // 内存紧张时减少并发
             }

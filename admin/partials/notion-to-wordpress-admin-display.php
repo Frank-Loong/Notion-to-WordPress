@@ -38,9 +38,13 @@ $field_mapping         = $options['field_mapping'] ?? [
     'tags'           => 'Tags,标签,Tag',
     'password'       => 'Password,密码',
 ];
-$debug_level           = $options['debug_level'] ?? Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR;
+$debug_level           = $options['debug_level'] ?? Notion_Logger::DEBUG_LEVEL_ERROR;
 $max_image_size        = $options['max_image_size'] ?? 5;
 $plugin_language       = $options['plugin_language'] ?? 'auto';
+
+// 简化配置
+$performance_level     = $options['performance_level'] ?? 'balanced';
+$field_template       = $options['field_template'] ?? 'mixed';
 
 // 性能优化配置
 $api_page_size         = $options['api_page_size'] ?? 100;
@@ -290,6 +294,73 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             <div class="sync-info">
                                 <p><strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?></p>
                                 <p><strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 快速配置部分 -->
+                    <div class="notion-wp-settings-section">
+                        <h2><?php esc_html_e('🚀 快速配置', 'notion-to-wordpress'); ?></h2>
+                        <p class="description"><?php esc_html_e('使用预设模板快速配置插件，适合大多数用户。高级用户可以在其他标签页进行详细配置。', 'notion-to-wordpress'); ?></p>
+
+                        <table class="form-table">
+                            <tbody>
+                                <tr>
+                                    <th scope="row"><label for="performance_level"><?php esc_html_e('性能级别', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <?php
+                                        $performance_levels = class_exists('Notion_Config_Simplifier')
+                                            ? Notion_Config_Simplifier::get_available_performance_levels()
+                                            : [
+                                                'conservative' => '保守模式 - 适合配置较低的服务器',
+                                                'balanced' => '平衡模式 - 推荐的默认配置',
+                                                'aggressive' => '激进模式 - 适合高性能服务器'
+                                            ];
+                                        ?>
+                                        <select id="performance_level" name="performance_level" class="regular-text">
+                                            <?php foreach ($performance_levels as $level => $description): ?>
+                                                <option value="<?php echo esc_attr($level); ?>" <?php selected($performance_level, $level); ?>>
+                                                    <?php echo esc_html($description); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <p class="description"><?php esc_html_e('选择适合您服务器配置的性能级别。系统会自动设置最优的API分页大小、并发请求数等参数。', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="field_template"><?php esc_html_e('字段映射模板', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <?php
+                                        $field_templates = class_exists('Notion_Config_Simplifier')
+                                            ? Notion_Config_Simplifier::get_available_field_templates()
+                                            : [
+                                                'english' => '英文模板 - 适合英文Notion数据库',
+                                                'chinese' => '中文模板 - 适合中文Notion数据库',
+                                                'mixed' => '混合模板 - 中英文兼容',
+                                                'custom' => '自定义 - 手动配置所有字段'
+                                            ];
+                                        ?>
+                                        <select id="field_template" name="field_template" class="regular-text">
+                                            <?php foreach ($field_templates as $template => $description): ?>
+                                                <option value="<?php echo esc_attr($template); ?>" <?php selected($field_template, $template); ?>>
+                                                    <?php echo esc_html($description); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <p class="description"><?php esc_html_e('选择与您的Notion数据库语言匹配的字段映射模板。选择"自定义"可在字段映射标签页进行详细配置。', 'notion-to-wordpress'); ?></p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- 智能推荐 -->
+                        <div class="notion-wp-smart-recommendations" style="margin-top: 20px;">
+                            <h3><?php esc_html_e('💡 智能推荐', 'notion-to-wordpress'); ?></h3>
+                            <div id="config-recommendations">
+                                <button type="button" class="button button-secondary" id="get-smart-recommendations">
+                                    <?php esc_html_e('获取配置建议', 'notion-to-wordpress'); ?>
+                                </button>
+                                <div id="recommendations-result" style="margin-top: 10px; display: none;"></div>
                             </div>
                         </div>
                     </div>
@@ -631,8 +702,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                     </div>
 
                     <div class="notion-wp-settings-section">
-                        <h2><?php esc_html_e('性能优化', 'notion-to-wordpress'); ?></h2>
-                        <p><?php esc_html_e('调整这些设置可以优化同步性能。请根据您的服务器配置和网络环境进行调整。', 'notion-to-wordpress'); ?></p>
+                        <details class="notion-wp-advanced-options">
+                            <summary>
+                                <h2 style="display: inline;"><?php esc_html_e('🔧 高级性能选项', 'notion-to-wordpress'); ?></h2>
+                                <span class="description" style="margin-left: 10px;"><?php esc_html_e('(点击展开详细配置)', 'notion-to-wordpress'); ?></span>
+                            </summary>
+                            <div class="advanced-content" style="margin-top: 15px;">
+                                <p><?php esc_html_e('⚠️ 这些是高级选项，建议使用上方的"快速配置"。如需手动调整，请根据您的服务器配置和网络环境进行设置。', 'notion-to-wordpress'); ?></p>
                         <table class="form-table">
                             <tbody>
                                 <tr>
@@ -764,12 +840,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             require_once plugin_dir_path(__FILE__) . '../../includes/core/class-notion-performance-monitor.php';
                                             $config = Notion_Performance_Monitor::get_performance_config();
                                         } else {
+                                            // 获取插件选项作为备用配置
+                                            $options = get_option('notion_to_wordpress_options', []);
                                             $config = [
-                                                'api_page_size' => $api_page_size ?? 100,
-                                                'concurrent_requests' => $concurrent_requests ?? 5,
-                                                'batch_size' => $batch_size ?? 20,
-                                                'log_buffer_size' => $log_buffer_size ?? 50,
-                                                'enable_performance_mode' => $enable_performance_mode ?? 1
+                                                'api_page_size' => $options['api_page_size'] ?? 100,
+                                                'concurrent_requests' => $options['concurrent_requests'] ?? 5,
+                                                'batch_size' => $options['batch_size'] ?? 20,
+                                                'log_buffer_size' => $options['log_buffer_size'] ?? 50,
+                                                'enable_performance_mode' => $options['enable_performance_mode'] ?? 1
                                             ];
                                         }
                                         ?>
@@ -846,17 +924,127 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 <h3><?php esc_html_e('⚡ 异步处理架构', 'notion-to-wordpress'); ?></h3>
                                 <p><?php esc_html_e('异步处理架构可以解决大批量操作超时问题，显著提升用户体验。支持队列管理、错误恢复和智能调度。', 'notion-to-wordpress'); ?></p>
 
+                                <?php
+                                // 获取异步状态数据
+                                $async_status = [
+                                    'status' => 'idle',
+                                    'operation' => '',
+                                    'started_at' => '',
+                                    'updated_at' => '',
+                                    'data_count' => 0,
+                                    'progress' => 0,
+                                    'details' => []
+                                ];
+
+                                if (class_exists('Notion_Async_Processor')) {
+                                    try {
+                                        $async_status = Notion_Async_Processor::get_async_status();
+                                    } catch (Exception $e) {
+                                        // 使用默认状态
+                                    }
+                                }
+
+                                // 获取队列状态数据
+                                $queue_status = [
+                                    'total_tasks' => 0,
+                                    'pending' => 0,
+                                    'processing' => 0,
+                                    'completed' => 0,
+                                    'failed' => 0,
+                                    'retrying' => 0,
+                                    'queue_size' => 0,
+                                    'is_processing' => false,
+                                    'last_processed' => '',
+                                    'next_scheduled' => ''
+                                ];
+
+                                if (class_exists('Notion_Queue_Manager')) {
+                                    try {
+                                        $queue_status = Notion_Queue_Manager::get_queue_status();
+                                    } catch (Exception $e) {
+                                        // 使用默认状态
+                                    }
+                                }
+                                ?>
+
                                 <div class="notion-wp-async-status" id="async-status-container">
-                                    <div class="loading-placeholder">
-                                        <span class="spinner is-active"></span>
-                                        <?php esc_html_e('正在检查异步状态...', 'notion-to-wordpress'); ?>
+                                    <?php
+                                    $status_class = 'status-idle';
+                                    $status_text = __('空闲', 'notion-to-wordpress');
+
+                                    if ($async_status['status'] === 'running') {
+                                        $status_class = 'status-running';
+                                        $status_text = __('运行中', 'notion-to-wordpress');
+                                    } elseif ($async_status['status'] === 'paused') {
+                                        $status_class = 'status-paused';
+                                        $status_text = __('已暂停', 'notion-to-wordpress');
+                                    } elseif ($async_status['status'] === 'error') {
+                                        $status_class = 'status-error';
+                                        $status_text = __('错误', 'notion-to-wordpress');
+                                    }
+                                    ?>
+                                    <div class="async-status-display <?php echo esc_attr($status_class); ?>">
+                                        <div class="status-header">
+                                            <span class="status-indicator"></span>
+                                            <strong><?php esc_html_e('异步状态:', 'notion-to-wordpress'); ?></strong>
+                                            <span class="status-value"><?php echo esc_html($status_text); ?></span>
+                                        </div>
+                                        <?php if (!empty($async_status['operation'])): ?>
+                                        <div class="status-details">
+                                            <div class="detail-item">
+                                                <span class="detail-label"><?php esc_html_e('当前操作:', 'notion-to-wordpress'); ?></span>
+                                                <span class="detail-value"><?php echo esc_html($async_status['operation']); ?></span>
+                                            </div>
+                                            <?php if ($async_status['data_count'] > 0): ?>
+                                            <div class="detail-item">
+                                                <span class="detail-label"><?php esc_html_e('数据量:', 'notion-to-wordpress'); ?></span>
+                                                <span class="detail-value"><?php echo esc_html($async_status['data_count']); ?></span>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if ($async_status['progress'] > 0): ?>
+                                            <div class="detail-item">
+                                                <span class="detail-label"><?php esc_html_e('进度:', 'notion-to-wordpress'); ?></span>
+                                                <span class="detail-value"><?php echo esc_html($async_status['progress'] . '%'); ?></span>
+                                            </div>
+                                            <?php endif; ?>
+                                            <?php if (!empty($async_status['updated_at'])): ?>
+                                            <div class="detail-item">
+                                                <span class="detail-label"><?php esc_html_e('更新时间:', 'notion-to-wordpress'); ?></span>
+                                                <span class="detail-value"><?php echo esc_html($async_status['updated_at']); ?></span>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php endif; ?>
                                     </div>
                                 </div>
 
                                 <div class="notion-wp-queue-status" id="queue-status-container">
-                                    <div class="loading-placeholder">
-                                        <span class="spinner is-active"></span>
-                                        <?php esc_html_e('正在检查队列状态...', 'notion-to-wordpress'); ?>
+                                    <div class="queue-status-display">
+                                        <div class="status-header">
+                                            <strong><?php esc_html_e('队列状态:', 'notion-to-wordpress'); ?></strong>
+                                        </div>
+                                        <div class="queue-stats">
+                                            <div class="queue-stat-item">
+                                                <span class="stat-label"><?php esc_html_e('总任务:', 'notion-to-wordpress'); ?></span>
+                                                <span class="stat-value"><?php echo esc_html($queue_status['total_tasks'] ?? 0); ?></span>
+                                            </div>
+                                            <div class="queue-stat-item">
+                                                <span class="stat-label"><?php esc_html_e('等待中:', 'notion-to-wordpress'); ?></span>
+                                                <span class="stat-value"><?php echo esc_html($queue_status['pending'] ?? 0); ?></span>
+                                            </div>
+                                            <div class="queue-stat-item">
+                                                <span class="stat-label"><?php esc_html_e('处理中:', 'notion-to-wordpress'); ?></span>
+                                                <span class="stat-value"><?php echo esc_html($queue_status['processing'] ?? 0); ?></span>
+                                            </div>
+                                            <div class="queue-stat-item">
+                                                <span class="stat-label"><?php esc_html_e('已完成:', 'notion-to-wordpress'); ?></span>
+                                                <span class="stat-value"><?php echo esc_html($queue_status['completed'] ?? 0); ?></span>
+                                            </div>
+                                            <div class="queue-stat-item">
+                                                <span class="stat-label"><?php esc_html_e('失败:', 'notion-to-wordpress'); ?></span>
+                                                <span class="stat-value"><?php echo esc_html($queue_status['failed'] ?? 0); ?></span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -933,6 +1121,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 </div>
                             </div>
                         </div>
+                            </div>
+                        </details>
                     </div>
                 </div>
 
@@ -946,10 +1136,11 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="debug_level"><?php esc_html_e('日志记录级别', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <select id="debug_level" name="debug_level">
-                                            <option value="<?php echo Notion_To_WordPress_Helper::DEBUG_LEVEL_NONE; ?>" <?php selected($debug_level, Notion_To_WordPress_Helper::DEBUG_LEVEL_NONE); ?>><?php esc_html_e('无日志', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR; ?>" <?php selected($debug_level, Notion_To_WordPress_Helper::DEBUG_LEVEL_ERROR); ?>><?php esc_html_e('仅错误', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO; ?>" <?php selected($debug_level, Notion_To_WordPress_Helper::DEBUG_LEVEL_INFO); ?>><?php esc_html_e('信息和错误', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG; ?>" <?php selected($debug_level, Notion_To_WordPress_Helper::DEBUG_LEVEL_DEBUG); ?>><?php esc_html_e('所有日志 (调试)', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_NONE; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_NONE); ?>><?php esc_html_e('无日志', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_ERROR; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_ERROR); ?>><?php esc_html_e('仅错误', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_WARNING; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_WARNING); ?>><?php esc_html_e('警告和错误', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_INFO; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_INFO); ?>><?php esc_html_e('信息、警告和错误', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_DEBUG; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_DEBUG); ?>><?php esc_html_e('所有日志 (调试)', 'notion-to-wordpress'); ?></option>
                                         </select>
                                         <p class="description"><?php esc_html_e('设置日志记录的详细程度。建议在生产环境中设置为"仅错误"。', 'notion-to-wordpress'); ?></p>
                                     </td>
@@ -980,7 +1171,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <td>
                                         <div id="log-viewer-container">
                                             <select id="log-file-selector">
-                                                <?php foreach (Notion_To_WordPress_Helper::get_log_files() as $file): ?>
+                                                <?php foreach (Notion_Logger::get_log_files() as $file): ?>
                                                     <option value="<?php echo esc_attr($file); ?>"><?php echo esc_html($file); ?></option>
                                                 <?php endforeach; ?>
                                             </select>
@@ -1141,77 +1332,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
 <script type="text/javascript">
 jQuery(document).ready(function($) {
-    // 刷新性能统计
-    $('#refresh-performance-stats').on('click', function() {
-        var button = $(this);
-        var originalText = button.text();
-
-        button.prop('disabled', true).text('<?php esc_html_e('刷新中...', 'notion-to-wordpress'); ?>');
-
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'notion_refresh_performance_stats',
-                nonce: '<?php echo wp_create_nonce('notion_admin_nonce'); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
-                    // 更新页面上的统计数据
-                    if (response.data.memory_usage) {
-                        $('.notion-wp-performance-stats .current-memory').text(response.data.memory_usage.current_mb + ' MB');
-                        $('.notion-wp-performance-stats .peak-memory').text(response.data.memory_usage.peak_mb + ' MB');
-                    }
-
-                    // 显示成功消息
-                    showToast('success', '<?php esc_html_e('性能统计已刷新', 'notion-to-wordpress'); ?>');
-                } else {
-                    showToast('error', response.data || '<?php esc_html_e('刷新失败', 'notion-to-wordpress'); ?>');
-                }
-            },
-            error: function() {
-                showToast('error', '<?php esc_html_e('请求失败，请稍后重试', 'notion-to-wordpress'); ?>');
-            },
-            complete: function() {
-                button.prop('disabled', false).text(originalText);
-            }
-        });
-    });
-
-    // 重置性能统计
-    $('#reset-performance-stats').on('click', function() {
-        if (!confirm('<?php esc_html_e('确定要重置所有性能统计数据吗？此操作不可撤销。', 'notion-to-wordpress'); ?>')) {
-            return;
-        }
-
-        var button = $(this);
-        var originalText = button.text();
-
-        button.prop('disabled', true).text('<?php esc_html_e('重置中...', 'notion-to-wordpress'); ?>');
-
-        $.ajax({
-            url: ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'notion_reset_performance_stats',
-                nonce: '<?php echo wp_create_nonce('notion_admin_nonce'); ?>'
-            },
-            success: function(response) {
-                if (response.success) {
-                    // 刷新页面以显示重置后的数据
-                    location.reload();
-                } else {
-                    showToast('error', response.data || '<?php esc_html_e('重置失败', 'notion-to-wordpress'); ?>');
-                }
-            },
-            error: function() {
-                showToast('error', '<?php esc_html_e('请求失败，请稍后重试', 'notion-to-wordpress'); ?>');
-            },
-            complete: function() {
-                button.prop('disabled', false).text(originalText);
-            }
-        });
-    });
 
     // Toast提示函数
     function showToast(type, message) {
@@ -1243,6 +1363,60 @@ jQuery(document).ready(function($) {
     // Toast关闭按钮
     $('.notion-wp-toast-close').on('click', function() {
         $('#notion-wp-toast').removeClass('show');
+    });
+
+    // 智能推荐功能
+    $('#get-smart-recommendations').on('click', function() {
+        const button = $(this);
+        const resultDiv = $('#recommendations-result');
+
+        button.prop('disabled', true).text('<?php esc_html_e('分析中...', 'notion-to-wordpress'); ?>');
+
+        $.ajax({
+            url: ajaxurl,
+            type: 'POST',
+            data: {
+                action: 'notion_to_wordpress_get_smart_recommendations',
+                nonce: '<?php echo wp_create_nonce('notion_to_wordpress_nonce'); ?>'
+            },
+            success: function(response) {
+                if (response.success) {
+                    const recommendations = response.data;
+                    let html = '<div class="notice notice-info"><h4><?php esc_html_e('💡 智能推荐结果', 'notion-to-wordpress'); ?></h4>';
+
+                    html += '<p><strong><?php esc_html_e('推荐性能级别:', 'notion-to-wordpress'); ?></strong> ' + recommendations.performance_level + '</p>';
+                    html += '<p><strong><?php esc_html_e('推荐字段模板:', 'notion-to-wordpress'); ?></strong> ' + recommendations.field_template + '</p>';
+
+                    if (recommendations.reason && recommendations.reason.length > 0) {
+                        html += '<p><strong><?php esc_html_e('推荐理由:', 'notion-to-wordpress'); ?></strong></p><ul>';
+                        recommendations.reason.forEach(function(reason) {
+                            html += '<li>' + reason + '</li>';
+                        });
+                        html += '</ul>';
+                    }
+
+                    html += '<button type="button" class="button button-primary" id="apply-recommendations" style="margin-top: 10px;"><?php esc_html_e('应用推荐配置', 'notion-to-wordpress'); ?></button>';
+                    html += '</div>';
+
+                    resultDiv.html(html).show();
+
+                    // 应用推荐配置
+                    $('#apply-recommendations').on('click', function() {
+                        $('#performance_level').val(recommendations.performance_level);
+                        $('#field_template').val(recommendations.field_template);
+                        showToast('success', '<?php esc_html_e('推荐配置已应用', 'notion-to-wordpress'); ?>');
+                    });
+                } else {
+                    resultDiv.html('<div class="notice notice-error"><p>' + response.data + '</p></div>').show();
+                }
+            },
+            error: function() {
+                resultDiv.html('<div class="notice notice-error"><p><?php esc_html_e('获取推荐配置失败，请稍后重试', 'notion-to-wordpress'); ?></p></div>').show();
+            },
+            complete: function() {
+                button.prop('disabled', false).text('<?php esc_html_e('获取配置建议', 'notion-to-wordpress'); ?>');
+            }
+        });
     });
 });
 </script>
