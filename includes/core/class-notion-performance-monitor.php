@@ -143,7 +143,7 @@ class Notion_Performance_Monitor {
      */
     public static function record_db_operation(string $operation, int $affected_rows, float $duration): void {
         $key = 'db_' . $operation;
-        
+
         if (!isset(self::$stats[$key])) {
             self::$stats[$key] = [
                 'count' => 0,
@@ -153,12 +153,42 @@ class Notion_Performance_Monitor {
                 'max_time' => 0
             ];
         }
-        
+
         self::$stats[$key]['count']++;
         self::$stats[$key]['total_rows'] += $affected_rows;
         self::$stats[$key]['total_time'] += $duration;
         self::$stats[$key]['min_time'] = min(self::$stats[$key]['min_time'], $duration);
         self::$stats[$key]['max_time'] = max(self::$stats[$key]['max_time'], $duration);
+    }
+
+    /**
+     * 记录自定义指标统计
+     *
+     * @since 2.0.0-beta.1
+     * @param string $metric_name 指标名称
+     * @param mixed $value 指标数值
+     */
+    public static function record_custom_metric(string $metric_name, $value): void {
+        $key = 'custom_' . $metric_name;
+
+        // 确保数值类型
+        $numeric_value = is_numeric($value) ? (float)$value : 0.0;
+
+        if (!isset(self::$stats[$key])) {
+            self::$stats[$key] = [
+                'count' => 0,
+                'total_value' => 0.0,
+                'min_value' => PHP_FLOAT_MAX,
+                'max_value' => 0.0,
+                'last_value' => 0.0
+            ];
+        }
+
+        self::$stats[$key]['count']++;
+        self::$stats[$key]['total_value'] += $numeric_value;
+        self::$stats[$key]['min_value'] = min(self::$stats[$key]['min_value'], $numeric_value);
+        self::$stats[$key]['max_value'] = max(self::$stats[$key]['max_value'], $numeric_value);
+        self::$stats[$key]['last_value'] = $numeric_value;
     }
     
     /**
@@ -177,7 +207,8 @@ class Notion_Performance_Monitor {
             ],
             'timers' => [],
             'api_calls' => [],
-            'db_operations' => []
+            'db_operations' => [],
+            'custom_metrics' => []
         ];
         
         foreach (self::$stats as $name => $data) {
@@ -196,21 +227,30 @@ class Notion_Performance_Monitor {
             ];
             
             if (strpos($name, 'api_') === 0) {
-                $formatted_data['success_rate'] = $data['count'] > 0 
-                    ? round(($data['success_count'] / $data['count']) * 100, 2) 
+                $formatted_data['success_rate'] = $data['count'] > 0
+                    ? round(($data['success_count'] / $data['count']) * 100, 2)
                     : 0;
                 $report['api_calls'][] = $formatted_data;
             } elseif (strpos($name, 'db_') === 0) {
                 $formatted_data['total_rows'] = $data['total_rows'];
-                $formatted_data['avg_rows'] = $data['count'] > 0 
-                    ? round($data['total_rows'] / $data['count'], 2) 
+                $formatted_data['avg_rows'] = $data['count'] > 0
+                    ? round($data['total_rows'] / $data['count'], 2)
                     : 0;
                 $report['db_operations'][] = $formatted_data;
+            } elseif (strpos($name, 'custom_') === 0) {
+                $formatted_data['total_value'] = round($data['total_value'], 4);
+                $formatted_data['avg_value'] = $data['count'] > 0
+                    ? round($data['total_value'] / $data['count'], 4)
+                    : 0;
+                $formatted_data['min_value'] = $data['min_value'] === PHP_FLOAT_MAX ? 0 : round($data['min_value'], 4);
+                $formatted_data['max_value'] = round($data['max_value'], 4);
+                $formatted_data['last_value'] = round($data['last_value'], 4);
+                $report['custom_metrics'][] = $formatted_data;
             } else {
                 if (isset($data['total_memory'])) {
                     $formatted_data['total_memory'] = $data['total_memory'];
-                    $formatted_data['avg_memory'] = $data['count'] > 0 
-                        ? round($data['total_memory'] / $data['count']) 
+                    $formatted_data['avg_memory'] = $data['count'] > 0
+                        ? round($data['total_memory'] / $data['count'])
                         : 0;
                     $formatted_data['min_memory'] = $data['min_memory'] === PHP_INT_MAX ? 0 : $data['min_memory'];
                     $formatted_data['max_memory'] = $data['max_memory'];

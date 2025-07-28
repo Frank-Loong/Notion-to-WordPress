@@ -58,6 +58,8 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-unified-
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-dependency-container.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-service-layer.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-manager.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-logger.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-performance-monitor.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
 

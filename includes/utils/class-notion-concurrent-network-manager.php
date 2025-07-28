@@ -753,7 +753,8 @@ class Notion_Concurrent_Network_Manager {
         'http2_connections' => 0,
         'keepalive_connections' => 0,
         'average_response_time' => 0,
-        'connection_errors' => 0
+        'connection_errors' => 0,
+        'unhealthy_connections' => 0
     ];
 
     /**
@@ -1171,7 +1172,8 @@ class Notion_Concurrent_Network_Manager {
             'http2_connections' => 0,
             'keepalive_connections' => 0,
             'average_response_time' => 0,
-            'connection_errors' => 0
+            'connection_errors' => 0,
+            'unhealthy_connections' => 0
         ];
 
         if (class_exists('Notion_Logger')) {

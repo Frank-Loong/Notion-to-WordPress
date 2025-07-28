@@ -134,8 +134,6 @@ function updateQueueStatusDisplay(queueData) {
             }
         });
     });
-
-    console.log('队列状态详情:', queueData);
 }
 
 // 全局函数：显示异步状态（保持向后兼容）
@@ -168,34 +166,26 @@ jQuery(document).ready(function($) {
 
     // 记录页面加载时的原始语言设置，用于检测变化
     var originalLanguage = $('#plugin_language').val();
-    console.log('Notion to WordPress: Original language on page load:', originalLanguage);
 
     // 记录页面加载时的原始webhook设置，用于检测变化
     var originalWebhookEnabled = $('#webhook_enabled').is(':checked');
-    console.log('Notion to WordPress: Original webhook enabled on page load:', originalWebhookEnabled);
 
     // 监听语言选择器的变化，但不立即更新originalLanguage
     // 只有在表单成功提交后才更新originalLanguage
     $('#plugin_language').on('change', function() {
         var currentValue = $(this).val();
-        console.log('Notion to WordPress: Language selector changed to:', currentValue);
-        console.log('Notion to WordPress: Will compare with original:', originalLanguage);
     });
 
     // 监听webhook设置的变化，但不立即更新originalWebhookEnabled
     // 只有在表单成功提交后才更新originalWebhookEnabled
     $('#webhook_enabled').on('change', function() {
         var currentValue = $(this).is(':checked');
-        console.log('Notion to WordPress: Webhook enabled changed to:', currentValue);
-        console.log('Notion to WordPress: Will compare with original:', originalWebhookEnabled);
     });
 
     // 标签切换动画效果
     $('.notion-wp-menu-item').on('click', function(e) {
         e.preventDefault();
         var tabId = $(this).data('tab');
-
-        console.log('Notion to WordPress: 切换到标签页:', tabId);
 
         $('.notion-wp-menu-item').removeClass('active');
         $('.notion-wp-tab-content').removeClass('active');
@@ -205,21 +195,15 @@ jQuery(document).ready(function($) {
         // 添加淡入效果
         $('#' + tabId).addClass('active').hide().fadeIn(300);
 
-        console.log('Notion to WordPress: 标签页', tabId, '已激活');
-
         // 保存用户的标签选择到本地存储
         localStorage.setItem('notion_wp_active_tab', tabId);
 
         // 当切换到性能监控tab时，重新初始化相关功能
         if (tabId === 'performance') {
-            console.log('Notion to WordPress: 性能监控标签页已激活，准备刷新状态');
             setTimeout(function() {
                 // 重新检查异步状态
                 if ($('#async-status-container').length > 0) {
-                    console.log('Notion to WordPress: 找到异步状态容器，开始刷新');
                     refreshAsyncStatus();
-                } else {
-                    console.log('Notion to WordPress: 未找到异步状态容器');
                 }
             }, 350); // 等待淡入动画完成后再执行
         }
@@ -228,7 +212,6 @@ jQuery(document).ready(function($) {
     // 从本地存储中恢复上次选择的标签，如果没有则默认激活性能监控标签页
     const lastActiveTab = localStorage.getItem('notion_wp_active_tab');
     if (lastActiveTab) {
-        console.log('Notion to WordPress: 恢复上次选择的标签页:', lastActiveTab);
         $('.notion-wp-menu-item[data-tab="' + lastActiveTab + '"]').click();
     } else {
         // 默认激活性能监控标签页
@@ -1310,5 +1293,43 @@ jQuery(document).ready(function($) {
             }
         });
     });
+
+    /**
+     * 清理队列
+     */
+    function cleanupQueue() {
+        if (!confirm('确定要清理已完成的队列任务吗？')) {
+            return;
+        }
+
+        const $button = $('#cleanup-queue');
+        const originalText = $button.text();
+
+        $button.prop('disabled', true).text('清理中...');
+
+        $.ajax({
+            url: notionToWp.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'notion_to_wordpress_cleanup_queue',
+                nonce: notionToWp.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    showToast('队列清理完成', 'success');
+                    // 刷新状态
+                    setTimeout(refreshAsyncStatus, 1000);
+                } else {
+                    showToast('清理失败: ' + (response.data || '未知错误'), 'error');
+                }
+            },
+            error: function() {
+                showToast('网络错误，清理失败', 'error');
+            },
+            complete: function() {
+                $button.prop('disabled', false).text(originalText);
+            }
+        });
+    }
 
 })(jQuery);

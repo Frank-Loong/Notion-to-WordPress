@@ -821,6 +821,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 </tr>
                             </tbody>
                         </table>
+                            </div>
+                        </details>
                     </div>
                 </div>
 
@@ -835,9 +837,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <h3><?php esc_html_e('当前配置', 'notion-to-wordpress'); ?></h3>
                                     <div class="notion-wp-performance-config">
                                         <?php
-                                        // 包含性能监控类
-                                        if (file_exists(plugin_dir_path(__FILE__) . '../../includes/core/class-notion-performance-monitor.php')) {
-                                            require_once plugin_dir_path(__FILE__) . '../../includes/core/class-notion-performance-monitor.php';
+                                        // 获取性能监控配置（类已在主插件文件中加载）
+                                        if (class_exists('Notion_Performance_Monitor')) {
                                             $config = Notion_Performance_Monitor::get_performance_config();
                                         } else {
                                             // 获取插件选项作为备用配置
@@ -1121,8 +1122,6 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 </div>
                             </div>
                         </div>
-                            </div>
-                        </details>
                     </div>
                 </div>
 
