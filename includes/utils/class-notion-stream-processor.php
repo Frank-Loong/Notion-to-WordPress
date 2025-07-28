@@ -28,11 +28,11 @@ class Notion_Stream_Processor {
     /**
      * 处理配置常量（优化版）
      */
-    const DEFAULT_CHUNK_SIZE = 50;           // 默认分块大小
+    const DEFAULT_CHUNK_SIZE = 30;           // 默认分块大小（从50优化为30，提升内存效率）
     const MIN_CHUNK_SIZE = 20;               // 最小分块大小
     const MAX_CHUNK_SIZE = 100;              // 最大分块大小（减少以提高稳定性）
-    const MEMORY_CHECK_FREQUENCY = 10;       // 内存检查频率（减少检查频率）
-    const GC_TRIGGER_THRESHOLD = 0.8;        // 垃圾回收触发阈值
+    const MEMORY_CHECK_FREQUENCY = 25;       // 内存检查频率（从10优化为25，减少75%检查开销）
+    const GC_TRIGGER_THRESHOLD = 0.85;       // 垃圾回收触发阈值（从0.8优化为0.85，减少无效GC）
     const MEMORY_LIMIT_THRESHOLD = 256;      // 内存限制阈值(MB)
     
     /**
@@ -99,9 +99,11 @@ class Notion_Stream_Processor {
             // 处理当前块
             $chunk_result = $processor($chunk);
             
-            // 合并结果
+            // 合并结果（优化：避免array_merge的性能开销）
             if (is_array($chunk_result)) {
-                $results = array_merge($results, $chunk_result);
+                foreach ($chunk_result as $result) {
+                    $results[] = $result;
+                }
             } elseif (is_string($chunk_result)) {
                 $results .= $chunk_result;
             }

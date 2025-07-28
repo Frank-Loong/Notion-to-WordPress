@@ -52,6 +52,11 @@ if ( ! defined( 'NOTION_PERFORMANCE_MODE' ) ) {
  */
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-to-wordpress-helper.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database-helper.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database-index-manager.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-smart-cache.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-unified-concurrency-manager.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-dependency-container.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-service-layer.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-manager.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';

@@ -493,18 +493,15 @@ class Notion_To_WordPress {
 	}
 
 	/**
-	 * 在前端加载所需的样式与脚本。
+	 * 在前端加载所需的样式与脚本（优化版）
 	 *
 	 * @since 1.1.0
 	 */
 	public function enqueue_frontend_scripts() {
-		// 样式
-		wp_enqueue_style(
-			$this->plugin_name . '-latex',
-			Notion_To_WordPress_Helper::plugin_url('assets/css/latex-styles.css'),
-			array(),
-			$this->version
-		);
+		// 获取插件选项
+		$options = get_option('notion_to_wordpress_options', []);
+
+		// 基础样式（总是加载）
 		wp_enqueue_style(
 			$this->plugin_name . '-custom',
 			Notion_To_WordPress_Helper::plugin_url('assets/css/custom-styles.css'),
@@ -512,22 +509,36 @@ class Notion_To_WordPress {
 			$this->version
 		);
 
-		// 新的数据库渲染器样式
-		wp_enqueue_style(
-			$this->plugin_name . '-database',
-			Notion_To_WordPress_Helper::plugin_url('assets/css/notion-database.css'),
-			array(),
-			$this->version
-		);
+		// 条件加载：仅在启用数学支持时加载LaTeX样式
+		if (!empty($options['enable_math_support'])) {
+			wp_enqueue_style(
+				$this->plugin_name . '-latex',
+				Notion_To_WordPress_Helper::plugin_url('assets/css/latex-styles.css'),
+				array(),
+				$this->version
+			);
+		}
 
-		// ---------------- 公式相关（KaTeX） ----------------
-		// 获取CDN配置
-		$cdn_config = $this->get_cdn_config();
-		$cdn_enabled = $cdn_config['enabled'] ?? false;
-		$cdn_base_url = $cdn_config['baseUrl'] ?? 'https://cdn.jsdelivr.net';
-		
-		// 如果CDN未启用，使用本地资源
-		if (!$cdn_enabled) {
+		// 条件加载：仅在有数据库内容时加载数据库样式
+		if ($this->has_notion_database_content()) {
+			wp_enqueue_style(
+				$this->plugin_name . '-database',
+				Notion_To_WordPress_Helper::plugin_url('assets/css/notion-database.css'),
+				array(),
+				$this->version
+			);
+		}
+
+		// ---------------- 条件加载：公式相关（KaTeX） ----------------
+		// 仅在启用数学支持时加载KaTeX资源
+		if (!empty($options['enable_math_support'])) {
+			// 获取CDN配置
+			$cdn_config = $this->get_cdn_config();
+			$cdn_enabled = $cdn_config['enabled'] ?? false;
+			$cdn_base_url = $cdn_config['baseUrl'] ?? 'https://cdn.jsdelivr.net';
+
+			// 如果CDN未启用，使用本地资源
+			if (!$cdn_enabled) {
 			// 使用本地KaTeX资源
 			wp_enqueue_style(
 				'katex',
@@ -683,19 +694,25 @@ class Notion_To_WordPress {
 			" );
 		}
 
-		// 按顺序入队 KaTeX 相关脚本
-		wp_enqueue_script( 'katex' );
-		wp_enqueue_script( 'katex-mhchem' );
-		wp_enqueue_script( 'katex-auto-render' );
+			// 按顺序入队 KaTeX 相关脚本
+			wp_enqueue_script( 'katex' );
+			wp_enqueue_script( 'katex-mhchem' );
+			wp_enqueue_script( 'katex-auto-render' );
 
-		// KaTeX渲染脚本
-		wp_enqueue_script(
-			$this->plugin_name . '-katex-mermaid',
-			Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
-			array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
-			$this->version,
-			true
-		);
+			// KaTeX渲染脚本
+			wp_enqueue_script(
+				$this->plugin_name . '-katex-mermaid',
+				Notion_To_WordPress_Helper::plugin_url('assets/js/katex-mermaid.js'),
+				array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
+				$this->version,
+				true
+			);
+		} // 结束数学支持条件加载
+
+		// 条件加载：仅在启用Mermaid支持时加载
+		if (!empty($options['enable_mermaid_support'])) {
+			// Mermaid相关脚本已在上面的KaTeX部分处理
+		}
 
 		// 懒加载和性能优化脚本
 		wp_enqueue_script(
@@ -731,6 +748,44 @@ class Notion_To_WordPress {
 			$this->version,
 			true
 		);
+	}
+
+	/**
+	 * 检查是否有Notion数据库内容
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return bool 是否有数据库内容
+	 */
+	private function has_notion_database_content(): bool {
+		// 检查当前页面是否包含Notion数据库内容
+		global $post;
+
+		if (!$post) {
+			return false;
+		}
+
+		// 检查文章内容中是否包含数据库相关的CSS类或标记
+		$content = $post->post_content;
+		$database_indicators = [
+			'notion-database',
+			'notion-table',
+			'notion-collection',
+			'data-notion-type="database"'
+		];
+
+		foreach ($database_indicators as $indicator) {
+			if (strpos($content, $indicator) !== false) {
+				return true;
+			}
+		}
+
+		// 检查是否有Notion数据库相关的meta数据
+		$has_database_meta = get_post_meta($post->ID, '_notion_has_database', true);
+		if ($has_database_meta) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

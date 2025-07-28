@@ -773,8 +773,12 @@ class Notion_Concurrent_Network_Manager {
      */
     private function init_connection_pool(): void {
         if (empty($this->connection_pool)) {
-            // 优化：减少连接池大小，提高复用效率
-            $pool_size = min(3, $this->max_concurrent_requests);
+            // 优化：使用统一并发管理器获取最优连接池大小
+            $optimal_concurrency = class_exists('Notion_Unified_Concurrency_Manager')
+                ? Notion_Unified_Concurrency_Manager::get_optimal_concurrency('request')
+                : min(3, $this->max_concurrent_requests);
+
+            $pool_size = min($optimal_concurrency, $this->max_concurrent_requests);
 
             for ($i = 0; $i < $pool_size; $i++) {
                 // 🚀 使用优化的cURL句柄
@@ -803,8 +807,8 @@ class Notion_Concurrent_Network_Manager {
         if (!empty($this->connection_pool)) {
             $handle = array_pop($this->connection_pool);
 
-            // 🚀 性能优化：验证连接健康状态
-            if ($this->is_connection_healthy($handle)) {
+            // 🚀 性能优化：增强连接健康检查
+            if ($this->is_connection_healthy_enhanced($handle)) {
                 $this->pool_stats['pool_hits']++;
                 $this->pool_stats['connections_reused']++;
 
@@ -823,6 +827,7 @@ class Notion_Concurrent_Network_Manager {
                 // 连接不健康，关闭并创建新连接
                 curl_close($handle);
                 $this->pool_stats['pool_misses']++;
+                $this->pool_stats['unhealthy_connections']++;
                 return $this->create_optimized_curl_handle();
             }
         }
@@ -880,6 +885,102 @@ class Notion_Concurrent_Network_Manager {
         }
 
         return $handle;
+    }
+
+    /**
+     * 增强的连接健康检查
+     *
+     * @since 2.0.0-beta.1
+     * @param resource $handle cURL句柄
+     * @return bool 连接是否健康
+     */
+    private function is_connection_healthy_enhanced($handle): bool {
+        if (!is_resource($handle)) {
+            return false;
+        }
+
+        // 基础检查
+        $info = curl_getinfo($handle);
+
+        // 检查连接是否仍然有效
+        if (isset($info['connect_time']) && $info['connect_time'] > 30) {
+            return false; // 连接时间过长，可能已断开
+        }
+
+        // 检查是否有错误
+        if (curl_errno($handle) !== 0) {
+            return false;
+        }
+
+        // 检查连接年龄（避免长时间复用导致的问题）
+        static $connection_ages = [];
+        $handle_id = intval($handle);
+
+        if (!isset($connection_ages[$handle_id])) {
+            $connection_ages[$handle_id] = time();
+        }
+
+        $age = time() - $connection_ages[$handle_id];
+        if ($age > 300) { // 5分钟后认为连接过旧
+            unset($connection_ages[$handle_id]);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 获取连接池复用率
+     *
+     * @since 2.0.0-beta.1
+     * @return float 复用率百分比
+     */
+    public function get_connection_reuse_rate(): float {
+        if ($this->pool_stats['total_requests'] === 0) {
+            return 0.0;
+        }
+
+        return round(($this->pool_stats['connections_reused'] / $this->pool_stats['total_requests']) * 100, 2);
+    }
+
+    /**
+     * 优化连接池性能报告
+     *
+     * @since 2.0.0-beta.1
+     * @return array 性能报告
+     */
+    public function get_connection_pool_report(): array {
+        return [
+            'pool_size' => count($this->connection_pool),
+            'reuse_rate' => $this->get_connection_reuse_rate(),
+            'total_requests' => $this->pool_stats['total_requests'],
+            'pool_hits' => $this->pool_stats['pool_hits'],
+            'pool_misses' => $this->pool_stats['pool_misses'],
+            'connections_reused' => $this->pool_stats['connections_reused'],
+            'unhealthy_connections' => $this->pool_stats['unhealthy_connections'] ?? 0,
+            'efficiency_score' => $this->calculate_efficiency_score()
+        ];
+    }
+
+    /**
+     * 计算连接池效率分数
+     *
+     * @since 2.0.0-beta.1
+     * @return float 效率分数 (0-100)
+     */
+    private function calculate_efficiency_score(): float {
+        if ($this->pool_stats['total_requests'] === 0) {
+            return 0.0;
+        }
+
+        $reuse_rate = $this->get_connection_reuse_rate();
+        $hit_rate = ($this->pool_stats['pool_hits'] / $this->pool_stats['total_requests']) * 100;
+        $unhealthy_rate = (($this->pool_stats['unhealthy_connections'] ?? 0) / $this->pool_stats['total_requests']) * 100;
+
+        // 综合评分：复用率40% + 命中率40% - 不健康率20%
+        $score = ($reuse_rate * 0.4) + ($hit_rate * 0.4) - ($unhealthy_rate * 0.2);
+
+        return max(0, min(100, round($score, 2)));
     }
 
     /**

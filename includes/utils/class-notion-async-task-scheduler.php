@@ -1383,6 +1383,248 @@ class Notion_Async_Task_Scheduler {
     }
 
     /**
+     * 优先级队列管理
+     *
+     * @since 2.0.0-beta.1
+     * @return array 队列状态
+     */
+    public static function get_priority_queue_status(): array {
+        if (!self::is_action_scheduler_available()) {
+            return ['error' => 'Action Scheduler not available'];
+        }
+
+        $queue_status = [];
+        $priorities = [self::PRIORITY_HIGH, self::PRIORITY_NORMAL, self::PRIORITY_LOW];
+
+        foreach ($priorities as $priority) {
+            $actions = as_get_scheduled_actions([
+                'group' => self::TASK_GROUP,
+                'status' => 'pending',
+                'per_page' => -1,
+                'args' => ['priority' => $priority]
+            ]);
+
+            $queue_status["priority_{$priority}"] = [
+                'count' => count($actions),
+                'priority_name' => self::get_priority_name($priority)
+            ];
+        }
+
+        return $queue_status;
+    }
+
+    /**
+     * 负载均衡调度
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_type 任务类型
+     * @param array $task_data 任务数据
+     * @param int $priority 优先级
+     * @return string|false 任务ID或false
+     */
+    public static function schedule_with_load_balancing(string $task_type, array $task_data, int $priority = self::PRIORITY_NORMAL) {
+        if (!self::is_action_scheduler_available()) {
+            return false;
+        }
+
+        // 检查系统负载
+        if (class_exists('Notion_Unified_Concurrency_Manager')) {
+            if (!Notion_Unified_Concurrency_Manager::is_system_healthy()) {
+                // 系统负载过高，延迟调度
+                $delay = self::calculate_load_delay();
+                return self::schedule_delayed_task($task_type, $task_data, $priority, $delay);
+            }
+        }
+
+        // 检查当前队列长度
+        $queue_length = self::get_queue_length();
+        if ($queue_length > 50) { // 队列过长
+            // 根据优先级决定是否延迟
+            if ($priority > self::PRIORITY_HIGH) {
+                $delay = min(300, $queue_length * 5); // 最多延迟5分钟
+                return self::schedule_delayed_task($task_type, $task_data, $priority, $delay);
+            }
+        }
+
+        // 正常调度
+        return self::schedule_task_by_type($task_type, $task_data, $priority);
+    }
+
+    /**
+     * 计算负载延迟时间
+     *
+     * @since 2.0.0-beta.1
+     * @return int 延迟秒数
+     */
+    private static function calculate_load_delay(): int {
+        $base_delay = 60; // 基础延迟1分钟
+
+        // 根据系统负载调整
+        if (function_exists('sys_getloadavg')) {
+            $load = sys_getloadavg();
+            if ($load[0] > 3.0) {
+                $base_delay *= 3;
+            } elseif ($load[0] > 2.0) {
+                $base_delay *= 2;
+            }
+        }
+
+        // 根据内存使用调整
+        $memory_usage = memory_get_usage(true);
+        $memory_limit = wp_convert_hr_to_bytes(ini_get('memory_limit'));
+        $memory_percentage = $memory_usage / $memory_limit;
+
+        if ($memory_percentage > 0.8) {
+            $base_delay *= 2;
+        }
+
+        return min(600, $base_delay); // 最多延迟10分钟
+    }
+
+    /**
+     * 获取队列长度
+     *
+     * @since 2.0.0-beta.1
+     * @return int 队列长度
+     */
+    private static function get_queue_length(): int {
+        if (!self::is_action_scheduler_available()) {
+            return 0;
+        }
+
+        $pending_actions = as_get_scheduled_actions([
+            'group' => self::TASK_GROUP,
+            'status' => 'pending',
+            'per_page' => -1
+        ]);
+
+        return count($pending_actions);
+    }
+
+    /**
+     * 调度延迟任务
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_type 任务类型
+     * @param array $task_data 任务数据
+     * @param int $priority 优先级
+     * @param int $delay 延迟秒数
+     * @return string|false 任务ID或false
+     */
+    private static function schedule_delayed_task(string $task_type, array $task_data, int $priority, int $delay) {
+        $schedule_time = time() + $delay;
+
+
+
+        return self::schedule_task_by_type($task_type, $task_data, $priority, $schedule_time);
+    }
+
+    /**
+     * 根据类型调度任务
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_type 任务类型
+     * @param array $task_data 任务数据
+     * @param int $priority 优先级
+     * @param int $schedule_time 调度时间
+     * @return string|false 任务ID或false
+     */
+    private static function schedule_task_by_type(string $task_type, array $task_data, int $priority, int $schedule_time = null) {
+        $schedule_time = $schedule_time ?? time();
+
+        switch ($task_type) {
+            case self::TASK_CONTENT_PROCESSING:
+                return self::schedule_content_processing($task_data['blocks'] ?? [],
+                    array_merge($task_data['options'] ?? [], ['priority' => $priority]));
+
+            case self::TASK_IMAGE_PROCESSING:
+                return self::schedule_image_processing($task_data['images'] ?? [],
+                    array_merge($task_data['options'] ?? [], ['priority' => $priority]));
+
+            case self::TASK_BATCH_IMPORT:
+                return self::schedule_batch_import($task_data['pages'] ?? [],
+                    array_merge($task_data['options'] ?? [], ['priority' => $priority]));
+
+            case self::TASK_INCREMENTAL_SYNC:
+                return self::schedule_incremental_sync($task_data['sync_data'] ?? [],
+                    array_merge($task_data['options'] ?? [], ['priority' => $priority]));
+
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * 获取优先级名称
+     *
+     * @since 2.0.0-beta.1
+     * @param int $priority 优先级
+     * @return string 优先级名称
+     */
+    private static function get_priority_name(int $priority): string {
+        return match($priority) {
+            self::PRIORITY_HIGH => 'High',
+            self::PRIORITY_NORMAL => 'Normal',
+            self::PRIORITY_LOW => 'Low',
+            default => 'Unknown'
+        };
+    }
+
+    /**
+     * 智能任务调度
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_type 任务类型
+     * @param array $task_data 任务数据
+     * @param array $options 调度选项
+     * @return string|false 任务ID或false
+     */
+    public static function smart_schedule(string $task_type, array $task_data, array $options = []) {
+        // 自动确定优先级
+        $priority = self::determine_task_priority($task_type, $task_data);
+
+        // 使用负载均衡调度
+        return self::schedule_with_load_balancing($task_type, $task_data, $priority);
+    }
+
+    /**
+     * 确定任务优先级
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_type 任务类型
+     * @param array $task_data 任务数据
+     * @return int 优先级
+     */
+    private static function determine_task_priority(string $task_type, array $task_data): int {
+        // 根据任务类型确定基础优先级
+        $base_priority = match($task_type) {
+            self::TASK_INCREMENTAL_SYNC => self::PRIORITY_HIGH,
+            self::TASK_CONTENT_PROCESSING => self::PRIORITY_NORMAL,
+            self::TASK_IMAGE_PROCESSING => self::PRIORITY_NORMAL,
+            self::TASK_BATCH_IMPORT => self::PRIORITY_LOW,
+            self::TASK_CLEANUP => self::PRIORITY_LOW,
+            default => self::PRIORITY_NORMAL
+        };
+
+        // 根据数据量调整优先级
+        $data_size = 0;
+        if (isset($task_data['blocks'])) {
+            $data_size = count($task_data['blocks']);
+        } elseif (isset($task_data['images'])) {
+            $data_size = count($task_data['images']);
+        } elseif (isset($task_data['pages'])) {
+            $data_size = count($task_data['pages']);
+        }
+
+        // 小数据量提升优先级
+        if ($data_size > 0 && $data_size <= 10) {
+            $base_priority = max(self::PRIORITY_HIGH, $base_priority - 1);
+        }
+
+        return $base_priority;
+    }
+
+    /**
      * 重启失败的任务
      *
      * @param int $max_retries 最大重试次数

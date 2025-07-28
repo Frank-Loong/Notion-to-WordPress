@@ -96,6 +96,23 @@ class Notion_Logger {
     }
 
     /**
+     * 检查是否启用性能模式（静态缓存避免重复查询）
+     *
+     * @since 2.0.0-beta.1
+     * @return bool 是否启用性能模式
+     */
+    public static function is_performance_mode(): bool {
+        static $performance_mode = null;
+
+        if ($performance_mode === null) {
+            $options = get_option('notion_to_wordpress_options', []);
+            $performance_mode = $options['enable_performance_mode'] ?? 1;
+        }
+
+        return (bool) $performance_mode;
+    }
+
+    /**
      * 优化版的日志记录方法。
      *
      * @since    2.0.0-beta.1
@@ -109,13 +126,8 @@ class Notion_Logger {
             return;
         }
 
-        // 检查是否启用性能模式和智能日志过滤
-        $options = get_option('notion_to_wordpress_options', []);
-        $performance_mode = $options['enable_performance_mode'] ?? 1;
-
-        if ($performance_mode && $level > self::DEBUG_LEVEL_ERROR) {
-            // 性能模式下，只有错误级别的日志才立即写入，其他的加入缓冲区
-            self::add_to_buffer($data, $prefix, $level);
+        // 简化：性能模式下直接跳过非错误级别的日志，不使用缓冲区
+        if (self::is_performance_mode() && $level > self::DEBUG_LEVEL_ERROR) {
             return;
         }
         
