@@ -1412,20 +1412,20 @@ jQuery(document).ready(function($) {
                     html += '<button type="button" class="button button-primary notion-wp-apply-recommendations" id="apply-recommendations"><?php esc_html_e('应用推荐配置', 'notion-to-wordpress'); ?></button>';
                     html += '</div>';
 
-                    resultDiv.html(html).show();
+                    resultDiv.html(html).removeClass('notion-wp-hidden').show();
 
                     // 应用推荐配置
                     $('#apply-recommendations').on('click', function() {
                         $('#performance_level').val(recommendations.performance_level);
                         $('#field_template').val(recommendations.field_template);
-                        showToast('<?php esc_html_e('推荐配置已应用', 'notion-to-wordpress'); ?>', 'success');
+                        showToast('success', '<?php esc_html_e('推荐配置已应用', 'notion-to-wordpress'); ?>');
                     });
                 } else {
-                    resultDiv.html('<div class="notice notice-error"><p>' + response.data + '</p></div>').show();
+                    resultDiv.html('<div class="notice notice-error"><p>' + response.data + '</p></div>').removeClass('notion-wp-hidden').show();
                 }
             },
-            error: function() {
-                resultDiv.html('<div class="notice notice-error"><p><?php esc_html_e('获取推荐配置失败，请稍后重试', 'notion-to-wordpress'); ?></p></div>').show();
+            error: function(xhr, status, error) {
+                resultDiv.html('<div class="notice notice-error"><p><?php esc_html_e('获取推荐配置失败，请稍后重试', 'notion-to-wordpress'); ?></p></div>').removeClass('notion-wp-hidden').show();
             },
             complete: function() {
                 button.prop('disabled', false).text('<?php esc_html_e('获取配置建议', 'notion-to-wordpress'); ?>');

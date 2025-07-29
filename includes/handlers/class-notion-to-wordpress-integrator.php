@@ -35,8 +35,11 @@ class Notion_To_WordPress_Integrator {
      * @return int|WP_Error 文章ID或错误对象
      */
     public static function create_or_update_post(array $metadata, string $content, int $author_id, string $page_id, int $existing_post_id = 0) {
+        // 确保标题不为空，提供默认值
+        $title = !empty($metadata['title']) ? $metadata['title'] : sprintf('Untitled Post %s', substr($page_id, -8));
+
         $post_data = [
-            'post_title'   => wp_strip_all_tags($metadata['title']),
+            'post_title'   => wp_strip_all_tags($title),
             'post_content' => $content,
             'post_status'  => $metadata['status'] ?? 'draft',
             'post_author'  => $author_id,
@@ -455,9 +458,10 @@ class Notion_To_WordPress_Integrator {
      * @return bool|WP_Error 验证结果
      */
     public static function validate_post_data(array $metadata): bool|WP_Error {
-        // 检查必需字段
+        // 确保标题字段存在，如果为空则提供默认值
         if (empty($metadata['title'])) {
-            return new WP_Error('missing_title', '文章标题不能为空');
+            Notion_Logger::warning_log('文章标题为空，将在创建时提供默认标题', 'WordPress Integration');
+            // 不再返回错误，而是在后续处理中提供默认标题
         }
 
         // 检查文章类型

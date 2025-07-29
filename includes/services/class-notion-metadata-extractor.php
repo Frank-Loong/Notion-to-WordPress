@@ -59,6 +59,13 @@ class Notion_Metadata_Extractor {
         $metadata = [];
         $props = $page['properties'] ?? [];
 
+        // 检测并处理page类型页面
+        $is_page_type = ($page['object'] ?? '') === 'page';
+        if ($is_page_type) {
+            Notion_Logger::debug_log('检测到page类型页面，使用专门的处理逻辑', 'Metadata Extraction');
+            return self::extract_page_type_metadata($page, $field_mapping, $custom_field_mappings);
+        }
+
         // 如果没有提供字段映射，从选项中获取
         if (empty($field_mapping)) {
             $options = get_option('notion_to_wordpress_options', []);
@@ -445,5 +452,105 @@ class Notion_Metadata_Extractor {
         }
 
         return $html;
+    }
+
+    /**
+     * 专门处理page类型页面的元数据提取
+     *
+     * @since 2.0.0-beta.1
+     * @param array $page Notion页面数据
+     * @param array $field_mapping 字段映射配置
+     * @param array $custom_field_mappings 自定义字段映射
+     * @return array 页面元数据
+     */
+    private static function extract_page_type_metadata(array $page, array $field_mapping = [], array $custom_field_mappings = []): array {
+        $metadata = [
+            'title' => self::extract_page_title($page),
+            'status' => 'publish', // page类型默认为已发布
+            'post_type' => 'post',
+            'date' => $page['created_time'] ?? '',
+            'excerpt' => '',
+            'featured_image' => '',
+            'categories' => [],
+            'tags' => [],
+        ];
+
+        // 尝试从properties中提取额外信息（如果存在）
+        $props = $page['properties'] ?? [];
+        if (!empty($props)) {
+            // 合并字段映射配置
+            if (empty($field_mapping)) {
+                $options = get_option('notion_to_wordpress_options', []);
+                $field_mapping_saved = $options['field_mapping'] ?? [];
+                $field_mapping = array_merge(self::$default_field_mapping, $field_mapping_saved);
+            }
+
+            // 标准化字段映射
+            foreach ($field_mapping as $key => $value) {
+                if (is_string($value)) {
+                    $field_mapping[$key] = array_map('trim', explode(',', $value));
+                }
+            }
+
+            // 尝试提取额外的元数据
+            $additional_metadata = self::extract_basic_fields($props, $field_mapping);
+
+            // 保留page类型的标题，但合并其他字段
+            $page_title = $metadata['title'];
+            $metadata = array_merge($metadata, $additional_metadata);
+            if (empty($additional_metadata['title'])) {
+                $metadata['title'] = $page_title;
+            }
+        }
+
+        // 处理自定义字段
+        if (!empty($custom_field_mappings) && !empty($props)) {
+            $metadata['custom_fields'] = self::extract_custom_fields($props, $custom_field_mappings);
+        }
+
+        Notion_Logger::debug_log(
+            sprintf('Page类型元数据提取完成，标题: %s', $metadata['title']),
+            'Metadata Extraction'
+        );
+
+        return $metadata;
+    }
+
+    /**
+     * 从page类型页面中提取标题
+     *
+     * @since 2.0.0-beta.1
+     * @param array $page Notion页面数据
+     * @return string 页面标题
+     */
+    private static function extract_page_title(array $page): string {
+        // 方法1：尝试从properties.title中提取
+        if (isset($page['properties']['title']['title'][0]['plain_text'])) {
+            return trim($page['properties']['title']['title'][0]['plain_text']);
+        }
+
+        // 方法2：尝试从properties.Name中提取（某些page可能使用Name字段）
+        if (isset($page['properties']['Name']['title'][0]['plain_text'])) {
+            return trim($page['properties']['Name']['title'][0]['plain_text']);
+        }
+
+        // 方法3：尝试从根级别的title字段提取
+        if (isset($page['title']) && is_string($page['title'])) {
+            return trim($page['title']);
+        }
+
+        // 方法4：如果都没有，使用页面URL作为标题
+        if (isset($page['url'])) {
+            $url_parts = parse_url($page['url']);
+            $path = $url_parts['path'] ?? '';
+            $title = basename($path);
+            if (!empty($title) && $title !== '/') {
+                return ucfirst(str_replace(['-', '_'], ' ', $title));
+            }
+        }
+
+        // 最后的备选方案：使用页面ID的后8位
+        $page_id = $page['id'] ?? 'unknown';
+        return sprintf('Page %s', substr($page_id, -8));
     }
 }

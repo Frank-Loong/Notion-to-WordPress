@@ -1528,12 +1528,20 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            if (class_exists('Notion_Config_Simplifier')) {
-                $recommendations = Notion_Config_Simplifier::detect_optimal_config();
-                wp_send_json_success($recommendations);
-            } else {
-                wp_send_json_error('配置简化器不可用');
-            }
+            // 获取系统信息进行智能分析
+            $memory_limit = ini_get('memory_limit');
+            $memory_limit_bytes = $this->parse_memory_limit($memory_limit);
+            $php_version = PHP_VERSION;
+            
+            // 检查现有选项
+            $options = get_option('notion_to_wordpress_options', []);
+            $has_api_key = !empty($options['notion_api_key']);
+            $has_database_id = !empty($options['notion_database_id']);
+            
+            // 基于系统配置提供智能推荐
+            $recommendations = $this->generate_smart_recommendations($memory_limit_bytes, $php_version, $has_api_key, $has_database_id);
+            
+            wp_send_json_success($recommendations);
         } catch (Exception $e) {
             wp_send_json_error('获取推荐配置失败: ' . $e->getMessage());
         }
@@ -1546,4 +1554,94 @@ class Notion_To_WordPress_Admin {
      * @access   private
      */
     // 注意：钩子注册在主插件类的define_admin_hooks方法中处理
+
+    /**
+     * 解析内存限制字符串为字节数
+     *
+     * @param string $memory_limit 内存限制字符串（如 "128M"）
+     * @return int 字节数
+     */
+    private function parse_memory_limit(string $memory_limit): int {
+        $memory_limit = trim($memory_limit);
+        $last = strtolower($memory_limit[strlen($memory_limit)-1]);
+        $memory_limit = (int) $memory_limit;
+        
+        switch($last) {
+            case 'g':
+                $memory_limit *= 1024;
+            case 'm':
+                $memory_limit *= 1024;
+            case 'k':
+                $memory_limit *= 1024;
+        }
+        
+        return $memory_limit;
+    }
+
+    /**
+     * 生成智能推荐配置
+     *
+     * @param int $memory_limit_bytes 内存限制（字节）
+     * @param string $php_version PHP版本
+     * @param bool $has_api_key 是否有API密钥
+     * @param bool $has_database_id 是否有数据库ID
+     * @return array 推荐配置
+     */
+    private function generate_smart_recommendations(int $memory_limit_bytes, string $php_version, bool $has_api_key, bool $has_database_id): array {
+        $memory_mb = $memory_limit_bytes / 1024 / 1024;
+        $reasons = [];
+        
+        // 基于内存大小推荐性能级别
+        if ($memory_mb >= 512) {
+            $performance_level = 'aggressive';
+            $performance_desc = '激进模式 - 适合高性能服务器';
+            $reasons[] = "检测到服务器内存为 {$memory_mb}MB，推荐使用激进模式以获得最佳性能";
+        } elseif ($memory_mb >= 256) {
+            $performance_level = 'balanced';
+            $performance_desc = '平衡模式 - 推荐的默认配置';
+            $reasons[] = "检测到服务器内存为 {$memory_mb}MB，推荐使用平衡模式";
+        } else {
+            $performance_level = 'conservative';
+            $performance_desc = '保守模式 - 适合配置较低的服务器';
+            $reasons[] = "检测到服务器内存为 {$memory_mb}MB，推荐使用保守模式以避免内存不足";
+        }
+        
+        // 基于配置状态推荐字段模板
+        if (!$has_api_key || !$has_database_id) {
+            $field_template = 'mixed';
+            $field_desc = '混合模板 - 中英文兼容';
+            $reasons[] = '检测到API配置不完整，推荐使用混合字段模板以提供最大兼容性';
+        } else {
+            // 如果已有配置，尝试检测语言偏好
+            $locale = get_locale();
+            if (strpos($locale, 'zh') === 0) {
+                $field_template = 'chinese';
+                $field_desc = '中文模板 - 适合中文Notion数据库';
+                $reasons[] = '检测到站点使用中文，推荐使用中文字段模板';
+            } elseif (strpos($locale, 'en') === 0) {
+                $field_template = 'english';
+                $field_desc = '英文模板 - 适合英文Notion数据库';
+                $reasons[] = '检测到站点使用英文，推荐使用英文字段模板';
+            } else {
+                $field_template = 'mixed';
+                $field_desc = '混合模板 - 中英文兼容';
+                $reasons[] = '推荐使用混合字段模板以确保最佳兼容性';
+            }
+        }
+        
+        // 添加PHP版本相关建议
+        if (version_compare($php_version, '8.0.0') >= 0) {
+            $reasons[] = "检测到PHP版本为 {$php_version}，性能表现良好";
+        } elseif (version_compare($php_version, '7.4.0') >= 0) {
+            $reasons[] = "检测到PHP版本为 {$php_version}，建议升级到PHP 8.0+以获得更好性能";
+        } else {
+            $reasons[] = "检测到PHP版本为 {$php_version}，强烈建议升级PHP版本";
+        }
+        
+        return [
+            'performance_level' => $performance_desc,
+            'field_template' => $field_desc,
+            'reason' => $reasons
+        ];
+    }
 }

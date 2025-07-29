@@ -44,21 +44,40 @@ class Notion_Database_Helper {
         $mapping = array_fill_keys($notion_ids, 0);
 
         // 优化：使用WHERE IN替代多次单独查询，提升30-40%数据库性能
+        // 修复：排除回收站中的文章，避免误判页面已存在
         $placeholders = implode(',', array_fill(0, count($notion_ids), '%s'));
         $query = $wpdb->prepare(
-            "SELECT meta_value as notion_id, post_id
-            FROM {$wpdb->postmeta}
-            WHERE meta_key = %s
-            AND meta_value IN ($placeholders)",
+            "SELECT pm.meta_value as notion_id, pm.post_id
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+            WHERE pm.meta_key = %s
+            AND pm.meta_value IN ($placeholders)
+            AND p.post_status != 'trash'",
             '_notion_page_id',
             ...$notion_ids
         );
 
         $results = $wpdb->get_results($query);
-        
+
         if ($results) {
             foreach ($results as $row) {
                 $mapping[$row->notion_id] = intval($row->post_id);
+            }
+
+            // 添加调试日志
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    sprintf('批量查询结果: 找到 %d 个有效文章（排除回收站）', count($results)),
+                    'Database Helper'
+                );
+            }
+        } else {
+            // 添加调试日志
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::debug_log(
+                    '批量查询结果: 未找到任何有效文章（排除回收站）',
+                    'Database Helper'
+                );
             }
         }
 

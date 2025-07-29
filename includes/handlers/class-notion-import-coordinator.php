@@ -172,9 +172,15 @@ class Notion_Import_Coordinator {
 
             // 3. 协调元数据提取
             $metadata = $this->coordinate_metadata_extraction($page);
+
+            // 为空标题提供默认值，而不是跳过导入
             if (empty($metadata['title'])) {
-                Notion_Logger::debug_log('页面标题为空，跳过导入', 'Page Import');
-                return false;
+                $page_id = $page['id'] ?? 'unknown';
+                $metadata['title'] = sprintf('Untitled Page %s', substr($page_id, -8));
+                Notion_Logger::info_log(
+                    sprintf('页面标题为空，使用默认标题: %s (页面ID: %s)', $metadata['title'], $page_id),
+                    'Page Import'
+                );
             }
 
             // 3. 协调内容获取和转换
@@ -983,7 +989,13 @@ class Notion_Import_Coordinator {
      * @return   array              页面元数据
      */
     private function coordinate_metadata_extraction(array $page): array {
-        Notion_Logger::debug_log('协调元数据提取开始', 'Page Import');
+        $page_id = $page['id'] ?? 'unknown';
+        $page_type = $page['object'] ?? 'unknown';
+
+        Notion_Logger::debug_log(
+            sprintf('协调元数据提取开始 - 页面ID: %s, 类型: %s', $page_id, $page_type),
+            'Page Import'
+        );
 
         $metadata = Notion_Metadata_Extractor::extract_page_metadata(
             $page,
@@ -992,7 +1004,11 @@ class Notion_Import_Coordinator {
         );
 
         Notion_Logger::debug_log(
-            '元数据提取完成，标题: ' . ($metadata['title'] ?? 'unknown'),
+            sprintf('元数据提取完成 - 标题: %s, 状态: %s, 类型: %s',
+                $metadata['title'] ?? 'empty',
+                $metadata['status'] ?? 'unknown',
+                $page_type
+            ),
             'Page Import'
         );
 
@@ -1015,8 +1031,10 @@ class Notion_Import_Coordinator {
 
         Notion_Logger::debug_log('获取到内容块数量: ' . count($blocks), 'Page Import');
 
+        // 允许空内容的页面，返回空字符串而不是false
         if (empty($blocks)) {
-            return false;
+            Notion_Logger::info_log('页面内容为空，将创建空内容的文章', 'Page Import');
+            return '';
         }
 
         // 检查是否启用并发优化

@@ -436,7 +436,7 @@ class Notion_To_WordPress_Webhook {
     private function get_wordpress_post_by_notion_id(string $notion_id): int {
         $args = array(
             'post_type'      => 'any',
-            'post_status'    => 'any',
+            'post_status'    => array('publish', 'private', 'draft', 'pending', 'future'), // 排除回收站
             'posts_per_page' => 1,
             'meta_query'     => array(
                 array(
