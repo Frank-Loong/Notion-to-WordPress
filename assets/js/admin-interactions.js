@@ -189,6 +189,204 @@ const NotionUtils = {
 
 };
 
+// ==================== 同步状态管理器 ====================
+const SyncStatusManager = {
+    // 状态存储键
+    STORAGE_KEY: 'notion_wp_sync_status',
+
+    // 检查间隔（毫秒）
+    CHECK_INTERVAL_VISIBLE: 5000,    // 页面可见时：5秒
+    CHECK_INTERVAL_HIDDEN: 30000,    // 页面隐藏时：30秒
+
+    // 内部状态
+    checkTimer: null,
+    isPageVisible: true,
+    currentSyncId: null,
+
+    /**
+     * 初始化同步状态管理器
+     */
+    init: function() {
+        this.setupVisibilityHandling();
+        this.restoreSyncStatus();
+        this.startStatusMonitoring();
+
+        console.log('🔄 [同步状态管理器] 已初始化');
+    },
+
+    /**
+     * 设置页面可见性处理
+     */
+    setupVisibilityHandling: function() {
+        const self = this;
+
+        // 监听页面可见性变化
+        document.addEventListener('visibilitychange', function() {
+            self.isPageVisible = !document.hidden;
+
+            if (self.isPageVisible) {
+                console.log('📱 [页面可见性] 页面重新可见，立即检查同步状态');
+                self.checkSyncStatus();
+                self.adjustCheckInterval();
+            } else {
+                console.log('📱 [页面可见性] 页面隐藏，降低检查频率');
+                self.adjustCheckInterval();
+            }
+        });
+
+        // 监听页面焦点变化
+        window.addEventListener('focus', function() {
+            console.log('🎯 [页面焦点] 页面重新获得焦点，检查同步状态');
+            self.checkSyncStatus();
+        });
+    },
+
+    /**
+     * 保存同步状态
+     */
+    saveSyncStatus: function(syncData) {
+        const statusData = {
+            isActive: true,
+            syncType: syncData.syncType || 'unknown',
+            startTime: Date.now(),
+            syncId: this.generateSyncId(),
+            ...syncData
+        };
+
+        this.currentSyncId = statusData.syncId;
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(statusData));
+
+        console.log('💾 [状态保存] 同步状态已保存:', statusData);
+    },
+
+    /**
+     * 清除同步状态
+     */
+    clearSyncStatus: function() {
+        localStorage.removeItem(this.STORAGE_KEY);
+        this.currentSyncId = null;
+
+        console.log('🗑️ [状态清除] 同步状态已清除');
+    },
+
+    /**
+     * 恢复同步状态
+     */
+    restoreSyncStatus: function() {
+        const savedStatus = localStorage.getItem(this.STORAGE_KEY);
+
+        if (savedStatus) {
+            try {
+                const statusData = JSON.parse(savedStatus);
+
+                // 检查状态是否过期（超过1小时自动清除）
+                const elapsed = Date.now() - statusData.startTime;
+                if (elapsed > 3600000) { // 1小时
+                    this.clearSyncStatus();
+                    return;
+                }
+
+                console.log('🔄 [状态恢复] 发现保存的同步状态:', statusData);
+                this.currentSyncId = statusData.syncId;
+                this.showSyncStatusRecovery(statusData);
+
+            } catch (e) {
+                console.error('❌ [状态恢复] 解析保存状态失败:', e);
+                this.clearSyncStatus();
+            }
+        }
+    },
+
+    /**
+     * 显示同步状态恢复提示
+     */
+    showSyncStatusRecovery: function(statusData) {
+        const $ = jQuery;
+        const elapsed = Math.floor((Date.now() - statusData.startTime) / 1000);
+        const elapsedText = elapsed < 60 ? `${elapsed}秒` : `${Math.floor(elapsed / 60)}分${elapsed % 60}秒`;
+
+        // 显示恢复提示
+        const $recoveryNotice = $(`
+            <div class="notice notice-info is-dismissible" id="sync-status-recovery">
+                <p>
+                    <strong>🔄 检测到进行中的同步操作</strong><br>
+                    同步类型：${statusData.syncType || '未知'}<br>
+                    已运行：${elapsedText}<br>
+                    <button type="button" class="button button-secondary" id="check-sync-status-now">立即检查状态</button>
+                    <button type="button" class="button button-link" id="clear-sync-status">清除状态</button>
+                </p>
+            </div>
+        `);
+
+        $('.wrap.notion-wp-admin').prepend($recoveryNotice);
+
+        // 绑定事件
+        $('#check-sync-status-now').on('click', () => {
+            this.checkSyncStatus();
+            $recoveryNotice.fadeOut();
+        });
+
+        $('#clear-sync-status').on('click', () => {
+            this.clearSyncStatus();
+            $recoveryNotice.fadeOut();
+        });
+    },
+
+    /**
+     * 生成同步ID
+     */
+    generateSyncId: function() {
+        return 'sync_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    },
+
+    /**
+     * 调整检查间隔
+     */
+    adjustCheckInterval: function() {
+        if (this.checkTimer) {
+            clearInterval(this.checkTimer);
+        }
+
+        const interval = this.isPageVisible ? this.CHECK_INTERVAL_VISIBLE : this.CHECK_INTERVAL_HIDDEN;
+
+        this.checkTimer = setInterval(() => {
+            this.checkSyncStatus();
+        }, interval);
+
+        console.log(`⏱️ [检查间隔] 已调整为 ${interval/1000}秒 (页面${this.isPageVisible ? '可见' : '隐藏'})`);
+    },
+
+    /**
+     * 开始状态监控
+     */
+    startStatusMonitoring: function() {
+        this.adjustCheckInterval();
+    },
+
+    /**
+     * 停止状态监控
+     */
+    stopStatusMonitoring: function() {
+        if (this.checkTimer) {
+            clearInterval(this.checkTimer);
+            this.checkTimer = null;
+        }
+    },
+
+    /**
+     * 检查同步状态
+     */
+    checkSyncStatus: function() {
+        // 如果没有活跃的同步，跳过检查
+        if (!this.currentSyncId) {
+            return;
+        }
+
+        console.log('🔍 [状态检查] 正在检查同步状态...');
+        refreshAsyncStatus();
+    }
+};
+
 // 全局函数：刷新异步状态
 function refreshAsyncStatus() {
     const $ = jQuery;
@@ -209,6 +407,11 @@ function refreshAsyncStatus() {
         success: function(response) {
             if (response.success) {
                 updateAsyncStatusDisplay(response.data.status);
+
+                // 检查同步是否完成
+                if (response.data.status && response.data.status.status === 'idle') {
+                    SyncStatusManager.clearSyncStatus();
+                }
             } else {
                 showStatusError('async', '获取异步状态失败: ' + (response.data.message || '未知错误'));
             }
@@ -335,6 +538,9 @@ function displayQueueStatus(status) {
 jQuery(document).ready(function($) {
     const $overlay = $('#loading-overlay');
 
+    // 初始化同步状态管理器
+    SyncStatusManager.init();
+
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
       fetchStats();
@@ -455,6 +661,14 @@ jQuery(document).ready(function($) {
         const originalHtml = button.html();
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + syncTypeName + notionToWp.i18n.syncing);
 
+        // 保存同步状态
+        SyncStatusManager.saveSyncStatus({
+            syncType: syncTypeName,
+            incremental: incremental,
+            checkDeletions: checkDeletions,
+            buttonId: button.attr('id')
+        });
+
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
@@ -470,6 +684,9 @@ jQuery(document).ready(function($) {
 
                 if (response.success) {
                     message += ' (' + syncTypeName + notionToWp.i18n.sync_completed + ')';
+
+                    // 清除同步状态
+                    SyncStatusManager.clearSyncStatus();
                 }
 
                 showModal(message, status);
@@ -481,6 +698,9 @@ jQuery(document).ready(function($) {
             },
             error: function() {
                 showModal(syncTypeName + notionToWp.i18n.sync_failed, 'error');
+
+                // 清除同步状态
+                SyncStatusManager.clearSyncStatus();
             },
             complete: function() {
                 button.prop('disabled', false).html(originalHtml);
@@ -516,7 +736,13 @@ jQuery(document).ready(function($) {
         }
         
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + notionToWp.i18n.testing);
-        
+
+        // 保存测试连接状态
+        SyncStatusManager.saveSyncStatus({
+            syncType: '测试连接',
+            buttonId: button.attr('id')
+        });
+
         $.ajax({
             url: notionToWp.ajax_url,
             type: 'POST',
@@ -529,11 +755,17 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 var message = response.success ? response.data.message : response.data.message;
                 var status = response.success ? 'success' : 'error';
-                
+
                 showModal(message, status);
+
+                // 清除状态
+                SyncStatusManager.clearSyncStatus();
             },
             error: function() {
                 showModal(notionToWp.i18n.test_error, 'error');
+
+                // 清除状态
+                SyncStatusManager.clearSyncStatus();
             },
             complete: function() {
                 button.prop('disabled', false).html('<span class="dashicons dashicons-yes-alt"></span> ' + notionToWp.i18n.test_connection);

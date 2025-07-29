@@ -102,7 +102,7 @@ class Concurrent_Network_Manager {
         }
 
         // 记录初始化信息
-        if (class_exists('Notion_Logger')) {
+        if (class_exists('\\NTWP\\Core\\Logger')) {
             \NTWP\Core\Logger::debug_log(
                 "初始化并发网络管理器，最大并发数: {$this->max_concurrent_requests}",
                 'Concurrent Network'
@@ -176,7 +176,7 @@ class Concurrent_Network_Manager {
      * @return   array                  响应结果数组
      */
     public function execute_with_retry($max_retries = 2, $base_delay = 1000) {
-        return Notion_Network_Retry::with_retry(
+        return \NTWP\Utils\Network_Retry::with_retry(
             [$this, 'execute_internal'],
             $max_retries,
             $base_delay
@@ -456,7 +456,7 @@ class Concurrent_Network_Manager {
             // 检查是否使用了HTTP/2
             if (isset($info['http_version']) && $info['http_version'] >= 3) {
                 // HTTP/2或更高版本
-                if (class_exists('Notion_Logger')) {
+                if (class_exists('\\NTWP\\Core\\Logger')) {
                     \NTWP\Core\Logger::debug_log("请求 {$request_id} 使用HTTP/2", 'Connection Pool');
                 }
             }
@@ -508,7 +508,7 @@ class Concurrent_Network_Manager {
                 ];
 
                 // 减少日志记录，仅在非性能模式下记录
-                if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+                if (class_exists('\\NTWP\\Core\\Logger') && !$this->is_performance_mode()) {
                     \NTWP\Core\Logger::debug_log(
                         "请求成功 (ID: {$request_id}): HTTP {$http_code}, 响应时间: {$response_time}s",
                         'Concurrent Network'
@@ -527,7 +527,7 @@ class Concurrent_Network_Manager {
         }
 
         // 记录连接池统计信息
-        if (class_exists('Notion_Logger')) {
+        if (class_exists('\\NTWP\\Core\\Logger')) {
             $stats = $this->get_connection_pool_stats();
             \NTWP\Core\Logger::debug_log(
                 sprintf('批次完成 - 复用率: %s%%, 平均响应时间: %ss',
@@ -774,8 +774,8 @@ class Concurrent_Network_Manager {
     private function init_connection_pool(): void {
         if (empty($this->connection_pool)) {
             // 优化：使用统一并发管理器获取最优连接池大小
-            $optimal_concurrency = class_exists('Notion_Unified_Concurrency_Manager')
-                ? Notion_Unified_Concurrency_Manager::get_optimal_concurrency('request')
+            $optimal_concurrency = class_exists('\\NTWP\\Utils\\Unified_Concurrency_Manager')
+                ? \NTWP\Utils\Unified_Concurrency_Manager::get_optimal_concurrency('request')
                 : min(3, $this->max_concurrent_requests);
 
             $pool_size = min($optimal_concurrency, $this->max_concurrent_requests);
@@ -786,7 +786,7 @@ class Concurrent_Network_Manager {
             }
 
             // 记录连接池初始化信息
-            if (class_exists('Notion_Logger')) {
+            if (class_exists('\\NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::debug_log(
                     sprintf('初始化连接池: %d个连接', $pool_size),
                     'Connection Pool'
@@ -815,7 +815,7 @@ class Concurrent_Network_Manager {
                 // 🔇 减少日志频率：每10次复用记录一次
                 static $reuse_count = 0;
                 $reuse_count++;
-                if (class_exists('Notion_Logger') && $reuse_count % 10 === 0) {
+                if (class_exists('\\NTWP\\Core\\Logger') && $reuse_count % 10 === 0) {
                     \NTWP\Core\Logger::debug_log(
                         sprintf('连接池复用统计: 已复用%d次连接', $reuse_count),
                         'Connection Pool'
@@ -880,7 +880,7 @@ class Concurrent_Network_Manager {
         $this->pool_stats['keepalive_connections']++;
 
         // 减少日志记录，仅在非性能模式下记录
-        if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+        if (class_exists('\\NTWP\\Core\\Logger') && !$this->is_performance_mode()) {
             \NTWP\Core\Logger::debug_log('创建优化cURL句柄（Keep-Alive + HTTP/2）', 'Connection Pool');
         }
 
@@ -1036,7 +1036,7 @@ class Concurrent_Network_Manager {
         }
         $this->connection_pool = [];
 
-        if (class_exists('Notion_Logger')) {
+        if (class_exists('\\NTWP\\Core\\Logger')) {
             \NTWP\Core\Logger::debug_log('连接池已清理', 'Connection Pool');
         }
     }
@@ -1076,7 +1076,7 @@ class Concurrent_Network_Manager {
             $this->size_estimation_cache[$cache_key] = $estimation;
 
         } catch (Exception $e) {
-            if (class_exists('Notion_Logger')) {
+            if (class_exists('\\NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::warning_log(
                     sprintf('数据库大小预估失败: %s', $e->getMessage()),
                     'Size Estimation'
@@ -1109,14 +1109,14 @@ class Concurrent_Network_Manager {
         }
 
         // 考虑系统负载调整
-        if (class_exists('Notion_Memory_Manager')) {
-            $system_stats = Notion_Memory_Manager::get_adaptive_stats();
+        if (class_exists('\\NTWP\\Core\\Memory_Manager')) {
+            $system_stats = \NTWP\Core\Memory_Manager::get_adaptive_stats();
             if ($system_stats['memory_usage_percent'] > 80) {
                 $optimal_concurrency = max(1, floor($optimal_concurrency * 0.7)); // 内存紧张时减少并发
             }
         }
 
-        if (class_exists('Notion_Logger')) {
+        if (class_exists('\\NTWP\\Core\\Logger')) {
             \NTWP\Core\Logger::debug_log(
                 sprintf(
                     '动态并发计算: 预估大小=%d, 页面数=%d, 最优并发=%d',
@@ -1175,7 +1175,7 @@ class Concurrent_Network_Manager {
             'unhealthy_connections' => 0
         ];
 
-        if (class_exists('Notion_Logger')) {
+        if (class_exists('\\NTWP\\Core\\Logger')) {
             \NTWP\Core\Logger::debug_log('连接池统计信息已重置', 'Connection Pool');
         }
 
@@ -1238,13 +1238,13 @@ class Concurrent_Network_Manager {
             // 重新初始化
             $this->init_connection_pool();
 
-            if (class_exists('Notion_Logger')) {
+            if (class_exists('\\NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::debug_log('连接池已强制刷新', 'Connection Pool');
             }
 
             return true;
         } catch (Exception $e) {
-            if (class_exists('Notion_Logger')) {
+            if (class_exists('\\NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::error_log('连接池刷新失败: ' . $e->getMessage(), 'Connection Pool');
             }
 
