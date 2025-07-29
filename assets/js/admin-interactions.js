@@ -151,10 +151,11 @@ const NotionUtils = {
             case 'api-key':
                 if (!value) {
                     message = 'API密钥不能为空';
-                } else if (value.length < 20) {
-                    message = 'API密钥长度不足，请检查是否完整';
-                } else if (!value.startsWith('secret_')) {
-                    message = 'API密钥格式不正确，应以"secret_"开头';
+                } else if (value.length < 30 || value.length > 80) {
+                    message = 'API密钥长度可能不正确，请检查是否完整';
+                    level = 'warning';
+                } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+                    message = 'API密钥格式可能不正确，应只包含字母、数字、下划线和连字符';
                     level = 'warning';
                 } else {
                     message = 'API密钥格式正确';
@@ -194,7 +195,7 @@ function refreshAsyncStatus() {
     const $refreshButton = $('#refresh-async-status');
 
     // 显示加载状态
-    $refreshButton.prop('disabled', true).html('<span class="spinner is-active"></span> 刷新中...');
+    $refreshButton.prop('disabled', true).html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0; visibility: visible;"></span> 正在刷新状态...');
 
     // 获取异步状态
     $.ajax({
@@ -215,6 +216,10 @@ function refreshAsyncStatus() {
         error: function(xhr, status, error) {
             NotionUtils.handleAjaxError(xhr, status, error, '获取异步状态');
             showStatusError('async', '网络错误，无法获取异步状态');
+        },
+        complete: function() {
+            // 恢复按钮状态
+            $refreshButton.prop('disabled', false).html('<span class="dashicons dashicons-update"></span> 刷新状态');
         }
     });
 
@@ -344,10 +349,10 @@ jQuery(document).ready(function($) {
     }
 
     // 记录页面加载时的原始语言设置，用于检测变化
-    const originalLanguage = $('#plugin_language').val();
+    let originalLanguage = $('#plugin_language').val();
 
     // 记录页面加载时的原始webhook设置，用于检测变化
-    const originalWebhookEnabled = $('#webhook_enabled').is(':checked');
+    let originalWebhookEnabled = $('#webhook_enabled').is(':checked');
 
     // 实时表单验证
     $('.notion-wp-validated-input').on('input blur', NotionUtils.debounce(function() {
@@ -401,11 +406,11 @@ jQuery(document).ready(function($) {
     // 从本地存储中恢复上次选择的标签，如果没有则默认激活性能监控标签页
     const lastActiveTab = localStorage.getItem('notion_wp_active_tab');
     if (lastActiveTab) {
-        $('.notion-wp-menu-item[data-tab="' + lastActiveTab + '"]').click();
+        $('.notion-wp-menu-item[data-tab="' + lastActiveTab + '"]').trigger('click');
     } else {
         // 默认激活性能监控标签页
         console.log('Notion to WordPress: 默认激活性能监控标签页');
-        $('.notion-wp-menu-item[data-tab="performance"]').click();
+        $('.notion-wp-menu-item[data-tab="performance"]').trigger('click');
     }
     
     // 显示/隐藏密码
@@ -928,7 +933,7 @@ jQuery(document).ready(function($) {
         e.preventDefault(); // 阻止默认的表单提交
 
         var $form = $(this);
-        // 精确查找保存设置按钮，避免影响其他按钮
+        // 精确查找保存设置按钮，现在使用正确的ID
         var $submitButton = $('#notion-save-settings');
 
         // 如果没有找到保存按钮，尝试备用选择器
@@ -936,11 +941,18 @@ jQuery(document).ready(function($) {
             $submitButton = $form.find('input[type="submit"][name="submit"]');
         }
 
+        // 最终验证：确保找到了按钮
+        if ($submitButton.length === 0) {
+            console.error('Notion to WordPress: 无法找到保存按钮');
+            showModal('无法找到保存按钮，请刷新页面重试', 'error');
+            return false;
+        }
+
         const originalButtonText = $submitButton.val() || $submitButton.text();
 
         // 防止重复提交
         if ($submitButton.prop('disabled')) {
-            console.log('Notion to WordPress: Form submission blocked - already in progress');
+            // 🚀 性能优化：移除生产环境不必要的调试日志
             return false;
         }
 
@@ -998,18 +1010,7 @@ jQuery(document).ready(function($) {
                     // 检查webhook设置是否发生变化（比较原始值和用户选择的新值）
                     var webhookChanged = (originalWebhookEnabled !== newWebhookEnabled);
 
-                    // 添加调试日志
-                    console.log('Notion to WordPress: Language change detection', {
-                        original: originalLanguage,
-                        new: newLanguage,
-                        changed: languageChanged
-                    });
-
-                    console.log('Notion to WordPress: Webhook change detection', {
-                        original: originalWebhookEnabled,
-                        new: newWebhookEnabled,
-                        changed: webhookChanged
-                    });
+                    // 🚀 性能优化：移除生产环境不必要的调试日志
 
                     // 检查是否需要刷新页面（语言或webhook设置发生变化）
                     var needsRefresh = languageChanged || webhookChanged;
@@ -1064,8 +1065,34 @@ jQuery(document).ready(function($) {
                     }
                 }
             },
-            error: function() {
-                showModal(notionToWp.i18n.unknown_error, 'error');
+            error: function(xhr, status, error) {
+                console.error('Notion to WordPress: AJAX保存设置失败', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+
+                let errorMessage = '保存设置时发生网络错误';
+
+                // 详细的错误信息处理
+                if (xhr.status === 400) {
+                    errorMessage = '请求参数错误 (400)';
+                    if (xhr.responseJSON?.data?.message) {
+                        errorMessage += '：' + xhr.responseJSON.data.message;
+                    }
+                } else if (xhr.status === 403) {
+                    errorMessage = '权限不足 (403)';
+                } else if (xhr.status === 500) {
+                    errorMessage = '服务器内部错误 (500)';
+                } else if (xhr.status === 0) {
+                    errorMessage = '网络连接失败，请检查网络连接';
+                } else if (xhr.responseJSON?.data?.message) {
+                    errorMessage = xhr.responseJSON.data.message;
+                }
+
+                showModal(errorMessage, 'error');
+
                 // 恢复按钮状态
                 $submitButton.prop('disabled', false);
                 if ($submitButton.is('input')) {
@@ -1216,9 +1243,7 @@ jQuery(document).ready(function($) {
 
                     $container.html(html);
 
-                    // 更新按钮状态
-                    const hasIndexes = status.meta_key_index || status.composite_index;
-                    const needsIndexes = suggestions && suggestions.length > 0;
+                    // 更新按钮状态（变量已移除，直接使用状态判断）
 
                 } else {
                     $container.html('<div class="error-message">获取索引状态失败: ' + (response.data.message || '未知错误') + '</div>');
@@ -1383,6 +1408,18 @@ jQuery(document).ready(function($) {
         $('#resume-async-operation').on('click', function() { controlAsyncOperation('resume'); });
         $('#stop-async-operation').on('click', function() { controlAsyncOperation('stop'); });
         $('#cleanup-queue').on('click', cleanupQueue);
+
+        // Webhook配置显示/隐藏 - 使用防抖优化
+        $('#webhook_enabled').on('change', NotionUtils.debounce(function() {
+            const $webhookSettings = $('#webhook-settings');
+            const isChecked = $(this).is(':checked');
+
+            if (isChecked) {
+                $webhookSettings.removeClass('notion-wp-hidden').show();
+            } else {
+                $webhookSettings.addClass('notion-wp-hidden').hide();
+            }
+        }, 200));
     });
 
     /**

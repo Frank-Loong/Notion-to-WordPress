@@ -269,9 +269,11 @@ class Notion_To_WordPress_Admin {
 
         // 验证 API Key 格式
         if (!empty($options['notion_api_key'])) {
-            // Notion API Key 应该是 secret_ 开头的字符串
-            if (!preg_match('/^secret_[a-zA-Z0-9]+$/', $options['notion_api_key'])) {
-                $errors[] = __('Notion API Key 格式不正确。应以 "secret_" 开头。', 'notion-to-wordpress');
+            // 根据Notion官方建议，不使用严格的正则验证，仅做基本检查
+            $api_key = trim($options['notion_api_key']);
+            // 基本长度检查和字符集检查（允许各种前缀格式）
+            if (strlen($api_key) < 30 || strlen($api_key) > 80 || !preg_match('/^[a-zA-Z0-9_-]+$/', $api_key)) {
+                $errors[] = __('Notion API Key 格式可能不正确。请确保密钥完整且只包含字母、数字、下划线和连字符。', 'notion-to-wordpress');
             }
         }
 
@@ -900,11 +902,7 @@ class Notion_To_WordPress_Admin {
      * @since    1.1.0
      */
     public function handle_test_debug() {
-        error_log('Notion to WordPress: handle_test_debug 被调用');
-
         try {
-            // 先检查基本的POST数据
-            error_log('Notion to WordPress: POST数据: ' . print_r($_POST, true));
 
             // 检查nonce
             if (!isset($_POST['nonce'])) {

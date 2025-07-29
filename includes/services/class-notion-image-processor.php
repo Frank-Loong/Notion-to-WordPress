@@ -925,16 +925,6 @@ class Notion_Image_Processor {
         self::cleanup_expired_states();
     }
 
-    /**
-     * 向后兼容：检查是否启用异步模式（静态访问）
-     *
-     * @since 2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 使用 is_async_image_mode_enabled() 代替
-     * @return bool 是否启用异步模式
-     */
-    public static function is_async_mode(): bool {
-        return self::is_async_image_mode_enabled();
-    }
 
     // ==================== 状态管理公共方法 ====================
 

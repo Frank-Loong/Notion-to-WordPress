@@ -222,41 +222,6 @@ class Notion_Security {
         return self::get_allowed_iframe_hosts($whitelist_string);
     }
 
-    /**
-     * 过滤敏感内容，保护用户隐私
-     *
-     * 注意：此方法主要用于日志记录，已迁移到Notion_Logger类中
-     *
-     * @since    2.0.0-beta.1
-     * @deprecated 2.0.0-beta.1 敏感内容过滤功能已迁移到Notion_Logger类
-     * @param    string    $content    要过滤的内容
-     * @param    int       $level      日志级别
-     * @return   string                过滤后的内容
-     */
-    public static function filter_sensitive_content($content, $level = 1) {
-        // 简化的敏感内容过滤，主要用于向后兼容
-        // 详细的过滤逻辑已迁移到Notion_Logger类中
-
-        // 错误级别的内容保持完整
-        if ($level <= 1) {
-            return $content;
-        }
-
-        // 检测并过滤HTML内容（可能包含文章内容）
-        if (preg_match('/<[^>]+>/', $content) && strlen($content) > 1000) {
-            $content = preg_replace('/<[^>]+>/', '[HTML标签已过滤]', $content);
-            if (strlen($content) > 500) {
-                $content = substr($content, 0, 500) . '... [HTML内容已过滤]';
-            }
-        }
-
-        // 过滤包含大量文本的数组输出（可能是文章内容）
-        if (strpos($content, 'Array') === 0 && strlen($content) > 2000) {
-            $content = '[数组内容已过滤，长度: ' . strlen($content) . ' 字符]';
-        }
-
-        return $content;
-    }
 
     /**
      * 验证和清理HTML属性

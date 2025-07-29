@@ -89,16 +89,9 @@ class Notion_API {
         if ($this->enable_api_merging && class_exists('Notion_Smart_API_Merger')) {
             // 单例检查：避免重复创建API合并器实例
             static $global_api_merger = null;
-            static $merger_created = false;
 
             if ($global_api_merger === null) {
                 $global_api_merger = new Notion_Smart_API_Merger();
-
-                // 减少日志频率：只在首次创建时记录
-                if (class_exists('Notion_Logger') && !$merger_created) {
-                    Notion_Logger::debug_log('智能API合并器已创建（单例模式）', 'API Merger');
-                    $merger_created = true;
-                }
             }
 
             $this->api_merger = $global_api_merger;

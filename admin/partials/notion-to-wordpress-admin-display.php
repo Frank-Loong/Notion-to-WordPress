@@ -269,16 +269,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 </fieldset>
                                             </div>
                                         </div>
-                                        <script>
-                                            document.addEventListener('DOMContentLoaded', function() {
-                                                const webhookEnabledCheckbox = document.getElementById('webhook_enabled');
-                                                const webhookSettings = document.getElementById('webhook-settings');
-                                                
-                                                webhookEnabledCheckbox.addEventListener('change', function() {
-                                                    webhookSettings.style.display = this.checked ? 'block' : 'none';
-                                                });
-                                            });
-                                        </script>
+
                                     </td>
                                 </tr>
                             </tbody>
@@ -1120,8 +1111,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 </div>
 
                                 <div class="notion-wp-index-actions">
-                                    <button type="button" class="button button-primary button-hero" id="optimize-all-indexes" style="background: linear-gradient(135deg, #0073aa 0%, #005177 100%); border-color: #005177; font-size: 14px; height: 40px; padding: 6px 20px;">
-                                        <span class="dashicons dashicons-performance" style="font-size: 18px; margin-right: 8px;"></span>
+                                    <button type="button" class="button button-primary notion-wp-optimize-all-btn" id="optimize-all-indexes">
+                                        <span class="dashicons dashicons-performance"></span>
                                         <?php esc_html_e('一键优化所有索引', 'notion-to-wordpress'); ?>
                                     </button>
                                     <button type="button" class="button button-secondary" id="refresh-index-status" style="margin-left: 15px;">
@@ -1327,7 +1318,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 
                 <div class="notion-wp-actions-bar">
 
-                    <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false); ?>
+                    <?php submit_button(__('保存所有设置', 'notion-to-wordpress'), 'primary', 'submit', false, array('id' => 'notion-save-settings')); ?>
                 </div>
             </form>
         </div>

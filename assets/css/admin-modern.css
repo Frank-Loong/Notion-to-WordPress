@@ -1174,6 +1174,17 @@ body.admin-color-dark .ncf-admin-aside {
     animation: spin 1s linear infinite;
 }
 
+/* 改进的spinner样式 */
+.spinner.is-active {
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: 16px !important;
+    height: 16px !important;
+    margin: 0 !important;
+    float: none !important;
+    display: inline-block !important;
+}
+
 /* 复制按钮成功状态 */
 .button.copied {
     background-color: var(--notion-success) !important;
@@ -1976,6 +1987,46 @@ code {
 
 .notion-wp-index-actions .button-link-delete:hover {
     color: #b91c1c;
+}
+
+/* 一键优化按钮特殊样式 - 统一尺寸 */
+.notion-wp-optimize-all-btn {
+    background: linear-gradient(135deg, var(--notion-primary) 0%, var(--notion-primary-dark) 100%) !important;
+    border-color: var(--notion-primary-dark) !important;
+    font-size: 13px !important;
+    height: 32px !important;
+    line-height: 30px !important;
+    padding: 0 12px !important;
+    font-weight: 600 !important;
+    box-shadow: 0 2px 4px rgba(0, 115, 170, 0.2) !important;
+    transition: all 0.3s ease !important;
+    min-height: 32px !important;
+}
+
+.notion-wp-optimize-all-btn:hover {
+    background: linear-gradient(135deg, var(--notion-primary-dark) 0%, #004a66 100%) !important;
+    border-color: #004a66 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(0, 115, 170, 0.3) !important;
+}
+
+/* 确保所有按钮统一尺寸 */
+.notion-wp-index-actions .button {
+    height: 32px !important;
+    line-height: 30px !important;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.notion-wp-optimize-all-btn .dashicons {
+    margin-right: 8px !important;
+    font-size: 16px !important;
+    width: 16px !important;
+    height: 16px !important;
 }
 
 /* 索引信息说明 */
