@@ -57,9 +57,13 @@ $autoloader_path = plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
 if ( file_exists( $autoloader_path ) ) {
     require_once $autoloader_path;
 
-    // 记录自动加载器状态
-    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-        error_log( 'Notion-to-WordPress: Composer autoloader loaded successfully' );
+    // 只在插件激活后第一次加载时记录自动加载器状态
+    if ( get_option('notion_to_wordpress_show_autoloader_log', false) ) {
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+            error_log( 'Notion-to-WordPress: Composer autoloader loaded successfully' );
+        }
+        // 删除标记，避免重复显示
+        delete_option('notion_to_wordpress_show_autoloader_log');
     }
 } else {
     // 如果autoloader不存在，记录错误但不阻止插件运行（向后兼容）
@@ -75,6 +79,9 @@ if ( file_exists( $autoloader_path ) ) {
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
  */
 function activate_notion_to_wordpress() {
+	// 设置标记以在下次加载时显示 autoloader 日志
+	update_option('notion_to_wordpress_show_autoloader_log', true);
+	
 	// 初始化现代异步处理系统
 	init_modern_async_system();
 

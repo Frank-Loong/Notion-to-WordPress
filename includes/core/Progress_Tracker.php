@@ -82,7 +82,7 @@ class Progress_Tracker {
     
     /**
      * 更新任务进度
-     * 
+     *
      * @param string $taskId 任务ID
      * @param array $progressUpdate 进度更新数据
      * @return bool 是否更新成功
@@ -92,18 +92,78 @@ class Progress_Tracker {
         if ($taskData === null) {
             return false;
         }
-        
+
         // 合并进度数据
         $currentProgress = $taskData['progress'] ?? [];
         $newProgress = array_merge($currentProgress, $progressUpdate);
-        
+
         // 计算百分比
         if (isset($newProgress['total']) && $newProgress['total'] > 0) {
             $processed = $newProgress['processed'] ?? 0;
             $newProgress['percentage'] = min(100, round(($processed / $newProgress['total']) * 100, 2));
         }
-        
+
         return $this->updateTask($taskId, ['progress' => $newProgress]);
+    }
+
+    /**
+     * 更新当前步骤
+     *
+     * @param string $taskId 任务ID
+     * @param string $currentStep 当前步骤ID
+     * @param array $stepData 步骤数据
+     * @return bool 是否更新成功
+     */
+    public function updateCurrentStep(string $taskId, string $currentStep, array $stepData = []): bool {
+        $taskData = $this->getTaskData($taskId);
+        if ($taskData === null) {
+            return false;
+        }
+
+        // 更新当前步骤
+        $updateData = [
+            'currentStep' => $currentStep,
+            'stepUpdatedAt' => time()
+        ];
+
+        // 如果有步骤数据，也更新
+        if (!empty($stepData)) {
+            $currentSteps = $taskData['steps'] ?? [];
+            $currentSteps[$currentStep] = array_merge(
+                $currentSteps[$currentStep] ?? [],
+                $stepData,
+                ['updatedAt' => time()]
+            );
+            $updateData['steps'] = $currentSteps;
+        }
+
+        return $this->updateTask($taskId, $updateData);
+    }
+
+
+
+    /**
+     * 更新时间信息
+     *
+     * @param string $taskId 任务ID
+     * @param array $timingUpdate 时间更新数据
+     * @return bool 是否更新成功
+     */
+    public function updateTiming(string $taskId, array $timingUpdate): bool {
+        $taskData = $this->getTaskData($taskId);
+        if ($taskData === null) {
+            return false;
+        }
+
+        $currentTiming = $taskData['timing'] ?? [];
+        $newTiming = array_merge($currentTiming, $timingUpdate);
+
+        // 计算已用时间
+        if (isset($newTiming['startTime'])) {
+            $newTiming['elapsedTime'] = (time() - $newTiming['startTime']) * 1000; // 转换为毫秒
+        }
+
+        return $this->updateTask($taskId, ['timing' => $newTiming]);
     }
     
     /**
@@ -132,6 +192,9 @@ class Progress_Tracker {
             'status' => $taskData['status'] ?? 'unknown',
             'operation' => $taskData['operation'] ?? 'unknown',
             'progress' => $taskData['progress'] ?? [],
+            'currentStep' => $taskData['currentStep'] ?? 'validate',
+            'steps' => $taskData['steps'] ?? [],
+            'timing' => $taskData['timing'] ?? [],
             'metadata' => $taskData['metadata'] ?? [],
             'created_at' => $taskData['created_at'] ?? 0,
             'updated_at' => $taskData['updated_at'] ?? 0,

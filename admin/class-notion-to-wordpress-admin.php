@@ -138,9 +138,17 @@ class Notion_To_WordPress_Admin {
         
         // 添加CSP nonce到脚本标签
         wp_enqueue_script(
+            $this->plugin_name . '-sync-progress',
+            Helper::plugin_url('assets/js/sync-progress-manager.js'),
+            array('jquery'),
+            $this->version,
+            true // 在页脚加载
+        );
+
+        wp_enqueue_script(
             $this->plugin_name . '-admin',
             Helper::plugin_url('assets/js/admin-interactions.js'),
-            array('jquery'),
+            array('jquery', $this->plugin_name . '-sync-progress'),
             $this->version,
             true // 在页脚加载
         );
@@ -1655,5 +1663,134 @@ class Notion_To_WordPress_Admin {
             'field_template' => $field_desc,
             'reason' => $reasons
         ];
+    }
+
+    /**
+     * 处理获取同步进度的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_get_sync_progress() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $task_id = sanitize_text_field($_POST['task_id'] ?? '');
+
+        if (empty($task_id)) {
+            wp_send_json_error(['message' => '任务ID不能为空']);
+            return;
+        }
+
+        try {
+            // 获取进度信息
+            if (class_exists('NTWP\\Core\\Progress_Tracker')) {
+                $tracker = new \NTWP\Core\Progress_Tracker();
+                $progress = $tracker->getProgress($task_id);
+
+                wp_send_json_success($progress);
+            } else {
+                wp_send_json_error(['message' => '进度跟踪器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '获取同步进度时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理取消同步的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_cancel_sync() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $task_id = sanitize_text_field($_POST['task_id'] ?? '');
+
+        if (empty($task_id)) {
+            wp_send_json_error(['message' => '任务ID不能为空']);
+            return;
+        }
+
+        try {
+            // 取消任务
+            if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
+                $result = \NTWP\Core\Modern_Async_Engine::cancel($task_id);
+
+                if ($result) {
+                    wp_send_json_success(['message' => '同步已取消']);
+                } else {
+                    wp_send_json_error(['message' => '取消同步失败']);
+                }
+            } else {
+                wp_send_json_error(['message' => '异步引擎不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '取消同步时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理重试失败项的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_retry_failed() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $task_id = sanitize_text_field($_POST['task_id'] ?? '');
+
+        if (empty($task_id)) {
+            wp_send_json_error(['message' => '任务ID不能为空']);
+            return;
+        }
+
+        try {
+            // 重试失败项
+            if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
+                $result = \NTWP\Core\Modern_Async_Engine::retryFailed($task_id);
+
+                if ($result) {
+                    wp_send_json_success(['message' => '重试已启动']);
+                } else {
+                    wp_send_json_error(['message' => '重试启动失败']);
+                }
+            } else {
+                wp_send_json_error(['message' => '异步引擎不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '重试失败项时发生异常: ' . $e->getMessage()]);
+        }
     }
 }

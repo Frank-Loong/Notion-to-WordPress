@@ -541,6 +541,9 @@ jQuery(document).ready(function($) {
     // 初始化同步状态管理器
     SyncStatusManager.init();
 
+    // 初始化进度管理器
+    window.syncProgressManager = new SyncProgressManager();
+
     // 页面加载时获取统计信息
     if ($('.notion-stats-grid').length > 0) {
       fetchStats();
@@ -661,13 +664,22 @@ jQuery(document).ready(function($) {
         const originalHtml = button.html();
         button.prop('disabled', true).html('<span class="spinner is-active"></span> ' + syncTypeName + notionToWp.i18n.syncing);
 
+        // 生成任务ID
+        const taskId = 'sync_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+
         // 保存同步状态
         SyncStatusManager.saveSyncStatus({
             syncType: syncTypeName,
             incremental: incremental,
             checkDeletions: checkDeletions,
-            buttonId: button.attr('id')
+            buttonId: button.attr('id'),
+            taskId: taskId
         });
+
+        // 显示进度界面
+        if (window.syncProgressManager) {
+            window.syncProgressManager.showProgress(taskId, syncTypeName);
+        }
 
         $.ajax({
             url: notionToWp.ajax_url,
@@ -676,28 +688,45 @@ jQuery(document).ready(function($) {
                 action: 'notion_to_wordpress_manual_sync',
                 nonce: notionToWp.nonce,
                 incremental: incremental,
-                check_deletions: checkDeletions
+                check_deletions: checkDeletions,
+                task_id: taskId // 传递任务ID到后端
             },
             success: function(response) {
                 const message = response.success ? response.data.message : response.data.message;
                 const status = response.success ? 'success' : 'error';
 
                 if (response.success) {
-                    message += ' (' + syncTypeName + notionToWp.i18n.sync_completed + ')';
+                    // 进度管理器会自动处理完成状态，这里不需要立即显示消息
+                    console.log('✅ [同步] 同步成功:', message);
+
+                    // 清除同步状态
+                    SyncStatusManager.clearSyncStatus();
+
+                    // 刷新统计信息
+                    fetchStats();
+                } else {
+                    // 显示错误消息
+                    showModal(message, status);
+
+                    // 隐藏进度界面
+                    if (window.syncProgressManager) {
+                        window.syncProgressManager.hideProgress();
+                    }
 
                     // 清除同步状态
                     SyncStatusManager.clearSyncStatus();
                 }
-
-                showModal(message, status);
-
-                // 如果成功，刷新统计信息
-                if (response.success) {
-                    fetchStats();
-                }
             },
-            error: function() {
-                showModal(syncTypeName + notionToWp.i18n.sync_failed, 'error');
+            error: function(xhr, status, error) {
+                const errorMessage = syncTypeName + notionToWp.i18n.sync_failed;
+                showModal(errorMessage, 'error');
+
+                console.error('❌ [同步] 网络错误:', error);
+
+                // 隐藏进度界面
+                if (window.syncProgressManager) {
+                    window.syncProgressManager.hideProgress();
+                }
 
                 // 清除同步状态
                 SyncStatusManager.clearSyncStatus();

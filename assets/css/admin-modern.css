@@ -1294,6 +1294,516 @@ body.admin-color-dark .ncf-admin-aside {
     color: white !important;
 }
 
+/* ==================== 同步进度组件样式 ==================== */
+
+/* 简洁进度容器 - 符合插件风格 */
+.notion-sync-progress-container {
+    background: white;
+    border: 1px solid var(--notion-gray-300);
+    border-radius: var(--notion-border-radius);
+    margin: 15px 0;
+    padding: 15px;
+    box-shadow: var(--notion-box-shadow);
+    transition: var(--notion-transition);
+}
+
+/* 简洁进度头部 */
+.sync-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.sync-progress-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--notion-gray-800);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sync-progress-icon {
+    font-size: 14px;
+    animation: rotate 2s linear infinite;
+}
+
+@keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.sync-progress-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.sync-cancel-btn {
+    font-size: 12px !important;
+    height: 28px !important;
+    line-height: 26px !important;
+    padding: 0 10px !important;
+    border-color: var(--notion-danger) !important;
+    color: var(--notion-danger) !important;
+}
+
+.sync-cancel-btn:hover {
+    background-color: var(--notion-danger) !important;
+    color: white !important;
+}
+
+/* 简洁进度主体 - 移除了padding，使用更紧凑的布局 */
+
+/* 简洁主进度条 */
+.sync-main-progress {
+    margin-bottom: 12px;
+}
+
+.progress-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--notion-gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--notion-primary);
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-percentage {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--notion-primary);
+    min-width: 35px;
+    text-align: right;
+}
+
+.progress-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: var(--notion-gray-600);
+}
+
+.current-step-text {
+    font-weight: 500;
+    color: var(--notion-gray-700);
+}
+
+.progress-eta {
+    font-style: italic;
+    color: var(--notion-gray-500);
+}
+
+/* 简洁步骤指示器 */
+.sync-steps-indicator {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0;
+    padding: 0 4px;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    position: relative;
+}
+
+.step-indicator {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    position: relative;
+}
+
+.step-circle {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--notion-gray-200);
+    border: 1px solid var(--notion-gray-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    transition: all 0.2s ease;
+}
+
+.step-icon {
+    font-size: 12px;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.step-connector {
+    flex: 1;
+    height: 1px;
+    background: var(--notion-gray-300);
+    margin: 0 4px;
+    position: relative;
+    z-index: 1;
+    transition: background-color 0.2s ease;
+}
+
+.step-label {
+    margin-top: 4px;
+    font-size: 9px;
+    color: var(--notion-gray-600);
+    text-align: center;
+    font-weight: 500;
+    line-height: 1.1;
+    max-width: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 简洁步骤状态 */
+.step-item.completed .step-circle {
+    background: var(--notion-success);
+    border-color: var(--notion-success);
+}
+
+.step-item.completed .step-icon {
+    opacity: 1;
+    color: white;
+}
+
+.step-item.completed .step-label {
+    color: var(--notion-success);
+    font-weight: 600;
+}
+
+.step-item.completed + .step-item .step-connector {
+    background: var(--notion-success);
+}
+
+.step-item.active .step-circle {
+    background: var(--notion-primary);
+    border-color: var(--notion-primary);
+}
+
+.step-item.active .step-icon {
+    opacity: 1;
+    color: white;
+}
+
+.step-item.active .step-label {
+    color: var(--notion-primary);
+    font-weight: 600;
+}
+
+.step-item.failed .step-circle {
+    background: var(--notion-danger);
+    border-color: var(--notion-danger);
+}
+
+.step-item.failed .step-icon {
+    opacity: 1;
+    color: white;
+}
+
+.step-item.failed .step-label {
+    color: var(--notion-danger);
+    font-weight: 600;
+}
+
+/* 简洁统计信息面板 */
+.sync-stats-panel {
+    background: var(--notion-gray-50);
+    border: 1px solid var(--notion-gray-200);
+    border-radius: var(--notion-border-radius);
+    padding: 10px;
+    margin: 10px 0;
+}
+
+.sync-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px;
+    border-radius: 4px;
+    background: white;
+    transition: background-color 0.2s ease;
+    text-align: center;
+}
+
+.stat-icon {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.stat-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    align-items: center;
+}
+
+.stat-label {
+    font-size: 9px;
+    color: var(--notion-gray-600);
+    font-weight: 500;
+}
+
+.stat-value {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--notion-gray-800);
+}
+
+/* 简洁错误信息面板 */
+.sync-errors-panel {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--notion-border-radius);
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.errors-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: #fee2e2;
+    cursor: pointer;
+}
+
+.errors-header h5 {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--notion-danger);
+}
+
+.errors-toggle {
+    padding: 0 !important;
+    background: none !important;
+    border: none !important;
+    color: var(--notion-danger) !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    height: auto !important;
+    min-height: auto !important;
+}
+
+.errors-content {
+    padding: 8px 10px;
+    display: none;
+}
+
+.errors-list {
+    list-style: none;
+    margin: 0 0 8px 0;
+    padding: 0;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.error-item {
+    display: flex;
+    gap: 6px;
+    padding: 4px 0;
+    border-bottom: 1px solid #fecaca;
+    font-size: 10px;
+}
+
+.error-item:last-child {
+    border-bottom: none;
+}
+
+.error-time {
+    color: var(--notion-gray-600);
+    font-weight: 500;
+    min-width: 40px;
+}
+
+.error-message {
+    color: var(--notion-danger);
+    flex: 1;
+    word-break: break-word;
+}
+
+.errors-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.retry-failed-btn {
+    font-size: 10px !important;
+    height: 24px !important;
+    line-height: 22px !important;
+    padding: 0 8px !important;
+    background-color: var(--notion-warning) !important;
+    border-color: var(--notion-warning) !important;
+    color: white !important;
+}
+
+.retry-failed-btn:hover {
+    background-color: #a16207 !important;
+    border-color: #a16207 !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .sync-progress-header {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .sync-progress-title {
+        justify-content: center;
+    }
+
+    .sync-progress-actions {
+        justify-content: center;
+    }
+
+    .progress-bar-container {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .progress-percentage {
+        text-align: center;
+        min-width: auto;
+    }
+
+    .progress-status {
+        flex-direction: column;
+        gap: 4px;
+        text-align: center;
+    }
+
+    .sync-steps-indicator {
+        flex-direction: column;
+        gap: 16px;
+        align-items: stretch;
+    }
+
+    .step-item {
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .step-indicator {
+        width: auto;
+    }
+
+    .step-connector {
+        display: none;
+    }
+
+    .step-label {
+        margin-top: 0;
+        text-align: left;
+        flex: 1;
+    }
+
+    .sync-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+
+    .stat-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 4px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sync-progress-main {
+        padding: 16px;
+    }
+
+    .step-circle {
+        width: 32px;
+        height: 32px;
+    }
+
+    .step-icon {
+        font-size: 14px;
+    }
+
+    .step-number {
+        width: 14px;
+        height: 14px;
+        font-size: 9px;
+    }
+
+    .step-label {
+        font-size: 10px;
+    }
+
+    .sync-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 动画优化 */
+@media (prefers-reduced-motion: reduce) {
+    .sync-progress-icon,
+    .step-item.active .step-circle {
+        animation: none;
+    }
+
+    .progress-fill::after {
+        animation: none;
+    }
+
+    * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+    .notion-sync-progress-container {
+        border-width: 2px;
+    }
+
+    .step-circle {
+        border-width: 3px;
+    }
+
+    .progress-bar {
+        border: 1px solid var(--notion-gray-400);
+    }
+}
+
 .notion-wp-sync-btn.error {
     background-color: var(--notion-error) !important;
     border-color: var(--notion-error) !important;

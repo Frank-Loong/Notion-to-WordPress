@@ -263,6 +263,11 @@ class Main {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_queue_task', $this->admin, 'handle_cancel_queue_task' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_performance_stats', $this->admin, 'handle_refresh_performance_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_reset_performance_stats', $this->admin, 'handle_reset_performance_stats' );
+
+		// 进度管理相关AJAX钩子
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_sync', $this->admin, 'handle_cancel_sync' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_retry_failed', $this->admin, 'handle_retry_failed' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
 
 		// 定时任务钩子
