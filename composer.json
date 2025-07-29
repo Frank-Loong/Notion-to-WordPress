@@ -1,0 +1,80 @@
+{
+    "name": "frank-loong/notion-to-wordpress",
+    "description": "The most advanced WordPress plugin for syncing Notion databases to WordPress. Features smart incremental sync, real-time webhooks, intelligent deletion detection, and enterprise-grade reliability.",
+    "type": "wordpress-plugin",
+    "keywords": [
+        "wordpress",
+        "plugin",
+        "notion",
+        "sync",
+        "api",
+        "cms",
+        "webhook",
+        "incremental",
+        "math",
+        "mermaid",
+        "katex",
+        "markdown"
+    ],
+    "license": "GPL-3.0-or-later",
+    "authors": [
+        {
+            "name": "Frank-Loong",
+            "homepage": "https://github.com/Frank-Loong",
+            "role": "Developer"
+        }
+    ],
+    "homepage": "https://github.com/Frank-Loong/Notion-to-WordPress",
+    "support": {
+        "issues": "https://github.com/Frank-Loong/Notion-to-WordPress/issues",
+        "source": "https://github.com/Frank-Loong/Notion-to-WordPress"
+    },
+    "require": {
+        "php": ">=7.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "NTWP\\Core\\": "includes/core/",
+            "NTWP\\Utils\\": "includes/utils/",
+            "NTWP\\Framework\\": "includes/framework/",
+            "NTWP\\Services\\": "includes/services/",
+            "NTWP\\Handlers\\": "includes/handlers/"
+        },
+        "classmap": [
+            "admin/"
+        ]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NTWP\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "cs-check": "phpcs --standard=WordPress includes/ admin/",
+        "cs-fix": "phpcbf --standard=WordPress includes/ admin/",
+        "analyze": "phpstan analyse includes/ admin/ --level=5",
+        "post-install-cmd": [
+            "@php -r \"if (!file_exists('vendor/autoload.php')) { echo 'Autoloader not found. Please run composer install.'; exit(1); }\""
+        ],
+        "post-update-cmd": [
+            "@php -r \"echo 'Composer dependencies updated successfully.\\n';\""
+        ]
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "classmap-authoritative": false,
+        "apcu-autoloader": false,
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/installers": true
+        },
+        "disable-tls": true
+    },
+    "extra": {
+        "installer-name": "notion-to-wordpress",
+        "wordpress-install-dir": "wp-content/plugins/notion-to-wordpress"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

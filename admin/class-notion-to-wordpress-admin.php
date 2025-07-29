@@ -2,10 +2,17 @@
 // 声明严格类型
 declare(strict_types=1);
 
-// 如果直接访问此文件，则退出
-if (!defined('ABSPATH')) {
-    exit;
-}
+use NTWP\Services\API;
+use NTWP\Handlers\Import_Coordinator;
+use NTWP\Core\Logger;
+use NTWP\Utils\Helper;
+use NTWP\Utils\Config_Simplifier;
+use NTWP\Core\Memory_Manager;
+use NTWP\Core\Performance_Monitor;
+use NTWP\Utils\Database_Helper;
+use NTWP\Utils\Database_Index_Manager;
+use NTWP\Core\Modern_Async_Engine;
+use NTWP\Core\Progress_Tracker;
 
 /**
  * 后台管理类。
@@ -17,6 +24,11 @@ if (!defined('ABSPATH')) {
  * @license    GPL-3.0-or-later
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
+
+// 如果直接访问此文件，则退出
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 class Notion_To_WordPress_Admin {
 
@@ -43,18 +55,18 @@ class Notion_To_WordPress_Admin {
      *
      * @since    1.0.5
      * @access   private
-     * @var      Notion_API
+     * @var      API
      */
-    private Notion_API $notion_api;
+    private API $notion_api;
 
     /**
      * Notion导入协调器实例
      *
      * @since    1.0.5
      * @access   private
-     * @var      Notion_Import_Coordinator
+     * @var      Import_Coordinator
      */
-    private Notion_Import_Coordinator $notion_pages;
+    private Import_Coordinator $notion_pages;
 
     /**
      * 初始化类并设置其属性
@@ -62,10 +74,10 @@ class Notion_To_WordPress_Admin {
      * @since    1.0.5
      * @param string $plugin_name 插件名称
      * @param string $version 插件版本
-     * @param Notion_API $notion_api Notion API实例
-     * @param Notion_Import_Coordinator $notion_pages Notion导入协调器实例
+     * @param API $notion_api Notion API实例
+     * @param Import_Coordinator $notion_pages Notion导入协调器实例
      */
-    public function __construct(string $plugin_name, string $version, Notion_API $notion_api, Notion_Import_Coordinator $notion_pages) {
+    public function __construct(string $plugin_name, string $version, API $notion_api, Import_Coordinator $notion_pages) {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
         $this->notion_api = $notion_api;
@@ -86,7 +98,7 @@ class Notion_To_WordPress_Admin {
 
         wp_enqueue_style(
             $this->plugin_name . '-admin',
-            Notion_To_WordPress_Helper::plugin_url('assets/css/admin-modern.css'),
+            Helper::plugin_url('assets/css/admin-modern.css'),
             array(),
             $this->version,
             'all'
@@ -94,7 +106,7 @@ class Notion_To_WordPress_Admin {
 
         wp_enqueue_style(
             $this->plugin_name . '-tooltip',
-            Notion_To_WordPress_Helper::plugin_url('assets/css/tooltip.css'),
+            Helper::plugin_url('assets/css/tooltip.css'),
             array(),
             $this->version,
             'all'
@@ -102,7 +114,7 @@ class Notion_To_WordPress_Admin {
 
         wp_enqueue_style(
             $this->plugin_name . '-custom',
-            Notion_To_WordPress_Helper::plugin_url('assets/css/custom-styles.css'),
+            Helper::plugin_url('assets/css/custom-styles.css'),
             array(),
             $this->version,
             'all'
@@ -127,7 +139,7 @@ class Notion_To_WordPress_Admin {
         // 添加CSP nonce到脚本标签
         wp_enqueue_script(
             $this->plugin_name . '-admin',
-            Notion_To_WordPress_Helper::plugin_url('assets/js/admin-interactions.js'),
+            Helper::plugin_url('assets/js/admin-interactions.js'),
             array('jquery'),
             $this->version,
             true // 在页脚加载
@@ -221,7 +233,7 @@ class Notion_To_WordPress_Admin {
      */
     public function add_plugin_admin_menu() {
         // 使用自定义SVG图标
-        $icon_svg = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents(Notion_To_WordPress_Helper::plugin_path('assets/icon.svg')));
+        $icon_svg = 'data:image/svg+xml;base64,' . base64_encode(file_get_contents(Helper::plugin_path('assets/icon.svg')));
 
         add_menu_page(
             __('Notion to WordPress', 'notion-to-wordpress'),
@@ -240,7 +252,7 @@ class Notion_To_WordPress_Admin {
      * @since    1.0.5
      */
     public function display_plugin_setup_page() {
-        require_once Notion_To_WordPress_Helper::plugin_path('admin/partials/notion-to-wordpress-admin-display.php');
+        require_once Helper::plugin_path('admin/partials/notion-to-wordpress-admin-display.php');
     }
 
     /**
@@ -343,11 +355,11 @@ class Notion_To_WordPress_Admin {
 
         // 保留已生成的 webhook_token；若不存在则生成一次
         if ( empty( $options['webhook_token'] ) ) {
-            $options['webhook_token'] = Notion_To_WordPress_Helper::generate_token( 32 );
+            $options['webhook_token'] = Helper::generate_token( 32 );
         }
 
         // Debug Level
-        $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Notion_Logger::DEBUG_LEVEL_ERROR;
+        $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
 
         // 新增设置项
         // iframe 白名单域名
@@ -424,14 +436,14 @@ class Notion_To_WordPress_Admin {
         }
 
         // 应用简化配置（如果配置简化器可用）
-        if (class_exists('Notion_Config_Simplifier')) {
+        if (class_exists('NTWP\\Utils\\Config_Simplifier')) {
             // 首次迁移现有配置
             if (!isset($options['config_migrated'])) {
-                $options = Notion_Config_Simplifier::migrate_legacy_config($options);
+                $options = Config_Simplifier::migrate_legacy_config($options);
             }
 
             // 应用简化配置到详细配置
-            $options = Notion_Config_Simplifier::apply_simplified_config($options);
+            $options = Config_Simplifier::apply_simplified_config($options);
         }
 
         return $options;
@@ -473,8 +485,8 @@ class Notion_To_WordPress_Admin {
         update_option( 'notion_to_wordpress_options', $options );
 
         // 重新初始化日志系统
-        if (class_exists('Notion_Logger')) {
-            Notion_Logger::init();
+        if (class_exists('NTWP\\Core\\Logger')) {
+            Logger::init();
         }
 
         // 缓存功能已移除，使用增量同步替代
@@ -519,7 +531,7 @@ class Notion_To_WordPress_Admin {
             update_option('notion_to_wordpress_options', $options);
 
             // 重新初始化日志系统
-            Notion_Logger::init();
+            Logger::init();
 
             // 缓存功能已移除，使用增量同步替代
 
@@ -556,7 +568,7 @@ class Notion_To_WordPress_Admin {
         }
         
         // 使用传入的Key和ID进行测试
-        $temp_api = new Notion_API($api_key);
+        $temp_api = new API($api_key);
         
         try {
             $response = $temp_api->test_connection( $database_id );
@@ -627,27 +639,27 @@ class Notion_To_WordPress_Admin {
 
             // 实例化API和Pages对象
             error_log('Notion to WordPress: 创建API实例，API Key: ' . substr($api_key, 0, 10) . '...');
-            $notion_api = new Notion_API( $api_key );
+            $notion_api = new API( $api_key );
 
             error_log('Notion to WordPress: 创建导入协调器实例，Database ID: ' . $database_id);
-            $notion_pages = new Notion_Import_Coordinator( $notion_api, $database_id, $field_mapping );
+            $notion_pages = new Import_Coordinator( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
 
             // 检查是否启用增量同步
             $incremental = isset($_POST['incremental']) ? (bool) $_POST['incremental'] : true;
             $check_deletions = isset($_POST['check_deletions']) ? (bool) $_POST['check_deletions'] : true;
 
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Manual Sync');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Manual Sync');
             }
 
             // 执行导入
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::info_log('开始执行import_pages()', 'Manual Sync');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::info_log('开始执行import_pages()', 'Manual Sync');
             }
             $result = $notion_pages->import_pages($check_deletions, $incremental);
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::info_log('import_pages()执行完成，结果: ' . print_r($result, true), 'Manual Sync');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::info_log('import_pages()执行完成，结果: ' . print_r($result, true), 'Manual Sync');
             }
 
             // 更新最后同步时间
@@ -669,9 +681,9 @@ class Notion_To_WordPress_Admin {
             ] );
             
         } catch ( Exception $e ) {
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::error_log('捕获异常: ' . $e->getMessage(), 'Manual Sync');
-                Notion_Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Manual Sync');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::error_log('捕获异常: ' . $e->getMessage(), 'Manual Sync');
+                Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Manual Sync');
             }
             wp_send_json_error( [ 'message' => __('导入失败: ', 'notion-to-wordpress') . $e->getMessage() ] );
         }
@@ -714,7 +726,7 @@ class Notion_To_WordPress_Admin {
             // 获取最后同步时间
             $last_update = get_option('notion_to_wordpress_last_sync', '');
             if ($last_update) {
-                $last_update = Notion_To_WordPress_Helper::format_datetime_by_plugin_language(strtotime($last_update));
+                $last_update = Helper::format_datetime_by_plugin_language(strtotime($last_update));
             } else {
                 $last_update = __('从未', 'notion-to-wordpress');
             }
@@ -722,7 +734,7 @@ class Notion_To_WordPress_Admin {
             // 获取下次计划运行时间
             $next_run = wp_next_scheduled('notion_cron_import');
             if ($next_run) {
-                $next_run = Notion_To_WordPress_Helper::format_datetime_by_plugin_language($next_run);
+                $next_run = Helper::format_datetime_by_plugin_language($next_run);
             } else {
                 $next_run = __('未计划', 'notion-to-wordpress');
             }
@@ -840,7 +852,7 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            $success = Notion_Logger::clear_logs();
+            $success = Logger::clear_logs();
             
             if ($success) {
                 wp_send_json_success(['message' => __('所有日志文件已清除', 'notion-to-wordpress')]);
@@ -864,7 +876,7 @@ class Notion_To_WordPress_Admin {
             wp_send_json_error(['message' => __('未指定日志文件', 'notion-to-wordpress')]);
         }
 
-        $content = Notion_Logger::get_log_content($file);
+        $content = Logger::get_log_content($file);
 
         // 如果返回错误信息，则视为失败
         if (strpos($content, __('无效', 'notion-to-wordpress')) === 0 || strpos($content, __('不存在', 'notion-to-wordpress')) !== false) {
@@ -928,8 +940,8 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::info_log('权限检查成功', 'Debug Test');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::info_log('权限检查成功', 'Debug Test');
             }
 
             $test_data = [
@@ -943,21 +955,21 @@ class Notion_To_WordPress_Admin {
                 'ajax_url' => admin_url('admin-ajax.php')
             ];
 
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::info_log('测试数据: ' . print_r($test_data, true), 'Debug Test');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::info_log('测试数据: ' . print_r($test_data, true), 'Debug Test');
             }
             wp_send_json_success(['message' => __('调试测试成功', 'notion-to-wordpress'), 'data' => $test_data]);
 
         } catch (Exception $e) {
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::error_log('测试异常: ' . $e->getMessage(), 'Debug Test');
-                Notion_Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Debug Test');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::error_log('测试异常: ' . $e->getMessage(), 'Debug Test');
+                Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Debug Test');
             }
             wp_send_json_error(['message' => __('测试失败: ', 'notion-to-wordpress') . $e->getMessage()]);
         } catch (Error $e) {
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::error_log('测试错误: ' . $e->getMessage(), 'Debug Test');
-                Notion_Logger::error_log('错误堆栈: ' . $e->getTraceAsString(), 'Debug Test');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::error_log('测试错误: ' . $e->getMessage(), 'Debug Test');
+                Logger::error_log('错误堆栈: ' . $e->getTraceAsString(), 'Debug Test');
             }
             wp_send_json_error(['message' => __('测试错误: ', 'notion-to-wordpress') . $e->getMessage()]);
         }
@@ -983,8 +995,8 @@ class Notion_To_WordPress_Admin {
         try {
             // 获取最新的内存使用情况
             $memory_usage = [];
-            if (class_exists('Notion_Memory_Manager')) {
-                $memory_usage = Notion_Memory_Manager::get_memory_usage();
+            if (class_exists('NTWP\\Core\\Memory_Manager')) {
+                $memory_usage = Memory_Manager::get_memory_usage();
             } else {
                 // 备用方案
                 $memory_usage = [
@@ -1033,13 +1045,13 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 重置性能统计数据
-            if (class_exists('Notion_Performance_Monitor')) {
-                Notion_Performance_Monitor::reset_stats();
+            if (class_exists('NTWP\\Core\\Performance_Monitor')) {
+                Performance_Monitor::reset_stats();
             }
 
             // 强制垃圾回收
-            if (class_exists('Notion_Memory_Manager')) {
-                Notion_Memory_Manager::force_garbage_collection();
+            if (class_exists('NTWP\\Core\\Memory_Manager')) {
+                Memory_Manager::force_garbage_collection();
             } else if (function_exists('gc_collect_cycles')) {
                 gc_collect_cycles();
             }
@@ -1050,8 +1062,8 @@ class Notion_To_WordPress_Admin {
             }
 
             // 记录重置操作
-            if (class_exists('Notion_Logger')) {
-                Notion_Logger::info_log('性能统计已重置', 'Performance Reset');
+            if (class_exists('NTWP\\Core\\Logger')) {
+                Logger::info_log('性能统计已重置', 'Performance Reset');
             }
 
             wp_send_json_success('性能统计已重置');
@@ -1083,7 +1095,7 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 调用数据库助手创建索引
-            $result = Notion_Database_Helper::create_performance_indexes();
+            $result = Database_Helper::create_performance_indexes();
 
             if ($result['success']) {
                 $message = sprintf(
@@ -1128,11 +1140,11 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 获取索引状态
-            $status = Notion_Database_Helper::get_index_status();
+            $status = Database_Helper::get_index_status();
 
             // 获取专用Notion索引优化建议
-            $notion_suggestions = Notion_Database_Helper::get_notion_specific_optimization_suggestions();
-            $general_suggestions = Notion_Database_Helper::get_optimization_suggestions();
+            $notion_suggestions = Database_Helper::get_notion_specific_optimization_suggestions();
+            $general_suggestions = Database_Helper::get_optimization_suggestions();
 
             wp_send_json_success([
                 'status' => $status,
@@ -1166,7 +1178,7 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 调用数据库助手删除索引
-            $result = Notion_Database_Helper::remove_performance_indexes();
+            $result = Database_Helper::remove_performance_indexes();
 
             if ($result['success']) {
                 $message = sprintf(
@@ -1210,7 +1222,7 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 调用一键优化方法
-            $result = Notion_Database_Index_Manager::optimize_all_notion_indexes();
+            $result = Database_Index_Manager::optimize_all_notion_indexes();
 
             if ($result['success']) {
                 $message = sprintf(
@@ -1263,9 +1275,9 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 使用现代异步引擎
-            if (class_exists('Notion_Modern_Async_Engine')) {
-                $system_status = Notion_Modern_Async_Engine::getStatus();
-                $tracker = new Notion_Progress_Tracker();
+            if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
+                $system_status = Modern_Async_Engine::getStatus();
+                $tracker = new Progress_Tracker();
                 $stats = $tracker->getStatistics();
 
                 $queue_status = [
@@ -1340,8 +1352,8 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 使用现代异步引擎
-            if (class_exists('Notion_Modern_Async_Engine')) {
-                $result = Notion_Modern_Async_Engine::cancel($task_id);
+            if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
+                $result = Modern_Async_Engine::cancel($task_id);
 
                 if ($result) {
                     wp_send_json_success(['message' => '任务已成功取消']);
@@ -1377,9 +1389,9 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 清理现代异步引擎
-            if (class_exists('Notion_Modern_Async_Engine')) {
-                Notion_Modern_Async_Engine::cleanup();
-                $tracker = new Notion_Progress_Tracker();
+            if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
+                Modern_Async_Engine::cleanup();
+                $tracker = new Progress_Tracker();
                 $cleaned_count = $tracker->cleanupExpiredTasks();
 
                 wp_send_json_success([
@@ -1414,8 +1426,8 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            if (class_exists('Notion_Async_Processor')) {
-                $async_status = Notion_Async_Processor::get_async_status();
+            if (class_exists('NTWP\\Core\\Async_Processor')) {
+                $async_status = \NTWP\Core\Async_Processor::get_async_status();
 
                 wp_send_json_success([
                     'status' => $async_status,
@@ -1470,23 +1482,23 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            if (class_exists('Notion_Async_Processor')) {
+            if (class_exists('NTWP\\Core\\Async_Processor')) {
                 $result = false;
                 $message = '';
 
                 switch ($action) {
                     case 'pause':
-                        $result = Notion_Async_Processor::pause_async_operation();
+                        $result = \NTWP\Core\Async_Processor::pause_async_operation();
                         $message = $result ? '异步操作已暂停' : '暂停失败，可能没有运行中的操作';
                         break;
 
                     case 'resume':
-                        $result = Notion_Async_Processor::resume_async_operation();
+                        $result = \NTWP\Core\Async_Processor::resume_async_operation();
                         $message = $result ? '异步操作已恢复' : '恢复失败，可能没有暂停的操作';
                         break;
 
                     case 'stop':
-                        $result = Notion_Async_Processor::stop_async_operation();
+                        $result = \NTWP\Core\Async_Processor::stop_async_operation();
                         $message = $result ? '异步操作已停止' : '停止失败，可能没有运行中的操作';
                         break;
 

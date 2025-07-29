@@ -38,7 +38,7 @@ $field_mapping         = $options['field_mapping'] ?? [
     'tags'           => 'Tags,标签,Tag',
     'password'       => 'Password,密码',
 ];
-$debug_level           = $options['debug_level'] ?? Notion_Logger::DEBUG_LEVEL_ERROR;
+$debug_level           = $options['debug_level'] ?? \NTWP\Core\Logger::DEBUG_LEVEL_ERROR;
 $max_image_size        = $options['max_image_size'] ?? 5;
 $plugin_language       = $options['plugin_language'] ?? 'auto';
 
@@ -207,7 +207,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <?php 
                                         $webhook_enabled = $options['webhook_enabled'] ?? 0;
                                         $verification_token = $options['webhook_verify_token'] ?? '';
-                                        $webhook_token = $options['webhook_token'] ?? Notion_To_WordPress_Helper::generate_token(32);
+                                        $webhook_token = $options['webhook_token'] ?? \NTWP\Utils\Helper::generate_token(32);
                                         $webhook_url = site_url('wp-json/notion-to-wordpress/v1/webhook/' . $webhook_token);
                                         ?>
                                         <label for="webhook_enabled" class="checkbox-with-label">
@@ -325,8 +325,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="performance_level"><?php esc_html_e('性能级别', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <?php
-                                        $performance_levels = class_exists('Notion_Config_Simplifier')
-                                            ? Notion_Config_Simplifier::get_available_performance_levels()
+                                        $performance_levels = class_exists('NTWP\\Utils\\Config_Simplifier')
+                                            ? \NTWP\Utils\Config_Simplifier::get_available_performance_levels()
                                             : [
                                                 'conservative' => '保守模式 - 适合配置较低的服务器',
                                                 'balanced' => '平衡模式 - 推荐的默认配置',
@@ -347,8 +347,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="field_template"><?php esc_html_e('字段映射模板', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <?php
-                                        $field_templates = class_exists('Notion_Config_Simplifier')
-                                            ? Notion_Config_Simplifier::get_available_field_templates()
+                                        $field_templates = class_exists('NTWP\\Utils\\Config_Simplifier')
+                                            ? \NTWP\Utils\Config_Simplifier::get_available_field_templates()
                                             : [
                                                 'english' => '英文模板 - 适合英文Notion数据库',
                                                 'chinese' => '中文模板 - 适合中文Notion数据库',
@@ -852,8 +852,8 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <div class="notion-wp-performance-config">
                                         <?php
                                         // 获取性能监控配置（类已在主插件文件中加载）
-                                        if (class_exists('Notion_Performance_Monitor')) {
-                                            $config = Notion_Performance_Monitor::get_performance_config();
+                                        if (class_exists('NTWP\\Core\\Performance_Monitor')) {
+                                            $config = \NTWP\Core\Performance_Monitor::get_performance_config();
                                         } else {
                                             // 获取插件选项作为备用配置
                                             $options = get_option('notion_to_wordpress_options', []);
@@ -951,9 +951,9 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     'details' => []
                                 ];
 
-                                if (class_exists('Notion_Async_Processor')) {
+                                if (class_exists('NTWP\\Core\\Async_Processor')) {
                                     try {
-                                        $async_status = Notion_Async_Processor::get_async_status();
+                                        $async_status = \NTWP\Core\Async_Processor::get_async_status();
                                     } catch (Exception $e) {
                                         // 使用默认状态
                                     }
@@ -973,9 +973,9 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     'next_scheduled' => ''
                                 ];
 
-                                if (class_exists('Notion_Queue_Manager')) {
+                                if (class_exists('NTWP\\Core\\Queue_Manager')) {
                                     try {
-                                        $queue_status = Notion_Queue_Manager::get_queue_status();
+                                        $queue_status = \NTWP\Core\Queue_Manager::get_queue_status();
                                     } catch (Exception $e) {
                                         // 使用默认状态
                                     }
@@ -1150,11 +1150,11 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <th scope="row"><label for="debug_level"><?php esc_html_e('日志记录级别', 'notion-to-wordpress'); ?></label></th>
                                     <td>
                                         <select id="debug_level" name="debug_level">
-                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_NONE; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_NONE); ?>><?php esc_html_e('无日志', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_ERROR; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_ERROR); ?>><?php esc_html_e('仅错误', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_WARNING; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_WARNING); ?>><?php esc_html_e('警告和错误', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_INFO; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_INFO); ?>><?php esc_html_e('信息、警告和错误', 'notion-to-wordpress'); ?></option>
-                                            <option value="<?php echo Notion_Logger::DEBUG_LEVEL_DEBUG; ?>" <?php selected($debug_level, Notion_Logger::DEBUG_LEVEL_DEBUG); ?>><?php esc_html_e('所有日志 (调试)', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo \NTWP\Core\Logger::DEBUG_LEVEL_NONE; ?>" <?php selected($debug_level, \NTWP\Core\Logger::DEBUG_LEVEL_NONE); ?>><?php esc_html_e('无日志', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo \NTWP\Core\Logger::DEBUG_LEVEL_ERROR; ?>" <?php selected($debug_level, \NTWP\Core\Logger::DEBUG_LEVEL_ERROR); ?>><?php esc_html_e('仅错误', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo \NTWP\Core\Logger::DEBUG_LEVEL_WARNING; ?>" <?php selected($debug_level, \NTWP\Core\Logger::DEBUG_LEVEL_WARNING); ?>><?php esc_html_e('警告和错误', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo \NTWP\Core\Logger::DEBUG_LEVEL_INFO; ?>" <?php selected($debug_level, \NTWP\Core\Logger::DEBUG_LEVEL_INFO); ?>><?php esc_html_e('信息、警告和错误', 'notion-to-wordpress'); ?></option>
+                                            <option value="<?php echo \NTWP\Core\Logger::DEBUG_LEVEL_DEBUG; ?>" <?php selected($debug_level, \NTWP\Core\Logger::DEBUG_LEVEL_DEBUG); ?>><?php esc_html_e('所有日志 (调试)', 'notion-to-wordpress'); ?></option>
                                         </select>
                                         <p class="description"><?php esc_html_e('设置日志记录的详细程度。建议在生产环境中设置为"仅错误"。', 'notion-to-wordpress'); ?></p>
                                     </td>
@@ -1185,7 +1185,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                     <td>
                                         <div id="log-viewer-container">
                                             <select id="log-file-selector">
-                                                <?php foreach (Notion_Logger::get_log_files() as $file): ?>
+                                                <?php foreach (\NTWP\Core\Logger::get_log_files() as $file): ?>
                                                     <option value="<?php echo esc_attr($file); ?>"><?php echo esc_html($file); ?></option>
                                                 <?php endforeach; ?>
                                             </select>

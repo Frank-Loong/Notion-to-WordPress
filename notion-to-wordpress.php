@@ -48,38 +48,27 @@ if ( ! defined( 'NOTION_PERFORMANCE_MODE' ) ) {
 }
 
 /**
- * 核心依赖加载
+ * Composer自动加载器
+ *
+ * 加载Composer生成的自动加载器，支持PSR-4命名空间和classmap
+ * 这是现代PHP项目的标准做法，替代手动require_once
  */
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-to-wordpress-helper.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database-helper.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-database-index-manager.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-smart-cache.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-unified-concurrency-manager.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-dependency-container.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-service-layer.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-manager.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-logger.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-performance-monitor.php';
+$autoloader_path = plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
+if ( file_exists( $autoloader_path ) ) {
+    require_once $autoloader_path;
 
-// 现代化异步处理系统
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-task-queue.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-task-executor.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-progress-tracker.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-async-task-scheduler.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-modern-async-engine.php';
+    // 记录自动加载器状态
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+        error_log( 'Notion-to-WordPress: Composer autoloader loaded successfully' );
+    }
+} else {
+    // 如果autoloader不存在，记录错误但不阻止插件运行（向后兼容）
+    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+        error_log( 'Notion-to-WordPress: Composer autoloader not found, falling back to manual loading' );
+    }
+}
 
-require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
 
-require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-config-simplifier.php';
-
-// 修复：加载关键的流式处理器类
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-stream-processor.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-concurrent-network-manager.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-network-retry.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-smart-api-merger.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-helper.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**
  * 插件激活时运行的代码
@@ -89,7 +78,7 @@ function activate_notion_to_wordpress() {
 	// 初始化现代异步处理系统
 	init_modern_async_system();
 
-	Notion_To_WordPress::activate();
+	NTWP\Framework\Main::activate();
 }
 
 /**
@@ -99,8 +88,8 @@ function activate_notion_to_wordpress() {
  */
 function init_modern_async_system() {
 	// 记录现代异步系统启动
-	if (class_exists('Notion_Logger')) {
-		Notion_Logger::info_log('现代异步处理系统已启动，无需外部依赖', 'Plugin Activation');
+	if (class_exists('NTWP\\Core\\Logger')) {
+		NTWP\Core\Logger::info_log('现代异步处理系统已启动，无需外部依赖', 'Plugin Activation');
 	}
 }
 
@@ -127,7 +116,7 @@ register_deactivation_hook( NOTION_TO_WORDPRESS_FILE, 'deactivate_notion_to_word
  * @since    1.0.0
  */
 function run_notion_to_wordpress() {
-	$plugin = new Notion_To_WordPress();
+	$plugin = new NTWP\Framework\Main();
 	$plugin->run();
 }
 
