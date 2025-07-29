@@ -159,10 +159,7 @@ class Notion_To_WordPress {
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-image-processor.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-api.php' );
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-database-renderer.php' );
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/services/class-notion-queue-manager.php' );
-
-		// Utils层 - 工具类
-		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/utils/class-notion-async-processor.php' );
+		// Utils层 - 工具类（旧的异步处理器已移除）
 		require_once Notion_To_WordPress_Helper::plugin_path( 'includes/utils/class-notion-session-cache.php' );
 
 		// Handlers层 - 协调器服务
@@ -185,6 +182,11 @@ class Notion_To_WordPress {
 	private function instantiate_objects() {
 		// 初始化日志记录器
 		Notion_Logger::init();
+
+		// 初始化现代异步处理系统
+		if (class_exists('Notion_Modern_Async_Engine')) {
+			Notion_Modern_Async_Engine::init();
+		}
 
 		// 获取选项
 		$options       = get_option( 'notion_to_wordpress_options', array() );
@@ -257,6 +259,7 @@ class Notion_To_WordPress {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_index_status', $this->admin, 'handle_get_index_status' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_create_database_indexes', $this->admin, 'handle_create_database_indexes' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_optimize_all_indexes', $this->admin, 'handle_optimize_all_indexes' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_remove_database_indexes', $this->admin, 'handle_remove_database_indexes' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_async_status', $this->admin, 'handle_get_async_status' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_queue_status', $this->admin, 'handle_get_queue_status' );

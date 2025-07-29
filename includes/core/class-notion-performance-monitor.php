@@ -263,6 +263,26 @@ class Notion_Performance_Monitor {
     }
     
     /**
+     * 获取原始性能指标数据
+     *
+     * @since 2.0.0-beta.1
+     * @return array 原始性能指标数据
+     */
+    public static function get_metrics(): array {
+        $metrics = [];
+
+        // 提取自定义指标的最新值
+        foreach (self::$stats as $name => $data) {
+            if (strpos($name, 'custom_') === 0) {
+                $metric_name = substr($name, 7); // 移除 'custom_' 前缀
+                $metrics[$metric_name] = $data['last_value'] ?? 0;
+            }
+        }
+
+        return $metrics;
+    }
+
+    /**
      * 重置性能统计
      *
      * @since 2.0.0-beta.1

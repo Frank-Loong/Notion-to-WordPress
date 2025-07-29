@@ -79,11 +79,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                 <button class="notion-wp-menu-item" data-tab="field-mapping">
                     <?php esc_html_e('🔗 字段映射', 'notion-to-wordpress'); ?>
                 </button>
-                <button class="notion-wp-menu-item" data-tab="other-settings">
-                    <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
+                <button class="notion-wp-menu-item" data-tab="performance-config">
+                    <?php esc_html_e('⚡ 性能配置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="performance">
                     <?php esc_html_e('📊 性能监控', 'notion-to-wordpress'); ?>
+                </button>
+                <button class="notion-wp-menu-item" data-tab="other-settings">
+                    <?php esc_html_e('⚙️ 其他设置', 'notion-to-wordpress'); ?>
                 </button>
                 <button class="notion-wp-menu-item" data-tab="debug">
                     <?php esc_html_e('🐞 调试工具', 'notion-to-wordpress'); ?>
@@ -135,9 +138,12 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 <tr>
                                     <th scope="row"><label for="notion_to_wordpress_api_key"><?php esc_html_e('API密钥', 'notion-to-wordpress'); ?></label></th>
                                     <td>
-                                        <div class="input-with-button">
-                                            <input type="password" id="notion_to_wordpress_api_key" name="notion_to_wordpress_api_key" value="<?php echo esc_attr($api_key); ?>" class="regular-text" autocomplete="off" placeholder="<?php esc_attr_e('输入您的Notion API密钥', 'notion-to-wordpress'); ?>">
-                                            <button type="button" class="button button-secondary show-hide-password" title="<?php esc_attr_e('显示/隐藏密钥', 'notion-to-wordpress'); ?>"><span class="dashicons dashicons-visibility"></span></button>
+                                        <div class="input-with-validation">
+                                            <div class="input-with-button">
+                                                <input type="password" id="notion_to_wordpress_api_key" name="notion_to_wordpress_api_key" value="<?php echo esc_attr($api_key); ?>" class="regular-text notion-wp-validated-input" autocomplete="off" placeholder="<?php esc_attr_e('输入您的Notion API密钥', 'notion-to-wordpress'); ?>" data-validation="api-key">
+                                                <button type="button" class="button button-secondary show-hide-password" title="<?php esc_attr_e('显示/隐藏密钥', 'notion-to-wordpress'); ?>"><span class="dashicons dashicons-visibility"></span></button>
+                                            </div>
+                                            <div class="validation-feedback" id="api-key-feedback"></div>
                                         </div>
                                         <p class="description"><?php esc_html_e('在Notion的"我的集成"页面创建并获取API密钥。', 'notion-to-wordpress'); ?></p>
                                     </td>
@@ -145,7 +151,10 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 <tr>
                                     <th scope="row"><label for="notion_to_wordpress_database_id"><?php esc_html_e('数据库ID', 'notion-to-wordpress'); ?></label></th>
                                     <td>
-                                        <input type="text" id="notion_to_wordpress_database_id" name="notion_to_wordpress_database_id" value="<?php echo esc_attr($database_id); ?>" class="regular-text" placeholder="<?php esc_attr_e('输入您的Notion数据库ID', 'notion-to-wordpress'); ?>">
+                                        <div class="input-with-validation">
+                                            <input type="text" id="notion_to_wordpress_database_id" name="notion_to_wordpress_database_id" value="<?php echo esc_attr($database_id); ?>" class="regular-text notion-wp-validated-input" placeholder="<?php esc_attr_e('输入您的Notion数据库ID', 'notion-to-wordpress'); ?>" data-validation="database-id">
+                                            <div class="validation-feedback" id="database-id-feedback"></div>
+                                        </div>
                                         <p class="description"><?php echo wp_kses( __('可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数据库ID</strong>?v=xxx', 'notion-to-wordpress'), ['strong' => []] ); ?></p>
                                     </td>
                                 </tr>
@@ -207,7 +216,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         </label>
                                         <p class="description"><?php esc_html_e('启用后，您可以设置 Notion 集成的 Webhook 以在内容变更时自动触发同步。', 'notion-to-wordpress'); ?></p>
                                         
-                                        <div id="webhook-settings" style="<?php echo $webhook_enabled ? '' : 'display: none;'; ?>" class="notion-wp-subsetting">
+                                        <div id="webhook-settings" class="notion-wp-subsetting <?php echo $webhook_enabled ? '' : 'notion-wp-hidden'; ?>">
                                             <div class="notion-wp-field">
                                                 <label for="verification_token"><?php esc_html_e('验证令牌', 'notion-to-wordpress'); ?></label>
                                                 <div class="input-with-button">
@@ -281,16 +290,32 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </div>
 
                         <!-- 同步操作按钮 -->
-                        <div class="notion-wp-sync-actions" style="margin-top: 20px;">
+                        <div class="notion-wp-sync-actions">
                             <h3><?php esc_html_e('同步操作', 'notion-to-wordpress'); ?></h3>
-                            <div class="sync-buttons" style="margin-bottom: 15px; display: flex; gap: 20px;">
-                                <button type="button" class="button button-primary" id="notion-manual-import">
-                                    <span class="dashicons dashicons-lightbulb"></span> <?php esc_html_e('智能同步', 'notion-to-wordpress'); ?>
+                            <div class="sync-buttons">
+                                <button type="button" class="button button-primary notion-wp-sync-btn" id="notion-manual-import"
+                                        data-sync-type="manual" data-original-text="<?php esc_attr_e('智能同步', 'notion-to-wordpress'); ?>">
+                                    <span class="dashicons dashicons-lightbulb"></span>
+                                    <span class="button-text"><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></span>
                                 </button>
-                                <button type="button" class="button button-secondary" id="notion-full-import">
-                                    <span class="dashicons dashicons-update"></span> <?php esc_html_e('完全同步', 'notion-to-wordpress'); ?>
+                                <button type="button" class="button button-secondary notion-wp-sync-btn" id="notion-full-import"
+                                        data-sync-type="full" data-original-text="<?php esc_attr_e('完全同步', 'notion-to-wordpress'); ?>">
+                                    <span class="dashicons dashicons-update"></span>
+                                    <span class="button-text"><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></span>
                                 </button>
                             </div>
+
+                            <!-- 同步进度指示器 -->
+                            <div class="sync-progress notion-wp-hidden" id="sync-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <div class="progress-text">
+                                    <span class="current-step">准备同步...</span>
+                                    <span class="progress-percentage">0%</span>
+                                </div>
+                            </div>
+
                             <div class="sync-info">
                                 <p><strong><?php esc_html_e('智能同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('只同步有变化的页面，速度更快', 'notion-to-wordpress'); ?></p>
                                 <p><strong><?php esc_html_e('完全同步', 'notion-to-wordpress'); ?></strong>: <?php esc_html_e('同步所有页面，确保数据一致性', 'notion-to-wordpress'); ?></p>
@@ -354,13 +379,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </table>
 
                         <!-- 智能推荐 -->
-                        <div class="notion-wp-smart-recommendations" style="margin-top: 20px;">
+                        <div class="notion-wp-smart-recommendations">
                             <h3><?php esc_html_e('💡 智能推荐', 'notion-to-wordpress'); ?></h3>
                             <div id="config-recommendations">
                                 <button type="button" class="button button-secondary" id="get-smart-recommendations">
                                     <?php esc_html_e('获取配置建议', 'notion-to-wordpress'); ?>
                                 </button>
-                                <div id="recommendations-result" style="margin-top: 10px; display: none;"></div>
+                                <div id="recommendations-result" class="notion-wp-hidden"></div>
                             </div>
                         </div>
                     </div>
@@ -500,7 +525,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             <p class="description"><?php esc_html_e('Notion属性的数据类型', 'notion-to-wordpress'); ?></p>
                                         </div>
                                         <div class="custom-field-actions">
-                                            <button type="button" class="button remove-field" <?php echo (count($custom_field_mappings) <= 1) ? 'style="display:none;"' : ''; ?>>
+                                            <button type="button" class="button remove-field <?php echo (count($custom_field_mappings) <= 1) ? 'notion-wp-hidden' : ''; ?>">
                                                 <span class="dashicons dashicons-trash"></span>
                                             </button>
                                         </div>
@@ -701,14 +726,14 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                         </table>
                     </div>
 
+
+                </div>
+
+                <div class="notion-wp-tab-content" id="performance-config">
                     <div class="notion-wp-settings-section">
-                        <details class="notion-wp-advanced-options">
-                            <summary>
-                                <h2 style="display: inline;"><?php esc_html_e('🔧 高级性能选项', 'notion-to-wordpress'); ?></h2>
-                                <span class="description" style="margin-left: 10px;"><?php esc_html_e('(点击展开详细配置)', 'notion-to-wordpress'); ?></span>
-                            </summary>
-                            <div class="advanced-content" style="margin-top: 15px;">
-                                <p><?php esc_html_e('⚠️ 这些是高级选项，建议使用上方的"快速配置"。如需手动调整，请根据您的服务器配置和网络环境进行设置。', 'notion-to-wordpress'); ?></p>
+                        <h2><?php esc_html_e('性能配置', 'notion-to-wordpress'); ?></h2>
+                        <p><?php esc_html_e('这里是高级性能选项的配置页面。请根据您的服务器配置和网络环境进行设置，以获得最佳的同步性能。', 'notion-to-wordpress'); ?></p>
+
                         <table class="form-table">
                             <tbody>
                                 <tr>
@@ -763,7 +788,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <input type="checkbox" id="enable_performance_mode" name="enable_performance_mode" value="1" <?php checked(1, $enable_performance_mode); ?>>
                                                 <span><?php esc_html_e('启用性能优化模式', 'notion-to-wordpress'); ?></span>
                                             </label>
-                                            <p class="description"><?php esc_html_e('启用后将使用批量操作、并发处理和日志优化等功能来提升同步性能。', 'notion-to-wordpress'); ?></p>
+                                            <p class="description"><?php esc_html_e('启用后将使用批量操作、并发处理等功能来提升同步性能。日志记录由调试工具中的日志等级单独控制。', 'notion-to-wordpress'); ?></p>
                                         </fieldset>
                                     </td>
                                 </tr>
@@ -815,14 +840,12 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             <option value="custom" <?php selected('custom', $cdn_provider); ?>><?php esc_html_e('自定义', 'notion-to-wordpress'); ?></option>
                                         </select>
                                         <br><br>
-                                        <input type="url" id="custom_cdn_url" name="custom_cdn_url" value="<?php echo esc_attr($custom_cdn_url); ?>" class="regular-text" placeholder="https://your-cdn.com" style="<?php echo $cdn_provider !== 'custom' ? 'display:none;' : ''; ?>">
+                                        <input type="url" id="custom_cdn_url" name="custom_cdn_url" value="<?php echo esc_attr($custom_cdn_url); ?>" class="regular-text <?php echo $cdn_provider !== 'custom' ? 'notion-wp-hidden' : ''; ?>" placeholder="https://your-cdn.com">
                                         <p class="description"><?php esc_html_e('CDN可以加速静态资源加载。选择合适的CDN提供商或配置自定义CDN地址。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                            </div>
-                        </details>
                     </div>
                 </div>
 
@@ -1054,15 +1077,15 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <span class="dashicons dashicons-update"></span>
                                         <?php esc_html_e('刷新状态', 'notion-to-wordpress'); ?>
                                     </button>
-                                    <button type="button" class="button button-secondary" id="pause-async-operation" style="display: none;">
+                                    <button type="button" class="button button-secondary notion-wp-hidden" id="pause-async-operation">
                                         <span class="dashicons dashicons-controls-pause"></span>
                                         <?php esc_html_e('暂停操作', 'notion-to-wordpress'); ?>
                                     </button>
-                                    <button type="button" class="button button-secondary" id="resume-async-operation" style="display: none;">
+                                    <button type="button" class="button button-secondary notion-wp-hidden" id="resume-async-operation">
                                         <span class="dashicons dashicons-controls-play"></span>
                                         <?php esc_html_e('恢复操作', 'notion-to-wordpress'); ?>
                                     </button>
-                                    <button type="button" class="button button-link-delete" id="stop-async-operation" style="display: none;">
+                                    <button type="button" class="button button-link-delete notion-wp-hidden" id="stop-async-operation">
                                         <span class="dashicons dashicons-controls-stop"></span>
                                         <?php esc_html_e('停止操作', 'notion-to-wordpress'); ?>
                                     </button>
@@ -1097,27 +1120,28 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                 </div>
 
                                 <div class="notion-wp-index-actions">
-                                    <button type="button" class="button button-primary" id="create-database-indexes" disabled>
-                                        <span class="dashicons dashicons-database-add"></span>
-                                        <?php esc_html_e('创建性能索引', 'notion-to-wordpress'); ?>
+                                    <button type="button" class="button button-primary button-hero" id="optimize-all-indexes" style="background: linear-gradient(135deg, #0073aa 0%, #005177 100%); border-color: #005177; font-size: 14px; height: 40px; padding: 6px 20px;">
+                                        <span class="dashicons dashicons-performance" style="font-size: 18px; margin-right: 8px;"></span>
+                                        <?php esc_html_e('一键优化所有索引', 'notion-to-wordpress'); ?>
                                     </button>
-                                    <button type="button" class="button button-secondary" id="refresh-index-status">
+                                    <button type="button" class="button button-secondary" id="refresh-index-status" style="margin-left: 15px;">
                                         <span class="dashicons dashicons-update"></span>
                                         <?php esc_html_e('刷新状态', 'notion-to-wordpress'); ?>
                                     </button>
-                                    <button type="button" class="button button-link-delete" id="remove-database-indexes" style="display: none;">
+                                    <button type="button" class="button button-link-delete notion-wp-hidden" id="remove-database-indexes" style="margin-left: 10px;">
                                         <span class="dashicons dashicons-database-remove"></span>
                                         <?php esc_html_e('删除索引', 'notion-to-wordpress'); ?>
                                     </button>
                                 </div>
 
                                 <div class="notion-wp-index-info">
-                                    <h4><?php esc_html_e('索引说明', 'notion-to-wordpress'); ?></h4>
+                                    <h4><?php esc_html_e('🚀 一键优化说明', 'notion-to-wordpress'); ?></h4>
                                     <ul>
-                                        <li><strong>meta_key索引</strong>: <?php esc_html_e('优化基于字段名的查询', 'notion-to-wordpress'); ?></li>
-                                        <li><strong>复合索引</strong>: <?php esc_html_e('优化字段名和值的组合查询', 'notion-to-wordpress'); ?></li>
-                                        <li><strong>安全性</strong>: <?php esc_html_e('索引创建是零风险操作，不会影响现有数据', 'notion-to-wordpress'); ?></li>
-                                        <li><strong>性能提升</strong>: <?php esc_html_e('预期查询性能提升30-50%，特别是批量操作', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>🔥 专用索引</strong>: <?php esc_html_e('针对Notion查询模式优化的5个高性能索引', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>⚡ 智能覆盖</strong>: <?php esc_html_e('包含meta_key、复合索引、覆盖索引等全面优化', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>🛡️ 零风险操作</strong>: <?php esc_html_e('安全创建，不影响现有数据，可随时删除', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>📈 性能提升</strong>: <?php esc_html_e('预计查询速度提升20-30%，大数据集效果更明显', 'notion-to-wordpress'); ?></li>
+                                        <li><strong>🎯 实时反馈</strong>: <?php esc_html_e('显示创建进度、性能提升和详细统计信息', 'notion-to-wordpress'); ?></li>
                                     </ul>
                                 </div>
                             </div>
@@ -1176,8 +1200,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             </select>
                                             <button type="button" class="button button-secondary" id="view-log-button"><?php esc_html_e('查看日志', 'notion-to-wordpress'); ?></button>
                                             <button type="button" class="button button-danger" id="clear-logs-button"><?php esc_html_e('清除所有日志', 'notion-to-wordpress'); ?></button>
-                                            <textarea id="log-viewer" class="large-text code" rows="18" readonly
-                                                style="width:100%; max-height:480px; font-family:monospace; white-space:pre; overflow:auto;"></textarea>
+                                            <textarea id="log-viewer" class="large-text code notion-wp-log-viewer" rows="18" readonly></textarea>
                                         </div>
                                     </td>
                                 </tr>
@@ -1322,7 +1345,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
     </button>
 </div>
 
-<div id="loading-overlay" style="display: none;">
+<div id="loading-overlay" class="notion-wp-hidden">
     <div class="loading-message">
         <span class="spinner is-active"></span>
         <?php esc_html_e('处理中，请稍候...', 'notion-to-wordpress'); ?>
@@ -1332,8 +1355,9 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
 <script type="text/javascript">
 jQuery(document).ready(function($) {
 
-    // Toast提示函数
-    function showToast(type, message) {
+    // Toast提示函数 - 定义为全局函数
+    window.showToast = function(type, message) {
+        var $ = jQuery;
         var toast = $('#notion-wp-toast');
         var icon = toast.find('.dashicons');
 
@@ -1357,7 +1381,7 @@ jQuery(document).ready(function($) {
         setTimeout(function() {
             toast.removeClass('show');
         }, 3000);
-    }
+    };
 
     // Toast关闭按钮
     $('.notion-wp-toast-close').on('click', function() {
@@ -1372,11 +1396,11 @@ jQuery(document).ready(function($) {
         button.prop('disabled', true).text('<?php esc_html_e('分析中...', 'notion-to-wordpress'); ?>');
 
         $.ajax({
-            url: ajaxurl,
+            url: notionToWp.ajax_url,
             type: 'POST',
             data: {
                 action: 'notion_to_wordpress_get_smart_recommendations',
-                nonce: '<?php echo wp_create_nonce('notion_to_wordpress_nonce'); ?>'
+                nonce: notionToWp.nonce
             },
             success: function(response) {
                 if (response.success) {
@@ -1394,7 +1418,7 @@ jQuery(document).ready(function($) {
                         html += '</ul>';
                     }
 
-                    html += '<button type="button" class="button button-primary" id="apply-recommendations" style="margin-top: 10px;"><?php esc_html_e('应用推荐配置', 'notion-to-wordpress'); ?></button>';
+                    html += '<button type="button" class="button button-primary notion-wp-apply-recommendations" id="apply-recommendations"><?php esc_html_e('应用推荐配置', 'notion-to-wordpress'); ?></button>';
                     html += '</div>';
 
                     resultDiv.html(html).show();
@@ -1403,7 +1427,7 @@ jQuery(document).ready(function($) {
                     $('#apply-recommendations').on('click', function() {
                         $('#performance_level').val(recommendations.performance_level);
                         $('#field_template').val(recommendations.field_template);
-                        showToast('success', '<?php esc_html_e('推荐配置已应用', 'notion-to-wordpress'); ?>');
+                        showToast('<?php esc_html_e('推荐配置已应用', 'notion-to-wordpress'); ?>', 'success');
                     });
                 } else {
                     resultDiv.html('<div class="notice notice-error"><p>' + response.data + '</p></div>').show();

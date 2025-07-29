@@ -344,7 +344,7 @@ class Notion_Algorithm_Optimizer {
         self::$string_cache = [];
         self::$html_template_cache = [];
         
-        if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
+        if (class_exists('Notion_Logger')) {
             Notion_Logger::debug_log(
                 '算法优化器缓存已清理',
                 'Algorithm Optimizer'

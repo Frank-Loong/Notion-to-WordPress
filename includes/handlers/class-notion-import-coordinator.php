@@ -1007,20 +1007,13 @@ class Notion_Import_Coordinator {
      * @return   string|false          转换后的HTML内容或false
      */
     private function coordinate_content_processing(string $page_id) {
-        // 检查是否启用性能模式来决定日志级别
-        $options = get_option('notion_to_wordpress_options', []);
-        $performance_mode = $options['enable_performance_mode'] ?? 1;
-
-        if (!$performance_mode) {
-            Notion_Logger::debug_log('协调内容处理开始', 'Page Import');
-        }
+        // 记录内容处理开始
+        Notion_Logger::debug_log('协调内容处理开始', 'Page Import');
 
         // 获取页面内容
         $blocks = $this->notion_api->get_page_content($page_id);
 
-        if (!$performance_mode) {
-            Notion_Logger::debug_log('获取到内容块数量: ' . count($blocks), 'Page Import');
-        }
+        Notion_Logger::debug_log('获取到内容块数量: ' . count($blocks), 'Page Import');
 
         if (empty($blocks)) {
             return false;

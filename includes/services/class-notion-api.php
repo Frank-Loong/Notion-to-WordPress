@@ -81,16 +81,23 @@ class Notion_API {
         $options = get_option('notion_to_wordpress_options', []);
         $this->enable_api_merging = $options['enable_api_merging'] ?? true;
 
+        // 定义性能模式常量以减少日志记录
+        if (!defined('NOTION_PERFORMANCE_MODE')) {
+            define('NOTION_PERFORMANCE_MODE', true);
+        }
+
         if ($this->enable_api_merging && class_exists('Notion_Smart_API_Merger')) {
             // 单例检查：避免重复创建API合并器实例
             static $global_api_merger = null;
+            static $merger_created = false;
 
             if ($global_api_merger === null) {
                 $global_api_merger = new Notion_Smart_API_Merger();
 
                 // 减少日志频率：只在首次创建时记录
-                if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
+                if (class_exists('Notion_Logger') && !$merger_created) {
                     Notion_Logger::debug_log('智能API合并器已创建（单例模式）', 'API Merger');
+                    $merger_created = true;
                 }
             }
 
@@ -878,16 +885,11 @@ class Notion_API {
 
         $start_time = microtime(true);
 
-        // 检查是否启用性能模式
-        $options = get_option('notion_to_wordpress_options', []);
-        $performance_mode = $options['enable_performance_mode'] ?? 1;
-
-        if (!$performance_mode) {
-            Notion_Logger::debug_log(
-                sprintf('开始批量API请求: %d个端点，方法: %s', count($endpoints), $method),
-                'Batch API'
-            );
-        }
+        // 记录批量API请求开始
+        Notion_Logger::debug_log(
+            sprintf('开始批量API请求: %d个端点，方法: %s', count($endpoints), $method),
+            'Batch API'
+        );
 
         try {
             // 从配置中获取并发数，使用自适应调整

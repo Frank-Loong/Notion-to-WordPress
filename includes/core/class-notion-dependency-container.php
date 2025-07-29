@@ -61,7 +61,7 @@ class Notion_Dependency_Container {
      * @return mixed 服务实例
      * @throws Exception 当服务未注册时
      */
-    public static function get(string $name) {
+    public static function get(string $name): mixed {
         // 检查是否为单例且已实例化
         if (self::$singletons[$name] ?? false) {
             if (isset(self::$instances[$name])) {
@@ -76,13 +76,31 @@ class Notion_Dependency_Container {
         
         $definition = self::$definitions[$name];
         
-        // 创建实例
-        if (is_callable($definition)) {
-            $instance = $definition();
-        } elseif (is_string($definition) && class_exists($definition)) {
-            $instance = new $definition();
-        } else {
-            throw new Exception("Invalid service definition for '{$name}'");
+        // 创建实例（增强异常处理）
+        try {
+            if (is_callable($definition)) {
+                $instance = $definition();
+            } elseif (is_string($definition) && class_exists($definition)) {
+                $instance = new $definition();
+            } else {
+                throw new Exception("Invalid service definition for '{$name}': " . gettype($definition));
+            }
+        } catch (Throwable $e) {
+            // 提供更详细的错误信息
+            $error_message = sprintf(
+                "Failed to create service '%s': %s in %s:%d",
+                $name,
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            );
+            
+            // 记录错误（如果日志系统可用）
+            if (class_exists('Notion_Logger')) {
+                Notion_Logger::error_log($error_message, 'Dependency Container');
+            }
+            
+            throw new Exception($error_message, 0, $e);
         }
         
         // 存储单例实例
@@ -161,9 +179,9 @@ class Notion_Dependency_Container {
             return new Notion_Concurrent_Network_Manager();
         });
         
-        // 注册任务调度服务
+        // 注册任务调度服务（单例模式）
         self::register('scheduler', function() {
-            return new Notion_Async_Task_Scheduler();
+            return Notion_Async_Task_Scheduler::getInstance();
         });
         
         // 注册API合并服务

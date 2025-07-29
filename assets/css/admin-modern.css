@@ -3,6 +3,13 @@
  *
  * 为 Notion to WordPress 插件后台提供现代化、响应式的用户界面样式。
  *
+ * 特性：
+ * - WCAG 2.1 AA 级别的颜色对比度
+ * - 三层响应式断点设计 (1024px, 768px, 480px)
+ * - 硬件加速的动画效果
+ * - 统一的设计系统和CSS变量
+ * - 触摸友好的交互元素
+ *
  * @since      2.0.0
  * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
@@ -12,30 +19,55 @@
  */
 
 :root {
-  --notion-primary: #2563eb;
-  --notion-primary-dark: #1d4ed8;
-  --notion-primary-light: #eff4ff;
-  --notion-secondary: #37352f;
-  --notion-accent: #059669;
+  /* 主色调 - 优化对比度 */
+  --notion-primary: #1e40af;
+  --notion-primary-dark: #1e3a8a;
+  --notion-primary-light: #eff6ff;
+  --notion-secondary: #1f2937;
+  --notion-accent: #047857;
   --notion-accent-light: #ecfdf5;
-  --notion-danger: #dc2626;
-  --notion-danger-light: #fee2e2;
-  --notion-warning: #d97706;
-  --notion-info: #0891b2;
-  --notion-gray-100: #f6f6f6;
-  --notion-gray-200: #eaeaea;
-  --notion-gray-300: #ddd;
-  --notion-gray-400: #ccc;
-  --notion-gray-500: #a7aaad;
-  --notion-gray-600: #8c8f94;
-  --notion-gray-700: #50575e;
-  --notion-gray-800: #3c434a;
-  --notion-gray-900: #1d2327;
+
+  /* 状态颜色 - 提升对比度 */
+  --notion-danger: #b91c1c;
+  --notion-danger-light: #fef2f2;
+  --notion-warning: #b45309;
+  --notion-warning-light: #fffbeb;
+  --notion-info: #0369a1;
+  --notion-info-light: #eff6ff;
+  --notion-success: #047857;
+  --notion-success-light: #ecfdf5;
+
+  /* 灰度系统 - 优化可读性 */
+  --notion-gray-50: #f9fafb;
+  --notion-gray-100: #f3f4f6;
+  --notion-gray-200: #e5e7eb;
+  --notion-gray-300: #d1d5db;
+  --notion-gray-400: #9ca3af;
+  --notion-gray-500: #6b7280;
+  --notion-gray-600: #4b5563;
+  --notion-gray-700: #374151;
+  --notion-gray-800: #1f2937;
+  --notion-gray-900: #111827;
+
+  /* 设计系统 */
   --notion-border-radius: 8px;
-  --notion-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --notion-transition: all 0.2s ease-in-out;
+  --notion-border-radius-sm: 4px;
+  --notion-border-radius-lg: 12px;
+  --notion-box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --notion-box-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --notion-transition: all 0.15s ease-in-out;
+  --notion-transition-fast: all 0.1s ease-in-out;
+
+  /* 布局 */
   --notion-sidebar-width: 240px;
   --notion-content-width: calc(100% - var(--notion-sidebar-width) - 20px);
+
+  /* 字体 */
+  --notion-font-size-xs: 0.75rem;
+  --notion-font-size-sm: 0.875rem;
+  --notion-font-size-base: 1rem;
+  --notion-font-size-lg: 1.125rem;
+  --notion-font-size-xl: 1.25rem;
 }
 
 /* 字体与基本布局 */
@@ -186,29 +218,15 @@ body.wp-admin {
     }
 }
 
-/* 添加Element Plus全局引用 */
-@import url('https://cdn.jsdelivr.net/npm/element-plus@2.3.2/dist/index.css');
-
-/* 侧边栏样式*/
+/* 侧边栏样式 - 统一使用CSS变量 */
 .ncf-admin-aside {
-    background: #f1f1f1;
-    color: #333;
-    border-right: 1px solid #eee;
+    background: var(--notion-gray-50);
+    color: var(--notion-gray-800);
+    border-right: 1px solid var(--notion-gray-200);
     height: 100vh;
     position: fixed;
     left: 0;
     top: 0;
-}
-
-/* Element Plus icons 兼容*/
-.el-icon-refresh:before {
-    content: "🔄";
-}
-.el-icon-data-analysis:before {
-    content: "📊";
-}
-.el-icon-setting:before {
-    content: "⚙️";
 }
 
 /* 修复可能的黑色小块问题 */
@@ -847,7 +865,7 @@ body.admin-color-dark .ncf-admin-aside {
   color: var(--notion-gray-900);
 }
 
-/* 表单样式 */
+/* 表单样式 - 优化选择器 */
 .notion-wp-admin .form-table {
   border-collapse: collapse;
   margin-top: 20px;
@@ -1067,10 +1085,10 @@ body.admin-color-dark .ncf-admin-aside {
   animation: pulse 1s ease-in-out;
 }
 
-/* 错误样式 */
-.error { 
-  border-color: #d63638 !important; 
-  box-shadow: 0 0 0 1px #d63638 !important; 
+/* 通用状态样式 */
+.error {
+  border-color: var(--notion-error) !important;
+  box-shadow: 0 0 0 1px var(--notion-error) !important;
 }
 
 .highlight { 
@@ -1091,6 +1109,258 @@ body.admin-color-dark .ncf-admin-aside {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+/* 通用按钮样式增强 */
+.button {
+    transition: var(--notion-transition);
+    position: relative;
+    overflow: hidden;
+    transform: translateZ(0); /* 启用硬件加速 */
+}
+
+.button:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease-out;
+}
+
+.button:hover:before {
+    left: 100%;
+}
+
+/* 按钮焦点状态 - 提升可访问性 */
+.button:focus {
+    outline: 2px solid var(--notion-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+/* 按钮禁用状态 */
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.button:disabled:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* 按钮加载状态 */
+.button.loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.button.loading:after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+/* 复制按钮成功状态 */
+.button.copied {
+    background-color: var(--notion-success) !important;
+    border-color: var(--notion-success) !important;
+    color: white !important;
+    transform: scale(1.05);
+}
+
+.button.copied:before {
+    content: '✓ ';
+}
+
+/* 复制按钮动画 */
+@keyframes copySuccess {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.button.copied {
+    animation: copySuccess 0.3s ease-in-out;
+}
+
+/* 同步进度指示器 */
+.sync-progress {
+    margin: 20px 0;
+    padding: 15px;
+    background: var(--notion-gray-50);
+    border: 1px solid var(--notion-gray-200);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--notion-gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--notion-primary), var(--notion-secondary));
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.progress-fill:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.progress-text {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    color: var(--notion-gray-700);
+}
+
+.current-step {
+    font-weight: 500;
+}
+
+.progress-percentage {
+    font-weight: 600;
+    color: var(--notion-primary);
+}
+
+/* 同步按钮增强 */
+.notion-wp-sync-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.notion-wp-sync-btn .button-text {
+    transition: opacity 0.2s ease;
+}
+
+.notion-wp-sync-btn.loading .button-text {
+    opacity: 0;
+}
+
+.notion-wp-sync-btn.success {
+    background-color: var(--notion-success) !important;
+    border-color: var(--notion-success) !important;
+    color: white !important;
+}
+
+.notion-wp-sync-btn.error {
+    background-color: var(--notion-error) !important;
+    border-color: var(--notion-error) !important;
+    color: white !important;
+}
+
+/* 表单验证反馈 */
+.input-with-validation {
+    position: relative;
+}
+
+.validation-feedback {
+    margin-top: 5px;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 8px 12px;
+    border-radius: 4px;
+    display: none;
+    transition: all 0.3s ease;
+}
+
+.validation-feedback.success {
+    display: block;
+    background-color: rgba(46, 160, 67, 0.1);
+    border: 1px solid var(--notion-success);
+    color: var(--notion-success);
+}
+
+.validation-feedback.error {
+    display: block;
+    background-color: rgba(220, 38, 38, 0.1);
+    border: 1px solid var(--notion-error);
+    color: var(--notion-error);
+}
+
+.validation-feedback.warning {
+    display: block;
+    background-color: rgba(245, 158, 11, 0.1);
+    border: 1px solid var(--notion-warning);
+    color: var(--notion-warning);
+}
+
+.validation-feedback:before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    vertical-align: text-top;
+    background-size: contain;
+}
+
+.validation-feedback.success:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%232ea043' viewBox='0 0 16 16'%3E%3Cpath d='M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z'/%3E%3C/svg%3E");
+}
+
+.validation-feedback.error:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23dc2626' viewBox='0 0 16 16'%3E%3Cpath d='M8 0a8 8 0 100 16A8 8 0 008 0zM3.97 3.97a.75.75 0 011.06 0L8 6.94l2.97-2.97a.75.75 0 111.06 1.06L9.06 8l2.97 2.97a.75.75 0 11-1.06 1.06L8 9.06l-2.97 2.97a.75.75 0 01-1.06-1.06L6.94 8 3.97 5.03a.75.75 0 010-1.06z'/%3E%3C/svg%3E");
+}
+
+.validation-feedback.warning:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23f59e0b' viewBox='0 0 16 16'%3E%3Cpath d='M8.982 1.566a1.13 1.13 0 00-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 018 5zm0 8a1 1 0 100-2 1 1 0 000 2z'/%3E%3C/svg%3E");
+}
+
+/* 输入框验证状态 */
+.notion-wp-validated-input.valid {
+    border-color: var(--notion-success);
+    box-shadow: 0 0 0 1px rgba(46, 160, 67, 0.2);
+}
+
+.notion-wp-validated-input.invalid {
+    border-color: var(--notion-error);
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.2);
+}
+
+.notion-wp-validated-input.warning {
+    border-color: var(--notion-warning);
+    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
 }
 
 /* 响应式调整 */
@@ -1958,7 +2228,63 @@ code {
     font-weight: 600;
 }
 
+/* 通用隐藏类 */
+.notion-wp-hidden {
+    display: none !important;
+}
+
+/* 同步操作区域样式 */
+.notion-wp-sync-actions {
+    margin-top: 20px;
+}
+
+.sync-buttons {
+    margin-bottom: 15px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* 智能推荐区域样式 */
+.notion-wp-smart-recommendations {
+    margin-top: 20px;
+}
+
+#recommendations-result {
+    margin-top: 10px;
+}
+
+.notion-wp-apply-recommendations {
+    margin-top: 10px;
+}
+
+/* 日志查看器样式 */
+.notion-wp-log-viewer {
+    width: 100% !important;
+    max-height: 480px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace !important;
+    white-space: pre;
+    overflow: auto;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 12px;
+    line-height: 1.4;
+    font-size: 13px;
+}
+
 /* 响应式设计 */
+@media (max-width: 1024px) {
+    .notion-wp-container {
+        padding: 15px;
+    }
+
+    .notion-wp-menu-item {
+        font-size: var(--notion-font-size-sm);
+        padding: 10px 15px;
+    }
+}
+
 @media (max-width: 768px) {
     .async-status-grid,
     .queue-status-grid {
@@ -1969,11 +2295,13 @@ code {
     .notion-wp-async-actions {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
 
     .notion-wp-async-actions .button {
         justify-content: center;
         width: 100%;
+        min-height: 44px; /* 触摸友好的最小高度 */
     }
 
     .async-status-item,
@@ -1981,5 +2309,85 @@ code {
         flex-direction: column;
         align-items: flex-start;
         gap: 6px;
+    }
+
+    .sync-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .sync-buttons .button {
+        width: 100%;
+        justify-content: center;
+        min-height: 44px;
+    }
+
+    /* 表单优化 */
+    .form-table th,
+    .form-table td {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+    }
+
+    .form-table th {
+        border-bottom: none;
+        padding-bottom: 5px;
+    }
+
+    .form-table td {
+        border-top: none;
+        padding-top: 5px;
+    }
+
+    /* 输入框优化 */
+    .regular-text,
+    .large-text {
+        width: 100% !important;
+        max-width: none;
+        font-size: 16px; /* 防止iOS缩放 */
+    }
+
+    /* 菜单优化 */
+    .notion-wp-menu {
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .notion-wp-menu-item {
+        width: 100%;
+        text-align: left;
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 480px) {
+    .notion-wp-container {
+        padding: 10px;
+        margin: 10px 0;
+    }
+
+    .notion-wp-settings-section h2 {
+        font-size: var(--notion-font-size-lg);
+        margin-bottom: 15px;
+    }
+
+    .button {
+        padding: 12px 16px;
+        font-size: var(--notion-font-size-sm);
+    }
+
+    /* 卡片优化 */
+    .stat-card {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+
+    .stat-card h3 {
+        font-size: var(--notion-font-size-base);
+    }
+
+    .stat-card .stat-value {
+        font-size: 1.5rem;
     }
 }

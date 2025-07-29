@@ -113,15 +113,17 @@ class Notion_Smart_API_Merger {
         $this->min_batch_size = $options['api_merge_min_batch'] ?? 3; // 默认3个
         $this->max_batch_size = $options['api_merge_max_batch'] ?? 25; // 默认25个
 
-        // 减少日志频率：只在非性能模式下记录
+        // 🚀 性能优化：减少日志频率，避免重复记录相同配置
         if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
             static $logged_config = null;
+            static $log_count = 0;
             $current_config = sprintf('%d-%d-%d', $this->batch_timeout, $this->min_batch_size, $this->max_batch_size);
 
-            if ($logged_config !== $current_config) {
+            // 只在配置变化或每100次初始化时记录一次
+            if ($logged_config !== $current_config || (++$log_count % 100 === 0)) {
                 Notion_Logger::debug_log(
-                    sprintf('智能API合并器配置: 窗口=%dms, 批处理大小=%d-%d',
-                        $this->batch_timeout, $this->min_batch_size, $this->max_batch_size),
+                    sprintf('智能API合并器配置: 窗口=%dms, 批处理大小=%d-%d (初始化次数: %d)',
+                        $this->batch_timeout, $this->min_batch_size, $this->max_batch_size, $log_count),
                     'API Merger'
                 );
                 $logged_config = $current_config;

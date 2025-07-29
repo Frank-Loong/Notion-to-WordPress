@@ -70,8 +70,8 @@ class Notion_Stream_Processor {
         // 简化：使用固定分块大小，避免动态调整的开销
         $optimal_chunk_size = min($chunk_size, self::MAX_CHUNK_SIZE);
 
-        // 减少日志记录
-        if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
+        // 记录流式处理开始信息
+        if (class_exists('Notion_Logger')) {
             Notion_Logger::debug_log(
                 sprintf('流式处理开始: %d项数据，分块大小: %d', count($data), $optimal_chunk_size),
                 'Stream Processor'

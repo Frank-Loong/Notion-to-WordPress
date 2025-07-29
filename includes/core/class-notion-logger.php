@@ -31,6 +31,18 @@ class Notion_Logger {
     const DEBUG_LEVEL_DEBUG = 4;   // 记录所有内容，包括详细调试信息
     
     /**
+     * 日志相关常量
+     */
+    const MAX_LOG_CONTENT_LENGTH = 10000;     // 最大日志内容长度
+    const MAX_HTML_CONTENT_LENGTH = 1000;     // HTML内容最大长度
+    const MAX_HTML_TRUNCATE_LENGTH = 500;     // HTML内容截断长度
+    const MAX_ARRAY_CONTENT_LENGTH = 2000;    // 数组内容最大长度
+    const LOG_READ_CHUNK_SIZE = 1048576;      // 日志读取块大小 (1MB)
+    const DUPLICATE_MESSAGE_TIMEOUT = 60;     // 重复消息过滤时间（秒）
+    const MESSAGE_CACHE_CLEANUP_SIZE = 100;   // 消息缓存清理阈值
+    const MESSAGE_CACHE_RETENTION = 300;      // 消息缓存保留时间（5分钟）
+    
+    /**
      * 当前日志记录级别。
      *
      * @access private
@@ -53,6 +65,28 @@ class Notion_Logger {
      * @var int
      */
     private static int $max_log_files = 10;
+
+    /**
+     * 获取最大日志文件大小
+     *
+     * @since 2.0.0-beta.1
+     * @return int 最大日志文件大小（字节）
+     */
+    private static function get_max_log_size(): int {
+        $options = get_option('notion_to_wordpress_options', []);
+        return $options['max_log_size'] ?? 5242880; // 5MB default
+    }
+
+    /**
+     * 获取最大日志文件数量
+     *
+     * @since 2.0.0-beta.1
+     * @return int 最大日志文件数量
+     */
+    private static function get_max_log_files(): int {
+        $options = get_option('notion_to_wordpress_options', []);
+        return $options['max_log_files'] ?? 10; // 10 files default
+    }
 
     /**
      * 日志缓冲区
@@ -126,10 +160,7 @@ class Notion_Logger {
             return;
         }
 
-        // 简化：性能模式下直接跳过非错误级别的日志，不使用缓冲区
-        if (self::is_performance_mode() && $level > self::DEBUG_LEVEL_ERROR) {
-            return;
-        }
+        // 移除性能模式对日志的控制 - 日志应该只由调试等级控制
         
         // 智能日志过滤：跳过重复的调试信息
         static $last_messages = [];
@@ -137,8 +168,8 @@ class Notion_Logger {
         $current_time = time();
         
         if (isset($last_messages[$message_key]) && 
-            ($current_time - $last_messages[$message_key]) < 5) {
-            // 5秒内的重复消息跳过
+            ($current_time - $last_messages[$message_key]) < 60) {
+            // 60秒内的重复消息跳过
             return;
         }
         $last_messages[$message_key] = $current_time;
@@ -150,8 +181,8 @@ class Notion_Logger {
         $log_content = is_array($data) || is_object($data) ? print_r($data, true) : $data;
 
         // 限制日志内容大小，避免超大日志
-        if (strlen($log_content) > 10000) {
-            $log_content = substr($log_content, 0, 10000) . '... [日志内容已截断]';
+        if (strlen($log_content) > self::MAX_LOG_CONTENT_LENGTH) {
+            $log_content = substr($log_content, 0, self::MAX_LOG_CONTENT_LENGTH) . '... [日志内容已截断]';
         }
 
         // 过滤敏感内容，保护用户隐私
@@ -215,16 +246,15 @@ class Notion_Logger {
         }
 
         // 检测并过滤HTML内容（可能包含文章内容）
-        if (preg_match('/<[^>]+>/', $content) && strlen($content) > 1000) {
-            // 如果包含HTML标签且内容很长，可能是文章内容，进行脱敏处理
+        if (preg_match('/<[^>]+>/', $content) && strlen($content) > self::MAX_HTML_CONTENT_LENGTH) {
             $content = preg_replace('/<[^>]+>/', '[HTML标签已过滤]', $content);
-            if (strlen($content) > 500) {
-                $content = substr($content, 0, 500) . '... [HTML内容已过滤]';
+            if (strlen($content) > self::MAX_HTML_TRUNCATE_LENGTH) {
+                $content = substr($content, 0, self::MAX_HTML_TRUNCATE_LENGTH) . '... [HTML内容已过滤]';
             }
         }
 
         // 过滤包含大量文本的数组输出（可能是文章内容）
-        if (strpos($content, 'Array') === 0 && strlen($content) > 2000) {
+        if (strpos($content, 'Array') === 0 && strlen($content) > self::MAX_ARRAY_CONTENT_LENGTH) {
             $content = '[数组内容已过滤，长度: ' . strlen($content) . ' 字符]';
         }
 
@@ -270,7 +300,7 @@ class Notion_Logger {
             $log_file = $log_dir . '/debug-' . date('Y-m-d') . '.log';
 
             // 检查日志文件大小，如果超过限制则进行轮转
-            if (file_exists($log_file) && filesize($log_file) > self::$max_log_size) {
+            if (file_exists($log_file) && filesize($log_file) > self::get_max_log_size()) {
                 self::rotate_log_file($log_file);
             }
         }
@@ -303,7 +333,7 @@ class Notion_Logger {
         $base_name = $path_info['dirname'] . '/' . $path_info['filename'];
 
         // 移动现有的轮转日志
-        for ($i = self::$max_log_files - 1; $i > 0; $i--) {
+        for ($i = self::get_max_log_files() - 1; $i > 0; $i--) {
             $old_file = $base_name . '.' . $i . '.log';
             $new_file = $base_name . '.' . ($i + 1) . '.log';
 
@@ -355,7 +385,7 @@ class Notion_Logger {
         if (file_exists($log_file)) {
             // 只读取最后 1MB 的内容以防止过大的文件拖慢后台
             $size = filesize($log_file);
-            $offset = max(0, $size - 1024 * 1024);
+            $offset = max(0, $size - self::LOG_READ_CHUNK_SIZE);
             return file_get_contents($log_file, false, null, $offset);
         }
 
@@ -425,13 +455,13 @@ class Notion_Logger {
             }
 
             // 删除超过最大数量的日志文件
-            if ($index >= self::$max_log_files) {
+            if ($index >= self::get_max_log_files()) {
                 @unlink($file);
                 continue;
             }
 
             // 如果文件过大，进行轮转
-            if ($file_size > self::$max_log_size) {
+            if ($file_size > self::get_max_log_size()) {
                 self::rotate_log_file($file);
             }
         }
@@ -541,8 +571,8 @@ class Notion_Logger {
                 : $log_entry['data'];
 
             // 限制日志内容大小
-            if (strlen($log_content) > 10000) {
-                $log_content = substr($log_content, 0, 10000) . '... [日志内容已截断]';
+            if (strlen($log_content) > self::MAX_LOG_CONTENT_LENGTH) {
+                $log_content = substr($log_content, 0, self::MAX_LOG_CONTENT_LENGTH) . '... [日志内容已截断]';
             }
 
             // 过滤敏感内容

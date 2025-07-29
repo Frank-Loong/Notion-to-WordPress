@@ -257,6 +257,72 @@ class Notion_To_WordPress_Admin {
     }
 
     /**
+     * 验证配置参数
+     *
+     * @since 2.0.0-beta.1
+     * @param array $options 要验证的配置选项
+     * @return array 验证结果，包含errors和warnings
+     */
+    private function validate_config(array $options): array {
+        $errors = [];
+        $warnings = [];
+
+        // 验证 API Key 格式
+        if (!empty($options['notion_api_key'])) {
+            // Notion API Key 应该是 secret_ 开头的字符串
+            if (!preg_match('/^secret_[a-zA-Z0-9]+$/', $options['notion_api_key'])) {
+                $errors[] = __('Notion API Key 格式不正确。应以 "secret_" 开头。', 'notion-to-wordpress');
+            }
+        }
+
+        // 验证数据库 ID 格式
+        if (!empty($options['notion_database_id'])) {
+            // Notion Database ID 应该是32位的十六进制字符串（可能包含短横线）
+            $clean_id = str_replace('-', '', $options['notion_database_id']);
+            if (!preg_match('/^[a-f0-9]{32}$/i', $clean_id)) {
+                $errors[] = __('Notion 数据库 ID 格式不正确。应为32位十六进制字符串。', 'notion-to-wordpress');
+            }
+        }
+
+        // 验证同步计划选项
+        $valid_schedules = ['manual', 'hourly', 'twicedaily', 'daily', 'weekly', 'biweekly', 'monthly'];
+        if (!empty($options['sync_schedule']) && !in_array($options['sync_schedule'], $valid_schedules)) {
+            $errors[] = __('同步计划选项无效。', 'notion-to-wordpress');
+        }
+
+        // 验证调试级别
+        if (isset($options['debug_level'])) {
+            $valid_levels = [0, 1, 2, 3, 4];
+            if (!in_array((int)$options['debug_level'], $valid_levels)) {
+                $errors[] = __('调试级别无效。必须在0-4之间。', 'notion-to-wordpress');
+            }
+        }
+
+        // 验证 iframe 白名单格式
+        if (!empty($options['iframe_whitelist']) && $options['iframe_whitelist'] !== '*') {
+            $domains = array_map('trim', explode(',', $options['iframe_whitelist']));
+            foreach ($domains as $domain) {
+                if (!empty($domain) && !filter_var('http://' . $domain, FILTER_VALIDATE_URL)) {
+                    $warnings[] = sprintf(__('域名格式可能不正确: %s', 'notion-to-wordpress'), $domain);
+                }
+            }
+        }
+
+        // 验证图片类型格式
+        if (!empty($options['allowed_image_types'])) {
+            $types = array_map('trim', explode(',', $options['allowed_image_types']));
+            $valid_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
+            foreach ($types as $type) {
+                if (!empty($type) && !in_array($type, $valid_types)) {
+                    $warnings[] = sprintf(__('图片类型可能不支持: %s', 'notion-to-wordpress'), $type);
+                }
+            }
+        }
+
+        return ['errors' => $errors, 'warnings' => $warnings];
+    }
+
+    /**
      * 从 POST 数据解析并返回更新后的插件选项
      */
     private function parse_settings(array $options): array {
@@ -434,6 +500,20 @@ class Notion_To_WordPress_Admin {
             $current_options = get_option('notion_to_wordpress_options', []);
             $options = $this->parse_settings($current_options);
 
+            // 验证配置参数
+            $validation = $this->validate_config($options);
+            if (!empty($validation['errors'])) {
+                wp_send_json_error([
+                    'message' => __('配置验证失败：', 'notion-to-wordpress') . implode(' ', $validation['errors'])
+                ], 400);
+            }
+
+            // 如有警告，在成功消息中包含
+            $message = __('设置已成功保存。', 'notion-to-wordpress');
+            if (!empty($validation['warnings'])) {
+                $message .= ' ' . __('注意：', 'notion-to-wordpress') . implode(' ', $validation['warnings']);
+            }
+
             update_option('notion_to_wordpress_options', $options);
 
             // 重新初始化日志系统
@@ -445,7 +525,7 @@ class Notion_To_WordPress_Admin {
             $this->update_cron_schedule($options);
             $this->update_log_cleanup_schedule($options);
 
-            wp_send_json_success(['message' => __('设置已成功保存。', 'notion-to-wordpress')]);
+            wp_send_json_success(['message' => $message]);
 
         } catch (Exception $e) {
             wp_send_json_error(['message' => __('保存设置时发生错误：', 'notion-to-wordpress') . $e->getMessage()]);
@@ -955,7 +1035,9 @@ class Notion_To_WordPress_Admin {
 
         try {
             // 重置性能统计数据
-            // 这里可以清理缓存、重置计数器等
+            if (class_exists('Notion_Performance_Monitor')) {
+                Notion_Performance_Monitor::reset_stats();
+            }
 
             // 强制垃圾回收
             if (class_exists('Notion_Memory_Manager')) {
@@ -1050,12 +1132,14 @@ class Notion_To_WordPress_Admin {
             // 获取索引状态
             $status = Notion_Database_Helper::get_index_status();
 
-            // 获取优化建议
-            $suggestions = Notion_Database_Helper::get_optimization_suggestions();
+            // 获取专用Notion索引优化建议
+            $notion_suggestions = Notion_Database_Helper::get_notion_specific_optimization_suggestions();
+            $general_suggestions = Notion_Database_Helper::get_optimization_suggestions();
 
             wp_send_json_success([
                 'status' => $status,
-                'suggestions' => $suggestions,
+                'notion_suggestions' => $notion_suggestions,
+                'general_suggestions' => $general_suggestions,
                 'message' => '索引状态获取成功'
             ]);
 
@@ -1108,6 +1192,57 @@ class Notion_To_WordPress_Admin {
         }
     }
 
+    /**
+     * 处理一键索引优化的AJAX请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_optimize_all_indexes() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        try {
+            // 调用一键优化方法
+            $result = Notion_Database_Index_Manager::optimize_all_notion_indexes();
+
+            if ($result['success']) {
+                $message = sprintf(
+                    '🎉 索引优化成功！创建了 %d 个索引，预计性能提升 %.1f%%，耗时 %.3f 秒',
+                    count($result['created_indexes']),
+                    $result['details']['estimated_performance_gain'] ?? 0,
+                    $result['total_time']
+                );
+
+                wp_send_json_success([
+                    'message' => $message,
+                    'data' => $result,
+                    'performance_improvement' => $result['details']['estimated_performance_gain'] ?? 0
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => sprintf(
+                        '⚠️ 索引优化部分成功。创建了 %d 个索引，%d 个失败',
+                        count($result['created_indexes']),
+                        count($result['failed_indexes'])
+                    ),
+                    'data' => $result
+                ]);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '⚠️ 索引优化时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
     // ==================== 队列管理AJAX处理方法 ====================
 
     /**
@@ -1129,15 +1264,32 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            if (class_exists('Notion_Queue_Manager')) {
-                $queue_status = Notion_Queue_Manager::get_queue_status();
+            // 使用现代异步引擎
+            if (class_exists('Notion_Modern_Async_Engine')) {
+                $system_status = Notion_Modern_Async_Engine::getStatus();
+                $tracker = new Notion_Progress_Tracker();
+                $stats = $tracker->getStatistics();
+
+                $queue_status = [
+                    'total_tasks' => $stats['total_tasks'],
+                    'pending' => $stats['pending'],
+                    'processing' => $stats['running'],
+                    'completed' => $stats['completed'],
+                    'failed' => $stats['failed'],
+                    'retrying' => 0, // 现代引擎没有重试状态
+                    'queue_size' => $system_status['queue_size'],
+                    'is_processing' => $system_status['queue_size'] > 0,
+                    'last_processed' => '',
+                    'next_scheduled' => '',
+                    'engine_type' => 'modern'
+                ];
 
                 wp_send_json_success([
                     'status' => $queue_status,
-                    'message' => '队列状态获取成功'
+                    'message' => '现代异步引擎状态获取成功'
                 ]);
             } else {
-                // 提供默认队列状态而不是错误（字段名匹配JavaScript期望）
+                // 现代异步引擎不可用
                 $default_queue_status = [
                     'total_tasks' => 0,
                     'pending' => 0,
@@ -1148,12 +1300,13 @@ class Notion_To_WordPress_Admin {
                     'queue_size' => 0,
                     'is_processing' => false,
                     'last_processed' => '',
-                    'next_scheduled' => ''
+                    'next_scheduled' => '',
+                    'engine_type' => 'unavailable'
                 ];
 
-                wp_send_json_success([
+                wp_send_json_error([
                     'status' => $default_queue_status,
-                    'message' => '队列管理器不可用，返回默认状态'
+                    'message' => '现代异步引擎不可用'
                 ]);
             }
 
@@ -1188,8 +1341,9 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            if (class_exists('Notion_Queue_Manager')) {
-                $result = Notion_Queue_Manager::cancel_task($task_id);
+            // 使用现代异步引擎
+            if (class_exists('Notion_Modern_Async_Engine')) {
+                $result = Notion_Modern_Async_Engine::cancel($task_id);
 
                 if ($result) {
                     wp_send_json_success(['message' => '任务已成功取消']);
@@ -1197,7 +1351,7 @@ class Notion_To_WordPress_Admin {
                     wp_send_json_error(['message' => '任务取消失败，可能任务不存在或已完成']);
                 }
             } else {
-                wp_send_json_error(['message' => '队列管理器不可用']);
+                wp_send_json_error(['message' => '现代异步引擎不可用']);
             }
 
         } catch (Exception $e) {
@@ -1224,15 +1378,18 @@ class Notion_To_WordPress_Admin {
         }
 
         try {
-            if (class_exists('Notion_Queue_Manager')) {
-                $cleaned_count = Notion_Queue_Manager::cleanup_completed_tasks();
+            // 清理现代异步引擎
+            if (class_exists('Notion_Modern_Async_Engine')) {
+                Notion_Modern_Async_Engine::cleanup();
+                $tracker = new Notion_Progress_Tracker();
+                $cleaned_count = $tracker->cleanupExpiredTasks();
 
                 wp_send_json_success([
-                    'message' => "已清理 {$cleaned_count} 个已完成的任务",
+                    'message' => "已清理 {$cleaned_count} 个过期任务",
                     'cleaned_count' => $cleaned_count
                 ]);
             } else {
-                wp_send_json_error(['message' => '队列管理器不可用']);
+                wp_send_json_error(['message' => '现代异步引擎不可用']);
             }
 
         } catch (Exception $e) {

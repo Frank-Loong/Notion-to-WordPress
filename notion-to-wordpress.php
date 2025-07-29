@@ -61,10 +61,16 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-memory-ma
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-logger.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-performance-monitor.php';
 
+// 现代化异步处理系统
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-task-queue.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-task-executor.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-progress-tracker.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-async-task-scheduler.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-modern-async-engine.php';
+
 require_once plugin_dir_path( __FILE__ ) . 'includes/core/class-notion-algorithm-optimizer.php';
 
 require_once plugin_dir_path( __FILE__ ) . 'includes/services/class-notion-incremental-detector.php';
-require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-task-scheduler.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-config-simplifier.php';
 
 // 修复：加载关键的流式处理器类
@@ -72,6 +78,7 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-stream-p
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-concurrent-network-manager.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-network-retry.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-smart-api-merger.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/utils/class-notion-async-helper.php';
 require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-wordpress.php';
 
 /**
@@ -79,39 +86,21 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/framework/class-notion-to-w
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
  */
 function activate_notion_to_wordpress() {
-	// 检查Action Scheduler依赖
-	check_action_scheduler_dependency();
+	// 初始化现代异步处理系统
+	init_modern_async_system();
 
 	Notion_To_WordPress::activate();
 }
 
 /**
- * 检查Action Scheduler依赖
+ * 初始化现代异步处理系统
  *
- * @since 2.0.0-beta.1
+ * @since 2.0.0-beta.2
  */
-function check_action_scheduler_dependency() {
-	// 检查Action Scheduler是否可用
-	if (!function_exists('as_schedule_single_action')) {
-		// 显示管理员通知
-		add_action('admin_notices', function() {
-			echo '<div class="notice notice-warning is-dismissible">';
-			echo '<p><strong>Notion to WordPress:</strong> 建议安装 WooCommerce 或 Action Scheduler 插件以获得更好的异步处理性能。插件将使用WordPress Cron作为回退方案。</p>';
-			echo '</div>';
-		});
-
-		// 记录到日志
-		if (class_exists('Notion_Logger')) {
-			Notion_Logger::warning_log(
-				'Action Scheduler不可用，将使用WordPress Cron作为回退方案。建议安装WooCommerce或Action Scheduler插件。',
-				'Plugin Activation'
-			);
-		}
-	} else {
-		// Action Scheduler可用，记录成功信息
-		if (class_exists('Notion_Logger') && !defined('NOTION_PERFORMANCE_MODE')) {
-			Notion_Logger::info_log('Action Scheduler已检测到，异步处理性能将得到优化', 'Plugin Activation');
-		}
+function init_modern_async_system() {
+	// 记录现代异步系统启动
+	if (class_exists('Notion_Logger')) {
+		Notion_Logger::info_log('现代异步处理系统已启动，无需外部依赖', 'Plugin Activation');
 	}
 }
 
@@ -140,11 +129,6 @@ register_deactivation_hook( NOTION_TO_WORDPRESS_FILE, 'deactivate_notion_to_word
 function run_notion_to_wordpress() {
 	$plugin = new Notion_To_WordPress();
 	$plugin->run();
-
-	// 初始化异步任务调度器
-	if (class_exists('Notion_Async_Task_Scheduler')) {
-		Notion_Async_Task_Scheduler::init();
-	}
 }
 
 run_notion_to_wordpress(); 

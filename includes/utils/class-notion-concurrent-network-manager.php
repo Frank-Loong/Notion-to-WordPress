@@ -102,8 +102,8 @@ class Notion_Concurrent_Network_Manager {
             set_time_limit(120); // 设置为2分钟
         }
 
-        // 减少日志记录
-        if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+        // 记录初始化信息
+        if (class_exists('Notion_Logger')) {
             Notion_Logger::debug_log(
                 "初始化并发网络管理器，最大并发数: {$this->max_concurrent_requests}",
                 'Concurrent Network'
@@ -527,8 +527,8 @@ class Notion_Concurrent_Network_Manager {
             $this->pool_stats['average_response_time'] = round($avg_response_time, 4);
         }
 
-        // 减少日志记录，仅在非性能模式下记录
-        if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+        // 记录连接池统计信息
+        if (class_exists('Notion_Logger')) {
             $stats = $this->get_connection_pool_stats();
             Notion_Logger::debug_log(
                 sprintf('批次完成 - 复用率: %s%%, 平均响应时间: %ss',
@@ -786,8 +786,8 @@ class Notion_Concurrent_Network_Manager {
                 $this->connection_pool[] = $this->create_optimized_curl_handle();
             }
 
-            // 减少日志记录，仅在非性能模式下记录
-            if (class_exists('Notion_Logger') && !$this->is_performance_mode()) {
+            // 记录连接池初始化信息
+            if (class_exists('Notion_Logger')) {
                 Notion_Logger::debug_log(
                     sprintf('初始化连接池: %d个连接', $pool_size),
                     'Connection Pool'

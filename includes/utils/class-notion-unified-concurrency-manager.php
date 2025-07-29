@@ -193,12 +193,20 @@ class Notion_Unified_Concurrency_Manager {
         $config = self::get_config();
         
         // 基础并发数
-        $base_concurrency = match($type) {
-            'request' => $config['max_concurrent_requests'],
-            'download' => $config['max_concurrent_downloads'],
-            'upload' => $config['max_concurrent_uploads'],
-            default => 1
-        };
+        switch($type) {
+            case 'request':
+                $base_concurrency = $config['max_concurrent_requests'];
+                break;
+            case 'download':
+                $base_concurrency = $config['max_concurrent_downloads'];
+                break;
+            case 'upload':
+                $base_concurrency = $config['max_concurrent_uploads'];
+                break;
+            default:
+                $base_concurrency = 1;
+                break;
+        }
         
         // 如果未启用自适应并发，直接返回基础值
         if (!$config['enable_adaptive_concurrency']) {

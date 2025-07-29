@@ -57,6 +57,14 @@ class Notion_Smart_Cache {
     ];
     
     /**
+     * 缓存性能常量
+     */
+    const L1_CACHE_TTL = 60;                  // L1缓存生存时间（1分钟）
+    const L1_CACHE_SIZE_LIMIT = 100;          // L1缓存大小限制
+    const L1_CACHE_ITEM_SIZE_THRESHOLD = 10240; // L1缓存项目大小阈值（10KB）
+    const DEFAULT_CACHE_TTL = 300;            // 默认缓存时间（5分钟）
+    
+    /**
      * 生成缓存键
      *
      * @since 2.0.0-beta.1
@@ -96,7 +104,7 @@ class Notion_Smart_Cache {
         }
         
         $cache_key = self::generate_cache_key($type, $identifier, $params);
-        $ttl = $custom_ttl ?? self::CACHE_TYPES[$type]['ttl'] ?? 300;
+        $ttl = $custom_ttl ?? self::CACHE_TYPES[$type]['ttl'] ?? self::DEFAULT_CACHE_TTL;
         
         $cache_data = [
             'data' => $data,
@@ -344,11 +352,6 @@ class Notion_Smart_Cache {
     private static $l1_cache = [];
 
     /**
-     * L1缓存大小限制
-     */
-    const L1_CACHE_SIZE_LIMIT = 100;
-
-    /**
      * 二级缓存获取
      *
      * @since 2.0.0-beta.1
@@ -365,7 +368,7 @@ class Notion_Smart_Cache {
             $l1_data = self::$l1_cache[$cache_key];
 
             // 检查L1缓存是否过期
-            if (time() - $l1_data['timestamp'] < 60) { // L1缓存1分钟有效
+            if (time() - $l1_data['timestamp'] < self::L1_CACHE_TTL) { // L1缓存有效期
                 self::$cache_stats['hits']++;
                 return $l1_data['data'];
             } else {
@@ -401,7 +404,7 @@ class Notion_Smart_Cache {
 
         // 设置L1缓存（小数据）
         $data_size = strlen(serialize($data));
-        if ($data_size < 10240) { // 小于10KB的数据放入L1缓存
+        if ($data_size < self::L1_CACHE_ITEM_SIZE_THRESHOLD) { // 小于阈值的数据放入L1缓存
             self::set_l1_cache($cache_key, $data);
         }
 
