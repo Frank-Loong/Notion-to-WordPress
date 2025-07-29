@@ -221,14 +221,66 @@ class Notion_API {
                 'Content-Type'   => 'application/json',
                 'Notion-Version' => '2022-06-28'
             ],
-            'timeout' => 20  // 🚀 性能优化：调整为20秒，平衡性能与完整性
+            'timeout' => 45,  // 增加超时时间以处理SSL连接问题
+            'sslverify' => false,  // 在Windows环境下禁用SSL验证以避免SSL_ERROR_SYSCALL错误
+            'httpversion' => '1.1',  // 强制使用HTTP/1.1避免HTTP/2问题
+            'user-agent' => 'Notion-to-WordPress/2.0.0-beta.1 (WordPress)',
+            'redirection' => 5,
+            'blocking' => true,
+            // 添加额外的cURL选项来改善Windows SSL兼容性
+            'curl' => [
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_CONNECTTIMEOUT => 30,
+                CURLOPT_TCP_NODELAY => true,
+                CURLOPT_FRESH_CONNECT => true,
+                CURLOPT_FORBID_REUSE => true
+            ]
         ];
 
         if (!empty($data) && $method !== 'GET') {
             $args['body'] = json_encode($data);
+        }
+
+        // 使用重试机制处理SSL连接问题
+        $max_retries = 3;
+        $retry_delay = 1; // 秒
+        $last_error = null;
+
+        for ($attempt = 1; $attempt <= $max_retries; $attempt++) {
+            $response = wp_remote_request($url, $args);
+
+            if (!is_wp_error($response)) {
+                break; // 成功，退出重试循环
             }
 
-            $response = wp_remote_request($url, $args);
+            $error_message = $response->get_error_message();
+            $last_error = $response;
+
+            // 检查是否为SSL相关错误
+            if (strpos($error_message, 'SSL_ERROR_SYSCALL') !== false ||
+                strpos($error_message, 'SSL_connect') !== false ||
+                strpos($error_message, 'cURL error 35') !== false) {
+
+                Notion_Logger::debug_log(
+                    "SSL连接错误 (尝试 {$attempt}/{$max_retries}): {$error_message}",
+                    'SSL Retry'
+                );
+
+                if ($attempt < $max_retries) {
+                    sleep($retry_delay);
+                    $retry_delay *= 2; // 指数退避
+                    continue;
+                }
+            } else {
+                // 非SSL错误，直接退出
+                break;
+            }
+        }
+
+        $response = $last_error ?: $response;
 
         if (is_wp_error($response)) {
             throw new Exception(__('API请求失败: ', 'notion-to-wordpress') . $response->get_error_message());

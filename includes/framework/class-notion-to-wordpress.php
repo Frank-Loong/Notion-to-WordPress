@@ -453,6 +453,9 @@ class Notion_To_WordPress {
 			),
 			'custom_field_mappings' => array(),
 			'debug_level'         => Notion_Logger::DEBUG_LEVEL_ERROR,
+			// 默认启用数学和图表支持，确保渲染正常
+			'enable_math_support' => 1,
+			'enable_mermaid_support' => 1,
 		);
 
 		// 获取现有选项，并与默认值合并
@@ -495,6 +498,8 @@ class Notion_To_WordPress {
 		flush_rewrite_rules();
 	}
 
+	// 内容检测函数已移除，改为宽松加载策略，确保所有页面都能正常渲染
+
 	/**
 	 * 在前端加载所需的样式与脚本（优化版）
 	 *
@@ -512,29 +517,33 @@ class Notion_To_WordPress {
 			$this->version
 		);
 
-		// 条件加载：仅在启用数学支持时加载LaTeX样式
-		if (!empty($options['enable_math_support'])) {
-			wp_enqueue_style(
-				$this->plugin_name . '-latex',
-				Notion_To_WordPress_Helper::plugin_url('assets/css/latex-styles.css'),
-				array(),
-				$this->version
-			);
-		}
+		// 宽松加载策略：在前端页面总是加载LaTeX样式，确保摘要页面也能正常显示
+		wp_enqueue_style(
+			$this->plugin_name . '-latex',
+			Notion_To_WordPress_Helper::plugin_url('assets/css/latex-styles.css'),
+			array(),
+			$this->version
+		);
 
-		// 条件加载：仅在有数据库内容时加载数据库样式
-		if ($this->has_notion_database_content()) {
-			wp_enqueue_style(
-				$this->plugin_name . '-database',
-				Notion_To_WordPress_Helper::plugin_url('assets/css/notion-database.css'),
-				array(),
-				$this->version
-			);
-		}
+		// 加载KaTeX字体样式
+		wp_enqueue_style(
+			$this->plugin_name . '-katex-fonts',
+			Notion_To_WordPress_Helper::plugin_url('assets/css/katex-fonts.css'),
+			array(),
+			$this->version
+		);
 
-		// ---------------- 条件加载：公式相关（KaTeX） ----------------
-		// 仅在启用数学支持时加载KaTeX资源
-		if (!empty($options['enable_math_support'])) {
+		// 宽松加载策略：在前端页面总是加载数据库样式，确保首页摘要等场景也能正常显示
+		wp_enqueue_style(
+			$this->plugin_name . '-database',
+			Notion_To_WordPress_Helper::plugin_url('assets/css/notion-database.css'),
+			array(),
+			$this->version
+		);
+
+		// ---------------- 宽松加载：公式和图表相关（KaTeX & Mermaid） ----------------
+		// 在前端页面总是加载KaTeX和Mermaid资源，确保首页摘要等场景也能正常渲染
+		if (true) { // 总是加载，确保兼容性
 			// 获取CDN配置
 			$cdn_config = $this->get_cdn_config();
 			$cdn_enabled = $cdn_config['enabled'] ?? false;
@@ -712,10 +721,8 @@ class Notion_To_WordPress {
 			);
 		} // 结束数学支持条件加载
 
-		// 条件加载：仅在启用Mermaid支持时加载
-		if (!empty($options['enable_mermaid_support'])) {
-			// Mermaid相关脚本已在上面的KaTeX部分处理
-		}
+		// 条件加载：仅在启用Mermaid支持时加载（已在上面的KaTeX部分统一处理）
+		// Mermaid相关脚本已在上面的KaTeX部分处理，支持智能检测
 
 		// 懒加载和性能优化脚本
 		wp_enqueue_script(

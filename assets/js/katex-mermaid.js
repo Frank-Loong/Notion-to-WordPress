@@ -189,11 +189,18 @@ return p1 + '\\ce{';
 }
 
 try {
-katex.render(tex, el, { displayMode: isBlock, ...katexOptions });
+	// 检查KaTeX是否可用
+	if (typeof window.katex === 'undefined') {
+		console.warn('KaTeX库未加载，跳过渲染');
+		return;
+	}
+
+	window.katex.render(tex, el, { displayMode: isBlock, ...katexOptions });
+	el.classList.add('katex-rendered'); // 标记为已渲染
 } catch (e) {
-console.error('KaTeX 渲染错误:', e, '公式:', tex);
-// 显示错误信息而不是空白
-el.innerHTML = '<span style="color: red; font-family: monospace;">公式渲染失败: ' + tex.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
+	console.error('KaTeX 渲染错误:', e, '公式:', tex);
+	// 显示错误信息而不是空白
+	el.innerHTML = '<span style="color: red; font-family: monospace;">公式渲染失败: ' + tex.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</span>';
 }
 }
 
@@ -201,29 +208,17 @@ el.innerHTML = '<span style="color: red; font-family: monospace;">公式渲染�
 
 // 遍历并渲染页面中所有公式
 function renderAllKatex() {
-	// 检测KaTeX是否成功加载，给CDN一些时间
+	// 简化逻辑：如果KaTeX未加载，直接跳过
 	if (!checkKatexLoaded()) {
-		console.warn('🔧 [Notion to WordPress] KaTeX数学公式库未能从CDN加载');
-		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
-		console.info('🔄 等待2秒后重试，如仍失败将切换到本地备用资源...');
-
-		// 等待2秒后重试，给CDN更多时间
-		setTimeout(() => {
-			if (!checkKatexLoaded()) {
-				console.info('🔄 CDN仍未加载成功，正在切换到本地备用资源...');
-				ResourceFallbackManager.showCompatibilityTips();
-				ResourceFallbackManager.loadKatexFallback();
-			} else {
-				console.log('✅ [Notion to WordPress] KaTeX CDN资源延迟加载成功，继续正常渲染');
-				renderAllKatex(); // 重新调用渲染
-			}
-		}, 2000);
+		console.log('🔧 [Notion to WordPress] KaTeX未加载，跳过渲染');
 		return;
 	}
 
-// 化学公式预处理已移至renderKatexElement函数中处理
+	// 只渲染未渲染的公式，避免重复渲染
+	const equations = document.querySelectorAll('.notion-equation-inline:not(.katex-rendered), .notion-equation-block:not(.katex-rendered)');
+	console.log(`📊 找到 ${equations.length} 个未渲染的数学公式`);
 
-document.querySelectorAll('.notion-equation-inline, .notion-equation-block').forEach(renderKatexElement);
+	equations.forEach(renderKatexElement);
 }
 
 // 暴露函数到全局作用域，供调试和测试使用
@@ -238,25 +233,39 @@ window.NotionToWordPressMermaid = {
     fallbackMermaidRendering: fallbackMermaidRendering,
     addPanZoomToMermaid: addPanZoomToMermaid
 };
+
+// 添加资源状态检查函数
+window.NotionResourceChecker = {
+    checkAllResources: function() {
+        console.log('🔍 [Notion资源检查] 开始检查关键资源状态...');
+
+        const results = {
+            katex: checkKatexLoaded(),
+            mermaid: checkMermaidLoaded(),
+            database_css: !!document.querySelector('link[href*="notion-database.css"]'),
+            latex_css: !!document.querySelector('link[href*="latex-styles.css"]')
+        };
+
+        console.log('📊 [资源状态]', results);
+
+        if (!results.katex) {
+            console.warn('⚠️ KaTeX未加载，数学公式可能无法显示');
+        }
+        if (!results.mermaid) {
+            console.warn('⚠️ Mermaid未加载，图表可能无法显示');
+        }
+        if (!results.database_css) {
+            console.warn('⚠️ 数据库CSS未加载，数据库视图可能显示异常');
+        }
+
+        return results;
+    }
+};
 /* ---------------- Mermaid 渲染 ---------------- */
 function initMermaid() {
-	// 检测Mermaid是否成功加载，给CDN一些时间
+	// 简化逻辑：如果Mermaid未加载，直接跳过
 	if (!checkMermaidLoaded()) {
-		console.warn('🔧 [Notion to WordPress] Mermaid图表库未能从CDN加载');
-		console.info('💡 可能原因：网络问题、CDN服务异常或主题兼容性问题');
-		console.info('🔄 等待2秒后重试，如仍失败将切换到本地备用资源...');
-
-		// 等待2秒后重试，给CDN更多时间
-		setTimeout(() => {
-			if (!checkMermaidLoaded()) {
-				console.info('🔄 CDN仍未加载成功，正在切换到本地备用资源...');
-				ResourceFallbackManager.showCompatibilityTips();
-				ResourceFallbackManager.loadMermaidFallback();
-			} else {
-				console.log('✅ [Notion to WordPress] Mermaid CDN资源延迟加载成功，继续正常初始化');
-				initMermaid(); // 重新调用初始化
-			}
-		}, 2000);
+		console.log('🔧 [Notion to WordPress] Mermaid未加载，跳过渲染');
 		return;
 	}
 
@@ -722,13 +731,24 @@ function addPanZoomToMermaid() {
 }
 
 /* ---------------- 初始化 ---------------- */
-// 使用原生JavaScript，不依赖jQuery
-document.addEventListener('DOMContentLoaded', function() {
-    // KaTeX 已作为依赖加载，直接渲染
-    renderAllKatex();
+// 防止重复渲染的标志
+let isKatexInitialized = false;
+let isMermaidInitialized = false;
 
-    // Mermaid 延迟初始化，避免与渲染冲突
-    setTimeout(initMermaid, 500);
+// 只在DOMContentLoaded时渲染一次
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 [Notion to WordPress] 开始初始化KaTeX和Mermaid渲染');
+
+    // 防止重复初始化
+    if (!isKatexInitialized) {
+        renderAllKatex();
+        isKatexInitialized = true;
+    }
+
+    if (!isMermaidInitialized) {
+        initMermaid();
+        isMermaidInitialized = true;
+    }
 });
 
 })();

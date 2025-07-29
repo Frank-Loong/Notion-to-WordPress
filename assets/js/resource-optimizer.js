@@ -25,13 +25,7 @@
             timeout: 5000
         },
         
-        // 压缩配置
-        compression: {
-            enabled: true,
-            level: 'auto', // auto, high, medium, low
-            minifyCSS: true,
-            minifyJS: true
-        },
+        // 压缩功能已完全移除
         
         // 懒加载增强配置
         lazyLoading: {
@@ -111,8 +105,7 @@
             // 检测CDN可用性
             this.detectCDNAvailability();
 
-            // 设置资源压缩
-            this.setupAssetCompression();
+            // 资源压缩功能已完全移除
 
             // 增强懒加载
             this.enhanceLazyLoading();
@@ -178,101 +171,7 @@
         /**
          * 设置资源压缩
          */
-        setupAssetCompression() {
-            if (!this.config.compression.enabled) {
-                return;
-            }
-
-            // 压缩内联CSS
-            if (this.config.compression.minifyCSS) {
-                this.compressInlineCSS();
-            }
-
-            // 压缩内联JavaScript
-            if (this.config.compression.minifyJS) {
-                this.compressInlineJS();
-            }
-
-            // 合并小的CSS文件
-            this.mergeSmallCSSFiles();
-        }
-
-        /**
-         * 压缩内联CSS
-         */
-        compressInlineCSS() {
-            const styleElements = document.querySelectorAll('style');
-            
-            styleElements.forEach(style => {
-                if (style.textContent && style.textContent.length > 100) {
-                    const originalSize = style.textContent.length;
-                    
-                    // 简单的CSS压缩
-                    const compressed = style.textContent
-                        .replace(/\/\*[\s\S]*?\*\//g, '') // 移除注释
-                        .replace(/\s+/g, ' ') // 压缩空白
-                        .replace(/;\s*}/g, '}') // 移除最后的分号
-                        .replace(/\s*{\s*/g, '{') // 压缩大括号
-                        .replace(/\s*}\s*/g, '}')
-                        .replace(/\s*;\s*/g, ';') // 压缩分号
-                        .replace(/\s*:\s*/g, ':') // 压缩冒号
-                        .trim();
-                    
-                    if (compressed.length < originalSize) {
-                        style.textContent = compressed;
-                        console.log(`[CSS压缩] 压缩率: ${((originalSize - compressed.length) / originalSize * 100).toFixed(1)}%`);
-                    }
-                }
-            });
-        }
-
-        /**
-         * 压缩内联JavaScript
-         */
-        compressInlineJS() {
-            const scriptElements = document.querySelectorAll('script:not([src])');
-            
-            scriptElements.forEach(script => {
-                if (script.textContent && script.textContent.length > 200) {
-                    const originalSize = script.textContent.length;
-                    
-                    // 简单的JS压缩
-                    const compressed = script.textContent
-                        .replace(/\/\*[\s\S]*?\*\//g, '') // 移除块注释
-                        .replace(/\/\/.*$/gm, '') // 移除行注释
-                        .replace(/\s+/g, ' ') // 压缩空白
-                        .replace(/;\s*}/g, ';}') // 保持语法正确
-                        .trim();
-                    
-                    if (compressed.length < originalSize && compressed.length > 50) {
-                        script.textContent = compressed;
-                        console.log(`[JS压缩] 压缩率: ${((originalSize - compressed.length) / originalSize * 100).toFixed(1)}%`);
-                    }
-                }
-            });
-        }
-
-        /**
-         * 合并小的CSS文件
-         */
-        mergeSmallCSSFiles() {
-            const linkElements = document.querySelectorAll('link[rel="stylesheet"]');
-            const smallFiles = [];
-            
-            linkElements.forEach(link => {
-                // 检查是否为小文件（通过文件名或其他启发式方法）
-                const href = link.href;
-                if (href && (href.includes('notion') || href.includes('custom'))) {
-                    smallFiles.push(link);
-                }
-            });
-            
-            if (smallFiles.length > 2) {
-                console.log(`[CSS合并] 发现${smallFiles.length}个可合并的CSS文件`);
-                // 这里可以实现CSS文件的动态合并逻辑
-                // 由于安全限制，实际合并需要服务器端支持
-            }
-        }
+        // 所有压缩和合并功能已完全移除
 
         /**
          * 增强懒加载功能
