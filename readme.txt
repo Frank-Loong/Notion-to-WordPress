@@ -72,22 +72,7 @@ You can choose to remove all plugin data or keep imported posts.
 4. Webhook – Setup Screen
 
 == Chinese Readme (中文说明) ==
-完整中文文档请参阅仓库中的 [README-zh_CN.md](https://github.com/Frank-Loong/Notion-to-WordPress/blob/dev/README-zh_CN.md)。
-
-== Changelog ==
-= 1.1.0 =
-* 🚀 **MAJOR**: Smart incremental sync - 80%+ performance improvement
-* 🧠 **NEW**: Intelligent deletion detection with automatic cleanup
-* ⚡ **NEW**: Advanced webhook processing with event-specific handling
-* 🔄 **NEW**: Triple sync architecture (Manual/Scheduled/Webhook)
-* 🛡️ **ENHANCED**: Enterprise-grade error handling and recovery
-* 🌍 **FIXED**: Time zone accuracy for global teams
-* 🔧 **FIXED**: Critical webhook property access issues
-* 📊 **IMPROVED**: Memory usage optimization for large databases
-* 🎯 **IMPROVED**: Real-time status updates and progress tracking
-
-= 1.0.9 =
-* Core bug fixes, improved rendering, stronger logging & debugging.
+完整中文文档请参阅仓库中的 [README-zh_CN.md](https://github.com/Frank-Loong/Notion-to-WordPress/blob/dev/README-zh_CN.md)
 
 == Support & Contribution ==
 Issues, PRs, translations welcome!  
