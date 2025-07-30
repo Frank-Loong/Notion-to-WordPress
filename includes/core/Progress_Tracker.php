@@ -26,46 +26,88 @@ class Progress_Tracker {
      * 进度文件目录
      */
     private string $progressDir;
-    
+
+    /**
+     * 是否使用内存存储（SSE模式）
+     * @var bool
+     */
+    private bool $useMemoryStorage = true;
+
+    /**
+     * 内存存储缓存前缀
+     */
+    private const CACHE_PREFIX = 'ntwp_progress_';
+
+    /**
+     * 缓存过期时间（秒）
+     */
+    private const CACHE_EXPIRATION = 3600; // 1小时
+
     /**
      * 构造函数
+     *
+     * @param bool $useMemoryStorage 是否使用内存存储
      */
-    public function __construct() {
+    public function __construct(bool $useMemoryStorage = true) {
+        $this->useMemoryStorage = $useMemoryStorage;
+
         $uploadDir = wp_upload_dir();
         $this->progressDir = $uploadDir['basedir'] . '/notion-async-progress';
-        
-        $this->ensureDirectory();
+
+        // 如果使用文件存储，确保目录存在
+        if (!$this->useMemoryStorage) {
+            $this->ensureDirectory();
+        }
     }
     
     /**
      * 创建任务
-     * 
+     *
      * @param string $taskId 任务ID
      * @param array $taskData 任务数据
      * @return bool 是否创建成功
      */
     public function createTask(string $taskId, array $taskData): bool {
-        $filename = $this->getProgressFilename($taskId);
-        
         $progressData = array_merge($taskData, [
             'created_at' => time(),
             'updated_at' => time(),
             'version' => '1.0'
         ]);
-        
-        $result = file_put_contents(
-            $filename, 
-            json_encode($progressData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
-        );
-        
-        if ($result !== false) {
-            \NTWP\Core\Logger::debug_log(
-                sprintf('任务进度跟踪已创建: %s', $taskId),
-                'Progress Tracker'
+
+        if ($this->useMemoryStorage) {
+            // 使用内存存储（transient）
+            $cacheKey = self::CACHE_PREFIX . $taskId;
+            $result = set_transient($cacheKey, $progressData, self::CACHE_EXPIRATION);
+
+            if ($result) {
+                \NTWP\Core\Logger::debug_log(
+                    sprintf('任务进度跟踪已创建（内存）: %s', $taskId),
+                    'Progress Tracker'
+                );
+                return true;
+            }
+        } else {
+            // 使用文件存储（向后兼容）
+            $filename = $this->getProgressFilename($taskId);
+
+            $result = file_put_contents(
+                $filename,
+                json_encode($progressData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
             );
-            return true;
+
+            if ($result !== false) {
+                \NTWP\Core\Logger::debug_log(
+                    sprintf('任务进度跟踪已创建（文件）: %s', $taskId),
+                    'Progress Tracker'
+                );
+                return true;
+            }
         }
-        
+
+        \NTWP\Core\Logger::error_log(
+            sprintf('创建任务进度跟踪失败: %s', $taskId),
+            'Progress Tracker'
+        );
         return false;
     }
     
@@ -424,19 +466,27 @@ class Progress_Tracker {
      * 获取任务数据
      */
     private function getTaskData(string $taskId): ?array {
-        $filename = $this->getProgressFilename($taskId);
-        
-        if (!file_exists($filename)) {
-            return null;
+        if ($this->useMemoryStorage) {
+            // 从内存缓存获取
+            $cacheKey = self::CACHE_PREFIX . $taskId;
+            $data = get_transient($cacheKey);
+            return $data !== false ? $data : null;
+        } else {
+            // 从文件获取（向后兼容）
+            $filename = $this->getProgressFilename($taskId);
+
+            if (!file_exists($filename)) {
+                return null;
+            }
+
+            $content = file_get_contents($filename);
+            if ($content === false) {
+                return null;
+            }
+
+            $data = json_decode($content, true);
+            return $data === null ? null : $data;
         }
-        
-        $content = file_get_contents($filename);
-        if ($content === false) {
-            return null;
-        }
-        
-        $data = json_decode($content, true);
-        return $data === null ? null : $data;
     }
     
     /**
@@ -447,24 +497,57 @@ class Progress_Tracker {
         if ($taskData === null) {
             return false;
         }
-        
+
         // 合并更新数据
         $taskData = array_merge($taskData, $updates);
         $taskData['updated_at'] = time();
-        
-        // 原子写入
-        $filename = $this->getProgressFilename($taskId);
-        $tempFile = $filename . '.tmp';
-        
-        $result = file_put_contents(
-            $tempFile, 
-            json_encode($taskData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
-        );
-        
-        if ($result !== false) {
-            return rename($tempFile, $filename);
+
+        if ($this->useMemoryStorage) {
+            // 使用内存存储
+            $cacheKey = self::CACHE_PREFIX . $taskId;
+            return set_transient($cacheKey, $taskData, self::CACHE_EXPIRATION);
+        } else {
+            // 使用文件存储（向后兼容）
+            $filename = $this->getProgressFilename($taskId);
+            $tempFile = $filename . '.tmp';
+
+            $result = file_put_contents(
+                $tempFile,
+                json_encode($taskData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+            );
+
+            if ($result !== false) {
+                // Windows兼容性修复：先删除目标文件再重命名
+                if (PHP_OS_FAMILY === 'Windows' && file_exists($filename)) {
+                    if (!unlink($filename)) {
+                        // 删除失败，清理临时文件
+                        @unlink($tempFile);
+                        \NTWP\Core\Logger::error_log(
+                            sprintf('无法删除现有进度文件: %s', $filename),
+                            'Progress Tracker'
+                        );
+                        return false;
+                    }
+                }
+
+                if (rename($tempFile, $filename)) {
+                    return true;
+                } else {
+                    // 重命名失败，清理临时文件
+                    @unlink($tempFile);
+                    \NTWP\Core\Logger::error_log(
+                        sprintf('无法重命名临时文件: %s -> %s', $tempFile, $filename),
+                        'Progress Tracker'
+                    );
+                    return false;
+                }
+            }
+
+            \NTWP\Core\Logger::error_log(
+                sprintf('无法写入临时文件: %s', $tempFile),
+                'Progress Tracker'
+            );
+            return false;
         }
-        
-        return false;
     }
 }

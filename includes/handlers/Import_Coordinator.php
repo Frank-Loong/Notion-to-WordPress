@@ -59,6 +59,24 @@ class Import_Coordinator {
      */
     private array $custom_field_mappings = [];
 
+    // ==================== 进度跟踪相关属性 ====================
+
+    /**
+     * 进度跟踪任务ID
+     *
+     * @since 2.0.0-beta.1
+     * @var string|null
+     */
+    private ?string $task_id = null;
+
+    /**
+     * 进度跟踪器实例
+     *
+     * @since 2.0.0-beta.1
+     * @var \NTWP\Core\Progress_Tracker|null
+     */
+    private ?\NTWP\Core\Progress_Tracker $progress_tracker = null;
+
     // ==================== 辅助方法 ====================
 
     /**
@@ -123,6 +141,77 @@ class Import_Coordinator {
     }
 
     /**
+     * 设置进度跟踪器
+     *
+     * @since    2.0.0-beta.1
+     * @param    string                        $task_id           任务ID
+     * @param    \NTWP\Core\Progress_Tracker  $progress_tracker  进度跟踪器实例
+     */
+    public function setProgressTracker(string $task_id, \NTWP\Core\Progress_Tracker $progress_tracker) {
+        $this->task_id = $task_id;
+        $this->progress_tracker = $progress_tracker;
+
+        if (class_exists('NTWP\\Core\\Logger')) {
+            \NTWP\Core\Logger::debug_log(
+                sprintf('进度跟踪器已设置，任务ID: %s', $task_id),
+                'Import Coordinator'
+            );
+        }
+    }
+
+    /**
+     * 更新进度信息
+     *
+     * @since    2.0.0-beta.1
+     * @param    array    $progress_data    进度数据
+     * @return   bool                       是否更新成功
+     */
+    private function updateProgress(array $progress_data): bool {
+        if (!$this->progress_tracker || !$this->task_id) {
+            return false;
+        }
+
+        try {
+            return $this->progress_tracker->updateProgress($this->task_id, $progress_data);
+        } catch (Exception $e) {
+            // 进度更新失败不影响主要功能
+            if (class_exists('NTWP\\Core\\Logger')) {
+                \NTWP\Core\Logger::warning_log(
+                    sprintf('进度更新失败: %s', $e->getMessage()),
+                    'Import Coordinator'
+                );
+            }
+            return false;
+        }
+    }
+
+    /**
+     * 更新进度状态
+     *
+     * @since    2.0.0-beta.1
+     * @param    string   $status    状态
+     * @return   bool                是否更新成功
+     */
+    private function updateProgressStatus(string $status): bool {
+        if (!$this->progress_tracker || !$this->task_id) {
+            return false;
+        }
+
+        try {
+            return $this->progress_tracker->updateStatus($this->task_id, $status);
+        } catch (Exception $e) {
+            // 进度更新失败不影响主要功能
+            if (class_exists('NTWP\\Core\\Logger')) {
+                \NTWP\Core\Logger::warning_log(
+                    sprintf('进度状态更新失败: %s', $e->getMessage()),
+                    'Import Coordinator'
+                );
+            }
+            return false;
+        }
+    }
+
+    /**
      * 导入单个Notion页面（主协调器方法）
      *
      * @since    1.0.5
@@ -139,10 +228,17 @@ class Import_Coordinator {
         }
 
         $page_id = $page['id'];
+        $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? $page['properties']['Name']['title'][0]['plain_text'] ?? '未知页面';
 
         try {
+            // 更新进度：开始处理页面
+            $this->updatePageProgress('processing', "正在处理页面: {$page_title}");
+
             // 2. 增量检测（如果可用）
             if (class_exists('\\NTWP\\Services\\Incremental_Detector')) {
+                // 更新进度：检查增量更新
+                $this->updatePageProgress('processing', "正在检查页面更新状态: {$page_title}");
+
                 // 检查是否存在对应的WordPress文章
                 $existing_post_id = \NTWP\Utils\Database_Helper::batch_get_posts_by_notion_ids([$page_id])[$page_id] ?? 0;
 
@@ -153,6 +249,8 @@ class Import_Coordinator {
                             "增量检测器判断页面无需同步，跳过导入: {$page_id}",
                             'Page Import'
                         );
+                        // 更新进度：跳过页面
+                        $this->updatePageProgress('processing', "页面无变化，跳过: {$page_title}");
                         return 'skipped'; // 返回特殊值表示跳过
                     } else {
                         \NTWP\Core\Logger::debug_log(
@@ -164,6 +262,7 @@ class Import_Coordinator {
             }
 
             // 3. 协调元数据提取
+            $this->updatePageProgress('processing', "正在提取页面元数据: {$page_title}");
             $metadata = $this->coordinate_metadata_extraction($page);
 
             // 为空标题提供默认值，而不是跳过导入
@@ -176,26 +275,37 @@ class Import_Coordinator {
                 );
             }
 
+            // 更新页面标题（使用提取到的元数据中的标题）
+            $page_title = $metadata['title'] ?? $page_title;
+
             // 3. 协调内容获取和转换
+            $this->updatePageProgress('processing', "正在获取页面内容: {$page_title}");
             $content = $this->coordinate_content_processing($page_id);
             if ($content === false) {
+                $this->updatePageProgress('processing', "页面内容获取失败: {$page_title}");
                 return false;
             }
 
             // 4. 协调WordPress集成
+            $this->updatePageProgress('processing', "正在保存到WordPress: {$page_title}");
             $post_id = $this->coordinate_wordpress_integration($metadata, $content, $page_id);
             if (is_wp_error($post_id)) {
+                $this->updatePageProgress('processing', "WordPress保存失败: {$page_title}");
                 return false;
             }
 
             // 5. 协调同步状态更新
+            $this->updatePageProgress('processing', "正在更新同步状态: {$page_title}");
             $this->coordinate_sync_status_update($page_id, $page['last_edited_time'] ?? '');
 
             // 6. 更新增量检测哈希值
             if (class_exists('\\NTWP\\Services\\Incremental_Detector')) {
+                $this->updatePageProgress('processing', "正在更新检测哈希: {$page_title}");
                 \NTWP\Services\Incremental_Detector::update_sync_hashes($page, $post_id);
             }
 
+            // 更新进度：页面处理完成
+            $this->updatePageProgress('processing', "页面处理完成: {$page_title}");
             \NTWP\Core\Logger::debug_log('页面导入完成', 'Page Import');
             return true;
 
@@ -311,6 +421,19 @@ class Import_Coordinator {
             \NTWP\Core\Logger::info_log('检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Pages Import');
             \NTWP\Core\Logger::info_log('增量同步: ' . ($incremental ? 'yes' : 'no'), 'Pages Import');
             \NTWP\Core\Logger::info_log('强制刷新: ' . ($force_refresh ? 'yes' : 'no'), 'Pages Import');
+
+            // 初始化进度跟踪
+            if ($this->progress_tracker && $this->task_id) {
+                $this->updateProgressStatus('fetching');
+                $this->updateProgress([
+                    'total' => 0,
+                    'processed' => 0,
+                    'percentage' => 0,
+                    'status' => 'fetching',
+                    'message' => '正在获取页面列表...'
+                ]);
+            }
+
             // 获取数据库中的页面 - 支持增量同步前置过滤
             \NTWP\Core\Logger::debug_log('调用get_database_pages()', 'Pages Import');
             
@@ -343,6 +466,18 @@ class Import_Coordinator {
                 'created' => 0,
                 'errors' => 0
             ];
+
+            // 更新进度：获取到页面列表
+            if ($this->progress_tracker && $this->task_id) {
+                $this->updateProgressStatus('processing');
+                $this->updateProgress([
+                    'total' => $stats['total'],
+                    'processed' => 0,
+                    'percentage' => 0,
+                    'status' => 'processing',
+                    'message' => sprintf('准备处理 %d 个页面...', $stats['total'])
+                ]);
+            }
 
             // 如果启用删除检测，先处理删除的页面（使用完整页面列表）
             if ($check_deletions) {
@@ -410,6 +545,19 @@ class Import_Coordinator {
             if ($performance_mode && count($pages) >= 10) {
                 // 使用超级批量同步模式（适用于大量页面）
                 \NTWP\Core\Logger::info_log('启用超级批量同步模式', 'Pages Import');
+
+                // 更新进度状态为批量处理
+                if ($this->progress_tracker && $this->task_id) {
+                    $this->updateProgressStatus('batch_processing');
+                    $this->updateProgress([
+                        'total' => count($pages),
+                        'processed' => 0,
+                        'percentage' => 0,
+                        'status' => 'batch_processing',
+                        'message' => sprintf('批量处理 %d 个页面...', count($pages))
+                    ]);
+                }
+
                 $batch_stats = \NTWP\Services\Sync_Manager::super_batch_sync($pages, $this->notion_api);
 
                 // 更新统计数据
@@ -417,6 +565,19 @@ class Import_Coordinator {
                 $stats['updated'] += $batch_stats['updated'];
                 $stats['skipped'] += $batch_stats['skipped'];
                 $stats['errors'] += $batch_stats['errors'];
+
+                // 更新进度为完成
+                if ($this->progress_tracker && $this->task_id) {
+                    $this->updateProgress([
+                        'total' => count($pages),
+                        'processed' => count($pages),
+                        'percentage' => 100,
+                        'status' => 'batch_processing',
+                        'message' => sprintf('批量处理完成: 创建=%d, 更新=%d, 跳过=%d, 错误=%d',
+                            $batch_stats['created'], $batch_stats['updated'],
+                            $batch_stats['skipped'], $batch_stats['errors'])
+                    ]);
+                }
 
                 \NTWP\Core\Logger::info_log(
                     sprintf('超级批量同步完成: 创建=%d, 更新=%d, 跳过=%d, 错误=%d',
@@ -492,11 +653,23 @@ class Import_Coordinator {
                             unset($existing_post_id, $result);
                             // 强制垃圾回收
                             gc_collect_cycles();
-                            
+
                             // 记录内存使用情况
                             $memory_usage = memory_get_usage(true);
                             $memory_mb = round($memory_usage / 1024 / 1024, 2);
                             \NTWP\Core\Logger::debug_log("已处理 {$processed_count} 个页面，当前内存使用: {$memory_mb}MB", 'Memory Management');
+
+                            // 更新进度（每10个页面更新一次，避免过于频繁）
+                            if ($this->progress_tracker && $this->task_id) {
+                                $percentage = round(($processed_count / count($pages)) * 100, 2);
+                                $this->updateProgress([
+                                    'total' => count($pages),
+                                    'processed' => $processed_count,
+                                    'percentage' => $percentage,
+                                    'status' => 'processing',
+                                    'message' => sprintf('已处理 %d/%d 个页面 (%s%%)', $processed_count, count($pages), $percentage)
+                                ]);
+                            }
                         }
 
                         if ($result === 'skipped') {
@@ -516,9 +689,37 @@ class Import_Coordinator {
                     } catch (Exception $e) {
                         \NTWP\Core\Logger::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
                         $stats['failed']++;
+
+                        // 更新进度中的失败计数
+                        if ($this->progress_tracker && $this->task_id && ($processed_count % 10 === 0 || $stats['failed'] <= 5)) {
+                            $percentage = round(($processed_count / count($pages)) * 100, 2);
+                            $this->updateProgress([
+                                'total' => count($pages),
+                                'processed' => $processed_count,
+                                'percentage' => $percentage,
+                                'failed' => $stats['failed'],
+                                'status' => 'processing',
+                                'message' => sprintf('处理中遇到错误 - 已处理 %d/%d 个页面 (%s%%), 失败 %d 个',
+                                    $processed_count, count($pages), $percentage, $stats['failed'])
+                            ]);
+                        }
                     } catch (Error $e) {
                         \NTWP\Core\Logger::error_log('处理页面错误: ' . $e->getMessage(), 'Pages Import');
                         $stats['failed']++;
+
+                        // 更新进度中的失败计数
+                        if ($this->progress_tracker && $this->task_id && ($processed_count % 10 === 0 || $stats['failed'] <= 5)) {
+                            $percentage = round(($processed_count / count($pages)) * 100, 2);
+                            $this->updateProgress([
+                                'total' => count($pages),
+                                'processed' => $processed_count,
+                                'percentage' => $percentage,
+                                'failed' => $stats['failed'],
+                                'status' => 'processing',
+                                'message' => sprintf('处理中遇到错误 - 已处理 %d/%d 个页面 (%s%%), 失败 %d 个',
+                                    $processed_count, count($pages), $percentage, $stats['failed'])
+                            ]);
+                        }
                     }
 
                     if (!$performance_mode) {
@@ -580,11 +781,17 @@ class Import_Coordinator {
                 \NTWP\Core\Logger::debug_log('已恢复原始PHP执行时间限制', 'Performance');
             }
 
+            // 使用原子性方法更新最终状态
+            $this->finalizeTaskStatus('completed', $stats);
+
             return $stats;
 
         } catch (Exception $e) {
             \NTWP\Core\Logger::error_log('import_pages() 异常: ' . $e->getMessage(), 'Pages Import');
             \NTWP\Core\Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Pages Import');
+
+            // 使用原子性方法更新失败状态
+            $this->finalizeTaskStatus('failed', [], $e->getMessage());
 
             // 缓存已禁用，记录异常状态
             \NTWP\Core\Logger::debug_log(
@@ -1019,6 +1226,9 @@ class Import_Coordinator {
         // 记录内容处理开始
         \NTWP\Core\Logger::debug_log('协调内容处理开始', 'Page Import');
 
+        // 更新进度：获取页面内容
+        $this->updatePageProgress('processing', '正在从Notion获取页面内容...');
+
         // 获取页面内容
         $blocks = $this->notion_api->get_page_content($page_id);
 
@@ -1027,15 +1237,21 @@ class Import_Coordinator {
         // 允许空内容的页面，返回空字符串而不是false
         if (empty($blocks)) {
             \NTWP\Core\Logger::info_log('页面内容为空，将创建空内容的文章', 'Page Import');
+            $this->updatePageProgress('processing', '页面内容为空，跳过内容处理...');
             return '';
         }
+
+        // 更新进度：处理内容块
+        $this->updatePageProgress('processing', sprintf('正在处理 %d 个内容块...', count($blocks)));
 
         // 检查是否启用并发优化
         $concurrent_enabled = $this->is_concurrent_optimization_enabled();
 
         if ($concurrent_enabled) {
+            $this->updatePageProgress('processing', '正在使用并发优化模式处理内容...');
             return $this->process_content_with_concurrent_optimization($blocks);
         } else {
+            $this->updatePageProgress('processing', '正在使用传统模式处理内容...');
             return $this->process_content_traditional_mode($blocks);
         }
     }
@@ -1055,12 +1271,15 @@ class Import_Coordinator {
 
         try {
             // 启用异步图片下载模式（使用独立状态）
+            $this->updatePageProgress('processing', '正在启用异步图片处理模式...');
             \NTWP\Services\Image_Processor::enable_async_image_mode($state_id);
 
             // 转换内容为 HTML（收集图片占位符）
+            $this->updatePageProgress('processing', '正在转换内容块为HTML格式...');
             $raw_content = \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $this->notion_api, $state_id);
 
             // 处理异步图片下载并替换占位符
+            $this->updatePageProgress('processing', '正在下载和处理图片资源...');
             $processed_content = \NTWP\Services\Image_Processor::process_async_images($raw_content, $state_id);
 
             // 获取图片处理统计
@@ -1118,6 +1337,9 @@ class Import_Coordinator {
     private function coordinate_wordpress_integration(array $metadata, string $content, string $page_id) {
         \NTWP\Core\Logger::debug_log('协调WordPress集成开始', 'Page Import');
 
+        // 更新进度：准备WordPress集成
+        $this->updatePageProgress('processing', '正在准备WordPress文章数据...');
+
         // 诊断日志：记录内容保存前的状态
         $content_length = strlen($content);
         $has_notion_links = strpos($content, 'notion.so') !== false;
@@ -1142,6 +1364,8 @@ class Import_Coordinator {
             );
         }
 
+        // 更新进度：检查现有文章
+        $this->updatePageProgress('processing', '正在检查是否存在现有文章...');
         $existing_post_id = \NTWP\Handlers\Integrator::get_post_by_notion_id($page_id);
         $author_id = \NTWP\Handlers\Integrator::get_default_author_id();
 
@@ -1732,6 +1956,131 @@ class Import_Coordinator {
         );
 
         return $should_retry;
+    }
+
+    /**
+     * 更新单个页面处理进度
+     *
+     * 用于显示当前正在处理的页面的具体操作步骤
+     *
+     * @since 2.0.0-beta.1
+     * @param string $status 状态
+     * @param string $message 详细消息
+     * @return bool 更新是否成功
+     */
+    private function updatePageProgress(string $status, string $message): bool {
+        if (!$this->progress_tracker || !$this->task_id) {
+            return false;
+        }
+
+        try {
+            // 获取当前进度数据
+            $current_data = $this->progress_tracker->getProgress($this->task_id);
+            if (!$current_data) {
+                return false;
+            }
+
+            // 从返回的数据结构中提取progress字段
+            $current_progress = $current_data['progress'] ?? [];
+
+            // 更新消息，保持其他数据不变
+            $progress_data = [
+                'total' => $current_progress['total'] ?? 0,
+                'processed' => $current_progress['processed'] ?? 0,
+                'percentage' => $current_progress['percentage'] ?? 0,
+                'status' => $status,
+                'message' => $message
+            ];
+
+            \NTWP\Core\Logger::debug_log(
+                sprintf('更新页面进度: %s - %s', $status, $message),
+                'Progress Tracking'
+            );
+
+            return $this->progress_tracker->updateProgress($this->task_id, $progress_data);
+
+        } catch (Exception $e) {
+            \NTWP\Core\Logger::error_log(
+                sprintf('页面进度更新异常: %s', $e->getMessage()),
+                'Progress Tracking'
+            );
+            return false;
+        }
+    }
+
+    /**
+     * 原子性更新任务完成状态
+     *
+     * @since    2.0.0-beta.1
+     * @param    string   $final_status    最终状态 ('completed' 或 'failed')
+     * @param    array    $stats          统计数据
+     * @param    string   $error_message  错误信息（可选）
+     * @return   bool                     是否更新成功
+     */
+    public function finalizeTaskStatus(string $final_status, array $stats = [], string $error_message = ''): bool {
+        if (!$this->progress_tracker || !$this->task_id) {
+            return false;
+        }
+
+        try {
+            // 准备最终的进度数据
+            $final_progress = [
+                'total' => $stats['total'] ?? 0,
+                'processed' => $stats['total'] ?? 0,
+                'percentage' => $final_status === 'completed' ? 100 : 0,
+                'success' => ($stats['imported'] ?? 0) + ($stats['updated'] ?? 0) + ($stats['created'] ?? 0),
+                'failed' => $stats['failed'] ?? 0,
+                'timing' => [
+                    'endTime' => time()
+                ]
+            ];
+
+            // 如果是失败状态，添加错误信息
+            if ($final_status === 'failed' && !empty($error_message)) {
+                $final_progress['error'] = $error_message;
+                $final_progress['message'] = '同步失败: ' . $error_message;
+            } else if ($final_status === 'completed') {
+                $final_progress['message'] = sprintf(
+                    '同步完成: 总计=%d, 成功=%d, 失败=%d',
+                    $final_progress['total'],
+                    $final_progress['success'],
+                    $final_progress['failed']
+                );
+            }
+
+            // 原子性更新状态和进度
+            $status_updated = $this->progress_tracker->updateStatus($this->task_id, $final_status);
+            $progress_updated = $this->progress_tracker->updateProgress($this->task_id, $final_progress);
+
+            if ($status_updated && $progress_updated) {
+                if (class_exists('NTWP\\Core\\Logger')) {
+                    \NTWP\Core\Logger::info_log(
+                        sprintf('任务状态已原子性更新为: %s (任务ID: %s)', $final_status, $this->task_id),
+                        'Import Coordinator'
+                    );
+                }
+                return true;
+            } else {
+                if (class_exists('NTWP\\Core\\Logger')) {
+                    \NTWP\Core\Logger::warning_log(
+                        sprintf('任务状态更新部分失败: 状态=%s, 进度=%s',
+                            $status_updated ? '成功' : '失败',
+                            $progress_updated ? '成功' : '失败'),
+                        'Import Coordinator'
+                    );
+                }
+                return false;
+            }
+
+        } catch (Exception $e) {
+            if (class_exists('NTWP\\Core\\Logger')) {
+                \NTWP\Core\Logger::error_log(
+                    sprintf('任务状态原子性更新失败: %s', $e->getMessage()),
+                    'Import Coordinator'
+                );
+            }
+            return false;
+        }
     }
 
 

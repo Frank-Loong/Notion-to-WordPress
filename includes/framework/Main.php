@@ -268,6 +268,9 @@ class Main {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_sync', $this->admin, 'handle_cancel_sync' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_retry_failed', $this->admin, 'handle_retry_failed' );
+
+		// SSE进度流AJAX钩子
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_sse_progress', $this->admin, 'handle_sse_progress' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
 
 		// 定时任务钩子

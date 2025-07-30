@@ -137,10 +137,20 @@ class Notion_To_WordPress_Admin {
         $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         
         // 添加CSP nonce到脚本标签
+        // 先加载SSE进度管理器
+        wp_enqueue_script(
+            $this->plugin_name . '-sse-progress',
+            Helper::plugin_url('assets/js/sse-progress-manager.js'),
+            array(),
+            $this->version,
+            true // 在页脚加载
+        );
+
+        // 再加载主进度管理器（依赖SSE管理器）
         wp_enqueue_script(
             $this->plugin_name . '-sync-progress',
             Helper::plugin_url('assets/js/sync-progress-manager.js'),
-            array('jquery'),
+            array('jquery', $this->plugin_name . '-sse-progress'),
             $this->version,
             true // 在页脚加载
         );
@@ -154,7 +164,7 @@ class Notion_To_WordPress_Admin {
         );
 
         // 为JS提供统一的PHP数据对象
-        wp_localize_script($this->plugin_name . '-admin', 'notionToWp', array(
+        $localize_data = array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('notion_to_wordpress_nonce'),
             'version'  => $this->version,
@@ -223,6 +233,15 @@ class Notion_To_WordPress_Admin {
                 'webhook_settings' => __('Webhook设置', 'notion-to-wordpress'),
                 'and' => __('和', 'notion-to-wordpress'),
             ]
+        );
+
+        // 为admin脚本提供数据
+        wp_localize_script($this->plugin_name . '-admin', 'notionToWp', $localize_data);
+
+        // 为SSE脚本提供数据（使用兼容的变量名）
+        wp_localize_script($this->plugin_name . '-sse-progress', 'notion_to_wordpress_ajax', array(
+            'ajax_url' => $localize_data['ajax_url'],
+            'nonce' => $localize_data['nonce']
         ));
         
         // 添加CSP头
@@ -628,13 +647,68 @@ class Notion_To_WordPress_Admin {
             return;
         }
 
+        // 获取任务ID并初始化进度跟踪
+        $task_id = sanitize_text_field($_POST['task_id'] ?? '');
+        $progress_tracker = null;
+
+        if (!empty($task_id) && class_exists('NTWP\\Core\\Progress_Tracker')) {
+            try {
+                // 使用内存存储模式的Progress_Tracker
+                $progress_tracker = new \NTWP\Core\Progress_Tracker(true);
+
+                // 创建进度跟踪任务
+                $task_data = [
+                    'status' => 'connecting',
+                    'progress' => [
+                        'total' => 0,
+                        'processed' => 0,
+                        'percentage' => 0,
+                        'success' => 0,
+                        'failed' => 0
+                    ],
+                    'timing' => [
+                        'startTime' => time()
+                    ]
+                ];
+
+                $progress_tracker->createTask($task_id, $task_data);
+
+                if (class_exists('NTWP\\Core\\Logger')) {
+                    \NTWP\Core\Logger::info_log(
+                        sprintf('进度跟踪任务已创建: %s', $task_id),
+                        'Manual Sync'
+                    );
+                }
+            } catch (Exception $e) {
+                // 进度跟踪失败不影响同步功能
+                if (class_exists('NTWP\\Core\\Logger')) {
+                    \NTWP\Core\Logger::warning_log(
+                        sprintf('进度跟踪初始化失败: %s', $e->getMessage()),
+                        'Manual Sync'
+                    );
+                }
+                $progress_tracker = null;
+            }
+        }
+
         try {
             error_log('Notion to WordPress: 开始导入流程');
             // 获取选项
             $options = get_option( 'notion_to_wordpress_options', [] );
-            
+
             // 检查必要的设置
             if ( empty( $options['notion_api_key'] ) || empty( $options['notion_database_id'] ) ) {
+                // 更新进度跟踪状态为失败
+                if ($progress_tracker && !empty($task_id)) {
+                    try {
+                        $progress_tracker->updateStatus($task_id, 'failed');
+                        $progress_tracker->updateProgress($task_id, [
+                            'error' => '请先配置API密钥和数据库ID'
+                        ]);
+                    } catch (Exception $e) {
+                        // 忽略进度跟踪错误
+                    }
+                }
                 wp_send_json_error( [ 'message' => __('请先配置API密钥和数据库ID', 'notion-to-wordpress') ] );
                 return;
             }
@@ -652,6 +726,11 @@ class Notion_To_WordPress_Admin {
             error_log('Notion to WordPress: 创建导入协调器实例，Database ID: ' . $database_id);
             $notion_pages = new Import_Coordinator( $notion_api, $database_id, $field_mapping );
             $notion_pages->set_custom_field_mappings($custom_field_mappings);
+
+            // 设置进度跟踪器（如果可用）
+            if ($progress_tracker && !empty($task_id) && method_exists($notion_pages, 'setProgressTracker')) {
+                $notion_pages->setProgressTracker($task_id, $progress_tracker);
+            }
 
             // 检查是否启用增量同步
             $incremental = isset($_POST['incremental']) ? (bool) $_POST['incremental'] : true;
@@ -675,8 +754,54 @@ class Notion_To_WordPress_Admin {
 
             // 返回结果
             if ( is_wp_error( $result ) ) {
+                // 更新进度跟踪状态为失败
+                if ($progress_tracker && !empty($task_id)) {
+                    try {
+                        $progress_tracker->updateStatus($task_id, 'failed');
+                        $progress_tracker->updateProgress($task_id, [
+                            'error' => $result->get_error_message(),
+                            'timing' => [
+                                'endTime' => time()
+                            ]
+                        ]);
+                    } catch (Exception $e) {
+                        // 忽略进度跟踪错误
+                    }
+                }
                 wp_send_json_error( [ 'message' => $result->get_error_message() ] );
                 return;
+            }
+
+            // 更新进度跟踪状态为完成
+            if ($progress_tracker && !empty($task_id)) {
+                try {
+                    $progress_tracker->updateStatus($task_id, 'completed');
+                    $progress_tracker->updateProgress($task_id, [
+                        'total' => $result['total'] ?? 0,
+                        'processed' => $result['total'] ?? 0,
+                        'percentage' => 100,
+                        'success' => ($result['imported'] ?? 0) + ($result['updated'] ?? 0),
+                        'failed' => ($result['failed'] ?? 0),
+                        'timing' => [
+                            'endTime' => time()
+                        ]
+                    ]);
+
+                    if (class_exists('NTWP\\Core\\Logger')) {
+                        \NTWP\Core\Logger::info_log(
+                            sprintf('进度跟踪任务已完成: %s', $task_id),
+                            'Manual Sync'
+                        );
+                    }
+                } catch (Exception $e) {
+                    // 忽略进度跟踪错误
+                    if (class_exists('NTWP\\Core\\Logger')) {
+                        \NTWP\Core\Logger::warning_log(
+                            sprintf('进度跟踪完成状态更新失败: %s', $e->getMessage()),
+                            'Manual Sync'
+                        );
+                    }
+                }
             }
 
             wp_send_json_success( [
@@ -687,8 +812,23 @@ class Notion_To_WordPress_Admin {
                     $result['updated']
                 )
             ] );
-            
+
         } catch ( Exception $e ) {
+            // 更新进度跟踪状态为失败
+            if ($progress_tracker && !empty($task_id)) {
+                try {
+                    $progress_tracker->updateStatus($task_id, 'failed');
+                    $progress_tracker->updateProgress($task_id, [
+                        'error' => $e->getMessage(),
+                        'timing' => [
+                            'endTime' => time()
+                        ]
+                    ]);
+                } catch (Exception $pe) {
+                    // 忽略进度跟踪错误
+                }
+            }
+
             if (class_exists('NTWP\\Core\\Logger')) {
                 Logger::error_log('捕获异常: ' . $e->getMessage(), 'Manual Sync');
                 Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Manual Sync');
@@ -1693,7 +1833,8 @@ class Notion_To_WordPress_Admin {
         try {
             // 获取进度信息
             if (class_exists('NTWP\\Core\\Progress_Tracker')) {
-                $tracker = new \NTWP\Core\Progress_Tracker();
+                // 使用内存存储模式的Progress_Tracker
+                $tracker = new \NTWP\Core\Progress_Tracker(true);
                 $progress = $tracker->getProgress($task_id);
 
                 wp_send_json_success($progress);
@@ -1791,6 +1932,53 @@ class Notion_To_WordPress_Admin {
 
         } catch (Exception $e) {
             wp_send_json_error(['message' => '重试失败项时发生异常: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 处理SSE进度流请求
+     *
+     * @since 2.0.0
+     */
+    public function handle_sse_progress() {
+        try {
+            // 验证nonce
+            $nonce = $_GET['nonce'] ?? '';
+            if (!wp_verify_nonce($nonce, 'notion_to_wordpress_nonce')) {
+                http_response_code(403);
+                exit('Nonce验证失败');
+            }
+
+            // 检查用户权限
+            if (!current_user_can('manage_options')) {
+                http_response_code(403);
+                exit('权限不足');
+            }
+
+            $task_id = sanitize_text_field($_GET['task_id'] ?? '');
+
+            if (empty($task_id)) {
+                http_response_code(400);
+                exit('缺少任务ID');
+            }
+
+            // 创建SSE流处理器
+            if (class_exists('NTWP\\API\\SSE_Progress_Stream')) {
+                $sse_stream = new \NTWP\API\SSE_Progress_Stream();
+                $sse_stream->stream_progress($task_id);
+            } else {
+                http_response_code(500);
+                exit('SSE流处理器不可用');
+            }
+
+        } catch (Exception $e) {
+            \NTWP\Core\Logger::error_log(
+                sprintf('SSE进度流异常: %s', $e->getMessage()),
+                'SSE Handler'
+            );
+
+            http_response_code(500);
+            exit('服务器内部错误');
         }
     }
 }
