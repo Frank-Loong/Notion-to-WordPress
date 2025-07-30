@@ -653,8 +653,8 @@ class Notion_To_WordPress_Admin {
 
         if (!empty($task_id) && class_exists('NTWP\\Core\\Progress_Tracker')) {
             try {
-                // 使用内存存储模式的Progress_Tracker
-                $progress_tracker = new \NTWP\Core\Progress_Tracker(true);
+                // 使用Progress_Tracker（现在只支持内存存储）
+                $progress_tracker = new \NTWP\Core\Progress_Tracker();
 
                 // 创建进度跟踪任务
                 $task_data = [
@@ -1833,8 +1833,8 @@ class Notion_To_WordPress_Admin {
         try {
             // 获取进度信息
             if (class_exists('NTWP\\Core\\Progress_Tracker')) {
-                // 使用内存存储模式的Progress_Tracker
-                $tracker = new \NTWP\Core\Progress_Tracker(true);
+                // 使用Progress_Tracker（现在只支持内存存储）
+                $tracker = new \NTWP\Core\Progress_Tracker();
                 $progress = $tracker->getProgress($task_id);
 
                 wp_send_json_success($progress);

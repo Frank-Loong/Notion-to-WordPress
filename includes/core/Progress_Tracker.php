@@ -22,16 +22,7 @@ if (!defined('ABSPATH')) {
 
 class Progress_Tracker {
     
-    /**
-     * 进度文件目录
-     */
-    private string $progressDir;
-
-    /**
-     * 是否使用内存存储（SSE模式）
-     * @var bool
-     */
-    private bool $useMemoryStorage = true;
+    // 移除了文件存储相关属性，现在只使用内存存储
 
     /**
      * 内存存储缓存前缀
@@ -45,19 +36,9 @@ class Progress_Tracker {
 
     /**
      * 构造函数
-     *
-     * @param bool $useMemoryStorage 是否使用内存存储
      */
-    public function __construct(bool $useMemoryStorage = true) {
-        $this->useMemoryStorage = $useMemoryStorage;
-
-        $uploadDir = wp_upload_dir();
-        $this->progressDir = $uploadDir['basedir'] . '/notion-async-progress';
-
-        // 如果使用文件存储，确保目录存在
-        if (!$this->useMemoryStorage) {
-            $this->ensureDirectory();
-        }
+    public function __construct() {
+        // 现在只使用内存存储
     }
     
     /**
@@ -74,41 +55,18 @@ class Progress_Tracker {
             'version' => '1.0'
         ]);
 
-        if ($this->useMemoryStorage) {
-            // 使用内存存储（transient）
-            $cacheKey = self::CACHE_PREFIX . $taskId;
-            $result = set_transient($cacheKey, $progressData, self::CACHE_EXPIRATION);
+        // 使用内存存储（transient）
+        $cacheKey = self::CACHE_PREFIX . $taskId;
+        $result = set_transient($cacheKey, $progressData, self::CACHE_EXPIRATION);
 
-            if ($result) {
-                \NTWP\Core\Logger::debug_log(
-                    sprintf('任务进度跟踪已创建（内存）: %s', $taskId),
-                    'Progress Tracker'
-                );
-                return true;
-            }
-        } else {
-            // 使用文件存储（向后兼容）
-            $filename = $this->getProgressFilename($taskId);
-
-            $result = file_put_contents(
-                $filename,
-                json_encode($progressData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+        if (!$result) {
+            \NTWP\Core\Logger::error_log(
+                sprintf('创建任务进度跟踪失败: %s', $taskId),
+                'Progress Tracker'
             );
-
-            if ($result !== false) {
-                \NTWP\Core\Logger::debug_log(
-                    sprintf('任务进度跟踪已创建（文件）: %s', $taskId),
-                    'Progress Tracker'
-                );
-                return true;
-            }
         }
 
-        \NTWP\Core\Logger::error_log(
-            sprintf('创建任务进度跟踪失败: %s', $taskId),
-            'Progress Tracker'
-        );
-        return false;
+        return $result;
     }
     
     /**
@@ -245,118 +203,37 @@ class Progress_Tracker {
     }
     
     /**
-     * 获取活跃任务列表
-     * 
+     * 获取活跃任务列表（已废弃 - 内存存储无法枚举）
+     *
+     * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
      * @return array 活跃任务列表
      */
     public function getActiveTasks(): array {
-        $files = glob($this->progressDir . '/progress_*.json');
-        $activeTasks = [];
-        
-        foreach ($files as $file) {
-            $content = file_get_contents($file);
-            if ($content === false) {
-                continue;
-            }
-            
-            $taskData = json_decode($content, true);
-            if ($taskData === null) {
-                continue;
-            }
-            
-            $status = $taskData['status'] ?? 'unknown';
-            if (in_array($status, ['pending', 'running'])) {
-                $taskId = basename($file, '.json');
-                $taskId = str_replace('progress_', '', $taskId);
-                
-                $activeTasks[] = [
-                    'id' => $taskId,
-                    'operation' => $taskData['operation'] ?? 'unknown',
-                    'status' => $status,
-                    'progress' => $taskData['progress'] ?? [],
-                    'created_at' => $taskData['created_at'] ?? 0
-                ];
-            }
-        }
-        
-        // 按创建时间排序
-        usort($activeTasks, function($a, $b) {
-            return $b['created_at'] - $a['created_at'];
-        });
-        
-        return $activeTasks;
+        // 内存存储模式下无法枚举所有transient，返回空数组
+        return [];
     }
     
     /**
      * 删除任务
-     * 
+     *
      * @param string $taskId 任务ID
      * @return bool 是否删除成功
      */
     public function deleteTask(string $taskId): bool {
-        $filename = $this->getProgressFilename($taskId);
-        
-        if (file_exists($filename)) {
-            $result = @unlink($filename);
-            
-            if ($result) {
-                \NTWP\Core\Logger::debug_log(
-                    sprintf('任务进度已删除: %s', $taskId),
-                    'Progress Tracker'
-                );
-            }
-            
-            return $result;
-        }
-        
-        return true; // 文件不存在也算删除成功
+        $cacheKey = self::CACHE_PREFIX . $taskId;
+        return delete_transient($cacheKey);
     }
     
     /**
-     * 清理过期任务
-     * 
+     * 清理过期任务（已废弃 - 内存存储自动过期）
+     *
+     * @deprecated 2.0.0 使用内存存储时自动过期，无需手动清理
      * @param int $maxAge 最大保留时间（秒），默认7天
      * @return int 清理的任务数量
      */
     public function cleanupExpiredTasks(int $maxAge = 604800): int {
-        $files = glob($this->progressDir . '/progress_*.json');
-        $cleaned = 0;
-        $cutoffTime = time() - $maxAge;
-        
-        foreach ($files as $file) {
-            $content = file_get_contents($file);
-            if ($content === false) {
-                continue;
-            }
-            
-            $taskData = json_decode($content, true);
-            if ($taskData === null) {
-                // 删除损坏的文件
-                if (@unlink($file)) {
-                    $cleaned++;
-                }
-                continue;
-            }
-            
-            $createdAt = $taskData['created_at'] ?? 0;
-            $status = $taskData['status'] ?? 'unknown';
-            
-            // 删除过期的已完成/失败/取消任务
-            if ($createdAt < $cutoffTime && in_array($status, ['completed', 'failed', 'cancelled'])) {
-                if (@unlink($file)) {
-                    $cleaned++;
-                }
-            }
-        }
-        
-        if ($cleaned > 0) {
-            \NTWP\Core\Logger::info_log(
-                sprintf('进度跟踪清理完成: 清理了 %d 个过期任务', $cleaned),
-                'Progress Tracker'
-            );
-        }
-        
-        return $cleaned;
+        // 内存存储模式下，transient会自动过期，无需手动清理
+        return 0;
     }
     
     /**
@@ -443,50 +320,16 @@ class Progress_Tracker {
         return $stats;
     }
     
-    /**
-     * 确保目录存在
-     */
-    private function ensureDirectory(): void {
-        if (!is_dir($this->progressDir)) {
-            wp_mkdir_p($this->progressDir);
-            
-            // 创建.htaccess文件保护进度目录
-            file_put_contents($this->progressDir . '/.htaccess', "Deny from all\n");
-        }
-    }
-    
-    /**
-     * 获取进度文件名
-     */
-    private function getProgressFilename(string $taskId): string {
-        return $this->progressDir . '/progress_' . $taskId . '.json';
-    }
+    // 移除了文件存储相关的辅助方法
     
     /**
      * 获取任务数据
      */
     private function getTaskData(string $taskId): ?array {
-        if ($this->useMemoryStorage) {
-            // 从内存缓存获取
-            $cacheKey = self::CACHE_PREFIX . $taskId;
-            $data = get_transient($cacheKey);
-            return $data !== false ? $data : null;
-        } else {
-            // 从文件获取（向后兼容）
-            $filename = $this->getProgressFilename($taskId);
-
-            if (!file_exists($filename)) {
-                return null;
-            }
-
-            $content = file_get_contents($filename);
-            if ($content === false) {
-                return null;
-            }
-
-            $data = json_decode($content, true);
-            return $data === null ? null : $data;
-        }
+        // 从内存缓存获取
+        $cacheKey = self::CACHE_PREFIX . $taskId;
+        $data = get_transient($cacheKey);
+        return $data !== false ? $data : null;
     }
     
     /**
@@ -502,52 +345,8 @@ class Progress_Tracker {
         $taskData = array_merge($taskData, $updates);
         $taskData['updated_at'] = time();
 
-        if ($this->useMemoryStorage) {
-            // 使用内存存储
-            $cacheKey = self::CACHE_PREFIX . $taskId;
-            return set_transient($cacheKey, $taskData, self::CACHE_EXPIRATION);
-        } else {
-            // 使用文件存储（向后兼容）
-            $filename = $this->getProgressFilename($taskId);
-            $tempFile = $filename . '.tmp';
-
-            $result = file_put_contents(
-                $tempFile,
-                json_encode($taskData, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
-            );
-
-            if ($result !== false) {
-                // Windows兼容性修复：先删除目标文件再重命名
-                if (PHP_OS_FAMILY === 'Windows' && file_exists($filename)) {
-                    if (!unlink($filename)) {
-                        // 删除失败，清理临时文件
-                        @unlink($tempFile);
-                        \NTWP\Core\Logger::error_log(
-                            sprintf('无法删除现有进度文件: %s', $filename),
-                            'Progress Tracker'
-                        );
-                        return false;
-                    }
-                }
-
-                if (rename($tempFile, $filename)) {
-                    return true;
-                } else {
-                    // 重命名失败，清理临时文件
-                    @unlink($tempFile);
-                    \NTWP\Core\Logger::error_log(
-                        sprintf('无法重命名临时文件: %s -> %s', $tempFile, $filename),
-                        'Progress Tracker'
-                    );
-                    return false;
-                }
-            }
-
-            \NTWP\Core\Logger::error_log(
-                sprintf('无法写入临时文件: %s', $tempFile),
-                'Progress Tracker'
-            );
-            return false;
-        }
+        // 使用内存存储
+        $cacheKey = self::CACHE_PREFIX . $taskId;
+        return set_transient($cacheKey, $taskData, self::CACHE_EXPIRATION);
     }
 }

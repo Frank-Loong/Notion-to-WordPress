@@ -42,8 +42,6 @@
 
             // 监听页面可见性变化
             document.addEventListener('visibilitychange', this.handleVisibilityChange);
-
-            console.log('🎯 [进度管理器] 已初始化 - SSE模式:', this.useSSE);
         }
         
         /**
@@ -71,8 +69,6 @@
             // 显示进度容器
             this.container.removeClass('notion-wp-hidden').slideDown(300);
             this.isVisible = true;
-
-            console.log(`🚀 [进度管理器] 开始显示进度: ${taskId} (${syncType}) - 模式: ${this.useSSE ? 'SSE' : 'AJAX'}`);
         }
         
         /**
@@ -80,8 +76,6 @@
          */
         hideProgress() {
             if (!this.isVisible) return;
-
-            console.log('🙈 [进度管理器] 开始隐藏进度界面');
 
             // 停止更新
             this.stopProgressUpdates();
@@ -92,7 +86,6 @@
                 this.container.fadeOut(300, () => {
                     this.container.remove();
                     this.container = null;
-                    console.log('🏁 [进度管理器] 进度界面已完全隐藏');
                 });
             }
 
@@ -163,8 +156,6 @@
 
             // 初始化步骤指示器
             this.initializeStepsIndicator();
-
-            console.log('🎨 [进度管理器] 进度UI已创建，插入位置:', $insertTarget ? $insertTarget[0] : 'body');
         }
         
         /**
@@ -261,8 +252,6 @@
                 // 开始SSE流
                 this.sseManager.start();
 
-                console.log('🚀 [进度管理器] SSE模式已启动');
-
             } catch (error) {
                 console.error('❌ [进度管理器] SSE启动失败，回退到AJAX模式:', error);
                 this.fallbackToAjax = true;
@@ -285,8 +274,6 @@
             this.updateInterval = setInterval(() => {
                 this.fetchAndUpdateProgress();
             }, this.updateFrequency);
-
-            console.log(`⏰ [进度管理器] AJAX轮询模式已启动 (${this.updateFrequency}ms)`);
         }
         
         /**
@@ -297,14 +284,12 @@
             if (this.sseManager) {
                 this.sseManager.stop();
                 this.sseManager = null;
-                console.log('⏹️ [进度管理器] SSE连接已停止');
             }
 
             // 停止AJAX轮询
             if (this.updateInterval) {
                 clearInterval(this.updateInterval);
                 this.updateInterval = null;
-                console.log('⏹️ [进度管理器] AJAX轮询已停止');
             }
         }
 
@@ -314,7 +299,6 @@
          * @param {Object} progressData 进度数据
          */
         handleSSEProgress(progressData) {
-            console.log('📊 [SSE] 收到进度更新:', progressData);
             this.updateProgress(progressData);
         }
 
@@ -324,7 +308,6 @@
          * @param {Object} completionData 完成数据
          */
         handleSSEComplete(completionData) {
-            console.log('✅ [SSE] 任务完成:', completionData);
 
             // 更新最终进度
             if (completionData) {
@@ -375,8 +358,6 @@
                 fullSyncBtn.disabled = false;
                 fullSyncBtn.classList.remove('syncing');
             }
-
-            console.log('🔄 [进度管理器] 同步按钮状态已重置');
         }
         
         /**
@@ -430,8 +411,6 @@
             if (status === 'completed' || status === 'failed' || status === 'cancelled') {
                 this.handleSyncComplete(status, progressData);
             }
-
-            console.log(`📊 [进度管理器] 简洁进度更新: ${progress.percentage || 0}% (${status || 'unknown'})`);
         }
         
         /**
@@ -504,21 +483,21 @@
         /**
          * 更新步骤指示器（已移除 - 使用简洁进度条）
          */
-        updateStepsIndicator(currentStep, status) {
+        updateStepsIndicator() {
             // 方法已简化，不再使用步骤指示器
         }
         
         /**
          * 更新统计信息（已移除 - 使用简洁进度条）
          */
-        updateStats(progress, timing) {
+        updateStats() {
             // 方法已简化，不再使用统计面板
         }
         
         /**
          * 更新错误信息（已移除 - 使用简洁进度条）
          */
-        updateErrors(errors) {
+        updateErrors() {
             // 方法已简化，不再使用错误面板
         }
         
@@ -594,8 +573,6 @@
                 // 重新设置更新间隔
                 this.stopProgressUpdates();
                 this.startProgressUpdates();
-                
-                console.log(`👁️ [进度管理器] 页面可见性变化，更新频率调整为 ${newFrequency}ms`);
             }
         }
         
@@ -623,7 +600,7 @@
         /**
          * 格式化持续时间（已移除 - 使用简洁进度条）
          */
-        formatDuration(milliseconds) {
+        formatDuration() {
             // 方法已简化，不再使用时间格式化
             return '';
         }
@@ -637,8 +614,6 @@
             
             // 移除事件监听
             document.removeEventListener('visibilitychange', this.handleVisibilityChange);
-            
-            console.log('🗑️ [进度管理器] 已销毁');
         }
     };
 

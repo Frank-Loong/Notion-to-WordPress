@@ -131,8 +131,6 @@ class SSE_Progress_Stream {
                 'message' => '服务器内部错误',
                 'error' => $e->getMessage()
             ]);
-        } finally {
-            Logger::info_log("SSE进度流结束: {$task_id}", 'SSE Stream');
         }
     }
     
