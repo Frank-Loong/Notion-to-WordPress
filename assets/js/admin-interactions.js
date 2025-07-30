@@ -696,8 +696,17 @@ jQuery(document).ready(function($) {
                 const status = response.success ? 'success' : 'error';
 
                 if (response.success) {
-                    // 进度管理器会自动处理完成状态，这里不需要立即显示消息
                     console.log('✅ [同步] 同步成功:', message);
+
+                    // 显示成功消息
+                    showModal(message, status);
+
+                    // 隐藏进度界面
+                    if (window.syncProgressManager) {
+                        setTimeout(() => {
+                            window.syncProgressManager.hideProgress();
+                        }, 2000); // 2秒后自动隐藏
+                    }
 
                     // 清除同步状态
                     SyncStatusManager.clearSyncStatus();

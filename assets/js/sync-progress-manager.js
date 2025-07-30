@@ -1,9 +1,9 @@
 /**
- * 同步进度管理器
- * 
- * 为 Notion to WordPress 插件提供可视化的同步进度展示功能
- * 支持实时进度更新、步骤指示器、统计信息和错误处理
- * 
+ * 简洁同步进度管理器
+ *
+ * 为 Notion to WordPress 插件提供简洁的光泽动画进度条
+ * 支持实时进度更新和状态显示，去除了复杂的UI组件
+ *
  * @since      2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
@@ -13,15 +13,7 @@
 (function($) {
     'use strict';
 
-    // 同步步骤定义
-    const SYNC_STEPS = [
-        { id: 'validate', name: '验证连接', icon: '🔗', weight: 5 },
-        { id: 'fetch_pages', name: '获取页面', icon: '📄', weight: 15 },
-        { id: 'process_content', name: '处理内容', icon: '⚙️', weight: 40 },
-        { id: 'download_images', name: '下载图片', icon: '🖼️', weight: 25 },
-        { id: 'save_posts', name: '保存文章', icon: '💾', weight: 10 },
-        { id: 'update_index', name: '更新索引', icon: '🔍', weight: 5 }
-    ];
+    // 同步步骤定义（已移除 - 使用简洁进度条）
 
     /**
      * 同步进度管理器类
@@ -74,22 +66,27 @@
          */
         hideProgress() {
             if (!this.isVisible) return;
-            
+
+            console.log('🙈 [进度管理器] 开始隐藏进度界面');
+
             // 停止更新
             this.stopProgressUpdates();
-            
+
             // 隐藏容器
             if (this.container) {
-                this.container.slideUp(300, () => {
+                // 添加淡出动画
+                this.container.fadeOut(300, () => {
                     this.container.remove();
                     this.container = null;
+                    console.log('🏁 [进度管理器] 进度界面已完全隐藏');
                 });
             }
-            
+
             this.isVisible = false;
             this.taskId = null;
-            
-            console.log('🏁 [进度管理器] 进度界面已隐藏');
+
+            // 重置同步按钮状态
+            this.resetSyncButtons();
         }
         
         /**
@@ -157,25 +154,12 @@
         }
         
         /**
-         * 生成简洁进度HTML
+         * 生成简洁光泽进度条HTML
          */
         generateProgressHTML() {
             return `
                 <div class="notion-sync-progress-container notion-wp-hidden">
-                    <div class="sync-progress-header">
-                        <div class="sync-progress-title">
-                            <span class="sync-progress-icon">🔄</span>
-                            ${this.syncType}进度
-                        </div>
-                        <div class="sync-progress-actions">
-                            <button type="button" class="button button-secondary sync-cancel-btn" title="取消同步">
-                                取消
-                            </button>
-                        </div>
-                    </div>
-
                     <div class="sync-progress-main">
-                        <!-- 主进度条 -->
                         <div class="sync-main-progress">
                             <div class="progress-bar-container">
                                 <div class="progress-bar">
@@ -184,65 +168,7 @@
                                 <span class="progress-percentage">0%</span>
                             </div>
                             <div class="progress-status">
-                                <span class="current-step-text">准备开始...</span>
-                                <span class="progress-eta"></span>
-                            </div>
-                        </div>
-
-                        <!-- 步骤指示器 -->
-                        <div class="sync-steps-indicator">
-                            ${this.generateStepsHTML()}
-                        </div>
-
-                        <!-- 统计信息 -->
-                        <div class="sync-stats-panel">
-                            <div class="sync-stats-grid">
-                                <div class="stat-item">
-                                    <span class="stat-icon">📊</span>
-                                    <div class="stat-content">
-                                        <span class="stat-label">已处理</span>
-                                        <span class="stat-value" data-stat="processed">0/0</span>
-                                    </div>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-icon">✅</span>
-                                    <div class="stat-content">
-                                        <span class="stat-label">成功</span>
-                                        <span class="stat-value" data-stat="success">0</span>
-                                    </div>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-icon">❌</span>
-                                    <div class="stat-content">
-                                        <span class="stat-label">失败</span>
-                                        <span class="stat-value" data-stat="failed">0</span>
-                                    </div>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-icon">⏱️</span>
-                                    <div class="stat-content">
-                                        <span class="stat-label">用时</span>
-                                        <span class="stat-value" data-stat="elapsed">0秒</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 错误信息面板 -->
-                        <div class="sync-errors-panel notion-wp-hidden">
-                            <div class="errors-header">
-                                <h5>错误信息</h5>
-                                <button type="button" class="button button-link errors-toggle">
-                                    <span class="dashicons dashicons-arrow-down"></span>
-                                </button>
-                            </div>
-                            <div class="errors-content">
-                                <ul class="errors-list"></ul>
-                                <div class="errors-actions">
-                                    <button type="button" class="button button-secondary retry-failed-btn">
-                                        重试失败项
-                                    </button>
-                                </div>
+                                <span class="current-step-text">准备开始同步...</span>
                             </div>
                         </div>
                     </div>
@@ -251,20 +177,10 @@
         }
         
         /**
-         * 生成简洁步骤指示器HTML
+         * 生成步骤HTML（已简化，不再使用）
          */
         generateStepsHTML() {
-            return SYNC_STEPS.map((step, index) => `
-                <div class="step-item" data-step="${step.id}">
-                    <div class="step-indicator">
-                        <div class="step-circle">
-                            <span class="step-icon">${step.icon}</span>
-                        </div>
-                        ${index < SYNC_STEPS.length - 1 ? '<div class="step-connector"></div>' : ''}
-                    </div>
-                    <div class="step-label">${step.name}</div>
-                </div>
-            `).join('');
+            return '';
         }
         
         /**
@@ -329,8 +245,30 @@
                 clearInterval(this.updateInterval);
                 this.updateInterval = null;
             }
-            
+
             console.log('⏹️ [进度管理器] 停止进度更新');
+        }
+
+        /**
+         * 重置同步按钮状态
+         */
+        resetSyncButtons() {
+            // 重置智能同步按钮
+            const smartSyncBtn = document.querySelector('.smart-sync-btn');
+            if (smartSyncBtn) {
+                smartSyncBtn.textContent = ' 智能同步';
+                smartSyncBtn.disabled = false;
+                smartSyncBtn.classList.remove('syncing');
+            }
+
+            // 重置完全同步按钮
+            const fullSyncBtn = document.querySelector('.full-sync-btn');
+            if (fullSyncBtn) {
+                fullSyncBtn.disabled = false;
+                fullSyncBtn.classList.remove('syncing');
+            }
+
+            console.log('🔄 [进度管理器] 同步按钮状态已重置');
         }
         
         /**
@@ -366,118 +304,105 @@
         }
         
         /**
-         * 更新进度显示
+         * 更新简洁进度显示
          * @param {Object} progressData 进度数据
          */
         updateProgress(progressData) {
             if (!this.container || !progressData) return;
-            
-            const { progress = {}, currentStep, status, timing = {}, errors = [] } = progressData;
-            
+
+            const { progress = {}, status } = progressData;
+
             // 更新主进度条
             this.updateMainProgress(progress);
-            
-            // 更新步骤指示器
-            this.updateStepsIndicator(currentStep, status);
-            
-            // 更新统计信息
-            this.updateStats(progress, timing);
-            
-            // 更新错误信息
-            this.updateErrors(errors);
-            
+
+            // 更新状态文本
+            this.updateStatusText(status);
+
             // 检查是否完成
             if (status === 'completed' || status === 'failed' || status === 'cancelled') {
                 this.handleSyncComplete(status, progressData);
             }
-            
-            console.log(`📊 [进度管理器] 进度更新: ${progress.percentage || 0}% (${currentStep || 'unknown'})`);
+
+            console.log(`📊 [进度管理器] 简洁进度更新: ${progress.percentage || 0}% (${status || 'unknown'})`);
         }
         
         /**
-         * 更新主进度条
+         * 更新主进度条（简洁版）
          */
         updateMainProgress(progress) {
             const percentage = Math.min(100, Math.max(0, progress.percentage || 0));
-            
+            const progressFill = this.container.find('.progress-fill');
+
             // 更新进度条宽度
-            this.container.find('.progress-fill').css('width', percentage + '%');
-            
+            progressFill.css('width', percentage + '%');
+
             // 更新百分比文本
-            this.container.find('.progress-percentage').text(percentage.toFixed(1) + '%');
+            this.container.find('.progress-percentage').text(percentage.toFixed(0) + '%');
+        }
+
+        /**
+         * 更新状态文本
+         */
+        updateStatusText(status) {
+            const statusElement = this.container.find('.current-step-text');
+
+            let statusText = '准备开始同步...';
+            if (status) {
+                switch (status) {
+                    case 'connecting':
+                        statusText = '正在连接 Notion...';
+                        break;
+                    case 'fetching':
+                        statusText = '正在获取页面数据...';
+                        break;
+                    case 'processing':
+                        statusText = '正在处理内容...';
+                        break;
+                    case 'downloading':
+                        statusText = '正在下载图片...';
+                        break;
+                    case 'saving':
+                        statusText = '正在保存文章...';
+                        break;
+                    case 'indexing':
+                        statusText = '正在更新索引...';
+                        break;
+                    case 'completed':
+                        statusText = '同步完成！';
+                        break;
+                    case 'failed':
+                        statusText = '同步失败';
+                        break;
+                    case 'cancelled':
+                        statusText = '同步已取消';
+                        break;
+                    default:
+                        statusText = '正在同步...';
+                }
+            }
+
+            statusElement.text(statusText);
         }
         
         /**
-         * 更新步骤指示器
+         * 更新步骤指示器（已移除 - 使用简洁进度条）
          */
         updateStepsIndicator(currentStep, status) {
-            if (!currentStep) return;
-            
-            const currentStepIndex = SYNC_STEPS.findIndex(step => step.id === currentStep);
-            
-            this.container.find('.step-item').each((index, element) => {
-                const $step = $(element);
-                
-                $step.removeClass('active completed failed');
-                
-                if (index < currentStepIndex) {
-                    $step.addClass('completed');
-                } else if (index === currentStepIndex) {
-                    $step.addClass(status === 'failed' ? 'failed' : 'active');
-                }
-            });
-            
-            // 更新当前步骤文本
-            const stepInfo = SYNC_STEPS[currentStepIndex];
-            if (stepInfo) {
-                this.container.find('.current-step-text').text(`${stepInfo.icon} ${stepInfo.name}`);
-            }
+            // 方法已简化，不再使用步骤指示器
         }
         
         /**
-         * 更新统计信息
+         * 更新统计信息（已移除 - 使用简洁进度条）
          */
         updateStats(progress, timing) {
-            const { total = 0, processed = 0, success = 0, failed = 0 } = progress;
-            const { elapsedTime = 0, estimatedRemaining = 0 } = timing;
-            
-            // 更新统计数值
-            this.container.find('[data-stat="processed"]').text(`${processed}/${total}`);
-            this.container.find('[data-stat="success"]').text(success);
-            this.container.find('[data-stat="failed"]').text(failed);
-            this.container.find('[data-stat="elapsed"]').text(this.formatDuration(elapsedTime));
-            
-            // 更新预估时间
-            if (estimatedRemaining > 0) {
-                this.container.find('.progress-eta').text(`预计剩余: ${this.formatDuration(estimatedRemaining)}`);
-            } else {
-                this.container.find('.progress-eta').text('');
-            }
+            // 方法已简化，不再使用统计面板
         }
         
         /**
-         * 更新错误信息
+         * 更新错误信息（已移除 - 使用简洁进度条）
          */
         updateErrors(errors) {
-            if (!errors || errors.length === 0) {
-                this.container.find('.sync-errors-panel').addClass('notion-wp-hidden');
-                return;
-            }
-            
-            const $errorsList = this.container.find('.errors-list');
-            $errorsList.empty();
-            
-            errors.slice(-10).forEach(error => { // 只显示最近10个错误
-                const $errorItem = $(`
-                    <li class="error-item">
-                        <span class="error-time">${new Date(error.timestamp * 1000).toLocaleTimeString()}</span>
-                        <span class="error-message">${error.message}</span>
-                    </li>
-                `);
-                $errorsList.append($errorItem);
-            });
-            
-            this.container.find('.sync-errors-panel').removeClass('notion-wp-hidden');
+            // 方法已简化，不再使用错误面板
         }
         
         /**
@@ -485,21 +410,21 @@
          */
         handleSyncComplete(status, progressData) {
             this.stopProgressUpdates();
-            
+
             // 更新UI状态
             this.container.find('.sync-progress-title .sync-progress-icon').text(
-                status === 'completed' ? '✅' : 
+                status === 'completed' ? '✅' :
                 status === 'failed' ? '❌' : '⏹️'
             );
-            
+
             // 显示完成消息
             const message = this.getCompletionMessage(status, progressData);
             this.showCompletionMessage(message, status);
-            
-            // 延迟隐藏进度界面
+
+            // 立即隐藏进度界面（成功时延迟1秒，失败时延迟2秒）
             setTimeout(() => {
                 this.hideProgress();
-            }, status === 'completed' ? 3000 : 5000);
+            }, status === 'completed' ? 1000 : 2000);
         }
         
         /**
@@ -634,22 +559,11 @@
         }
         
         /**
-         * 格式化持续时间
+         * 格式化持续时间（已移除 - 使用简洁进度条）
          */
         formatDuration(milliseconds) {
-            if (!milliseconds || milliseconds < 0) return '0秒';
-            
-            const seconds = Math.floor(milliseconds / 1000);
-            const minutes = Math.floor(seconds / 60);
-            const hours = Math.floor(minutes / 60);
-            
-            if (hours > 0) {
-                return `${hours}小时${minutes % 60}分钟`;
-            } else if (minutes > 0) {
-                return `${minutes}分钟${seconds % 60}秒`;
-            } else {
-                return `${seconds}秒`;
-            }
+            // 方法已简化，不再使用时间格式化
+            return '';
         }
         
         /**
