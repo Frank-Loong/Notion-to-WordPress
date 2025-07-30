@@ -184,38 +184,17 @@
         }
         
         /**
-         * 绑定进度事件
+         * 绑定进度事件（已移除 - 简洁进度条无需事件）
          */
         bindProgressEvents() {
-            if (!this.container) return;
-            
-            // 取消按钮
-            this.container.find('.sync-cancel-btn').on('click', (e) => {
-                e.preventDefault();
-                this.handleCancelSync();
-            });
-            
-            // 错误面板切换
-            this.container.find('.errors-toggle').on('click', (e) => {
-                e.preventDefault();
-                this.toggleErrorsPanel();
-            });
-            
-            // 重试失败项
-            this.container.find('.retry-failed-btn').on('click', (e) => {
-                e.preventDefault();
-                this.handleRetryFailed();
-            });
+            // 简洁进度条无需事件监听器
         }
         
         /**
-         * 初始化步骤指示器
+         * 初始化步骤指示器（已移除 - 简洁进度条无需步骤）
          */
         initializeStepsIndicator() {
-            if (!this.container) return;
-            
-            // 重置所有步骤状态
-            this.container.find('.step-item').removeClass('active completed failed');
+            // 简洁进度条无需步骤指示器
         }
         
         /**
@@ -483,79 +462,24 @@
         }
         
         /**
-         * 处理取消同步
+         * 处理取消同步（已移除 - 简洁进度条无取消功能）
          */
         handleCancelSync() {
-            if (!this.taskId) return;
-            
-            if (!confirm('确定要取消当前同步操作吗？')) {
-                return;
-            }
-            
-            // 发送取消请求
-            $.ajax({
-                url: notionToWp.ajax_url,
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    action: 'notion_to_wordpress_cancel_sync',
-                    nonce: notionToWp.nonce,
-                    task_id: this.taskId
-                },
-                success: (response) => {
-                    if (response.success) {
-                        console.log('🛑 [进度管理器] 同步已取消');
-                        this.handleSyncComplete('cancelled', { progress: {} });
-                    } else {
-                        console.error('❌ [进度管理器] 取消同步失败:', response.data?.message);
-                    }
-                },
-                error: (xhr, status, error) => {
-                    console.error('❌ [进度管理器] 取消同步网络错误:', error);
-                }
-            });
+            // 简洁进度条无取消功能
         }
         
         /**
-         * 切换错误面板
+         * 切换错误面板（已移除 - 简洁进度条无错误面板）
          */
         toggleErrorsPanel() {
-            const $panel = this.container.find('.errors-content');
-            const $toggle = this.container.find('.errors-toggle .dashicons');
-            
-            $panel.slideToggle(200);
-            $toggle.toggleClass('dashicons-arrow-down dashicons-arrow-up');
+            // 简洁进度条无错误面板
         }
-        
+
         /**
-         * 处理重试失败项
+         * 处理重试失败项（已移除 - 简洁进度条无重试功能）
          */
         handleRetryFailed() {
-            if (!this.taskId) return;
-            
-            // 发送重试请求
-            $.ajax({
-                url: notionToWp.ajax_url,
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    action: 'notion_to_wordpress_retry_failed',
-                    nonce: notionToWp.nonce,
-                    task_id: this.taskId
-                },
-                success: (response) => {
-                    if (response.success) {
-                        console.log('🔄 [进度管理器] 重试失败项已启动');
-                        // 重新开始进度更新
-                        this.startProgressUpdates();
-                    } else {
-                        console.error('❌ [进度管理器] 重试失败:', response.data?.message);
-                    }
-                },
-                error: (xhr, status, error) => {
-                    console.error('❌ [进度管理器] 重试网络错误:', error);
-                }
-            });
+            // 简洁进度条无重试功能
         }
         
         /**

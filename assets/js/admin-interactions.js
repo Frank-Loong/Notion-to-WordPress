@@ -705,7 +705,7 @@ jQuery(document).ready(function($) {
                     if (window.syncProgressManager) {
                         setTimeout(() => {
                             window.syncProgressManager.hideProgress();
-                        }, 2000); // 2秒后自动隐藏
+                        }, 1000); // 1秒后自动隐藏
                     }
 
                     // 清除同步状态
