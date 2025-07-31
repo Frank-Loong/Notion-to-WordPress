@@ -300,6 +300,49 @@ class Notion_To_WordPress_Admin {
     }
 
     /**
+     * 统一的AJAX请求验证
+     *
+     * @since 2.0.0-beta.1
+     * @param string $nonce_action nonce动作名称
+     * @param string $nonce_name nonce字段名称（可选）
+     * @return array 验证结果，包含is_valid、error_message和http_code
+     */
+    private function validate_ajax_request(string $nonce_action, string $nonce_name = 'nonce'): array {
+        // 检查nonce参数是否存在
+        if (!isset($_POST[$nonce_name])) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('缺少安全验证参数', 'notion-to-wordpress'),
+                'http_code' => 400
+            ];
+        }
+
+        // 验证nonce
+        if (!wp_verify_nonce($_POST[$nonce_name], $nonce_action)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('安全验证失败', 'notion-to-wordpress'),
+                'http_code' => 403
+            ];
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('权限不足', 'notion-to-wordpress'),
+                'http_code' => 403
+            ];
+        }
+
+        return [
+            'is_valid' => true,
+            'error_message' => '',
+            'http_code' => 200
+        ];
+    }
+
+    /**
      * 验证配置参数
      *
      * @since 2.0.0-beta.1
@@ -527,8 +570,6 @@ class Notion_To_WordPress_Admin {
             Logger::init();
         }
 
-        // 缓存功能已移除，使用增量同步替代
-
         // 更新 cron
         $this->update_cron_schedule( $options );
         $this->update_log_cleanup_schedule($options);
@@ -543,21 +584,34 @@ class Notion_To_WordPress_Admin {
 
     public function handle_save_settings_ajax() {
         try {
-            check_ajax_referer('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce');
-
-            if (!current_user_can('manage_options')) {
-                wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')], 403);
+            // 使用统一的AJAX验证
+            $validation_result = $this->validate_ajax_request('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce');
+            if (!$validation_result['is_valid']) {
+                wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
+                return;
             }
 
             $current_options = get_option('notion_to_wordpress_options', []);
             $options = $this->parse_settings($current_options);
 
-            // 验证配置参数
-            $validation = $this->validate_config($options);
-            if (!empty($validation['errors'])) {
-                wp_send_json_error([
-                    'message' => __('配置验证失败：', 'notion-to-wordpress') . implode(' ', $validation['errors'])
-                ], 400);
+            // 使用统一验证框架验证配置参数
+            if (class_exists('\\NTWP\\Core\\Security')) {
+                $validation = \NTWP\Core\Security::validate_plugin_options($options);
+                if (!$validation['is_valid']) {
+                    wp_send_json_error([
+                        'message' => __('配置验证失败：', 'notion-to-wordpress') . implode(' ', $validation['errors'])
+                    ], 400);
+                    return;
+                }
+            } else {
+                // 回退到原有验证逻辑
+                $validation = $this->validate_config($options);
+                if (!empty($validation['errors'])) {
+                    wp_send_json_error([
+                        'message' => __('配置验证失败：', 'notion-to-wordpress') . implode(' ', $validation['errors'])
+                    ], 400);
+                    return;
+                }
             }
 
             // 如有警告，在成功消息中包含
@@ -1074,30 +1128,18 @@ class Notion_To_WordPress_Admin {
      */
     public function handle_test_debug() {
         try {
-
-            // 检查nonce
-            if (!isset($_POST['nonce'])) {
-                error_log('Notion to WordPress: 缺少nonce参数');
-                wp_send_json_error(['message' => __('缺少nonce参数', 'notion-to-wordpress')]);
+            // 使用统一的AJAX验证
+            $validation_result = $this->validate_ajax_request('notion_to_wordpress_nonce');
+            if (!$validation_result['is_valid']) {
+                \NTWP\Core\Logger::error_log(
+                    'Test debug AJAX验证失败: ' . $validation_result['error_message'],
+                    'AJAX Handler'
+                );
+                wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
                 return;
             }
 
-            error_log('Notion to WordPress: 收到的nonce: ' . $_POST['nonce']);
-
-            // 验证nonce
-            if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
-                error_log('Notion to WordPress: nonce验证失败');
-                wp_send_json_error(['message' => __('nonce验证失败', 'notion-to-wordpress')]);
-                return;
-            }
-
-            error_log('Notion to WordPress: nonce验证成功');
-
-            if (!current_user_can('manage_options')) {
-                error_log('Notion to WordPress: 权限检查失败');
-                wp_send_json_error(['message' => __('权限不足', 'notion-to-wordpress')]);
-                return;
-            }
+            \NTWP\Core\Logger::debug_log('Test debug AJAX验证成功', 'AJAX Handler');
 
             if (class_exists('NTWP\\Core\\Logger')) {
                 Logger::info_log('权限检查成功', 'Debug Test');
@@ -1572,19 +1614,13 @@ class Notion_To_WordPress_Admin {
      * @since 2.0.0-beta.1
      */
     public function handle_get_async_status() {
-        // 验证nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
-            wp_send_json_error(['message' => '安全验证失败']);
-            return;
-        }
-
-        // 检查用户权限
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => '权限不足']);
-            return;
-        }
-
         try {
+            // 使用统一的AJAX验证
+            $validation_result = $this->validate_ajax_request('notion_to_wordpress_nonce');
+            if (!$validation_result['is_valid']) {
+                wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
+                return;
+            }
             if (class_exists('NTWP\\Core\\Async_Processor')) {
                 $async_status = \NTWP\Core\Async_Processor::get_async_status();
 
@@ -1621,26 +1657,27 @@ class Notion_To_WordPress_Admin {
      * @since 2.0.0-beta.1
      */
     public function handle_control_async_operation() {
-        // 验证nonce
-        if (!wp_verify_nonce($_POST['nonce'], 'notion_to_wordpress_nonce')) {
-            wp_send_json_error(['message' => '安全验证失败']);
-            return;
-        }
-
-        // 检查用户权限
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(['message' => '权限不足']);
-            return;
-        }
-
-        $action = sanitize_text_field($_POST['action_type'] ?? '');
-
-        if (empty($action)) {
-            wp_send_json_error(['message' => '操作类型不能为空']);
-            return;
-        }
-
         try {
+            // 使用统一的AJAX验证
+            $validation_result = $this->validate_ajax_request('notion_to_wordpress_nonce');
+            if (!$validation_result['is_valid']) {
+                wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
+                return;
+            }
+
+            // 使用统一验证框架验证输入参数
+            $action = sanitize_text_field($_POST['action_type'] ?? '');
+            if (empty($action)) {
+                wp_send_json_error(['message' => '操作类型不能为空'], 400);
+                return;
+            }
+
+            // 验证操作类型是否有效
+            $valid_actions = ['pause', 'resume', 'stop'];
+            if (!in_array($action, $valid_actions, true)) {
+                wp_send_json_error(['message' => '无效的操作类型'], 400);
+                return;
+            }
             if (class_exists('NTWP\\Core\\Async_Processor')) {
                 $result = false;
                 $message = '';
@@ -1676,7 +1713,13 @@ class Notion_To_WordPress_Admin {
             }
 
         } catch (Exception $e) {
-            wp_send_json_error(['message' => '控制异步操作时发生异常: ' . $e->getMessage()]);
+            // 使用统一错误处理
+            if (class_exists('\\NTWP\\Core\\Error_Handler')) {
+                $error = \NTWP\Core\Error_Handler::handle_exception($e, 'Async Operation Control');
+                wp_send_json_error(['message' => '控制异步操作时发生异常: ' . $error->get_error_message()]);
+            } else {
+                wp_send_json_error(['message' => '控制异步操作时发生异常: ' . $e->getMessage()]);
+            }
         }
     }
 
