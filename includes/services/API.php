@@ -1612,10 +1612,18 @@ class API {
         );
 
         try {
-            // 从配置中获取并发数，使用自适应调整
-            $options = get_option('notion_to_wordpress_options', []);
+            // 优先使用动态并发管理器
+            if (class_exists('\\NTWP\\Core\\Dynamic_Concurrency_Manager')) {
+                $concurrency_manager = new \NTWP\Core\Dynamic_Concurrency_Manager();
+                $concurrent_requests = $concurrency_manager->calculate_optimal_concurrency();
 
-            if (class_exists('\\NTWP\\Core\\Memory_Manager')) {
+                if (class_exists('\\NTWP\\Core\\Logger')) {
+                    \NTWP\Core\Logger::debug_log(
+                        "动态并发数: {$concurrent_requests} (API请求)",
+                        'API Concurrent'
+                    );
+                }
+            } elseif (class_exists('\\NTWP\\Core\\Memory_Manager')) {
                 $concurrent_requests = \NTWP\Core\Memory_Manager::get_concurrent_limit();
 
                 if (class_exists('\\NTWP\\Core\\Logger')) {
@@ -1625,6 +1633,7 @@ class API {
                     );
                 }
             } else {
+                $options = get_option('notion_to_wordpress_options', []);
                 $concurrent_requests = $options['concurrent_requests'] ?? 5;
             }
 

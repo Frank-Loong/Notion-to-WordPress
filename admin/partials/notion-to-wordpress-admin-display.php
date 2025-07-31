@@ -340,7 +340,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <p class="description"><?php esc_html_e('选择适合您服务器配置的性能级别。系统会自动设置最优的API分页大小、并发请求数等参数。', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('选择适合您服务器配置的性能级别。系统会自动设置最优的API分页大小、基准并发数等参数，并根据实时性能动态调整。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -744,7 +744,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         $concurrent_requests = $options['concurrent_requests'] ?? 5;
                                         ?>
                                         <input type="number" id="concurrent_requests" name="concurrent_requests" value="<?php echo esc_attr($concurrent_requests); ?>" class="small-text" min="3" max="15" step="1">
-                                        <p class="description"><?php esc_html_e('同时进行的API请求数量。较高的值可以提升同步速度，但可能会触发API限制。推荐值：5-10。', 'notion-to-wordpress'); ?></p>
+                                        <p class="description"><?php esc_html_e('基准并发请求数。系统会根据服务器性能（CPU负载、内存使用、网络延迟）动态调整实际并发数，以获得最佳性能。推荐值：5-10。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>
@@ -779,7 +779,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <input type="checkbox" id="enable_performance_mode" name="enable_performance_mode" value="1" <?php checked(1, $enable_performance_mode); ?>>
                                                 <span><?php esc_html_e('启用性能优化模式', 'notion-to-wordpress'); ?></span>
                                             </label>
-                                            <p class="description"><?php esc_html_e('启用后将使用批量操作、并发处理等功能来提升同步性能。日志记录由调试工具中的日志等级单独控制。', 'notion-to-wordpress'); ?></p>
+                                            <p class="description"><?php esc_html_e('启用后将使用批量操作、动态并发调优等功能来提升同步性能。系统会自动根据服务器负载调整并发数。日志记录由调试工具中的日志等级单独控制。', 'notion-to-wordpress'); ?></p>
                                         </fieldset>
                                     </td>
                                 </tr>
@@ -926,8 +926,9 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                             <div class="notion-wp-performance-tips">
                                 <h3><?php esc_html_e('性能优化建议', 'notion-to-wordpress'); ?></h3>
                                 <ul>
-                                    <li><?php esc_html_e('如果同步速度较慢，可以适当增加API分页大小和并发请求数', 'notion-to-wordpress'); ?></li>
-                                    <li><?php esc_html_e('如果服务器内存不足，可以减少批量处理大小和日志缓冲大小', 'notion-to-wordpress'); ?></li>
+                                    <li><?php esc_html_e('系统现已支持动态并发调优，会根据服务器性能自动调整并发数', 'notion-to-wordpress'); ?></li>
+                                    <li><?php esc_html_e('如果同步速度较慢，可以适当增加API分页大小和基准并发请求数', 'notion-to-wordpress'); ?></li>
+                                    <li><?php esc_html_e('如果服务器内存不足，系统会自动降低并发数以避免内存不足', 'notion-to-wordpress'); ?></li>
                                     <li><?php esc_html_e('启用性能优化模式可以显著提升同步效率', 'notion-to-wordpress'); ?></li>
                                     <li><?php esc_html_e('定期清理日志文件可以节省磁盘空间', 'notion-to-wordpress'); ?></li>
                                     <li><?php esc_html_e('创建数据库索引可以显著提升查询性能（30-50%）', 'notion-to-wordpress'); ?></li>

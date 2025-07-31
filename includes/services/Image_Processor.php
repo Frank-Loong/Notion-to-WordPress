@@ -268,9 +268,10 @@ class Image_Processor {
      *
      * @since 2.0.0-beta.1
      * @param string $state_id 状态管理器ID，用于状态隔离
+     * @param int $max_concurrent 最大并发数
      * @return void
      */
-    public static function batch_download_images(string $state_id = null): void {
+    public static function batch_download_images(string $state_id = null, int $max_concurrent = self::DEFAULT_MAX_CONCURRENT): void {
         $state = self::get_state_manager($state_id);
 
         if (empty($state['pending_images'])) {
@@ -329,9 +330,9 @@ class Image_Processor {
 
         // 简化的策略选择：<5张图片用sequential，≥5张用parallel
         if (count($requests) >= 5) {
-            // 使用并行处理
+            // 使用并行处理（传递动态并发数）
             $image_urls = array_column($requests, 'url');
-            $parallel_results = self::process_images_parallel($image_urls);
+            $parallel_results = self::process_images_parallel($image_urls, $max_concurrent);
 
             // 模拟响应格式以兼容现有处理逻辑
             $responses = [];
@@ -660,9 +661,10 @@ class Image_Processor {
      * @since 2.0.0-beta.1
      * @param string $html HTML内容
      * @param string $state_id 状态管理器ID，用于状态隔离
+     * @param int $max_concurrent 最大并发数
      * @return string 处理后的HTML
      */
-    public static function process_async_images(string $html, string $state_id = null): string {
+    public static function process_async_images(string $html, string $state_id = null, int $max_concurrent = self::DEFAULT_MAX_CONCURRENT): string {
         $state = self::get_state_manager($state_id);
 
         if (!$state['async_image_mode'] || empty($state['pending_images'])) {
@@ -671,8 +673,8 @@ class Image_Processor {
 
         $start_time = microtime(true);
 
-        // 先下载所有图片
-        self::batch_download_images($state_id);
+        // 先下载所有图片（使用动态并发数）
+        self::batch_download_images($state_id, $max_concurrent);
 
         // 然后替换占位符
         $processed_html = self::replace_image_placeholders($html, $state_id);

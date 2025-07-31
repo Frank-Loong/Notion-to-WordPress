@@ -77,6 +77,14 @@ class Import_Coordinator {
      */
     private ?\NTWP\Core\Progress_Tracker $progress_tracker = null;
 
+    /**
+     * 动态并发管理器实例
+     *
+     * @since 1.9.0
+     * @var \NTWP\Core\Dynamic_Concurrency_Manager|null
+     */
+    private ?\NTWP\Core\Dynamic_Concurrency_Manager $concurrency_manager = null;
+
     // ==================== 辅助方法 ====================
 
     /**
@@ -86,7 +94,14 @@ class Import_Coordinator {
      * @return   bool    是否启用并发优化
      */
     private function is_concurrent_optimization_enabled(): bool {
-        // 🚀 性能优化：重新启用保守的并发优化
+        // 使用动态并发管理器计算最优并发数
+        if ($this->concurrency_manager) {
+            $optimal_concurrency = $this->concurrency_manager->calculate_optimal_concurrency();
+            // 如果最优并发数大于1，则启用并发优化
+            return $optimal_concurrency > 1;
+        }
+
+        // 回退到原有逻辑
         $performance_config = get_option('notion_to_wordpress_performance_config', []);
 
         // 检查系统负载（如果可用）
@@ -99,21 +114,6 @@ class Import_Coordinator {
 
         // 默认启用，但使用保守参数
         return $performance_config['enable_concurrent_optimization'] ?? true;
-
-        // 从性能配置中读取并发优化设置
-        $performance_config = get_option('notion_to_wordpress_performance_config', []);
-
-        // 智能判断：小数据集禁用并发优化，避免开销大于收益
-        $force_disable = isset($performance_config['enable_concurrent_optimization']) &&
-                        $performance_config['enable_concurrent_optimization'] === false;
-        if ($force_disable) {
-            return false;
-        }
-
-        // 默认策略：根据数据量智能启用
-        // 对于小于20页的数据集，并发优化通常会降低性能
-        return isset($performance_config['enable_concurrent_optimization']) ?
-               $performance_config['enable_concurrent_optimization'] : true;
     }
 
     /**
@@ -128,6 +128,7 @@ class Import_Coordinator {
         $this->notion_api = $notion_api;
         $this->database_id = $database_id;
         $this->field_mapping = $field_mapping;
+        $this->concurrency_manager = new \NTWP\Core\Dynamic_Concurrency_Manager();
     }
 
     /**
@@ -1423,6 +1424,10 @@ class Import_Coordinator {
         $state_id = 'page_import_' . uniqid();
 
         try {
+            // 获取动态并发数
+            $optimal_concurrency = $this->concurrency_manager ? 
+                $this->concurrency_manager->get_current_concurrency() : 5;
+
             // 启用异步图片下载模式（使用独立状态）
             $this->updatePageProgress('processing', '正在启用异步图片处理模式...');
             \NTWP\Services\Image_Processor::enable_async_image_mode($state_id);
@@ -1431,17 +1436,23 @@ class Import_Coordinator {
             $this->updatePageProgress('processing', '正在转换内容块为HTML格式...');
             $raw_content = \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $this->notion_api, $state_id);
 
-            // 处理异步图片下载并替换占位符
+            // 处理异步图片下载并替换占位符（使用动态并发数）
             $this->updatePageProgress('processing', '正在下载和处理图片资源...');
-            $processed_content = \NTWP\Services\Image_Processor::process_async_images($raw_content, $state_id);
+            $processed_content = \NTWP\Services\Image_Processor::process_async_images($raw_content, $state_id, $optimal_concurrency);
+
+            // 记录性能指标
+            if ($this->concurrency_manager) {
+                $this->concurrency_manager->record_metric('last_optimal_concurrency', $optimal_concurrency);
+            }
 
             // 获取图片处理统计
             $image_stats = \NTWP\Services\Image_Processor::get_performance_stats();
             \NTWP\Core\Logger::debug_log(
                 sprintf(
-                    '并发图片处理完成: 成功 %d 个，失败 %d 个',
+                    '并发图片处理完成: 成功 %d 个，失败 %d 个，并发数 %d',
                     $image_stats['success_count'] ?? 0,
-                    $image_stats['error_count'] ?? 0
+                    $image_stats['error_count'] ?? 0,
+                    $optimal_concurrency
                 ),
                 'Page Import'
             );
