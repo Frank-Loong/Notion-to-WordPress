@@ -283,41 +283,22 @@ class Progress_Tracker {
     }
     
     /**
-     * 获取系统统计信息
+     * 获取系统统计信息（已废弃 - 内存存储无法枚举）
      * 
+     * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
      * @return array 统计信息
      */
     public function getStatistics(): array {
-        $files = glob($this->progressDir . '/progress_*.json');
-        $stats = [
+        // 内存存储模式下无法枚举所有transient，返回基础统计信息
+        return [
             'total_tasks' => 0,
             'pending' => 0,
             'running' => 0,
             'completed' => 0,
             'failed' => 0,
-            'cancelled' => 0
+            'cancelled' => 0,
+            'note' => '内存存储模式下无法统计活跃任务数量'
         ];
-        
-        foreach ($files as $file) {
-            $content = file_get_contents($file);
-            if ($content === false) {
-                continue;
-            }
-            
-            $taskData = json_decode($content, true);
-            if ($taskData === null) {
-                continue;
-            }
-            
-            $stats['total_tasks']++;
-            $status = $taskData['status'] ?? 'unknown';
-            
-            if (isset($stats[$status])) {
-                $stats[$status]++;
-            }
-        }
-        
-        return $stats;
     }
     
     // 移除了文件存储相关的辅助方法
