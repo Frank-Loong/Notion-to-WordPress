@@ -696,8 +696,17 @@ class API {
      *
      * @since    1.0.8
      * @param    string    $api_key    Notion API 密钥。
+     * @throws   \InvalidArgumentException 当API密钥格式无效时
      */
     public function __construct(string $api_key) {
+        // 验证API密钥格式
+        if (class_exists('\\NTWP\\Core\\Security')) {
+            $validation_result = \NTWP\Core\Security::validate_notion_api_key($api_key);
+            if (!$validation_result['is_valid']) {
+                throw new \InvalidArgumentException('Invalid API key: ' . $validation_result['error_message']);
+            }
+        }
+
         $this->api_key = $api_key;
 
         // 🚀 性能优化：单例模式初始化智能API合并器（避免重复初始化和内存泄漏）

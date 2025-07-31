@@ -787,6 +787,69 @@ node scripts/release.js custom --version=X.Y.Z --dry-run
 
 ### 🔒 代码质量
 
+#### 统一错误处理框架
+
+插件实现了全面的错误处理系统，为所有组件提供一致的错误管理：
+
+```php
+// 使用统一错误处理器进行一致的错误管理
+try {
+    $result = $this->some_operation();
+    if (is_wp_error($result)) {
+        return \NTWP\Core\Error_Handler::handle_wp_error($result, 'Operation Context');
+    }
+} catch (Exception $e) {
+    return \NTWP\Core\Error_Handler::handle_exception($e, 'Operation Context');
+}
+
+// 增强的错误日志记录，包含上下文信息
+\NTWP\Core\Error_Handler::log_error(
+    'Operation failed',
+    'Context Name',
+    ['additional' => 'data']
+);
+```
+
+**核心组件：**
+- `\NTWP\Core\Error_Handler`：集中化的错误处理和日志记录
+- 一致的错误分类和严重性级别
+- 增强的调试信息和堆栈跟踪
+- 与WordPress错误系统（WP_Error）集成
+- 自动错误恢复和回退机制
+
+**处理的错误类型：**
+- 带重试逻辑的API通信错误
+- 数据库操作失败
+- 文件系统错误
+- 验证失败
+- 网络超时和连接问题
+
+#### 输入验证框架
+
+插件实现了统一的输入验证框架，确保数据处理的一致性和安全性：
+
+```php
+// 使用统一验证API密钥
+$result = \NTWP\Core\Security::validate_notion_api_key($api_key);
+if (!$result['is_valid']) {
+    throw new \InvalidArgumentException($result['error_message']);
+}
+
+// 批量验证插件配置选项
+$validation_result = \NTWP\Core\Security::validate_plugin_options($options);
+if (!$validation_result['is_valid']) {
+    foreach ($validation_result['errors'] as $error) {
+        // 处理验证错误
+    }
+}
+```
+
+**核心组件：**
+- `\NTWP\Core\Validation_Rules`：集中化的验证规则和常量
+- `\NTWP\Core\Security`：验证方法和安全工具
+- 一致的错误处理和用户友好的消息
+- 支持单项和批量验证
+
 #### PHP代码规范
 ```php
 <?php

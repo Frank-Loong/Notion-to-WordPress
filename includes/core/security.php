@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace NTWP\Core;
 
+use NTWP\Core\Validation_Rules;
+
 /**
  * Notion 安全过滤器类
  *
@@ -361,5 +363,286 @@ class Security {
         }
 
         return true;
+    }
+
+    /**
+     * 验证Notion API Key格式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $api_key 要验证的API Key
+     * @return array 验证结果，包含is_valid和error_message
+     */
+    public static function validate_notion_api_key(string $api_key): array {
+        $api_key = trim($api_key);
+
+        // 检查是否为空
+        if (empty($api_key)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('API Key不能为空', 'notion-to-wordpress')
+            ];
+        }
+
+        // 检查长度
+        $length = strlen($api_key);
+        if ($length < Validation_Rules::API_KEY_MIN_LENGTH || $length > Validation_Rules::API_KEY_MAX_LENGTH) {
+            return [
+                'is_valid' => false,
+                'error_message' => sprintf(
+                    __('API Key长度必须在%d到%d个字符之间', 'notion-to-wordpress'),
+                    Validation_Rules::API_KEY_MIN_LENGTH,
+                    Validation_Rules::API_KEY_MAX_LENGTH
+                )
+            ];
+        }
+
+        // 检查字符格式
+        if (!preg_match(Validation_Rules::API_KEY_PATTERN, $api_key)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('API Key只能包含字母、数字、下划线和连字符', 'notion-to-wordpress')
+            ];
+        }
+
+        return [
+            'is_valid' => true,
+            'error_message' => ''
+        ];
+    }
+
+    /**
+     * 验证Notion Database ID格式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 要验证的Database ID
+     * @return array 验证结果，包含is_valid和error_message
+     */
+    public static function validate_database_id(string $database_id): array {
+        $database_id = trim($database_id);
+
+        // 检查是否为空
+        if (empty($database_id)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('Database ID不能为空', 'notion-to-wordpress')
+            ];
+        }
+
+        // 移除可能的连字符
+        $clean_id = str_replace('-', '', $database_id);
+
+        // 检查长度
+        if (strlen($clean_id) !== Validation_Rules::DATABASE_ID_LENGTH) {
+            return [
+                'is_valid' => false,
+                'error_message' => sprintf(
+                    __('Database ID必须是%d位十六进制字符串', 'notion-to-wordpress'),
+                    Validation_Rules::DATABASE_ID_LENGTH
+                )
+            ];
+        }
+
+        // 检查格式
+        if (!preg_match(Validation_Rules::DATABASE_ID_PATTERN, $clean_id)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('Database ID格式不正确，应为32位十六进制字符串', 'notion-to-wordpress')
+            ];
+        }
+
+        return [
+            'is_valid' => true,
+            'error_message' => ''
+        ];
+    }
+
+    /**
+     * 验证Notion Page ID格式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $page_id 要验证的Page ID
+     * @return array 验证结果，包含is_valid和error_message
+     */
+    public static function validate_notion_page_id(string $page_id): array {
+        $page_id = trim($page_id);
+
+        // 检查是否为空
+        if (empty($page_id)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('Page ID不能为空', 'notion-to-wordpress')
+            ];
+        }
+
+        // 移除可能的连字符
+        $clean_id = str_replace('-', '', $page_id);
+
+        // 检查长度
+        if (strlen($clean_id) !== Validation_Rules::PAGE_ID_LENGTH) {
+            return [
+                'is_valid' => false,
+                'error_message' => sprintf(
+                    __('Page ID必须是%d位十六进制字符串', 'notion-to-wordpress'),
+                    Validation_Rules::PAGE_ID_LENGTH
+                )
+            ];
+        }
+
+        // 检查格式
+        if (!preg_match(Validation_Rules::PAGE_ID_PATTERN, $clean_id)) {
+            return [
+                'is_valid' => false,
+                'error_message' => __('Page ID格式不正确，应为32位十六进制字符串', 'notion-to-wordpress')
+            ];
+        }
+
+        return [
+            'is_valid' => true,
+            'error_message' => ''
+        ];
+    }
+
+    /**
+     * 批量验证输入数据
+     *
+     * @since 2.0.0-beta.1
+     * @param array $data 要验证的数据数组
+     * @param array $rules 验证规则数组
+     * @return array 验证结果，包含is_valid、errors和warnings
+     */
+    public static function validate_batch(array $data, array $rules): array {
+        $errors = [];
+        $warnings = [];
+
+        foreach ($rules as $field => $rule_config) {
+            $value = $data[$field] ?? '';
+            $rule_type = $rule_config['type'] ?? '';
+            $required = $rule_config['required'] ?? false;
+
+            // 检查必填字段
+            if ($required && empty($value)) {
+                $errors[] = sprintf(__('字段 %s 是必填的', 'notion-to-wordpress'), $field);
+                continue;
+            }
+
+            // 如果字段为空且非必填，跳过验证
+            if (empty($value) && !$required) {
+                continue;
+            }
+
+            // 根据类型进行验证
+            switch ($rule_type) {
+                case 'api_key':
+                    $result = self::validate_notion_api_key($value);
+                    if (!$result['is_valid']) {
+                        $errors[] = sprintf(__('%s: %s', 'notion-to-wordpress'), $field, $result['error_message']);
+                    }
+                    break;
+
+                case 'database_id':
+                    $result = self::validate_database_id($value);
+                    if (!$result['is_valid']) {
+                        $errors[] = sprintf(__('%s: %s', 'notion-to-wordpress'), $field, $result['error_message']);
+                    }
+                    break;
+
+                case 'page_id':
+                    $result = self::validate_notion_page_id($value);
+                    if (!$result['is_valid']) {
+                        $errors[] = sprintf(__('%s: %s', 'notion-to-wordpress'), $field, $result['error_message']);
+                    }
+                    break;
+
+                case 'debug_level':
+                    if (!in_array((int)$value, Validation_Rules::DEBUG_LEVELS, true)) {
+                        $errors[] = sprintf(__('%s: 调试级别无效，必须在0-4之间', 'notion-to-wordpress'), $field);
+                    }
+                    break;
+
+                case 'sync_schedule':
+                    if (!in_array($value, Validation_Rules::SYNC_SCHEDULES, true)) {
+                        $errors[] = sprintf(__('%s: 同步计划选项无效', 'notion-to-wordpress'), $field);
+                    }
+                    break;
+
+                case 'iframe_whitelist':
+                    if ($value !== '*') {
+                        $domains = array_map('trim', explode(',', $value));
+                        foreach ($domains as $domain) {
+                            if (!empty($domain) && !filter_var('http://' . $domain, FILTER_VALIDATE_URL)) {
+                                $warnings[] = sprintf(__('%s: 域名格式可能不正确: %s', 'notion-to-wordpress'), $field, $domain);
+                            }
+                        }
+                    }
+                    break;
+
+                case 'image_types':
+                    $types = array_map('trim', explode(',', $value));
+                    foreach ($types as $type) {
+                        if (!empty($type) && !in_array($type, Validation_Rules::ALLOWED_IMAGE_TYPES, true)) {
+                            $warnings[] = sprintf(__('%s: 图片类型可能不支持: %s', 'notion-to-wordpress'), $field, $type);
+                        }
+                    }
+                    break;
+
+                case 'url':
+                    if (!self::is_safe_url($value)) {
+                        $errors[] = sprintf(__('%s: URL格式不正确或不安全', 'notion-to-wordpress'), $field);
+                    }
+                    break;
+
+                default:
+                    // 对于未知类型，进行基本的文本清理
+                    $sanitized = sanitize_text_field($value);
+                    if ($sanitized !== $value) {
+                        $warnings[] = sprintf(__('%s: 输入内容已被清理', 'notion-to-wordpress'), $field);
+                    }
+                    break;
+            }
+        }
+
+        return [
+            'is_valid' => empty($errors),
+            'errors' => $errors,
+            'warnings' => $warnings
+        ];
+    }
+
+    /**
+     * 验证配置选项数组
+     *
+     * @since 2.0.0-beta.1
+     * @param array $options 配置选项数组
+     * @return array 验证结果，包含is_valid、errors和warnings
+     */
+    public static function validate_plugin_options(array $options): array {
+        $validation_rules = [
+            'notion_api_key' => [
+                'type' => 'api_key',
+                'required' => false
+            ],
+            'notion_database_id' => [
+                'type' => 'database_id',
+                'required' => false
+            ],
+            'debug_level' => [
+                'type' => 'debug_level',
+                'required' => false
+            ],
+            'sync_schedule' => [
+                'type' => 'sync_schedule',
+                'required' => false
+            ],
+            'iframe_whitelist' => [
+                'type' => 'iframe_whitelist',
+                'required' => false
+            ],
+            'allowed_image_types' => [
+                'type' => 'image_types',
+                'required' => false
+            ]
+        ];
+
+        return self::validate_batch($options, $validation_rules);
     }
 }

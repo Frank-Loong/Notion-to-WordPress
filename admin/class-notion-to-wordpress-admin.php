@@ -307,14 +307,22 @@ class Notion_To_WordPress_Admin {
      * @return array 验证结果，包含errors和warnings
      */
     private function validate_config(array $options): array {
+        // 使用统一的验证框架
+        if (class_exists('\\NTWP\\Core\\Security')) {
+            $validation_result = \NTWP\Core\Security::validate_plugin_options($options);
+            return [
+                'errors' => $validation_result['errors'],
+                'warnings' => $validation_result['warnings']
+            ];
+        }
+
+        // 如果Security类不可用，回退到原有验证逻辑
         $errors = [];
         $warnings = [];
 
         // 验证 API Key 格式
         if (!empty($options['notion_api_key'])) {
-            // 根据Notion官方建议，不使用严格的正则验证，仅做基本检查
             $api_key = trim($options['notion_api_key']);
-            // 基本长度检查和字符集检查（允许各种前缀格式）
             if (strlen($api_key) < 30 || strlen($api_key) > 80 || !preg_match('/^[a-zA-Z0-9_-]+$/', $api_key)) {
                 $errors[] = __('Notion API Key 格式可能不正确。请确保密钥完整且只包含字母、数字、下划线和连字符。', 'notion-to-wordpress');
             }
@@ -322,7 +330,6 @@ class Notion_To_WordPress_Admin {
 
         // 验证数据库 ID 格式
         if (!empty($options['notion_database_id'])) {
-            // Notion Database ID 应该是32位的十六进制字符串（可能包含短横线）
             $clean_id = str_replace('-', '', $options['notion_database_id']);
             if (!preg_match('/^[a-f0-9]{32}$/i', $clean_id)) {
                 $errors[] = __('Notion 数据库 ID 格式不正确。应为32位十六进制字符串。', 'notion-to-wordpress');

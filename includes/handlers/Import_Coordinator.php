@@ -229,6 +229,19 @@ class Import_Coordinator {
         }
 
         $page_id = $page['id'];
+
+        // 使用统一验证框架验证页面ID
+        if (class_exists('\\NTWP\\Core\\Security')) {
+            $validation_result = \NTWP\Core\Security::validate_notion_page_id($page_id);
+            if (!$validation_result['is_valid']) {
+                \NTWP\Core\Logger::error_log(
+                    'Page ID验证失败: ' . $validation_result['error_message'] . ' (ID: ' . $page_id . ')',
+                    'Page Import'
+                );
+                return false;
+            }
+        }
+
         $page_title = $page['properties']['title']['title'][0]['plain_text'] ?? $page['properties']['Name']['title'][0]['plain_text'] ?? '未知页面';
 
         try {
@@ -1377,6 +1390,18 @@ class Import_Coordinator {
      * @return   string|false          转换后的HTML内容或false
      */
     private function coordinate_content_processing(string $page_id) {
+        // 验证页面ID格式
+        if (class_exists('\\NTWP\\Core\\Security')) {
+            $validation_result = \NTWP\Core\Security::validate_notion_page_id($page_id);
+            if (!$validation_result['is_valid']) {
+                \NTWP\Core\Logger::error_log(
+                    'Content processing - Page ID验证失败: ' . $validation_result['error_message'] . ' (ID: ' . $page_id . ')',
+                    'Page Import'
+                );
+                return false;
+            }
+        }
+
         // 记录内容处理开始
         \NTWP\Core\Logger::debug_log('协调内容处理开始', 'Page Import');
 
