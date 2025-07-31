@@ -272,6 +272,10 @@ class Main {
 		// SSE进度流AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_sse_progress', $this->admin, 'handle_sse_progress' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
+		
+		// 数据库索引优化相关AJAX钩子
+		$this->loader->add_action( 'wp_ajax_notion_database_indexes', $this->admin, 'handle_database_indexes_request' );
+		$this->loader->add_action( 'wp_ajax_notion_analyze_query_performance', $this->admin, 'handle_analyze_query_performance' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );

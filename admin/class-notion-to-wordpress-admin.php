@@ -251,6 +251,10 @@ class Notion_To_WordPress_Admin {
             }
             return $tag;
         }, 10, 2);
+
+        // 注册数据库索引优化相关的AJAX处理函数
+        add_action('wp_ajax_notion_database_indexes', [$this, 'handle_database_indexes_request']);
+        add_action('wp_ajax_notion_analyze_query_performance', [$this, 'handle_analyze_query_performance']);
     }
     
     /**
@@ -1979,6 +1983,214 @@ class Notion_To_WordPress_Admin {
 
             http_response_code(500);
             exit('服务器内部错误');
+        }
+    }
+
+    // ==================== 数据库索引优化AJAX处理方法 ====================
+
+    /**
+     * 处理数据库索引请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_database_indexes_request() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $action = sanitize_text_field($_POST['index_action'] ?? '');
+
+        try {
+            switch ($action) {
+                case 'create_all':
+                    $this->handle_create_database_indexes_optimized();
+                    break;
+
+                case 'get_status':
+                    $this->handle_get_database_indexes_status();
+                    break;
+
+                case 'drop_index':
+                    $this->handle_drop_database_index();
+                    break;
+
+                case 'maintain':
+                    $this->handle_maintain_database_indexes();
+                    break;
+
+                default:
+                    wp_send_json_error(['message' => '未知的索引操作']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '数据库索引操作失败: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * 创建数据库索引（优化版本）
+     *
+     * @since 2.0.0-beta.1
+     */
+    private function handle_create_database_indexes_optimized() {
+        if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+            $start_time = microtime(true);
+            $result = \NTWP\Utils\Database_Index_Optimizer::create_all_indexes();
+            $execution_time = microtime(true) - $start_time;
+
+            $message = sprintf(
+                '索引优化完成！创建了 %d 个索引，跳过 %d 个现有索引，%d 个失败，耗时 %.3f 秒',
+                $result['created'],
+                $result['skipped'],
+                $result['failed'],
+                $execution_time
+            );
+
+            if ($result['failed'] === 0) {
+                wp_send_json_success([
+                    'message' => $message,
+                    'data' => $result,
+                    'execution_time' => $execution_time
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => $message,
+                    'data' => $result,
+                    'execution_time' => $execution_time
+                ]);
+            }
+        } else {
+            wp_send_json_error(['message' => '数据库索引优化器不可用']);
+        }
+    }
+
+    /**
+     * 获取数据库索引状态
+     *
+     * @since 2.0.0-beta.1
+     */
+    private function handle_get_database_indexes_status() {
+        if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+            $status = \NTWP\Utils\Database_Index_Optimizer::get_indexes_status();
+            $recommendations = \NTWP\Utils\Database_Index_Optimizer::get_query_optimization_recommendations();
+
+            wp_send_json_success([
+                'status' => $status,
+                'recommendations' => $recommendations,
+                'message' => '索引状态获取成功'
+            ]);
+        } else {
+            wp_send_json_error(['message' => '数据库索引优化器不可用']);
+        }
+    }
+
+    /**
+     * 删除指定数据库索引
+     *
+     * @since 2.0.0-beta.1
+     */
+    private function handle_drop_database_index() {
+        $index_name = sanitize_text_field($_POST['index_name'] ?? '');
+
+        if (empty($index_name)) {
+            wp_send_json_error(['message' => '索引名称不能为空']);
+            return;
+        }
+
+        if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+            $result = \NTWP\Utils\Database_Index_Optimizer::drop_index($index_name);
+
+            if ($result['success']) {
+                wp_send_json_success([
+                    'message' => $result['message'],
+                    'data' => $result
+                ]);
+            } else {
+                wp_send_json_error([
+                    'message' => $result['message'],
+                    'data' => $result
+                ]);
+            }
+        } else {
+            wp_send_json_error(['message' => '数据库索引优化器不可用']);
+        }
+    }
+
+    /**
+     * 维护数据库索引
+     *
+     * @since 2.0.0-beta.1
+     */
+    private function handle_maintain_database_indexes() {
+        if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+            $start_time = microtime(true);
+            $result = \NTWP\Utils\Database_Index_Optimizer::maintain_indexes();
+            $execution_time = microtime(true) - $start_time;
+
+            $message = sprintf(
+                '索引维护完成！分析了 %d 个表，优化了 %d 个表，耗时 %.3f 秒',
+                $result['analyzed'],
+                $result['optimized'],
+                $execution_time
+            );
+
+            wp_send_json_success([
+                'message' => $message,
+                'data' => $result,
+                'execution_time' => $execution_time
+            ]);
+        } else {
+            wp_send_json_error(['message' => '数据库索引优化器不可用']);
+        }
+    }
+
+    /**
+     * 处理查询性能分析请求
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_analyze_query_performance() {
+        // 验证nonce
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'notion_to_wordpress_nonce')) {
+            wp_send_json_error(['message' => '安全验证失败']);
+            return;
+        }
+
+        // 检查用户权限
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => '权限不足']);
+            return;
+        }
+
+        $query = sanitize_textarea_field($_POST['sql_query'] ?? '');
+
+        if (empty($query)) {
+            wp_send_json_error(['message' => 'SQL查询不能为空']);
+            return;
+        }
+
+        try {
+            if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+                $analysis = \NTWP\Utils\Database_Index_Optimizer::analyze_query_performance($query);
+
+                wp_send_json_success([
+                    'analysis' => $analysis,
+                    'message' => '查询性能分析完成'
+                ]);
+            } else {
+                wp_send_json_error(['message' => '数据库索引优化器不可用']);
+            }
+
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => '查询分析失败: ' . $e->getMessage()]);
         }
     }
 }

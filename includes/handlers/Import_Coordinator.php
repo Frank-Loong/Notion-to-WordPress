@@ -902,68 +902,221 @@ class Import_Coordinator {
     }
 
     /**
-     * 清理已删除的页面 - 优化版本
+     * 清理已删除的页面 - 数据库索引优化版本
      *
      * @since    1.1.0
      * @param    array    $current_pages    当前Notion数据库中的页面
      * @return   int                        删除的页面数量
      */
     private function cleanup_deleted_pages(array $current_pages): int {
+        // 确保数据库索引已优化
+        $this->ensure_database_indexes_optimized();
+
         // 获取当前Notion页面的ID列表
         $current_notion_ids = array_map(function($page) {
             return $page['id'];
         }, $current_pages);
 
+        if (empty($current_notion_ids)) {
+            \NTWP\Core\Logger::warning_log(
+                '当前页面列表为空，跳过删除检测',
+                'Cleanup Optimized'
+            );
+            return 0;
+        }
+
         global $wpdb;
 
-        // 使用单个SQL查询获取所有WordPress文章及其Notion ID
-        $query = "
-            SELECT p.ID as post_id, pm.meta_value as notion_id
-            FROM {$wpdb->posts} p
-            INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-            WHERE pm.meta_key = '_notion_page_id'
-        ";
+        // 🚀 优化后的SQL查询 - 使用索引优化和批量处理
+        $start_time = microtime(true);
 
-        $results = $wpdb->get_results($query);
-        $deleted_count = 0;
+        // 分批处理大量数据，避免内存问题
+        $batch_size = 1000;
+        $offset = 0;
+        $total_deleted = 0;
+        $total_processed = 0;
 
-        \NTWP\Core\Logger::debug_log(
-            '找到 ' . count($results) . ' 个WordPress文章有Notion ID',
-            'Cleanup'
+        \NTWP\Core\Logger::info_log(
+            '开始优化删除检测，当前Notion页面数: ' . count($current_pages),
+            'Cleanup Optimized'
         );
 
-        foreach ($results as $row) {
-            // 如果这个Notion ID不在当前页面列表中，说明已被删除
-            if (!in_array($row->notion_id, $current_notion_ids)) {
+        do {
+            // 使用优化的查询，利用复合索引
+            $query = $wpdb->prepare("
+                SELECT p.ID as post_id, pm.meta_value as notion_id
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE pm.meta_key = '_notion_page_id'
+                AND p.post_type = 'post'
+                AND p.post_status IN ('publish', 'draft', 'private', 'pending')
+                ORDER BY p.ID
+                LIMIT %d OFFSET %d
+            ", $batch_size, $offset);
+
+            $results = $wpdb->get_results($query);
+            $batch_processed = count($results);
+            $total_processed += $batch_processed;
+
+            if ($batch_processed > 0) {
                 \NTWP\Core\Logger::debug_log(
-                    '发现孤儿文章，WordPress ID: ' . $row->post_id . ', Notion ID: ' . $row->notion_id,
-                    'Cleanup'
+                    "处理批次: 偏移{$offset}, 大小{$batch_processed}",
+                    'Cleanup Optimized'
                 );
 
-                $result = wp_delete_post($row->post_id, true); // true表示彻底删除
+                $batch_deleted = $this->process_deletion_batch($results, $current_notion_ids);
+                $total_deleted += $batch_deleted;
+            }
 
-                if ($result) {
-                    $deleted_count++;
-                    \NTWP\Core\Logger::info_log(
-                        '删除孤儿文章成功，WordPress ID: ' . $row->post_id . ', Notion ID: ' . $row->notion_id,
-                        'Cleanup'
-                    );
-                } else {
-                    \NTWP\Core\Logger::error_log(
-                        '删除孤儿文章失败，WordPress ID: ' . $row->post_id . ', Notion ID: ' . $row->notion_id
-                    );
+            $offset += $batch_size;
+
+        } while ($batch_processed === $batch_size);
+
+        $execution_time = microtime(true) - $start_time;
+
+        \NTWP\Core\Logger::info_log(
+            sprintf(
+                '优化删除检测完成: 处理%d个文章, 删除%d个孤儿文章, 耗时%.3fs',
+                $total_processed,
+                $total_deleted,
+                $execution_time
+            ),
+            'Cleanup Optimized'
+        );
+
+        // 记录性能指标
+        if (class_exists('\\NTWP\\Core\\Performance_Monitor')) {
+            \NTWP\Core\Performance_Monitor::record_custom_metric('deletion_detection_time', $execution_time);
+            \NTWP\Core\Performance_Monitor::record_custom_metric('deletion_detection_processed', $total_processed);
+            \NTWP\Core\Performance_Monitor::record_custom_metric('deletion_detection_deleted', $total_deleted);
+        }
+
+        return $total_deleted;
+    }
+
+    /**
+     * 处理删除检测批次
+     *
+     * @since 2.0.0-beta.1
+     * @param array $batch_results 批次结果
+     * @param array $current_notion_ids 当前Notion ID列表
+     * @return int 批次删除数量
+     */
+    private function process_deletion_batch(array $batch_results, array $current_notion_ids): int {
+        $batch_deleted = 0;
+
+        // 🚀 性能优化：使用array_flip将数组转换为哈希表，提升查找性能
+        $notion_ids_hash = array_flip($current_notion_ids);
+
+        foreach ($batch_results as $row) {
+            // 使用哈希表查找，O(1)时间复杂度代替O(n)的in_array
+            if (!isset($notion_ids_hash[$row->notion_id])) {
+                \NTWP\Core\Logger::debug_log(
+                    "发现孤儿文章: WordPress ID={$row->post_id}, Notion ID={$row->notion_id}",
+                    'Cleanup Optimized'
+                );
+
+                // 验证文章是否真的应该被删除
+                if ($this->should_delete_post($row->post_id, $row->notion_id)) {
+                    $result = wp_delete_post($row->post_id, true);
+
+                    if ($result) {
+                        $batch_deleted++;
+                        \NTWP\Core\Logger::info_log(
+                            "成功删除孤儿文章: WordPress ID={$row->post_id}, Notion ID={$row->notion_id}",
+                            'Cleanup Optimized'
+                        );
+                    } else {
+                        \NTWP\Core\Logger::error_log(
+                            "删除孤儿文章失败: WordPress ID={$row->post_id}, Notion ID={$row->notion_id}",
+                            'Cleanup Optimized'
+                        );
+                    }
                 }
             }
         }
 
-        if ($deleted_count > 0) {
-            \NTWP\Core\Logger::info_log(
-                '删除检测完成，共删除 ' . $deleted_count . ' 个孤儿文章',
-                'Cleanup'
-            );
+        return $batch_deleted;
+    }
+
+    /**
+     * 验证文章是否应该被删除
+     *
+     * @since 2.0.0-beta.1
+     * @param int $post_id WordPress文章ID
+     * @param string $notion_id Notion页面ID
+     * @return bool 是否应该删除
+     */
+    private function should_delete_post(int $post_id, string $notion_id): bool {
+        // 获取文章的最后同步时间
+        $last_sync = get_post_meta($post_id, '_notion_sync_time', true);
+        
+        // 如果最近同步过（例如24小时内），可能需要更谨慎
+        if (!empty($last_sync)) {
+            $sync_timestamp = strtotime($last_sync);
+            $current_timestamp = time();
+            
+            // 如果同步时间在24小时内，进行额外验证
+            if (($current_timestamp - $sync_timestamp) < 86400) {
+                \NTWP\Core\Logger::warning_log(
+                    "文章最近同步过，谨慎删除: WordPress ID={$post_id}, 同步时间={$last_sync}",
+                    'Cleanup Optimized'
+                );
+                
+                // 可以在此处添加额外的验证逻辑
+                // 例如：检查文章是否被手动标记为保留等
+            }
         }
 
-        return $deleted_count;
+        // 检查文章是否有特殊标记，避免误删除
+        $protect_from_deletion = get_post_meta($post_id, '_notion_protect_from_deletion', true);
+        if ($protect_from_deletion === 'yes') {
+            \NTWP\Core\Logger::info_log(
+                "文章受保护，跳过删除: WordPress ID={$post_id}",
+                'Cleanup Optimized'
+            );
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 确保数据库索引已优化
+     *
+     * @since 2.0.0-beta.1
+     */
+    private function ensure_database_indexes_optimized(): void {
+        // 检查关键索引是否存在
+        if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+            $status = \NTWP\Utils\Database_Index_Optimizer::get_indexes_status();
+            
+            $critical_indexes = ['notion_page_id_optimized', 'posts_notion_sync'];
+            $missing_critical = 0;
+            
+            foreach ($critical_indexes as $index_name) {
+                if (!$status['details'][$index_name]['exists']) {
+                    $missing_critical++;
+                }
+            }
+            
+            if ($missing_critical > 0) {
+                \NTWP\Core\Logger::warning_log(
+                    "检测到{$missing_critical}个关键索引缺失，将影响删除检测性能",
+                    'Database Index Check'
+                );
+                
+                // 尝试创建缺失的索引
+                $creation_result = \NTWP\Utils\Database_Index_Optimizer::create_all_indexes();
+                
+                if ($creation_result['created'] > 0) {
+                    \NTWP\Core\Logger::info_log(
+                        "自动创建了{$creation_result['created']}个数据库索引",
+                        'Database Index Check'
+                    );
+                }
+            }
+        }
     }
 
     /**

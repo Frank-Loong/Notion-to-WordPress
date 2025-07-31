@@ -66,9 +66,630 @@ class API {
      */
     private bool $enable_api_merging = true;
 
-    // 注意：API缓存已移除以支持增量同步的实时性
-    // 增量同步依赖准确的last_edited_time进行时间戳比较
-    // API缓存会返回过时的时间戳，破坏增量同步的核心逻辑
+    /**
+     * 增强的重试配置
+     *
+     * @since 2.0.0-beta.1
+     * @var array
+     */
+    private static $retry_config = [
+        'NETWORK_ERROR' => ['max_retries' => 3, 'backoff' => [1, 3, 9], 'should_retry' => true],
+        'RATE_LIMIT_ERROR' => ['max_retries' => 5, 'backoff' => [5, 15, 45, 120, 300], 'should_retry' => true],
+        'SERVER_ERROR' => ['max_retries' => 2, 'backoff' => [2, 8], 'should_retry' => true],
+        'FILTER_ERROR' => ['max_retries' => 1, 'backoff' => [1], 'should_retry' => false], // 快速降级
+        'AUTH_ERROR' => ['max_retries' => 0, 'backoff' => [], 'should_retry' => false],
+        'CLIENT_ERROR' => ['max_retries' => 0, 'backoff' => [], 'should_retry' => false]
+    ];
+
+    /**
+     * 智能缓存策略配置
+     *
+     * @since 2.0.0-beta.1
+     * @var array
+     */
+    private static $cache_strategies = [
+        // 静态数据 - 长期缓存
+        'users/me' => ['ttl' => 3600, 'real_time' => false, 'type' => 'user_info'],
+        'databases/' => ['ttl' => 1800, 'real_time' => false, 'type' => 'database_structure'],
+        
+        // 内容数据 - 动态缓存策略
+        'pages/' => ['ttl' => 300, 'real_time' => true, 'type' => 'page_content'],
+        'blocks/' => ['ttl' => 180, 'real_time' => true, 'type' => 'block_content'],
+        
+        // 查询数据 - 短期缓存
+        'databases/*/query' => ['ttl' => 60, 'real_time' => true, 'type' => 'query_results']
+    ];
+
+    /**
+     * 当前同步模式
+     *
+     * @since 2.0.0-beta.1
+     * @var string
+     */
+    private string $sync_mode = 'full'; // 'full', 'incremental', 'manual'
+
+    /**
+     * 智能缓存策略：根据数据特性和同步模式选择性启用缓存
+     * - 静态数据（用户信息、数据库结构）：长期缓存
+     * - 内容数据：根据同步模式动态缓存（增量同步时短期缓存，全量同步时中期缓存）
+     * - 实时性数据：仅会话级缓存，确保不影响增量同步的时间戳比较
+     */
+
+    /**
+     * 设置同步模式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $mode 同步模式 ('full', 'incremental', 'manual')
+     */
+    public function set_sync_mode(string $mode): void {
+        $this->sync_mode = $mode;
+    }
+
+    /**
+     * 获取端点的缓存策略
+     *
+     * @since 2.0.0-beta.1
+     * @param string $endpoint API端点
+     * @param string $method HTTP方法
+     * @return array|null 缓存策略配置
+     */
+    private function get_cache_strategy(string $endpoint, string $method = 'GET'): ?array {
+        // 只对GET请求使用缓存
+        if ($method !== 'GET') {
+            return null;
+        }
+
+        // 匹配端点模式
+        foreach (self::$cache_strategies as $pattern => $strategy) {
+            if ($this->endpoint_matches_pattern($endpoint, $pattern)) {
+                return $strategy;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 检查端点是否匹配模式
+     *
+     * @since 2.0.0-beta.1
+     * @param string $endpoint 端点
+     * @param string $pattern 模式
+     * @return bool 是否匹配
+     */
+    private function endpoint_matches_pattern(string $endpoint, string $pattern): bool {
+        // 简单模式匹配
+        $pattern = str_replace('*', '.*', preg_quote($pattern, '/'));
+        return preg_match('/^' . $pattern . '/', $endpoint) === 1;
+    }
+
+    /**
+     * 智能缓存检查：根据同步模式和数据特性决定是否使用缓存
+     *
+     * @since 2.0.0-beta.1
+     * @param string $endpoint API端点
+     * @param array $strategy 缓存策略
+     * @return bool 是否应该使用缓存
+     */
+    private function should_use_cache(string $endpoint, array $strategy): bool {
+        // 静态数据总是可以缓存
+        if (!$strategy['real_time']) {
+            return true;
+        }
+
+        // 根据同步模式调整缓存策略
+        switch ($this->sync_mode) {
+            case 'incremental':
+                // 增量同步时，只使用极短期缓存
+                return false; // 完全禁用缓存以确保实时性
+                
+            case 'manual':
+                // 手动同步时，使用短期缓存
+                return $strategy['ttl'] <= 60;
+                
+            case 'full':
+            default:
+                // 全量同步时，可以使用所有缓存
+                return true;
+        }
+    }
+
+    /**
+     * 生成智能缓存键
+     *
+     * @since 2.0.0-beta.1
+     * @param string $endpoint API端点
+     * @param array $data 请求数据
+     * @param string $type 缓存类型
+     * @return string 缓存键
+     */
+    private function generate_smart_cache_key(string $endpoint, array $data, string $type): string {
+        $base_key = md5($endpoint . serialize($data));
+        
+        // 根据同步模式添加前缀
+        $prefix = "ntwp_smart_cache_{$this->sync_mode}_{$type}";
+        
+        return "{$prefix}_{$base_key}";
+    }
+
+    /**
+     * 精确的API错误分类
+     *
+     * @since 2.0.0-beta.1
+     * @param Exception $exception 异常对象
+     * @return string 错误类型
+     */
+    private function classify_api_error_precise(Exception $exception): string {
+        $message = strtolower($exception->getMessage());
+        $code = $exception->getCode();
+
+        // 获取HTTP状态码（如果可用）
+        $http_code = $this->extract_http_code($exception);
+
+        \NTWP\Core\Logger::debug_log(
+            "精确错误分类: 消息='{$message}', 代码={$code}, HTTP={$http_code}",
+            'Enhanced Error Classification'
+        );
+
+        // 过滤器错误 - 使用正则表达式精确匹配
+        $filter_patterns = [
+            '/filter.*validation.*failed/i',
+            '/property.*last_edited_time.*not.*exist/i',
+            '/invalid.*timestamp.*format/i',
+            '/filter.*property.*does.*not.*exist/i',
+            '/bad.*request.*filter/i',
+            '/unsupported.*filter.*type/i'
+        ];
+
+        foreach ($filter_patterns as $pattern) {
+            if (preg_match($pattern, $message)) {
+                \NTWP\Core\Logger::debug_log(
+                    "匹配过滤器错误模式: {$pattern}",
+                    'Enhanced Error Classification'
+                );
+                return 'FILTER_ERROR';
+            }
+        }
+
+        // 认证错误
+        if ($http_code === 401 || $http_code === 403 || 
+            preg_match('/unauthorized|forbidden|invalid.*token|expired.*token/i', $message)) {
+            return 'AUTH_ERROR';
+        }
+
+        // 限流错误
+        if ($http_code === 429 || preg_match('/rate.*limit|too.*many.*requests/i', $message)) {
+            return 'RATE_LIMIT_ERROR';
+        }
+
+        // 网络错误
+        $network_patterns = [
+            '/timeout|connection.*refused|connection.*reset/i',
+            '/curl.*error|ssl.*error|network.*unreachable/i',
+            '/dns.*resolution.*failed|host.*not.*found/i'
+        ];
+
+        foreach ($network_patterns as $pattern) {
+            if (preg_match($pattern, $message)) {
+                return 'NETWORK_ERROR';
+            }
+        }
+
+        // 服务器错误
+        if ($http_code >= 500 || preg_match('/internal.*server|service.*unavailable|bad.*gateway/i', $message)) {
+            return 'SERVER_ERROR';
+        }
+
+        // 客户端错误
+        if ($http_code >= 400 && $http_code < 500) {
+            return 'CLIENT_ERROR';
+        }
+
+        // 未知错误
+        return 'UNKNOWN_ERROR';
+    }
+
+    /**
+     * 从异常中提取HTTP状态码
+     *
+     * @since 2.0.0-beta.1
+     * @param Exception $exception 异常对象
+     * @return int HTTP状态码
+     */
+    private function extract_http_code(Exception $exception): int {
+        $message = $exception->getMessage();
+        
+        // 尝试从消息中提取HTTP状态码
+        if (preg_match('/\b(\d{3})\b/', $message, $matches)) {
+            $code = intval($matches[1]);
+            if ($code >= 100 && $code < 600) { // 有效的HTTP状态码范围
+                return $code;
+            }
+        }
+
+        // 从异常代码获取
+        $code = $exception->getCode();
+        if ($code >= 100 && $code < 600) {
+            return $code;
+        }
+
+        return 0; // 未知状态码
+    }
+
+    /**
+     * 指数退避重试机制
+     *
+     * @since 2.0.0-beta.1
+     * @param callable $operation 要执行的操作
+     * @param string $operation_name 操作名称（用于日志）
+     * @param array $context 操作上下文
+     * @return mixed 操作结果
+     * @throws Exception 如果所有重试都失败
+     */
+    private function retry_with_backoff(callable $operation, string $operation_name = 'API调用', array $context = []) {
+        $last_exception = null;
+        $attempt = 0;
+
+        while ($attempt <= 3) { // 最多尝试4次（初始 + 3次重试）
+            try {
+                $attempt++;
+                
+                if ($attempt > 1) {
+                    \NTWP\Core\Logger::info_log(
+                        "开始第 {$attempt} 次尝试: {$operation_name}",
+                        'Enhanced Retry'
+                    );
+                }
+
+                return $operation();
+
+            } catch (Exception $e) {
+                $last_exception = $e;
+                $error_type = $this->classify_api_error_precise($e);
+                
+                // 检查是否应该重试
+                if (!$this->should_retry_enhanced($error_type, $attempt)) {
+                    \NTWP\Core\Logger::warning_log(
+                        "不应重试的错误类型: {$error_type}, 尝试次数: {$attempt}",
+                        'Enhanced Retry'
+                    );
+                    break;
+                }
+
+                // 计算退避时间
+                $backoff_time = $this->calculate_backoff_time($error_type, $attempt);
+                
+                \NTWP\Core\Logger::warning_log(
+                    "第 {$attempt} 次尝试失败 ({$error_type}): {$e->getMessage()}, {$backoff_time}秒后重试",
+                    'Enhanced Retry'
+                );
+
+                if ($attempt <= 3) { // 不在最后一次尝试后等待
+                    sleep($backoff_time);
+                }
+            }
+        }
+
+        // 所有重试都失败，抛出最后一个异常
+        if ($last_exception) {
+            \NTWP\Core\Logger::error_log(
+                "所有重试失败，操作: {$operation_name}, 最终错误: " . $last_exception->getMessage(),
+                'Enhanced Retry'
+            );
+            throw $last_exception;
+        }
+
+        throw new Exception("未知的重试失败: {$operation_name}");
+    }
+
+    /**
+     * 增强的重试判断逻辑
+     *
+     * @since 2.0.0-beta.1
+     * @param string $error_type 错误类型
+     * @param int $attempt_count 当前尝试次数
+     * @return bool 是否应该重试
+     */
+    private function should_retry_enhanced(string $error_type, int $attempt_count): bool {
+        if (!isset(self::$retry_config[$error_type])) {
+            return false; // 未知错误类型不重试
+        }
+
+        $config = self::$retry_config[$error_type];
+        
+        // 检查是否超过最大重试次数
+        if ($attempt_count > $config['max_retries']) {
+            return false;
+        }
+
+        return $config['should_retry'];
+    }
+
+    /**
+     * 计算退避时间
+     *
+     * @since 2.0.0-beta.1
+     * @param string $error_type 错误类型
+     * @param int $attempt_count 当前尝试次数
+     * @return int 退避时间（秒）
+     */
+    private function calculate_backoff_time(string $error_type, int $attempt_count): int {
+        if (!isset(self::$retry_config[$error_type])) {
+            return min(pow(2, $attempt_count - 1), 10); // 默认指数退避，最大10秒
+        }
+
+        $config = self::$retry_config[$error_type];
+        $backoff_array = $config['backoff'];
+        
+        // 使用预定义的退避时间，如果超出数组范围则使用最后一个值
+        $index = min($attempt_count - 2, count($backoff_array) - 1); // attempt_count从2开始（第一次重试）
+        
+        return $index >= 0 ? $backoff_array[$index] : 1;
+    }
+
+    /**
+     * 智能降级策略
+     *
+     * @since 2.0.0-beta.1
+     * @param string $error_type 错误类型
+     * @param int $estimated_data_size 预估数据量
+     * @param array $context 操作上下文
+     * @return string 降级策略
+     */
+    private function get_fallback_strategy(string $error_type, int $estimated_data_size, array $context = []): string {
+        \NTWP\Core\Logger::debug_log(
+            "智能降级策略分析: 错误={$error_type}, 数据量={$estimated_data_size}",
+            'Fallback Strategy'
+        );
+
+        if ($error_type === 'FILTER_ERROR') {
+            // 过滤器错误 - 根据数据量选择策略
+            if ($estimated_data_size < 100) {
+                return 'FULL_SYNC'; // 小数据集，直接全量同步
+            } elseif ($estimated_data_size < 1000) {
+                return 'SIMPLIFIED_FILTER'; // 中等数据集，使用简化过滤器
+            } else {
+                return 'PAGINATED_SYNC'; // 大数据集，分页同步
+            }
+        }
+
+        if ($error_type === 'RATE_LIMIT_ERROR') {
+            return 'THROTTLED_SYNC'; // 限流错误，使用节流同步
+        }
+
+        if ($error_type === 'NETWORK_ERROR') {
+            return 'RETRY_WITH_BACKOFF'; // 网络错误，退避重试
+        }
+
+        if ($error_type === 'AUTH_ERROR') {
+            return 'ABORT_SYNC'; // 认证错误，终止同步
+        }
+
+        return 'CONSERVATIVE_SYNC'; // 默认保守策略
+    }
+
+    /**
+     * 执行智能降级同步
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $original_filter 原始过滤器
+     * @param string $fallback_strategy 降级策略
+     * @param array $context 上下文信息
+     * @return array 同步结果
+     */
+    private function execute_fallback_sync(string $database_id, array $original_filter, string $fallback_strategy, array $context = []): array {
+        \NTWP\Core\Logger::info_log(
+            "执行降级同步: 策略={$fallback_strategy}, 数据库={$database_id}",
+            'Fallback Sync'
+        );
+
+        switch ($fallback_strategy) {
+            case 'FULL_SYNC':
+                // 移除所有过滤器，进行全量同步
+                return $this->get_database_pages($database_id, [], true);
+
+            case 'SIMPLIFIED_FILTER':
+                // 使用简化的过滤器
+                $simplified_filter = $this->create_simplified_filter($original_filter);
+                return $this->get_database_pages($database_id, $simplified_filter, true);
+
+            case 'PAGINATED_SYNC':
+                // 分页同步
+                return $this->execute_paginated_sync($database_id, $original_filter);
+
+            case 'THROTTLED_SYNC':
+                // 节流同步
+                return $this->execute_throttled_sync($database_id, $original_filter);
+
+            case 'CONSERVATIVE_SYNC':
+                // 保守同步（小批量）
+                return $this->execute_conservative_sync($database_id, $original_filter);
+
+            case 'ABORT_SYNC':
+                // 终止同步
+                throw new Exception('同步被终止: 无法解决的错误');
+
+            default:
+                // 默认回退到无过滤器同步
+                \NTWP\Core\Logger::warning_log(
+                    "未知降级策略: {$fallback_strategy}, 使用默认全量同步",
+                    'Fallback Sync'
+                );
+                return $this->get_database_pages($database_id, [], true);
+        }
+    }
+
+    /**
+     * 创建简化的过滤器
+     *
+     * @since 2.0.0-beta.1
+     * @param array $original_filter 原始过滤器
+     * @return array 简化的过滤器
+     */
+    private function create_simplified_filter(array $original_filter): array {
+        // 移除复杂的时间戳过滤器，保留简单的属性过滤器
+        if (isset($original_filter['and'])) {
+            $simplified = [];
+            foreach ($original_filter['and'] as $condition) {
+                // 跳过时间戳相关的过滤条件
+                if (!isset($condition['timestamp']) && !isset($condition['last_edited_time'])) {
+                    $simplified[] = $condition;
+                }
+            }
+            return count($simplified) > 0 ? ['and' => $simplified] : [];
+        }
+
+        // 如果不是复合过滤器，检查是否是时间戳过滤器
+        if (isset($original_filter['timestamp']) || isset($original_filter['last_edited_time'])) {
+            return []; // 移除时间戳过滤器
+        }
+
+        return $original_filter; // 保持原样
+    }
+
+    /**
+     * 执行分页同步
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $filter 过滤器
+     * @return array 同步结果
+     */
+    private function execute_paginated_sync(string $database_id, array $filter): array {
+        $all_results = [];
+        $page_size = 25; // 小批量分页
+        $max_pages = 20; // 最多20页，防止无限循环
+        $page_count = 0;
+
+        \NTWP\Core\Logger::info_log(
+            "开始分页同步: 页面大小={$page_size}, 最大页数={$max_pages}",
+            'Paginated Sync'
+        );
+
+        $has_more = true;
+        $start_cursor = null;
+
+        while ($has_more && $page_count < $max_pages) {
+            try {
+                $endpoint = 'databases/' . $database_id . '/query';
+                $data = ['page_size' => $page_size];
+
+                if (!empty($filter)) {
+                    $data['filter'] = $filter;
+                }
+
+                if ($start_cursor) {
+                    $data['start_cursor'] = $start_cursor;
+                }
+
+                $response = $this->send_request($endpoint, 'POST', $data);
+
+                if (isset($response['results'])) {
+                    $all_results = array_merge($all_results, $response['results']);
+                }
+
+                $has_more = $response['has_more'] ?? false;
+                $start_cursor = $response['next_cursor'] ?? null;
+                $page_count++;
+
+                // 页面间延迟，避免过于频繁的请求
+                if ($has_more) {
+                    usleep(500000); // 0.5秒延迟
+                }
+
+            } catch (Exception $e) {
+                \NTWP\Core\Logger::warning_log(
+                    "分页同步第 {$page_count} 页失败: " . $e->getMessage(),
+                    'Paginated Sync'
+                );
+                break; // 停止分页，返回已获取的结果
+            }
+        }
+
+        \NTWP\Core\Logger::info_log(
+            "分页同步完成: 总页数={$page_count}, 总结果={$all_results}",
+            'Paginated Sync'
+        );
+
+        return $all_results;
+    }
+
+    /**
+     * 执行节流同步
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $filter 过滤器
+     * @return array 同步结果
+     */
+    private function execute_throttled_sync(string $database_id, array $filter): array {
+        \NTWP\Core\Logger::info_log(
+            "开始节流同步: 数据库={$database_id}",
+            'Throttled Sync'
+        );
+
+        // 增加延迟，避免触发限流
+        sleep(2);
+
+        try {
+            return $this->get_database_pages($database_id, $filter, true);
+        } catch (Exception $e) {
+            // 如果仍然失败，进一步降级
+            \NTWP\Core\Logger::warning_log(
+                "节流同步失败，进一步降级: " . $e->getMessage(),
+                'Throttled Sync'
+            );
+            return $this->execute_conservative_sync($database_id, []);
+        }
+    }
+
+    /**
+     * 执行保守同步
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @param array $filter 过滤器
+     * @return array 同步结果
+     */
+    private function execute_conservative_sync(string $database_id, array $filter): array {
+        \NTWP\Core\Logger::info_log(
+            "开始保守同步: 数据库={$database_id}",
+            'Conservative Sync'
+        );
+
+        // 使用极小的分页大小
+        return $this->execute_paginated_sync($database_id, $filter);
+    }
+
+    /**
+     * 净化错误上下文，防止内存泄漏
+     *
+     * @since 2.0.0-beta.1
+     * @param array $context 原始上下文
+     * @return array 净化后的上下文
+     */
+    private function sanitize_error_context(array $context): array {
+        $max_size = 1024; // 1KB限制
+        $sanitized = [];
+
+        foreach ($context as $key => $value) {
+            if (is_string($value)) {
+                if (strlen($value) > $max_size) {
+                    $sanitized[$key] = substr($value, 0, $max_size) . '...[truncated]';
+                } else {
+                    $sanitized[$key] = $value;
+                }
+            } elseif (is_array($value)) {
+                // 递归净化数组
+                $sanitized[$key] = $this->sanitize_error_context($value);
+            } else {
+                $sanitized[$key] = $value;
+            }
+        }
+
+        return $sanitized;
+    }
 
     /**
      * 构造函数，初始化 API 客户端。
@@ -197,7 +818,7 @@ class API {
     }
 
     /**
-     * 向 Notion API 发送请求。
+     * 向 Notion API 发送请求（智能缓存版本）
      * 这是一个通用的方法，用于处理所有类型的 API 请求。
      * @since    1.0.8
      * @param    string    $endpoint    API 端点，不包含基础 URL。
@@ -207,10 +828,40 @@ class API {
      * @throws   Exception             如果 API 请求失败或返回错误。
      */
     public function send_request(string $endpoint, string $method = 'GET', array $data = []): array {
-        // 🚀 性能优化：检查会话缓存
+        // 🚀 智能缓存：根据端点和同步模式决定缓存策略
+        $cache_strategy = $this->get_cache_strategy($endpoint, $method);
+        $use_smart_cache = false;
+        $cache_key = '';
+
+        if ($cache_strategy && $this->should_use_cache($endpoint, $cache_strategy)) {
+            $use_smart_cache = true;
+            $cache_key = $this->generate_smart_cache_key($endpoint, $data, $cache_strategy['type']);
+
+            // 检查智能缓存
+            if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+                $cached_response = \NTWP\Utils\Smart_Cache::get_tiered(
+                    $cache_strategy['type'], 
+                    $cache_key
+                );
+                
+                if ($cached_response !== false) {
+                    \NTWP\Core\Logger::debug_log(
+                        "智能缓存命中: {$endpoint} (模式: {$this->sync_mode})",
+                        'Smart Cache'
+                    );
+                    return $cached_response;
+                }
+            }
+        }
+
+        // 🚀 会话缓存：检查会话级缓存（仅用于减少重复调用）
         if ($method === 'GET' && class_exists('\\NTWP\\Utils\\Session_Cache')) {
             $cached_response = \NTWP\Utils\Session_Cache::get_cached_api_response($endpoint, $data);
             if ($cached_response !== null) {
+                \NTWP\Core\Logger::debug_log(
+                    "会话缓存命中: {$endpoint}",
+                    'Session Cache'
+                );
                 return $cached_response;
             }
         }
@@ -298,17 +949,39 @@ class API {
         $body = wp_remote_retrieve_body($response);
         $decoded_response = json_decode($body, true) ?: [];
 
-        // 🚀 性能优化：智能缓存GET请求的响应
-        if ($method === 'GET' && class_exists('\\NTWP\\Utils\\Session_Cache')) {
-            // 根据端点类型设置不同的缓存时间
-            $cache_ttl = 300; // 默认5分钟
-            if (strpos($endpoint, '/children') !== false) {
-                $cache_ttl = 600; // 子内容缓存10分钟
-            } elseif (strpos($endpoint, '/databases/') !== false) {
-                $cache_ttl = 900; // 数据库查询缓存15分钟
+        // 🚀 智能缓存：存储响应到适当的缓存层
+        if ($use_smart_cache && $cache_strategy && class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+            // 根据同步模式调整TTL
+            $ttl = $cache_strategy['ttl'];
+            if ($this->sync_mode === 'manual') {
+                $ttl = min($ttl, 60); // 手动同步最多缓存1分钟
             }
 
-            \NTWP\Utils\Session_Cache::cache_api_response($endpoint, $data, $decoded_response, $cache_ttl);
+            \NTWP\Utils\Smart_Cache::set_tiered(
+                $cache_strategy['type'],
+                $cache_key,
+                $decoded_response,
+                [],
+                $ttl
+            );
+
+            \NTWP\Core\Logger::debug_log(
+                "智能缓存存储: {$endpoint} (TTL: {$ttl}s, 模式: {$this->sync_mode})",
+                'Smart Cache'
+            );
+        }
+
+        // 🚀 会话缓存：总是存储到会话缓存（用于减少同一会话内的重复调用）
+        if ($method === 'GET' && class_exists('\\NTWP\\Utils\\Session_Cache')) {
+            // 根据端点类型设置不同的会话缓存时间
+            $session_ttl = 60; // 默认1分钟会话缓存
+            if (strpos($endpoint, '/children') !== false) {
+                $session_ttl = 120; // 子内容会话缓存2分钟
+            } elseif (strpos($endpoint, '/databases/') !== false && strpos($endpoint, '/query') === false) {
+                $session_ttl = 300; // 数据库结构会话缓存5分钟
+            }
+
+            \NTWP\Utils\Session_Cache::cache_api_response($endpoint, $data, $decoded_response, $session_ttl);
         }
 
         return $decoded_response;
@@ -327,7 +1000,7 @@ class API {
     public function get_database_pages(string $database_id, array $filter = [], bool $with_details = false): array {
 
         \NTWP\Core\Logger::debug_log(
-            '获取数据库页面（实时）: ' . $database_id . ', 详细信息: ' . ($with_details ? '是' : '否'),
+            "获取数据库页面: {$database_id}, 详细信息: {$with_details}, 缓存模式: {$this->sync_mode}",
             'Database Pages'
         );
 
@@ -714,7 +1387,7 @@ class API {
     }
 
     /**
-     * 获取页面的元数据 - 总是返回最新数据（移除缓存以支持增量同步）
+     * 获取页面的元数据 - 智能缓存策略（根据同步模式动态缓存）
      *
      * @since    1.0.8
      * @param    string    $page_id    Notion 页面的 ID。
@@ -726,7 +1399,7 @@ class API {
         $result = $this->send_request($endpoint);
 
         \NTWP\Core\Logger::debug_log(
-            '获取页面元数据（实时）: ' . $page_id,
+            "获取页面元数据: {$page_id} (缓存模式: {$this->sync_mode})",
             'Page Metadata'
         );
 
@@ -774,7 +1447,7 @@ class API {
     }
 
     /**
-     * 获取单个页面对象 - 总是返回最新数据（移除缓存以支持增量同步）
+     * 获取单个页面对象 - 智能缓存策略（根据同步模式动态缓存）
      *
      * @param string $page_id 页面ID
      * @return array<string, mixed>
@@ -785,7 +1458,7 @@ class API {
         $result = $this->send_request($endpoint);
 
         \NTWP\Core\Logger::debug_log(
-            '获取页面数据（实时）: ' . $page_id,
+            "获取页面数据: {$page_id} (缓存模式: {$this->sync_mode})",
             'Page Data'
         );
 
@@ -793,7 +1466,7 @@ class API {
     }
 
     /**
-     * 安全获取数据库信息，支持优雅降级 - 总是返回最新数据
+     * 安全获取数据库信息，支持优雅降级 - 智能缓存策略
      *
      * @since 1.0.9
      * @param string $database_id 数据库ID
@@ -804,7 +1477,7 @@ class API {
                 $database_info = $this->get_database($database_id);
 
                 \NTWP\Core\Logger::debug_log(
-                    '数据库信息获取成功（实时）: ' . $database_id,
+                    "数据库信息获取成功: {$database_id} (缓存模式: {$this->sync_mode})",
                     'Database Info'
                 );
 
@@ -819,7 +1492,7 @@ class API {
     }
 
     /**
-     * 获取页面详细信息，包括cover、icon等完整属性 - 总是返回最新数据
+     * 获取页面详细信息，包括cover、icon等完整属性 - 智能缓存策略
      *
      * @since 1.1.1
      * @param string $page_id 页面ID
@@ -830,7 +1503,7 @@ class API {
                 $page_data = $this->get_page($page_id);
 
             \NTWP\Core\Logger::debug_log(
-                '获取页面详情（实时）: ' . $page_id,
+                "获取页面详情: {$page_id} (缓存模式: {$this->sync_mode})",
                 'Page Details'
             );
 
@@ -1290,35 +1963,32 @@ class API {
     }
 
     /**
-     * 智能增量获取数据库页面（API层前置过滤）
+     * 智能增量获取数据库页面（增强错误处理版本）
      *
      * 在API层面过滤变更内容，避免拉取全量数据后本地过滤的带宽浪费
+     * 集成增强的错误处理、重试机制和智能降级策略
      *
      * @since 2.0.0-beta.1
      * @param string $database_id 数据库ID
      * @param string $last_sync_time 最后同步时间（ISO 8601格式）
      * @param array $additional_filters 额外的过滤条件
      * @param bool $with_details 是否获取详细信息
-     * @return array 过滤后的页面数组
+     * @return \NTWP\Utils\API_Result 增强的结果对象
      */
-    public function smart_incremental_fetch(string $database_id, string $last_sync_time = '', array $additional_filters = [], bool $with_details = false): array {
-        // 开始性能监控
+    public function smart_incremental_fetch_enhanced(string $database_id, string $last_sync_time = '', array $additional_filters = [], bool $with_details = false): \NTWP\Utils\API_Result {
         $start_time = microtime(true);
         $start_memory = memory_get_usage(true);
 
         if (class_exists('\\NTWP\\Core\\Performance_Monitor')) {
-            \NTWP\Core\Performance_Monitor::start_timer('smart_incremental_fetch');
+            \NTWP\Core\Performance_Monitor::start_timer('smart_incremental_fetch_enhanced');
         }
 
         // 构建时间戳过滤器
         $time_filter = [];
         if (!empty($last_sync_time)) {
-            // 确保时间格式正确
             $formatted_time = $this->format_timestamp_for_api($last_sync_time);
 
-            // 只有在格式化后的时间有效时才创建过滤器
             if (!empty($formatted_time)) {
-                // 根据官方文档：https://developers.notion.com/reference/post-database-query-filter#timestamp
                 $time_filter = [
                     'timestamp' => 'last_edited_time',
                     'last_edited_time' => [
@@ -1330,18 +2000,14 @@ class API {
 
         // 构建复合过滤器
         $filters = [];
-
-        // 添加时间过滤器
         if (!empty($time_filter)) {
             $filters[] = $time_filter;
         }
 
-        // 添加额外的过滤条件
         foreach ($additional_filters as $filter) {
             $filters[] = $filter;
         }
 
-        // 构建最终的过滤器结构
         $final_filter = [];
         if (count($filters) === 1) {
             $final_filter = $filters[0];
@@ -1349,76 +2015,158 @@ class API {
             $final_filter = ['and' => $filters];
         }
 
-        // 验证最终过滤器的有效性
+        // 验证过滤器有效性
         if (!$this->is_valid_filter($final_filter)) {
-            // 如果过滤器无效，记录警告并使用无过滤器的查询
-            if (class_exists('\\NTWP\\Core\\Logger')) {
-                \NTWP\Core\Logger::warning_log(
-                    sprintf(
-                        'API层增量过滤器无效，使用全量查询: 数据库=%s, 时间戳=%s',
-                        $database_id,
-                        $last_sync_time ?: '无'
-                    ),
-                    'Smart Incremental Fetch'
-                );
-            }
-            $final_filter = []; // 清空过滤器，使用全量查询
-        }
-
-        // 记录过滤器信息
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::info_log(
-                sprintf(
-                    'API层增量过滤: 数据库=%s, 时间戳=%s, 额外过滤器=%d个',
-                    $database_id,
-                    $last_sync_time ?: '无',
-                    count($additional_filters)
-                ),
-                'Smart Incremental Fetch'
+            \NTWP\Core\Logger::warning_log(
+                "API层增量过滤器无效，使用全量查询: 数据库={$database_id}",
+                'Enhanced Incremental Fetch'
             );
+            $final_filter = [];
         }
 
-        try {
-            // 使用过滤器获取数据（只有在有有效过滤器时才传递）
-            $filtered_pages = $this->is_valid_filter($final_filter) 
-                ? $this->get_database_pages($database_id, $final_filter, $with_details)
-                : $this->get_database_pages($database_id, [], $with_details);
+        // 预估数据量（用于降级策略决策）
+        $estimated_data_size = $this->estimate_database_size($database_id);
 
-            // 记录过滤效果统计
-            $processing_time = microtime(true) - $start_time;
+        // 使用增强的重试机制执行API调用
+        try {
+            $operation = function() use ($database_id, $final_filter, $with_details) {
+                return $this->is_valid_filter($final_filter) 
+                    ? $this->get_database_pages($database_id, $final_filter, $with_details)
+                    : $this->get_database_pages($database_id, [], $with_details);
+            };
+
+            $filtered_pages = $this->retry_with_backoff(
+                $operation,
+                "增量获取数据库页面 ({$database_id})",
+                [
+                    'database_id' => $database_id,
+                    'filter' => $final_filter,
+                    'estimated_size' => $estimated_data_size
+                ]
+            );
+
+            // 记录性能统计
+            $processing_time = round((microtime(true) - $start_time) * 1000);
             $memory_used = memory_get_usage(true) - $start_memory;
 
             if (class_exists('\\NTWP\\Core\\Performance_Monitor')) {
-                \NTWP\Core\Performance_Monitor::end_timer('smart_incremental_fetch');
-                \NTWP\Core\Performance_Monitor::record_custom_metric('incremental_fetch_time', $processing_time);
-                \NTWP\Core\Performance_Monitor::record_custom_metric('incremental_fetch_count', count($filtered_pages));
-                \NTWP\Core\Performance_Monitor::record_custom_metric('incremental_fetch_memory', $memory_used);
+                \NTWP\Core\Performance_Monitor::end_timer('smart_incremental_fetch_enhanced');
+                \NTWP\Core\Performance_Monitor::record_custom_metric('enhanced_fetch_time', $processing_time);
+                \NTWP\Core\Performance_Monitor::record_custom_metric('enhanced_fetch_count', count($filtered_pages));
+                \NTWP\Core\Performance_Monitor::record_custom_metric('enhanced_fetch_memory', $memory_used);
             }
 
-            if (class_exists('\\NTWP\\Core\\Logger')) {
-                \NTWP\Core\Logger::info_log(
-                    sprintf(
-                        'API层过滤完成: 获取%d个页面, 耗时%.3fs, 内存%s',
-                        count($filtered_pages),
-                        $processing_time,
-                        $this->format_bytes($memory_used)
-                    ),
-                    'Smart Incremental Fetch'
-                );
-            }
+            $result = \NTWP\Utils\API_Result::success(
+                $filtered_pages,
+                false,
+                null,
+                0,
+                $processing_time,
+                [
+                    'database_id' => $database_id,
+                    'filter_used' => !empty($final_filter),
+                    'page_count' => count($filtered_pages),
+                    'memory_used' => $this->format_bytes($memory_used)
+                ]
+            );
 
-            return $filtered_pages;
+            $result->log_result("增量获取数据库页面 ({$database_id})", 'Enhanced Incremental Fetch');
+
+            return $result;
 
         } catch (Exception $e) {
-            if (class_exists('\\NTWP\\Core\\Logger')) {
-                \NTWP\Core\Logger::error_log(
-                    sprintf('API层增量过滤失败: %s', $e->getMessage()),
-                    'Smart Incremental Fetch'
+            $error_type = $this->classify_api_error_precise($e);
+            $processing_time = round((microtime(true) - $start_time) * 1000);
+
+            \NTWP\Core\Logger::error_log(
+                "增量获取失败: {$error_type} - {$e->getMessage()}",
+                'Enhanced Incremental Fetch'
+            );
+
+            // 尝试智能降级
+            try {
+                $fallback_strategy = $this->get_fallback_strategy($error_type, $estimated_data_size, [
+                    'database_id' => $database_id,
+                    'original_filter' => $final_filter
+                ]);
+
+                \NTWP\Core\Logger::info_log(
+                    "执行降级策略: {$fallback_strategy}",
+                    'Enhanced Incremental Fetch'
                 );
+
+                $fallback_pages = $this->execute_fallback_sync($database_id, $final_filter, $fallback_strategy);
+
+                $result = \NTWP\Utils\API_Result::fallback_success(
+                    $fallback_pages,
+                    $fallback_strategy,
+                    1, // 至少经历了一次重试
+                    $processing_time,
+                    [
+                        'database_id' => $database_id,
+                        'original_error' => $error_type,
+                        'fallback_strategy' => $fallback_strategy,
+                        'page_count' => count($fallback_pages)
+                    ]
+                );
+
+                $result->log_result("降级成功获取数据库页面 ({$database_id})", 'Enhanced Incremental Fetch');
+
+                return $result;
+
+            } catch (Exception $fallback_exception) {
+                $context = $this->sanitize_error_context([
+                    'database_id' => $database_id,
+                    'original_error' => $e->getMessage(),
+                    'fallback_error' => $fallback_exception->getMessage(),
+                    'estimated_size' => $estimated_data_size
+                ]);
+
+                $result = \NTWP\Utils\API_Result::failure(
+                    $error_type,
+                    "原始错误: {$e->getMessage()}, 降级失败: {$fallback_exception->getMessage()}",
+                    1,
+                    $processing_time,
+                    $context
+                );
+
+                $result->log_result("完全失败获取数据库页面 ({$database_id})", 'Enhanced Incremental Fetch');
+
+                return $result;
+            }
+        }
+    }
+
+    /**
+     * 预估数据库大小
+     *
+     * @since 2.0.0-beta.1
+     * @param string $database_id 数据库ID
+     * @return int 预估的页面数量
+     */
+    private function estimate_database_size(string $database_id): int {
+        try {
+            // 获取少量页面来预估总数
+            $endpoint = 'databases/' . $database_id . '/query';
+            $data = ['page_size' => 1]; // 只获取1个页面
+
+            $response = $this->send_request($endpoint, 'POST', $data);
+
+            // 如果有has_more标志，说明数据量较大
+            if (isset($response['has_more']) && $response['has_more']) {
+                return 1000; // 预估大数据集
             }
 
-            // 失败时回退到无过滤的查询
-            return $this->get_database_pages($database_id, [], $with_details);
+            $count = count($response['results'] ?? []);
+            return $count;
+
+        } catch (Exception $e) {
+            // 预估失败，返回中等数据集大小
+            \NTWP\Core\Logger::debug_log(
+                "数据库大小预估失败: {$e->getMessage()}",
+                'Database Size Estimation'
+            );
+            return 500; // 默认中等数据集
         }
     }
 
@@ -1663,6 +2411,184 @@ class API {
         }
 
         return $stats;
+    }
+
+    /**
+     * 获取智能缓存统计信息和性能指标
+     *
+     * @since 2.0.0-beta.1
+     * @return array 智能缓存统计信息
+     */
+    public function get_smart_cache_stats(): array {
+        $stats = [
+            'sync_mode' => $this->sync_mode,
+            'cache_strategies' => self::$cache_strategies,
+            'performance_optimization' => [
+                'api_call_reduction' => true,
+                'intelligent_caching' => true,
+                'sync_mode_awareness' => true
+            ]
+        ];
+
+        // 获取Smart_Cache统计
+        if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+            $stats['smart_cache'] = \NTWP\Utils\Smart_Cache::get_cache_stats();
+            $stats['tiered_cache'] = \NTWP\Utils\Smart_Cache::get_tiered_stats();
+        }
+
+        // 获取Session_Cache统计  
+        if (class_exists('\\NTWP\\Utils\\Session_Cache')) {
+            $stats['session_cache'] = [
+                'enabled' => true,
+                'scope' => 'single_sync_session',
+                'ttl_range' => '60-300 seconds'
+            ];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 清理过期的智能缓存
+     *
+     * @since 2.0.0-beta.1
+     * @return array 清理结果
+     */
+    public function cleanup_smart_cache(): array {
+        $results = [
+            'smart_cache_cleared' => 0,
+            'session_cache_cleared' => 0
+        ];
+
+        // 清理Smart_Cache
+        if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+            $results['smart_cache_cleared'] = \NTWP\Utils\Smart_Cache::clear_all();
+        }
+
+        // 清理Session_Cache
+        if (class_exists('\\NTWP\\Utils\\Session_Cache') && method_exists('\\NTWP\\Utils\\Session_Cache', 'clear_expired')) {
+            $results['session_cache_cleared'] = \NTWP\Utils\Session_Cache::clear_expired();
+        }
+
+        \NTWP\Core\Logger::info_log(
+            "智能缓存清理完成: Smart Cache {$results['smart_cache_cleared']} 项, Session Cache {$results['session_cache_cleared']} 项",
+            'Cache Cleanup'
+        );
+
+        return $results;
+    }
+
+    /**
+     * 获取增强错误处理统计信息
+     *
+     * @since 2.0.0-beta.1
+     * @return array 错误处理统计信息
+     */
+    public function get_enhanced_error_handling_stats(): array {
+        $stats = [
+            'retry_config' => self::$retry_config,
+            'error_classification' => [
+                'precise_patterns' => true,
+                'http_code_extraction' => true,
+                'context_sanitization' => true
+            ],
+            'fallback_strategies' => [
+                'FILTER_ERROR' => 'data_size_based',
+                'RATE_LIMIT_ERROR' => 'throttled_sync',
+                'NETWORK_ERROR' => 'retry_with_backoff',
+                'AUTH_ERROR' => 'abort_sync',
+                'DEFAULT' => 'conservative_sync'
+            ],
+            'resource_management' => [
+                'context_size_limit' => '1KB',
+                'memory_monitoring' => true,
+                'execution_time_tracking' => true
+            ],
+            'result_standardization' => [
+                'api_result_object' => true,
+                'detailed_context' => true,
+                'automatic_logging' => true
+            ]
+        ];
+
+        // 获取Smart_Cache统计
+        if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+            $stats['smart_cache'] = \NTWP\Utils\Smart_Cache::get_cache_stats();
+        }
+
+        // 获取性能监控统计
+        if (class_exists('\\NTWP\\Core\\Performance_Monitor')) {
+            $metrics = \NTWP\Core\Performance_Monitor::get_metrics();
+            $stats['performance_metrics'] = [
+                'enhanced_fetch_time' => $metrics['enhanced_fetch_time'] ?? 0,
+                'enhanced_fetch_count' => $metrics['enhanced_fetch_count'] ?? 0,
+                'enhanced_fetch_memory' => $metrics['enhanced_fetch_memory'] ?? 0
+            ];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * 测试增强的错误处理机制
+     *
+     * @since 2.0.0-beta.1
+     * @param string $test_scenario 测试场景
+     * @return \NTWP\Utils\API_Result 测试结果
+     */
+    public function test_enhanced_error_handling(string $test_scenario = 'filter_error'): \NTWP\Utils\API_Result {
+        $start_time = microtime(true);
+
+        try {
+            switch ($test_scenario) {
+                case 'filter_error':
+                    // 模拟过滤器错误
+                    throw new Exception('filter validation failed: property last_edited_time does not exist', 400);
+
+                case 'network_error':
+                    // 模拟网络错误
+                    throw new Exception('timeout occurred during network request', 0);
+
+                case 'rate_limit_error':
+                    // 模拟限流错误
+                    throw new Exception('rate limit exceeded: too many requests', 429);
+
+                case 'auth_error':
+                    // 模拟认证错误
+                    throw new Exception('unauthorized: invalid token', 401);
+
+                default:
+                    throw new Exception('unknown test scenario', 500);
+            }
+
+        } catch (Exception $e) {
+            $error_type = $this->classify_api_error_precise($e);
+            $processing_time = round((microtime(true) - $start_time) * 1000);
+
+            $fallback_strategy = $this->get_fallback_strategy($error_type, 100, [
+                'test_scenario' => $test_scenario
+            ]);
+
+            $context = $this->sanitize_error_context([
+                'test_scenario' => $test_scenario,
+                'classified_as' => $error_type,
+                'fallback_strategy' => $fallback_strategy,
+                'message' => $e->getMessage(),
+                'code' => $e->getCode()
+            ]);
+
+            $result = \NTWP\Utils\API_Result::failure(
+                $error_type,
+                "测试错误处理: {$e->getMessage()}",
+                0,
+                $processing_time,
+                $context
+            );
+
+            $result->log_result("错误处理测试 ({$test_scenario})", 'Enhanced Error Handling Test');
+
+            return $result;
+        }
     }
 
     /**
