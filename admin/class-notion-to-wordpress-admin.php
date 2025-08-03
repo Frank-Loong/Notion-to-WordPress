@@ -253,8 +253,8 @@ class Notion_To_WordPress_Admin {
         }, 10, 2);
 
         // 注册数据库索引优化相关的AJAX处理函数
-        add_action('wp_ajax_notion_database_indexes', [$this, 'handle_database_indexes_request']);
-        add_action('wp_ajax_notion_analyze_query_performance', [$this, 'handle_analyze_query_performance']);
+        add_action('wp_ajax_notion_to_wordpress_database_indexes_request', [$this, 'handle_database_indexes_request']);
+        add_action('wp_ajax_notion_to_wordpress_analyze_query_performance', [$this, 'handle_analyze_query_performance']);
     }
     
     /**

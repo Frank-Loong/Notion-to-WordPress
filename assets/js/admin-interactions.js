@@ -1254,7 +1254,7 @@ jQuery(document).ready(function($) {
         }
 
         const formData = new FormData(this);
-        formData.set('action', 'save_notion_settings'); // 确保action正确
+        formData.set('action', 'notion_to_wordpress_save_settings'); // 确保action正确
 
         // 确保nonce字段存在
         if (!formData.has('notion_to_wordpress_options_nonce')) {

@@ -145,22 +145,14 @@ class Main {
 	private function load_dependencies() {
 		// Core层 - 基础设施服务（已迁移到PSR-4自动加载）
 								
-		// Framework层 - 框架管理服务（已迁移到PSR-4）
-		// require_once \NTWP\Utils\Helper::plugin_path( 'includes/framework/Loader.php' ); // 已迁移到PSR-4
-		// require_once \NTWP\Utils\Helper::plugin_path( 'includes/framework/i18n.php' ); // 已迁移到PSR-4
+		// Core层 - 基础设施服务（已迁移到PSR-4自动加载）
+		// Framework层 - 框架管理服务（已迁移到PSR-4自动加载）
+		// Services层 - 业务逻辑服务（已迁移到PSR-4自动加载）
+		// Utils层 - 工具类（已迁移到PSR-4自动加载）
+		// Handlers层 - 协调器服务（已迁移到PSR-4自动加载）
 
-		// Admin层 - 后台管理
+		// Admin层 - 后台管理（仍需手动加载，未迁移到PSR-4）
 		require_once \NTWP\Utils\Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
-
-		// Services层 - 业务逻辑服务（已迁移到PSR-4）
-		// require_once \NTWP\Utils\Helper::plugin_path( 'includes/services/Metadata_Extractor.php' ); // 已迁移到PSR-4
-								// require_once \NTWP\Utils\Helper::plugin_path( 'includes/services/API.php' ); // 已迁移到PSR-4
-				// Utils层 - 工具类（旧的异步处理器已移除）
-		
-		// Handlers层 - 协调器服务（已迁移到PSR-4）
-		// require_once \NTWP\Utils\Helper::plugin_path( 'includes/handlers/Import_Coordinator.php' ); // 已迁移到PSR-4
-		// require_once \NTWP\Utils\Helper::plugin_path( 'includes/handlers/Integrator.php' ); // 已迁移到PSR-4
-		// require_once \NTWP\Utils\Helper::plugin_path( 'includes/handlers/Webhook.php' ); // 已迁移到PSR-4
 
 		$this->loader = new \NTWP\Framework\Loader();
 	}
@@ -242,7 +234,7 @@ class Main {
 		$this->loader->add_action( 'admin_enqueue_scripts', $this->admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu' );
 		$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
-		$this->loader->add_action( 'wp_ajax_save_notion_settings', $this->admin, 'handle_save_settings_ajax' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_save_settings', $this->admin, 'handle_save_settings_ajax' );
 
 		// AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_manual_sync', $this->admin, 'handle_manual_import' );
@@ -274,8 +266,8 @@ class Main {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
 		
 		// 数据库索引优化相关AJAX钩子
-		$this->loader->add_action( 'wp_ajax_notion_database_indexes', $this->admin, 'handle_database_indexes_request' );
-		$this->loader->add_action( 'wp_ajax_notion_analyze_query_performance', $this->admin, 'handle_analyze_query_performance' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_database_indexes_request', $this->admin, 'handle_database_indexes_request' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_analyze_query_performance', $this->admin, 'handle_analyze_query_performance' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
