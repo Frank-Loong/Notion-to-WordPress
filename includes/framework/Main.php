@@ -235,6 +235,7 @@ class Main {
 		$this->loader->add_action( 'admin_menu', $this->admin, 'add_plugin_admin_menu' );
 		$this->loader->add_action( 'admin_post_notion_to_wordpress_options', $this->admin, 'handle_settings_form' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_save_settings', $this->admin, 'handle_save_settings_ajax' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_settings', $this->admin, 'handle_get_settings' );
 
 		// AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_manual_sync', $this->admin, 'handle_manual_import' );

@@ -101,7 +101,11 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         </div>
         
         <div class="notion-wp-content">
-            <form id="notion-to-wordpress-settings-form" method="post" action="admin-post.php">
+            <!-- React应用挂载点 -->
+            <div id="notion-to-wordpress-react-root" class="notion-to-wordpress-react-app"></div>
+
+            <!-- 原有的表单内容作为fallback -->
+            <form id="notion-to-wordpress-settings-form" method="post" action="admin-post.php" style="display: none;">
                 <input type="hidden" name="action" value="notion_to_wordpress_options">
                 <?php wp_nonce_field('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce'); ?>
 

@@ -701,8 +701,8 @@ class API implements API_Interface {
      * @throws   \InvalidArgumentException 当API密钥格式无效时
      */
     public function __construct(string $api_key) {
-        // 验证API密钥格式
-        if (class_exists('\\NTWP\\Core\\Security')) {
+        // 验证API密钥格式 - 允许空的API key以便插件正常加载
+        if (class_exists('\\NTWP\\Core\\Security') && !empty($api_key)) {
             $validation_result = \NTWP\Core\Security::validate_notion_api_key($api_key);
             if (!$validation_result['is_valid']) {
                 throw new \InvalidArgumentException('Invalid API key: ' . $validation_result['error_message']);

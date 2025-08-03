@@ -11,6 +11,7 @@ vendor/
 .cursor/
 .augment/
 .claude/
+CLAUDE.md
 
 # IDE / Editor settings
 .vscode/

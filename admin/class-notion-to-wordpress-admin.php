@@ -163,6 +163,9 @@ class Notion_To_WordPress_Admin {
             true // 在页脚加载
         );
 
+        // React应用资源加载
+        $this->enqueue_react_assets();
+
         // 为JS提供统一的PHP数据对象
         $localize_data = array(
             'ajax_url' => admin_url('admin-ajax.php'),
@@ -256,7 +259,176 @@ class Notion_To_WordPress_Admin {
         add_action('wp_ajax_notion_to_wordpress_database_indexes_request', [$this, 'handle_database_indexes_request']);
         add_action('wp_ajax_notion_to_wordpress_analyze_query_performance', [$this, 'handle_analyze_query_performance']);
     }
-    
+
+    /**
+     * 加载React应用资源
+     * 支持开发环境和生产环境的自动切换
+     *
+     * @since    2.0.0
+     */
+    private function enqueue_react_assets() {
+        $manifest_path = Helper::plugin_path('assets/dist/manifest.json');
+        $is_development = defined('WP_DEBUG') && WP_DEBUG && !file_exists($manifest_path);
+
+        if ($is_development) {
+            // 开发环境：加载Vite dev server资源
+            wp_enqueue_script(
+                $this->plugin_name . '-react-dev',
+                'http://localhost:3000/src/main.tsx',
+                array(),
+                $this->version,
+                true
+            );
+
+            // 添加module类型
+            add_filter('script_loader_tag', function($tag, $handle) {
+                if ($handle === $this->plugin_name . '-react-dev') {
+                    return str_replace('<script ', '<script type="module" ', $tag);
+                }
+                return $tag;
+            }, 10, 2);
+
+        } else {
+            // 生产环境：从manifest.json加载构建后的资源
+            if (file_exists($manifest_path)) {
+                $manifest = json_decode(file_get_contents($manifest_path), true);
+
+                if (isset($manifest['index.html'])) {
+                    $entry = $manifest['index.html'];
+
+                    // 加载主JS文件
+                    if (isset($entry['file'])) {
+                        wp_enqueue_script(
+                            $this->plugin_name . '-react',
+                            Helper::plugin_url('assets/dist/' . $entry['file']),
+                            array(),
+                            $this->version,
+                            true
+                        );
+                    }
+
+                    // 加载CSS文件
+                    if (isset($entry['css'])) {
+                        foreach ($entry['css'] as $css_file) {
+                            wp_enqueue_style(
+                                $this->plugin_name . '-react-css',
+                                Helper::plugin_url('assets/dist/' . $css_file),
+                                array(),
+                                $this->version
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // 为React应用提供WordPress配置
+        $current_user = wp_get_current_user();
+        $script_nonce = wp_create_nonce('notion_to_wordpress_script_nonce');
+        $react_config = array(
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('notion_to_wordpress_nonce'),
+            'version' => $this->version,
+            'scriptNonce' => $script_nonce,
+            'apiEndpoints' => $this->get_api_endpoints(),
+            'currentUser' => array(
+                'id' => get_current_user_id(),
+                'name' => $current_user->display_name,
+                'email' => $current_user->user_email,
+                'roles' => $current_user->roles,
+                'capabilities' => array_keys($current_user->allcaps),
+            ),
+            'pluginUrl' => Helper::plugin_url(),
+            'assetsUrl' => Helper::plugin_url() . 'assets/',
+            'isDevelopment' => $is_development,
+            'i18n' => array(
+                'importing' => __('导入中...', 'notion-to-wordpress'),
+                'import' => __('手动导入', 'notion-to-wordpress'),
+                'import_error' => __('导入过程中发生错误', 'notion-to-wordpress'),
+                'testing' => __('测试中...', 'notion-to-wordpress'),
+                'test_connection' => __('测试连接', 'notion-to-wordpress'),
+                'test_error' => __('测试连接时发生错误', 'notion-to-wordpress'),
+                'fill_fields' => __('请输入API密钥和数据库ID', 'notion-to-wordpress'),
+                'copied' => __('已复制到剪贴板', 'notion-to-wordpress'),
+                'refreshing_token' => __('刷新中...', 'notion-to-wordpress'),
+                'refresh_token' => __('刷新令牌', 'notion-to-wordpress'),
+                'refresh_error' => __('刷新令牌时发生错误', 'notion-to-wordpress'),
+                'saving' => __('保存中...', 'notion-to-wordpress'),
+                'save_settings' => __('保存设置', 'notion-to-wordpress'),
+                'save_error' => __('保存设置时发生错误', 'notion-to-wordpress'),
+                'loading' => __('加载中...', 'notion-to-wordpress'),
+                'load_error' => __('加载数据时发生错误', 'notion-to-wordpress'),
+                'confirm_clear_logs' => __('确定要清除所有日志吗？', 'notion-to-wordpress'),
+                'logs_cleared' => __('日志已清除', 'notion-to-wordpress'),
+                'clear_logs_error' => __('清除日志时发生错误', 'notion-to-wordpress'),
+                'confirm_action' => __('确定要执行此操作吗？', 'notion-to-wordpress'),
+                'action_completed' => __('操作已完成', 'notion-to-wordpress'),
+                'action_error' => __('操作执行时发生错误', 'notion-to-wordpress'),
+                'no_data' => __('暂无数据', 'notion-to-wordpress'),
+                'invalid_response' => __('无效的响应格式', 'notion-to-wordpress'),
+                'network_error' => __('网络错误，请检查连接', 'notion-to-wordpress'),
+                'timeout_error' => __('请求超时，请重试', 'notion-to-wordpress'),
+                'permission_denied' => __('权限不足', 'notion-to-wordpress'),
+                'invalid_nonce' => __('安全验证失败', 'notion-to-wordpress'),
+                'server_error' => __('服务器错误', 'notion-to-wordpress'),
+                'unknown_error' => __('未知错误', 'notion-to-wordpress'),
+                'copy_success' => __('已复制到剪贴板', 'notion-to-wordpress'),
+                'copy_error' => __('复制失败', 'notion-to-wordpress'),
+                'copy_text_empty' => __('要复制的文本为空', 'notion-to-wordpress'),
+                'no_new_verification_token' => __('暂无新的验证令牌', 'notion-to-wordpress'),
+                'details' => __('详细信息', 'notion-to-wordpress'),
+                'verification_token_updated' => __('验证令牌已更新', 'notion-to-wordpress'),
+                'language_settings' => __('语言设置', 'notion-to-wordpress'),
+                'webhook_settings' => __('Webhook设置', 'notion-to-wordpress'),
+                'and' => __('和', 'notion-to-wordpress'),
+            ),
+        );
+
+        wp_localize_script(
+            $is_development ? $this->plugin_name . '-react-dev' : $this->plugin_name . '-react',
+            'wpNotionConfig',
+            $react_config
+        );
+    }
+
+    /**
+     * 获取API端点配置
+     *
+     * @since    2.0.0
+     * @return   array
+     */
+    private function get_api_endpoints() {
+        return array(
+            'manual_sync' => 'notion_to_wordpress_manual_sync',
+            'test_connection' => 'notion_to_wordpress_test_connection',
+            'get_stats' => 'notion_to_wordpress_get_stats',
+            'get_settings' => 'notion_to_wordpress_get_settings',
+            'save_settings' => 'notion_to_wordpress_save_settings',
+            'view_log' => 'notion_to_wordpress_view_log',
+            'clear_logs' => 'notion_to_wordpress_clear_logs',
+            'get_system_info' => 'notion_to_wordpress_get_system_info',
+            'test_debug' => 'notion_to_wordpress_test_debug',
+            'refresh_verification_token' => 'notion_to_wordpress_refresh_verification_token',
+            'get_index_status' => 'notion_to_wordpress_get_index_status',
+            'create_database_indexes' => 'notion_to_wordpress_create_database_indexes',
+            'optimize_all_indexes' => 'notion_to_wordpress_optimize_all_indexes',
+            'remove_database_indexes' => 'notion_to_wordpress_remove_database_indexes',
+            'get_async_status' => 'notion_to_wordpress_get_async_status',
+            'get_queue_status' => 'notion_to_wordpress_get_queue_status',
+            'control_async_operation' => 'notion_to_wordpress_control_async_operation',
+            'cleanup_queue' => 'notion_to_wordpress_cleanup_queue',
+            'cancel_queue_task' => 'notion_to_wordpress_cancel_queue_task',
+            'refresh_performance_stats' => 'notion_to_wordpress_refresh_performance_stats',
+            'reset_performance_stats' => 'notion_to_wordpress_reset_performance_stats',
+            'cancel_sync' => 'notion_to_wordpress_cancel_sync',
+            'retry_failed' => 'notion_to_wordpress_retry_failed',
+            'sse_progress' => 'notion_to_wordpress_sse_progress',
+            'get_smart_recommendations' => 'notion_to_wordpress_get_smart_recommendations',
+            'database_indexes_request' => 'notion_to_wordpress_database_indexes_request',
+            'analyze_query_performance' => 'notion_to_wordpress_analyze_query_performance',
+        );
+    }
+
     /**
      * 添加插件管理菜单
      *
@@ -574,6 +746,150 @@ class Notion_To_WordPress_Admin {
     }
 
     /**
+     * 从React前端的JSON数据解析并返回更新后的插件选项
+     *
+     * @param array $options 当前选项数组
+     * @return array 更新后的选项数组
+     */
+    private function parse_react_settings(array $options): array {
+        // 获取React发送的设置数据
+        $settings_data = null;
+
+        if (isset($_POST['settings'])) {
+            // 从POST参数获取（FormData格式中的JSON字符串）
+            $settings_json = $_POST['settings'];
+            if (is_string($settings_json)) {
+                // 尝试多种解码方式
+                $decoded_json = urldecode($settings_json);
+                $stripslashes_json = stripslashes($settings_json);
+                $both_decoded = stripslashes(urldecode($settings_json));
+
+                // 尝试解析原始字符串
+                $settings_data = json_decode($settings_json, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    // 尝试解析URL解码后的字符串
+                    $settings_data = json_decode($decoded_json, true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        // 尝试解析去除反斜杠的字符串
+                        $settings_data = json_decode($stripslashes_json, true);
+                        if (json_last_error() !== JSON_ERROR_NONE) {
+                            // 尝试解析同时URL解码和去除反斜杠的字符串
+                            $settings_data = json_decode($both_decoded, true);
+                            if (json_last_error() !== JSON_ERROR_NONE) {
+                                \NTWP\Core\Logger::error_log(
+                                    'React设置JSON解析失败: ' . json_last_error_msg() .
+                                    ' 原始: ' . substr($settings_json, 0, 100) .
+                                    ' URL解码: ' . substr($decoded_json, 0, 100) .
+                                    ' 去反斜杠: ' . substr($stripslashes_json, 0, 100) .
+                                    ' 双重解码: ' . substr($both_decoded, 0, 100),
+                                    'Parse React Settings'
+                                );
+                                return $options; // 返回原始选项，不做修改
+                            } else {
+                                \NTWP\Core\Logger::debug_log(
+                                    'React设置JSON需要URL解码+去反斜杠才能解析',
+                                    'Parse React Settings'
+                                );
+                            }
+                        } else {
+                            \NTWP\Core\Logger::debug_log(
+                                'React设置JSON需要去反斜杠才能解析',
+                                'Parse React Settings'
+                            );
+                        }
+                    } else {
+                        \NTWP\Core\Logger::debug_log(
+                            'React设置JSON需要URL解码才能解析',
+                            'Parse React Settings'
+                        );
+                    }
+                } else {
+                    \NTWP\Core\Logger::debug_log(
+                        'React设置JSON直接解析成功',
+                        'Parse React Settings'
+                    );
+                }
+            } else {
+                $settings_data = $settings_json; // 已经是数组格式
+            }
+        }
+
+        if (!$settings_data) {
+            \NTWP\Core\Logger::error_log('无法获取React设置数据', 'Parse React Settings');
+            return $options;
+        }
+
+        \NTWP\Core\Logger::debug_log(
+            'React设置数据解析成功: ' . json_encode($settings_data, JSON_UNESCAPED_UNICODE),
+            'Parse React Settings'
+        );
+
+        // 转换React格式到WordPress格式
+        if (isset($settings_data['api_key'])) {
+            $options['notion_api_key'] = sanitize_text_field($settings_data['api_key']);
+        }
+
+        if (isset($settings_data['database_id'])) {
+            $options['notion_database_id'] = sanitize_text_field($settings_data['database_id']);
+        }
+
+        if (isset($settings_data['enable_auto_sync'])) {
+            $options['sync_schedule'] = $settings_data['enable_auto_sync'] ? 'hourly' : 'manual';
+        }
+
+        if (isset($settings_data['sync_interval'])) {
+            // 根据间隔时间设置同步计划
+            $interval = intval($settings_data['sync_interval']);
+            if ($interval >= 3600) {
+                $options['sync_schedule'] = 'hourly';
+            } elseif ($interval >= 1800) {
+                $options['sync_schedule'] = 'twicehourly';
+            } else {
+                $options['sync_schedule'] = 'manual';
+            }
+        }
+
+        // 处理字段映射
+        if (isset($settings_data['field_mapping']) && is_array($settings_data['field_mapping'])) {
+            $field_mapping = $settings_data['field_mapping'];
+
+            // 转换React字段映射格式到WordPress格式
+            if (isset($field_mapping['title_field'])) {
+                $options['field_mapping']['title'] = sanitize_text_field($field_mapping['title_field']);
+            }
+            if (isset($field_mapping['content_field'])) {
+                $options['field_mapping']['content'] = sanitize_text_field($field_mapping['content_field']);
+            }
+            if (isset($field_mapping['status_field'])) {
+                $options['field_mapping']['status'] = sanitize_text_field($field_mapping['status_field']);
+            }
+        }
+
+        // 处理性能配置
+        if (isset($settings_data['performance_config']) && is_array($settings_data['performance_config'])) {
+            $perf_config = $settings_data['performance_config'];
+
+            if (isset($perf_config['enable_cache'])) {
+                $options['enable_transient_cache'] = $perf_config['enable_cache'] ? 1 : 0;
+            }
+            if (isset($perf_config['cache_duration'])) {
+                $options['transient_cache_ttl'] = intval($perf_config['cache_duration']);
+            }
+            if (isset($perf_config['batch_size'])) {
+                $options['batch_size'] = intval($perf_config['batch_size']);
+            }
+        }
+
+        \NTWP\Core\Logger::debug_log(
+            'React设置转换完成，API Key: ' . ($options['notion_api_key'] ?? 'undefined') .
+            ', Database ID: ' . ($options['notion_database_id'] ?? 'undefined'),
+            'Parse React Settings'
+        );
+
+        return $options;
+    }
+
+    /**
      * 根据选项更新或清理 cron 计划
      */
     private function update_cron_schedule(array $options): void {
@@ -625,17 +941,89 @@ class Notion_To_WordPress_Admin {
         exit;
     }
 
-    public function handle_save_settings_ajax() {
+    /**
+     * 处理获取设置的AJAX请求
+     *
+     * 为React前端提供获取WordPress设置数据的API端点
+     * 返回完整的插件配置选项，确保前端能够正确显示所有设置内容
+     *
+     * @since 2.0.0-beta.1
+     */
+    public function handle_get_settings() {
         try {
             // 使用统一的AJAX验证
-            $validation_result = $this->validate_ajax_request('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce');
+            $validation_result = $this->validate_ajax_request('notion_to_wordpress_nonce');
+            if (!$validation_result['is_valid']) {
+                \NTWP\Core\Logger::error_log(
+                    '获取设置AJAX验证失败: ' . $validation_result['error_message'],
+                    'Get Settings'
+                );
+                wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
+                return;
+            }
+
+            \NTWP\Core\Logger::debug_log('获取设置AJAX验证成功', 'Get Settings');
+
+            // 获取WordPress选项数据
+            $options = get_option('notion_to_wordpress_options', []);
+
+            // 记录调试信息
+            \NTWP\Core\Logger::debug_log(
+                '获取到的WordPress选项数据: ' . wp_json_encode($options, JSON_UNESCAPED_UNICODE),
+                'Get Settings'
+            );
+
+            // 返回原始WordPress选项数据
+            // 注意：这里暂时返回原始数据，数据格式转换将在下一个任务中实现
+            wp_send_json_success($options);
+
+        } catch (\Exception $e) {
+            // 使用统一错误处理
+            if (class_exists('\\NTWP\\Core\\Error_Handler')) {
+                $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Get Settings']);
+                \NTWP\Core\Logger::error_log(
+                    '获取设置时发生异常: ' . $error->get_error_message(),
+                    'Get Settings'
+                );
+                wp_send_json_error(['message' => __('获取设置失败: ', 'notion-to-wordpress') . $error->get_error_message()]);
+            } else {
+                \NTWP\Core\Logger::error_log(
+                    '获取设置时发生异常: ' . $e->getMessage(),
+                    'Get Settings'
+                );
+                wp_send_json_error(['message' => __('获取设置失败: ', 'notion-to-wordpress') . $e->getMessage()]);
+            }
+        }
+    }
+
+    public function handle_save_settings_ajax() {
+        try {
+            // 检测是否为React格式的数据并使用相应的nonce验证
+            if (isset($_POST['settings'])) {
+                // React格式数据使用标准nonce验证
+                $validation_result = $this->validate_ajax_request('notion_to_wordpress_nonce');
+                \NTWP\Core\Logger::debug_log('使用React格式nonce验证', 'Save Settings');
+            } else {
+                // 传统表单数据使用原有的nonce验证
+                $validation_result = $this->validate_ajax_request('notion_to_wordpress_options_update', 'notion_to_wordpress_options_nonce');
+                \NTWP\Core\Logger::debug_log('使用传统表单nonce验证', 'Save Settings');
+            }
+
             if (!$validation_result['is_valid']) {
                 wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
                 return;
             }
 
             $current_options = get_option('notion_to_wordpress_options', []);
-            $options = $this->parse_settings($current_options);
+
+            // 检测是否为React格式的数据（包含settings参数）
+            if (isset($_POST['settings'])) {
+                \NTWP\Core\Logger::debug_log('检测到React格式数据，使用parse_react_settings处理', 'Save Settings');
+                $options = $this->parse_react_settings($current_options);
+            } else {
+                \NTWP\Core\Logger::debug_log('检测到传统表单数据，使用parse_settings处理', 'Save Settings');
+                $options = $this->parse_settings($current_options);
+            }
 
             // 使用统一验证框架验证配置参数
             if (class_exists('\\NTWP\\Core\\Security')) {
