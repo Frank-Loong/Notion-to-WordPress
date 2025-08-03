@@ -382,14 +382,65 @@ class Modern_Async_Engine {
     }
     
     /**
+     * 重试失败的任务
+     *
+     * @param string $taskId 任务ID，如果为空则重试所有失败任务
+     * @return bool 是否成功启动重试
+     */
+    public static function retryFailed(string $taskId = ''): bool {
+        self::initializeComponents();
+
+        try {
+            if (!empty($taskId)) {
+                // 重试特定任务
+                $task = self::$tracker->getTask($taskId);
+                if (!$task || $task['status'] !== self::STATUS_FAILED) {
+                    return false;
+                }
+
+                // 重置任务状态
+                self::$tracker->updateStatus($taskId, self::STATUS_PENDING);
+                self::$tracker->incrementRetryCount($taskId);
+
+                Logger::info_log("重试失败任务: {$taskId}", 'Modern Async Engine');
+
+                // 触发异步处理
+                self::triggerAsyncProcessing();
+
+                return true;
+            } else {
+                // 重试所有失败任务
+                $failedTasks = self::$tracker->getFailedTasks();
+                $retryCount = 0;
+
+                foreach ($failedTasks as $task) {
+                    if (self::retryFailed($task['id'])) {
+                        $retryCount++;
+                    }
+                }
+
+                Logger::info_log("批量重试失败任务: {$retryCount} 个", 'Modern Async Engine');
+
+                return $retryCount > 0;
+            }
+        } catch (Exception $e) {
+            Logger::error_log(
+                sprintf('重试失败任务时出错: %s', $e->getMessage()),
+                'Modern Async Engine'
+            );
+            return false;
+        }
+    }
+
+    /**
      * 清理过期任务
      */
     public static function cleanup(): void {
         self::initializeComponents();
-        
+
         $cleaned = self::$tracker->cleanupExpiredTasks();
         self::$queue->cleanup();
-        
+
         Logger::info_log(
             sprintf('异步任务清理完成: 清理了 %d 个过期任务', $cleaned),
             'Modern Async Engine'

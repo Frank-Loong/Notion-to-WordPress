@@ -283,8 +283,49 @@ class Progress_Tracker {
     }
     
     /**
+     * 获取任务数据
+     *
+     * @param string $taskId 任务ID
+     * @return array|null 任务数据，如果不存在返回null
+     */
+    public function getTask(string $taskId): ?array {
+        return $this->getTaskData($taskId);
+    }
+
+    /**
+     * 获取失败的任务列表（已废弃 - 内存存储无法枚举）
+     *
+     * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
+     * @return array 失败任务列表
+     */
+    public function getFailedTasks(): array {
+        // 内存存储模式下无法枚举所有transient，返回空数组
+        // 在实际应用中，应该维护一个失败任务的索引
+        return [];
+    }
+
+    /**
+     * 增加重试计数
+     *
+     * @param string $taskId 任务ID
+     * @return bool 是否更新成功
+     */
+    public function incrementRetryCount(string $taskId): bool {
+        $taskData = $this->getTaskData($taskId);
+        if ($taskData === null) {
+            return false;
+        }
+
+        $metadata = $taskData['metadata'] ?? [];
+        $metadata['retry_count'] = ($metadata['retry_count'] ?? 0) + 1;
+        $metadata['last_retry_at'] = time();
+
+        return $this->updateTask($taskId, ['metadata' => $metadata]);
+    }
+
+    /**
      * 获取系统统计信息（已废弃 - 内存存储无法枚举）
-     * 
+     *
      * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
      * @return array 统计信息
      */
