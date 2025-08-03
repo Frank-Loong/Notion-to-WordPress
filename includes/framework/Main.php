@@ -184,7 +184,7 @@ class Main {
 		// 实例化API处理器
 		$this->notion_api = new \NTWP\Services\API( $api_key );
 
-		// 实例化导入协调器（原页面处理器）
+		// 实例化导入协调器（使用新的适配器）
 		$this->notion_pages = new \NTWP\Handlers\Import_Coordinator( $this->notion_api, $database_id, $field_mapping );
 
 		// 实例化后台处理器

@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Async_Helper {
+class AsyncHelper {
     
     /**
      * 异步导入页面

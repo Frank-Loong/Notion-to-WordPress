@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Network_Retry {
+class NetworkRetry {
 
     /**
      * 初始化cURL常量（如果未定义）

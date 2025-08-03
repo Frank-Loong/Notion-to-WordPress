@@ -89,22 +89,45 @@ class RefactoredDependencyContainer {
      * 获取重构统计
      */
     public static function get_refactoring_stats(): array {
+        // 获取主容器的服务统计
+        $main_services = \NTWP\Core\Dependency_Container::get_services();
+
         return [
             'refactored_services' => count(self::$services),
+            'main_container_services' => count($main_services),
+            'total_services' => count(self::$services) + count($main_services),
             'services_available' => array_keys(self::$services),
+            'main_services_migrated' => [
+                'cache' => 'CacheManager (替代Smart_Cache)',
+                'concurrency' => 'ConcurrencyManager (替代Unified_Concurrency_Manager)',
+                'memory' => 'MemoryMonitor (替代Memory_Manager)',
+                'stream_processor' => 'StreamProcessor (Memory_Manager拆分)',
+                'batch_optimizer' => 'BatchOptimizer (Memory_Manager拆分)',
+                'garbage_collector' => 'GarbageCollector (Memory_Manager拆分)'
+            ],
             'memory_classes_split' => [
-                'MemoryMonitor',
-                'StreamProcessor', 
-                'BatchOptimizer',
-                'GarbageCollector'
+                'MemoryMonitor' => '内存监控专职',
+                'StreamProcessor' => '流处理专职',
+                'BatchOptimizer' => '批量优化专职',
+                'GarbageCollector' => '垃圾回收专职'
             ],
             'unified_classes' => [
-                'ConcurrencyManager',
-                'CacheManager'
+                'CacheManager' => '统一缓存管理 (Smart_Cache + Session_Cache)',
+                'ConcurrencyManager' => '统一并发管理 (多个并发管理器合并)'
             ],
             'compatibility_adapters' => [
-                'Memory_Manager_Adapter',
-                'Unified_Concurrency_Manager_Adapter'
+                'Memory_Manager' => '向后兼容适配器',
+                'Unified_Concurrency_Manager' => '向后兼容适配器',
+                'smart_cache_adapter' => 'DI容器适配器',
+                'memory_manager_adapter' => 'DI容器适配器',
+                'unified_concurrency_adapter' => 'DI容器适配器'
+            ],
+            'migration_progress' => [
+                'cache_system_unified' => true,
+                'memory_management_split' => true,
+                'concurrency_unified' => true,
+                'dependency_injection_updated' => true,
+                'backward_compatibility_maintained' => true
             ]
         ];
     }

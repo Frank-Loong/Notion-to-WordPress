@@ -151,32 +151,56 @@ class Dependency_Container {
      * @since 2.0.0-beta.1
      */
     public static function init_core_services(): void {
-        // 注册缓存服务
+        // === 新架构服务 ===
+
+        // 注册统一缓存服务 (替代Smart_Cache)
         self::register('cache', function() {
-            return new \NTWP\Utils\Smart_Cache();
+            return new \NTWP\Infrastructure\CacheManager();
         });
-        
-        // 注册并发管理服务
+
+        // 注册统一并发管理服务 (替代Unified_Concurrency_Manager)
         self::register('concurrency', function() {
-            return new \NTWP\Utils\Unified_Concurrency_Manager();
+            return new \NTWP\Infrastructure\ConcurrencyManager();
         });
-        
-        // 注册数据库助手服务
-        self::register('database', function() {
-            return new \NTWP\Utils\Database_Helper();
-        });
-        
-        // 注册内存管理服务
+
+        // 注册内存监控服务 (替代Memory_Manager)
         self::register('memory', function() {
-            return new \NTWP\Core\Memory_Manager();
+            return new \NTWP\Core\MemoryMonitor();
         });
-        
+
+        // 注册流处理服务 (Memory_Manager拆分)
+        self::register('stream_processor', function() {
+            return new \NTWP\Core\StreamProcessor();
+        });
+
+        // 注册批量优化服务 (Memory_Manager拆分)
+        self::register('batch_optimizer', function() {
+            return new \NTWP\Core\BatchOptimizer();
+        });
+
+        // 注册垃圾回收服务 (Memory_Manager拆分)
+        self::register('garbage_collector', function() {
+            return new \NTWP\Core\GarbageCollector();
+        });
+
+        // === 保留的核心服务 ===
+
+        // 注册统一数据库管理服务 (替代Database_Helper、Database_Index_Manager、Database_Index_Optimizer)
+        self::register('database', function() {
+            return new \NTWP\Infrastructure\DatabaseManager();
+        });
+
+        // 注册数据库管理器服务
+        self::register('database_manager', function() {
+            return new \NTWP\Infrastructure\DatabaseManager();
+        });
+
         // 注册日志服务
         self::register('logger', function() {
             return new \NTWP\Core\Logger();
         });
-        
-        // 注册网络管理服务
+
+        // 注册网络管理服务 (待后续整合到ConcurrencyManager)
         self::register('network', function() {
             return new \NTWP\Utils\Concurrent_Network_Manager();
         });
@@ -189,6 +213,50 @@ class Dependency_Container {
         // 注册API合并服务
         self::register('api_merger', function() {
             return new \NTWP\Utils\Smart_API_Merger();
+        });
+
+        // === 向后兼容适配器 ===
+
+        // Smart_Cache适配器 (委托给CacheManager)
+        self::register('smart_cache_adapter', function() {
+            return self::resolve('cache'); // 返回CacheManager实例
+        });
+
+        // Memory_Manager适配器 (委托给新的专职类)
+        self::register('memory_manager_adapter', function() {
+            return new \NTWP\Core\Memory_Manager(); // 使用适配器类
+        });
+
+        // Unified_Concurrency_Manager适配器 (委托给ConcurrencyManager)
+        self::register('unified_concurrency_adapter', function() {
+            return new \NTWP\Utils\Unified_Concurrency_Manager(); // 使用适配器类
+        });
+
+        // Database_Helper适配器 (委托给DatabaseManager)
+        self::register('database_helper_adapter', function() {
+            return self::resolve('database_manager');
+        });
+
+        // Database_Index_Manager适配器 (委托给DatabaseManager)
+        self::register('database_index_manager_adapter', function() {
+            return self::resolve('database_manager');
+        });
+
+        // Database_Index_Optimizer适配器 (委托给DatabaseManager)
+        self::register('database_index_optimizer_adapter', function() {
+            return self::resolve('database_manager');
+        });
+
+        // === 内容处理服务 ===
+
+        // ContentProcessingService (新的统一内容处理服务)
+        self::register('content_processing_service', function() {
+            return new \NTWP\Services\ContentProcessingService();
+        });
+
+        // Content_Converter适配器 (委托给ContentProcessingService)
+        self::register('content_converter_adapter', function() {
+            return new \NTWP\Services\Content_Converter_Adapter();
         });
     }
     

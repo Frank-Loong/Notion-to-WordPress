@@ -848,30 +848,30 @@ class API implements API_Interface {
             $use_smart_cache = true;
             $cache_key = $this->generate_smart_cache_key($endpoint, $data, $cache_strategy['type']);
 
-            // 检查智能缓存
-            if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
-                $cached_response = \NTWP\Utils\Smart_Cache::get_tiered(
-                    $cache_strategy['type'], 
+            // 检查智能缓存 - 使用统一CacheManager
+            if (class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+                $cached_response = \NTWP\Infrastructure\CacheManager::get_tiered(
+                    $cache_strategy['type'],
                     $cache_key
                 );
-                
+
                 if ($cached_response !== false) {
                     \NTWP\Core\Logger::debug_log(
-                        "智能缓存命中: {$endpoint} (模式: {$this->sync_mode})",
-                        'Smart Cache'
+                        "统一缓存命中: {$endpoint} (模式: {$this->sync_mode})",
+                        'Unified Cache'
                     );
                     return $cached_response;
                 }
             }
         }
 
-        // 🚀 会话缓存：检查会话级缓存（仅用于减少重复调用）
-        if ($method === 'GET' && class_exists('\\NTWP\\Utils\\Session_Cache')) {
-            $cached_response = \NTWP\Utils\Session_Cache::get_cached_api_response($endpoint, $data);
+        // 🚀 会话缓存：检查会话级缓存（仅用于减少重复调用） - 使用统一CacheManager
+        if ($method === 'GET' && class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+            $cached_response = \NTWP\Infrastructure\CacheManager::get_cached_api_response($endpoint, $data);
             if ($cached_response !== null) {
                 \NTWP\Core\Logger::debug_log(
-                    "会话缓存命中: {$endpoint}",
-                    'Session Cache'
+                    "统一会话缓存命中: {$endpoint}",
+                    'Unified Session Cache'
                 );
                 return $cached_response;
             }
@@ -960,15 +960,15 @@ class API implements API_Interface {
         $body = wp_remote_retrieve_body($response);
         $decoded_response = json_decode($body, true) ?: [];
 
-        // 🚀 智能缓存：存储响应到适当的缓存层
-        if ($use_smart_cache && $cache_strategy && class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+        // 🚀 智能缓存：存储响应到适当的缓存层 - 使用统一CacheManager
+        if ($use_smart_cache && $cache_strategy && class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
             // 根据同步模式调整TTL
             $ttl = $cache_strategy['ttl'];
             if ($this->sync_mode === 'manual') {
                 $ttl = min($ttl, 60); // 手动同步最多缓存1分钟
             }
 
-            \NTWP\Utils\Smart_Cache::set_tiered(
+            \NTWP\Infrastructure\CacheManager::set_tiered(
                 $cache_strategy['type'],
                 $cache_key,
                 $decoded_response,
@@ -977,13 +977,13 @@ class API implements API_Interface {
             );
 
             \NTWP\Core\Logger::debug_log(
-                "智能缓存存储: {$endpoint} (TTL: {$ttl}s, 模式: {$this->sync_mode})",
-                'Smart Cache'
+                "统一缓存存储: {$endpoint} (TTL: {$ttl}s, 模式: {$this->sync_mode})",
+                'Unified Cache'
             );
         }
 
-        // 🚀 会话缓存：总是存储到会话缓存（用于减少同一会话内的重复调用）
-        if ($method === 'GET' && class_exists('\\NTWP\\Utils\\Session_Cache')) {
+        // 🚀 会话缓存：总是存储到会话缓存（用于减少同一会话内的重复调用） - 使用统一CacheManager
+        if ($method === 'GET' && class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
             // 根据端点类型设置不同的会话缓存时间
             $session_ttl = 60; // 默认1分钟会话缓存
             if (strpos($endpoint, '/children') !== false) {
@@ -992,7 +992,7 @@ class API implements API_Interface {
                 $session_ttl = 300; // 数据库结构会话缓存5分钟
             }
 
-            \NTWP\Utils\Session_Cache::cache_api_response($endpoint, $data, $decoded_response, $session_ttl);
+            \NTWP\Infrastructure\CacheManager::cache_api_response($endpoint, $data, $decoded_response, $session_ttl);
         }
 
         return $decoded_response;
@@ -1993,9 +1993,9 @@ class API implements API_Interface {
      * @param string $last_sync_time 最后同步时间（ISO 8601格式）
      * @param array $additional_filters 额外的过滤条件
      * @param bool $with_details 是否获取详细信息
-     * @return \NTWP\Utils\API_Result 增强的结果对象
+     * @return \NTWP\Utils\ApiResult 增强的结果对象
      */
-    public function smart_incremental_fetch_enhanced(string $database_id, string $last_sync_time = '', array $additional_filters = [], bool $with_details = false): \NTWP\Utils\API_Result {
+    public function smart_incremental_fetch_enhanced(string $database_id, string $last_sync_time = '', array $additional_filters = [], bool $with_details = false): \NTWP\Utils\ApiResult {
         $start_time = microtime(true);
         $start_memory = memory_get_usage(true);
 
@@ -2076,7 +2076,7 @@ class API implements API_Interface {
                 \NTWP\Core\Performance_Monitor::record_custom_metric('enhanced_fetch_memory', $memory_used);
             }
 
-            $result = \NTWP\Utils\API_Result::success(
+            $result = \NTWP\Utils\ApiResult::success(
                 $filtered_pages,
                 false,
                 null,
@@ -2117,7 +2117,7 @@ class API implements API_Interface {
 
                 $fallback_pages = $this->execute_fallback_sync($database_id, $final_filter, $fallback_strategy);
 
-                $result = \NTWP\Utils\API_Result::fallback_success(
+                $result = \NTWP\Utils\ApiResult::fallback_success(
                     $fallback_pages,
                     $fallback_strategy,
                     1, // 至少经历了一次重试
@@ -2142,7 +2142,7 @@ class API implements API_Interface {
                     'estimated_size' => $estimated_data_size
                 ]);
 
-                $result = \NTWP\Utils\API_Result::failure(
+                $result = \NTWP\Utils\ApiResult::failure(
                     $error_type,
                     "原始错误: {$e->getMessage()}, 降级失败: {$fallback_exception->getMessage()}",
                     1,
@@ -2450,18 +2450,13 @@ class API implements API_Interface {
             ]
         ];
 
-        // 获取Smart_Cache统计
-        if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
-            $stats['smart_cache'] = \NTWP\Utils\Smart_Cache::get_cache_stats();
-            $stats['tiered_cache'] = \NTWP\Utils\Smart_Cache::get_tiered_stats();
-        }
-
-        // 获取Session_Cache统计  
-        if (class_exists('\\NTWP\\Utils\\Session_Cache')) {
-            $stats['session_cache'] = [
-                'enabled' => true,
-                'scope' => 'single_sync_session',
-                'ttl_range' => '60-300 seconds'
+        // 获取统一缓存统计 - 使用CacheManager
+        if (class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+            $stats['unified_cache'] = \NTWP\Infrastructure\CacheManager::get_stats();
+            $stats['cache_performance'] = [
+                'l1_enabled' => true,
+                'l2_enabled' => true,
+                'intelligent_tiering' => true
             ];
         }
 
@@ -2469,30 +2464,31 @@ class API implements API_Interface {
     }
 
     /**
-     * 清理过期的智能缓存
+     * 清理过期的统一缓存
      *
      * @since 2.0.0-beta.1
      * @return array 清理结果
      */
     public function cleanup_smart_cache(): array {
         $results = [
-            'smart_cache_cleared' => 0,
-            'session_cache_cleared' => 0
+            'unified_cache_cleared' => 0,
+            'pattern_cleared' => 0
         ];
 
-        // 清理Smart_Cache
-        if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
-            $results['smart_cache_cleared'] = \NTWP\Utils\Smart_Cache::clear_all();
-        }
+        // 清理统一缓存 - 使用CacheManager
+        if (class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+            // 清理过期的API响应缓存
+            $results['pattern_cleared'] += \NTWP\Infrastructure\CacheManager::invalidate_pattern('api_*');
 
-        // 清理Session_Cache
-        if (class_exists('\\NTWP\\Utils\\Session_Cache') && method_exists('\\NTWP\\Utils\\Session_Cache', 'clear_expired')) {
-            $results['session_cache_cleared'] = \NTWP\Utils\Session_Cache::clear_expired();
+            // 清理过期的页面内容缓存
+            $results['pattern_cleared'] += \NTWP\Infrastructure\CacheManager::invalidate_pattern('notion_cache_page_content_*');
+
+            $results['unified_cache_cleared'] = $results['pattern_cleared'];
         }
 
         \NTWP\Core\Logger::info_log(
-            "智能缓存清理完成: Smart Cache {$results['smart_cache_cleared']} 项, Session Cache {$results['session_cache_cleared']} 项",
-            'Cache Cleanup'
+            "统一缓存清理完成: 清理 {$results['unified_cache_cleared']} 项缓存",
+            'Unified Cache Cleanup'
         );
 
         return $results;
@@ -2531,9 +2527,9 @@ class API implements API_Interface {
             ]
         ];
 
-        // 获取Smart_Cache统计
-        if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
-            $stats['smart_cache'] = \NTWP\Utils\Smart_Cache::get_cache_stats();
+        // 获取统一缓存统计 - 使用CacheManager
+        if (class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+            $stats['unified_cache'] = \NTWP\Infrastructure\CacheManager::get_stats();
         }
 
         // 获取性能监控统计
@@ -2554,9 +2550,9 @@ class API implements API_Interface {
      *
      * @since 2.0.0-beta.1
      * @param string $test_scenario 测试场景
-     * @return \NTWP\Utils\API_Result 测试结果
+     * @return \NTWP\Utils\ApiResult 测试结果
      */
-    public function test_enhanced_error_handling(string $test_scenario = 'filter_error'): \NTWP\Utils\API_Result {
+    public function test_enhanced_error_handling(string $test_scenario = 'filter_error'): \NTWP\Utils\ApiResult {
         $start_time = microtime(true);
 
         try {
@@ -2597,7 +2593,7 @@ class API implements API_Interface {
                 'code' => $e->getCode()
             ]);
 
-            $result = \NTWP\Utils\API_Result::failure(
+            $result = \NTWP\Utils\ApiResult::failure(
                 $error_type,
                 "测试错误处理: {$e->getMessage()}",
                 0,
@@ -2859,8 +2855,8 @@ class API implements API_Interface {
         if ($cache_strategy && $this->should_use_cache($endpoint, $cache_strategy)) {
             $cache_key = md5($endpoint . serialize($params));
 
-            if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
-                $cached_response = \NTWP\Utils\Smart_Cache::get_tiered($cache_strategy['type'], $cache_key);
+            if (class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+                $cached_response = \NTWP\Infrastructure\CacheManager::get_tiered($cache_strategy['type'], $cache_key);
 
                 if ($cached_response !== false) {
                     return $cached_response;
@@ -2871,10 +2867,10 @@ class API implements API_Interface {
         // 发起实际请求
         $response = $this->send_request($endpoint, 'GET', $params);
 
-        // 缓存响应
+        // 缓存响应 - 使用统一CacheManager
         if ($cache_strategy && $this->should_use_cache($endpoint, $cache_strategy) &&
-            class_exists('\\NTWP\\Utils\\Smart_Cache')) {
-            \NTWP\Utils\Smart_Cache::set_tiered(
+            class_exists('\\NTWP\\Infrastructure\\CacheManager')) {
+            \NTWP\Infrastructure\CacheManager::set_tiered(
                 $cache_strategy['type'],
                 $cache_key,
                 $response,

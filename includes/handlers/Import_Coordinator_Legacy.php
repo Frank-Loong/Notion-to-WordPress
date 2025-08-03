@@ -338,8 +338,13 @@ class Import_Coordinator {
      * @return   string                  HTML内容
      */
     private function convert_blocks_to_html(array $blocks, \NTWP\Services\API $notion_api): string {
-        // 委托给内容转换器
-        return \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $notion_api);
+        // 优先使用新的ContentProcessingService，向后兼容Content_Converter
+        if (class_exists('\\NTWP\\Services\\ContentProcessingService')) {
+            return \NTWP\Services\ContentProcessingService::convert_blocks_to_html_static($blocks, $notion_api);
+        } else {
+            // 委托给内容转换器
+            return \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $notion_api);
+        }
     }
 
 
@@ -1459,7 +1464,13 @@ class Import_Coordinator {
 
             // 转换内容为 HTML（收集图片占位符）
             $this->updatePageProgress('processing', '正在转换内容块为HTML格式...');
-            $raw_content = \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $this->notion_api, $state_id);
+
+            // 优先使用新的ContentProcessingService，向后兼容Content_Converter
+            if (class_exists('\\NTWP\\Services\\ContentProcessingService')) {
+                $raw_content = \NTWP\Services\ContentProcessingService::convert_blocks_to_html_static($blocks, $this->notion_api, $state_id);
+            } else {
+                $raw_content = \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $this->notion_api, $state_id);
+            }
 
             // 处理异步图片下载并替换占位符（使用动态并发数）
             $this->updatePageProgress('processing', '正在下载和处理图片资源...');

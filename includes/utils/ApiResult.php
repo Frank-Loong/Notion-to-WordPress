@@ -28,7 +28,7 @@ if (!defined('ABSPATH')) {
  *
  * @since 2.0.0-beta.1
  */
-class API_Result {
+class ApiResult {
     
     /**
      * 成功状态

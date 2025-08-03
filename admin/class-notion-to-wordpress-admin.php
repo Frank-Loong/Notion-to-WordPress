@@ -6,7 +6,7 @@ use NTWP\Services\API;
 use NTWP\Handlers\Import_Coordinator;
 use NTWP\Core\Logger;
 use NTWP\Utils\Helper;
-use NTWP\Utils\Config_Simplifier;
+use NTWP\Utils\ConfigSimplifier;
 use NTWP\Core\Memory_Manager;
 use NTWP\Core\Performance_Monitor;
 use NTWP\Utils\Database_Helper;
@@ -2697,15 +2697,24 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => __('SQL查询不能为空', 'notion-to-wordpress')], 400);
                 return;
             }
-            if (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
-                $analysis = \NTWP\Utils\Database_Index_Optimizer::analyze_query_performance($query);
+            // 使用新的统一DatabaseManager进行查询性能分析
+            if (class_exists('\\NTWP\\Infrastructure\\DatabaseManager')) {
+                $analysis = \NTWP\Infrastructure\DatabaseManager::analyze_query_performance($query);
 
                 wp_send_json_success([
                     'analysis' => $analysis,
                     'message' => '查询性能分析完成'
                 ]);
+            } elseif (class_exists('\\NTWP\\Utils\\Database_Index_Optimizer')) {
+                // 向后兼容：使用适配器
+                $analysis = \NTWP\Utils\Database_Index_Optimizer::analyze_query_performance($query);
+
+                wp_send_json_success([
+                    'analysis' => $analysis,
+                    'message' => '查询性能分析完成 (兼容模式)'
+                ]);
             } else {
-                wp_send_json_error(['message' => '数据库索引优化器不可用']);
+                wp_send_json_error(['message' => '数据库性能分析器不可用']);
             }
 
         } catch (\Exception $e) {

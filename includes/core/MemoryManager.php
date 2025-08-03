@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Memory_Manager {
+class MemoryManager {
     
     /**
      * 内存使用阈值常量

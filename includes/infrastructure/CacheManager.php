@@ -290,13 +290,189 @@ class CacheManager {
     
     private static function is_l1_eligible(string $type, mixed $value): bool {
         $cache_config = self::CACHE_TYPES[$type] ?? ['l1_eligible' => true];
-        
+
         if (!$cache_config['l1_eligible']) {
             return false;
         }
-        
+
         // 大小检查（>10KB不适合L1）
         $data_size = strlen(serialize($value));
         return $data_size <= 10240;
+    }
+
+    // === Smart_Cache兼容方法 ===
+
+    /**
+     * Smart_Cache兼容：生成缓存键
+     *
+     * @param string $type 缓存类型
+     * @param string $identifier 标识符
+     * @param array $params 额外参数
+     * @return string 缓存键
+     */
+    public static function generate_cache_key_smart(string $type, string $identifier, array $params = []): string {
+        $key_parts = [
+            'notion_cache',
+            $type,
+            $identifier
+        ];
+
+        if (!empty($params)) {
+            $key_parts[] = md5(serialize($params));
+        }
+
+        return implode('_', $key_parts);
+    }
+
+    /**
+     * Smart_Cache兼容：分层获取缓存
+     *
+     * @param string $type 缓存类型
+     * @param string $identifier 标识符
+     * @param array $params 额外参数
+     * @return mixed 缓存数据或false
+     */
+    public static function get_tiered(string $type, string $identifier, array $params = []) {
+        $cache_key = self::generate_cache_key_smart($type, $identifier, $params);
+        $result = self::get($cache_key, $type);
+
+        // Smart_Cache返回false表示未命中，我们需要保持兼容
+        return $result !== null ? $result : false;
+    }
+
+    /**
+     * Smart_Cache兼容：分层设置缓存
+     *
+     * @param string $type 缓存类型
+     * @param string $identifier 标识符
+     * @param mixed $data 缓存数据
+     * @param array $params 额外参数
+     * @param int $custom_ttl 自定义TTL
+     * @return bool 设置是否成功
+     */
+    public static function set_tiered(string $type, string $identifier, $data, array $params = [], int $custom_ttl = null): bool {
+        $cache_key = self::generate_cache_key_smart($type, $identifier, $params);
+        return self::set($cache_key, $data, $custom_ttl, $type);
+    }
+
+    // === Session_Cache兼容方法 ===
+
+    /**
+     * Session_Cache兼容：生成API缓存键
+     *
+     * @param string $endpoint API端点
+     * @param array $params 请求参数
+     * @return string 缓存键
+     */
+    public static function generate_api_cache_key(string $endpoint, array $params = []): string {
+        $key_data = [
+            'endpoint' => $endpoint,
+            'params' => $params
+        ];
+
+        return 'api_' . md5(serialize($key_data));
+    }
+
+    /**
+     * Session_Cache兼容：缓存API响应
+     *
+     * @param string $endpoint API端点
+     * @param array $params 请求参数
+     * @param mixed $response API响应
+     * @param int $ttl 缓存时间
+     */
+    public static function cache_api_response(string $endpoint, array $params, $response, int $ttl = 300): void {
+        $cache_key = self::generate_api_cache_key($endpoint, $params);
+        self::set($cache_key, $response, $ttl, 'api_response');
+    }
+
+    /**
+     * Session_Cache兼容：获取缓存的API响应
+     *
+     * @param string $endpoint API端点
+     * @param array $params 请求参数
+     * @return mixed|null 缓存的响应或null
+     */
+    public static function get_cached_api_response(string $endpoint, array $params = []) {
+        $cache_key = self::generate_api_cache_key($endpoint, $params);
+        return self::get($cache_key, 'api_response');
+    }
+
+    /**
+     * Smart_Cache兼容：清理所有缓存
+     *
+     * @return int 清理的缓存数量
+     */
+    public static function clear_all(): int {
+        global $wpdb;
+
+        // 清理L1缓存
+        self::$l1_cache = [];
+        self::$l1_current_size = 0;
+
+        $deleted = 0;
+
+        // 清理L2缓存（WordPress transients）
+        if (isset($wpdb) && is_object($wpdb) && method_exists($wpdb, 'query')) {
+            $deleted = $wpdb->query(
+                "DELETE FROM {$wpdb->options}
+                WHERE option_name LIKE '_transient_ntwp_cache_%'
+                OR option_name LIKE '_transient_timeout_ntwp_cache_%'"
+            );
+        } elseif (isset($wpdb) && is_object($wpdb) && is_callable($wpdb->query)) {
+            // 处理模拟的wpdb对象
+            $deleted = call_user_func($wpdb->query,
+                "DELETE FROM {$wpdb->options}
+                WHERE option_name LIKE '_transient_ntwp_cache_%'
+                OR option_name LIKE '_transient_timeout_ntwp_cache_%'"
+            );
+        }
+
+        // 重置统计
+        self::$stats = [
+            'l1_hits' => 0,
+            'l1_misses' => 0,
+            'l2_hits' => 0,
+            'l2_misses' => 0,
+            'evictions' => 0,
+        ];
+
+        return intval($deleted / 2); // 每个transient有两个记录
+    }
+
+    /**
+     * Smart_Cache兼容：获取缓存统计
+     *
+     * @return array 缓存统计
+     */
+    public static function get_cache_stats(): array {
+        return self::get_stats();
+    }
+
+    /**
+     * Smart_Cache兼容：获取分层缓存统计
+     *
+     * @return array 分层缓存统计
+     */
+    public static function get_tiered_stats(): array {
+        $stats = self::get_stats();
+
+        return [
+            'l1_cache' => [
+                'size' => self::$l1_current_size,
+                'max_size' => self::$l1_max_size,
+                'hit_rate' => $stats['l1_hit_rate'],
+                'usage_percent' => $stats['l1_cache_usage']
+            ],
+            'l2_cache' => [
+                'hit_rate' => $stats['l2_hit_rate'],
+                'storage' => 'WordPress Transients'
+            ],
+            'performance' => [
+                'total_hits' => $stats['l1_hits'] + $stats['l2_hits'],
+                'total_misses' => $stats['l1_misses'] + $stats['l2_misses'],
+                'evictions' => $stats['evictions']
+            ]
+        ];
     }
 }

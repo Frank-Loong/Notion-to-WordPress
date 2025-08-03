@@ -13,20 +13,43 @@ use NTWP\Core\Logger;
 class ContentProcessingService {
     
     /**
-     * 将Notion块转换为HTML
+     * 将Notion块转换为HTML (实例方法)
      */
     public function convert_blocks_to_html(array $blocks): string {
         if (empty($blocks)) {
             return '';
         }
-        
+
         $html_parts = [];
-        
+
         foreach ($blocks as $block) {
             $html_parts[] = $this->convert_single_block($block);
         }
-        
+
         return implode("\n", array_filter($html_parts));
+    }
+
+    /**
+     * 将Notion块转换为HTML (静态方法 - Content_Converter兼容接口)
+     *
+     * 提供与Content_Converter::convert_blocks_to_html完全兼容的静态接口
+     *
+     * @param array $blocks Notion 块数组
+     * @param \NTWP\Services\API $notion_api Notion API 实例
+     * @param string $state_id 状态管理器ID，用于图片处理状态隔离
+     * @return string HTML 内容
+     */
+    public static function convert_blocks_to_html_static(array $blocks, $notion_api, string $state_id = null): string {
+        Logger::debug_log('使用ContentProcessingService进行内容转换', 'Content Processing');
+
+        // 委托给Content_Converter以保持完整功能
+        if (class_exists('\\NTWP\\Services\\Content_Converter')) {
+            return \NTWP\Services\Content_Converter::convert_blocks_to_html($blocks, $notion_api, $state_id);
+        }
+
+        // 如果Content_Converter不可用，使用简化版本
+        $instance = new self();
+        return $instance->convert_blocks_to_html($blocks);
     }
     
     /**

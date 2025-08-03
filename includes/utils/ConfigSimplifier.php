@@ -28,7 +28,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class Config_Simplifier {
+class ConfigSimplifier {
 
     /**
      * 性能级别预设配置
