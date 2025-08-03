@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace NTWP\Services;
 
+use NTWP\Contracts\API_Interface;
+
 /**
  * Notion API 交互类
  *
@@ -28,7 +30,7 @@ require_once plugin_dir_path(__FILE__) . '../utils/Concurrent_Network_Manager.ph
 // // 已迁移到PSR-4
 require_once plugin_dir_path(__FILE__) . '../utils/Smart_API_Merger.php';
 
-class API {
+class API implements API_Interface {
 
     /**
      * Notion API 密钥。
@@ -2835,5 +2837,91 @@ class API {
         }
 
         return $pages;
+    }
+
+    // ==================== API服务层功能（从API_Service合并） ====================
+
+    /**
+     * 高级API请求方法（带缓存策略）
+     *
+     * 提供更高层次的API请求抽象，集成智能缓存和网络管理
+     *
+     * @since 2.0.0-beta.1
+     * @param string $endpoint API端点
+     * @param array $params 请求参数
+     * @param array $options 请求选项
+     * @return array API响应
+     */
+    public function request(string $endpoint, array $params = [], array $options = []): array {
+        // 检查缓存策略
+        $cache_strategy = $this->get_cache_strategy($endpoint, 'GET');
+
+        if ($cache_strategy && $this->should_use_cache($endpoint, $cache_strategy)) {
+            $cache_key = md5($endpoint . serialize($params));
+
+            if (class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+                $cached_response = \NTWP\Utils\Smart_Cache::get_tiered($cache_strategy['type'], $cache_key);
+
+                if ($cached_response !== false) {
+                    return $cached_response;
+                }
+            }
+        }
+
+        // 发起实际请求
+        $response = $this->send_request($endpoint, 'GET', $params);
+
+        // 缓存响应
+        if ($cache_strategy && $this->should_use_cache($endpoint, $cache_strategy) &&
+            class_exists('\\NTWP\\Utils\\Smart_Cache')) {
+            \NTWP\Utils\Smart_Cache::set_tiered(
+                $cache_strategy['type'],
+                $cache_key,
+                $response,
+                [],
+                $cache_strategy['ttl']
+            );
+        }
+
+        return $response;
+    }
+
+    /**
+     * 批量API请求（高级版本）
+     *
+     * 使用API合并器优化批量请求性能
+     *
+     * @since 2.0.0-beta.1
+     * @param array $requests 请求数组
+     * @param array $options 选项
+     * @return array 批量响应
+     */
+    public function batch_request(array $requests, array $options = []): array {
+        // 如果启用了API合并器，使用智能合并
+        if ($this->enable_api_merging && $this->api_merger) {
+            try {
+                return $this->api_merger->merge_and_execute($requests, $options);
+            } catch (Exception $e) {
+                \NTWP\Core\Logger::warning_log(
+                    "API合并器执行失败，回退到标准批量请求: " . $e->getMessage(),
+                    'API Service'
+                );
+            }
+        }
+
+        // 回退到标准批量请求
+        $endpoints = [];
+        $data_array = [];
+        $method = 'GET';
+
+        foreach ($requests as $request) {
+            $endpoints[] = $request['endpoint'] ?? '';
+            $data_array[] = $request['data'] ?? [];
+            if (isset($request['method'])) {
+                $method = $request['method'];
+            }
+        }
+
+        return $this->batch_send_requests($endpoints, $method, $data_array);
     }
 }
