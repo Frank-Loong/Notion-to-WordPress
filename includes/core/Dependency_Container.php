@@ -73,7 +73,7 @@ class Dependency_Container {
         
         // 检查服务是否已注册
         if (!isset(self::$definitions[$name])) {
-            throw new Exception("Service '{$name}' is not registered");
+            throw new \Exception("Service '{$name}' is not registered");
         }
         
         $definition = self::$definitions[$name];
@@ -85,7 +85,7 @@ class Dependency_Container {
             } elseif (is_string($definition) && class_exists($definition)) {
                 $instance = new $definition();
             } else {
-                throw new Exception("Invalid service definition for '{$name}': " . gettype($definition));
+                throw new \Exception("Invalid service definition for '{$name}': " . gettype($definition));
             }
         } catch (Throwable $e) {
             // 提供更详细的错误信息
@@ -102,7 +102,7 @@ class Dependency_Container {
                 Logger::error_log($error_message, 'Dependency Container');
             }
             
-            throw new Exception($error_message, 0, $e);
+            throw new \Exception($error_message, 0, $e);
         }
         
         // 存储单例实例

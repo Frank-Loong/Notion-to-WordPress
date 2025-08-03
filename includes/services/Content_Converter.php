@@ -139,7 +139,7 @@ class Content_Converter {
                     'Child Database Success'
                 );
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::warning_log(
                     '子数据库批量处理失败，回退到单个处理: ' . $e->getMessage(),
                     'Child Database Fallback'
@@ -216,7 +216,7 @@ class Content_Converter {
                         );
                     }
 
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     \NTWP\Core\Logger::error_log(
                         "转换块失败 [{$block_type}]: " . $e->getMessage(),
                         'Block Converter'
@@ -258,7 +258,7 @@ class Content_Converter {
         } elseif ($block['has_children'] ?? false) {
             try {
                 $child_blocks = $notion_api->get_block_children($block['id']);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::error_log(
                     "获取子块失败: " . $e->getMessage(),
                     'Block Children'
@@ -669,7 +669,7 @@ class Content_Converter {
         } elseif ($block['has_children'] ?? false) {
             try {
                 $rows = $notion_api->get_block_children($block['id']);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::error_log("获取表格行失败: " . $e->getMessage(), 'Table Block');
                 return '<!-- 表格加载失败 -->';
             }
@@ -1000,7 +1000,7 @@ class Content_Converter {
                 10 // 10秒超时
             );
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::warning_log(
                 "子数据库渲染失败: {$database_title} - " . $e->getMessage(),
                 'Child Database Error'
@@ -1185,7 +1185,7 @@ class Content_Converter {
                 );
 
                 return $html;
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::error_log(
                     "块转换失败: {$block_type} - " . $e->getMessage(),
                     'Block Conversion'
@@ -1296,7 +1296,7 @@ class Content_Converter {
                     $notion_api
                 );
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::warning_log(
                     '优化模式子数据库处理失败: ' . $e->getMessage(),
                     'Optimized Database Fallback'
@@ -1428,7 +1428,7 @@ class Content_Converter {
             // 调用相应的转换方法
             return self::{$converter_method}($block, $notion_api);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 只记录错误级别的日志
             \NTWP\Core\Logger::error_log(
                 "块转换失败: {$block_type} - " . $e->getMessage(),
@@ -1534,7 +1534,7 @@ class Content_Converter {
             try {
                 $children = $notion_api->get_block_children($block_id);
                 $children_content[$block_id] = $children;
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 if (class_exists('\\NTWP\\Core\\Logger')) {
                     \NTWP\Core\Logger::warning_log(
                         sprintf('获取子内容失败: %s - %s', $block_id, $e->getMessage()),
@@ -1659,7 +1659,7 @@ class Content_Converter {
                         $html_parts[] = $block_html;
                     }
                     $processed_count++;
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     if (class_exists('\\NTWP\\Core\\Logger')) {
                         \NTWP\Core\Logger::error_log(
                             "分块处理块失败 [{$block_type}]: " . $e->getMessage(),

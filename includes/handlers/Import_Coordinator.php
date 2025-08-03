@@ -174,7 +174,7 @@ class Import_Coordinator {
 
         try {
             return $this->progress_tracker->updateProgress($this->task_id, $progress_data);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 进度更新失败不影响主要功能
             if (class_exists('NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::warning_log(
@@ -200,7 +200,7 @@ class Import_Coordinator {
 
         try {
             return $this->progress_tracker->updateStatus($this->task_id, $status);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 进度更新失败不影响主要功能
             if (class_exists('NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::warning_log(
@@ -323,7 +323,7 @@ class Import_Coordinator {
             \NTWP\Core\Logger::debug_log('页面导入完成', 'Page Import');
             return true;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log('页面导入异常: ' . $e->getMessage(), 'Page Import');
             return false;
         }
@@ -506,7 +506,7 @@ class Import_Coordinator {
                         $deleted_count = $this->cleanup_deleted_pages($pages);
                         $stats['deleted'] = $deleted_count;
                         \NTWP\Core\Logger::info_log('删除检测完成，删除了 ' . $deleted_count . ' 个页面', 'Pages Import');
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         \NTWP\Core\Logger::error_log('删除检测失败: ' . $e->getMessage(), 'Pages Import');
                         \NTWP\Core\Logger::error_log('删除检测异常堆栈: ' . $e->getTraceAsString(), 'Pages Import');
                         $stats['deleted'] = 0;
@@ -700,7 +700,7 @@ class Import_Coordinator {
                             // 同步失败的页面
                             $stats['failed']++;
                         }
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         \NTWP\Core\Logger::error_log('处理页面异常: ' . $e->getMessage(), 'Pages Import');
                         $stats['failed']++;
 
@@ -800,7 +800,7 @@ class Import_Coordinator {
 
             return $stats;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log('import_pages() 异常: ' . $e->getMessage(), 'Pages Import');
             \NTWP\Core\Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Pages Import');
 
@@ -1303,7 +1303,7 @@ class Import_Coordinator {
 
             wp_send_json_success($formatted_details);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 'AJAX获取记录详情失败: ' . $e->getMessage(),
                 'AJAX Record Details'
@@ -1484,7 +1484,7 @@ class Import_Coordinator {
 
             return \NTWP\Core\Security::custom_kses($processed_content);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 并发处理失败时回退到传统模式
             \NTWP\Core\Logger::error_log(
                 '并发图片处理失败，回退到传统模式: ' . $e->getMessage(),
@@ -1773,7 +1773,7 @@ class Import_Coordinator {
             
             return $pages;
             
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 分析错误类型并记录详细信息
             $error_type = $this->classify_api_error($e);
             $error_context = [
@@ -1819,7 +1819,7 @@ class Import_Coordinator {
 
                     return $pages;
 
-                } catch (Exception $retry_e) {
+                } catch (\Exception $retry_e) {
                     \NTWP\Core\Logger::warning_log(
                         "重试失败: " . $retry_e->getMessage(),
                         'Incremental Sync Retry'
@@ -1880,7 +1880,7 @@ class Import_Coordinator {
 
                 return $fallback_pages;
 
-            } catch (Exception $fallback_e) {
+            } catch (\Exception $fallback_e) {
                 $fallback_error_type = $this->classify_api_error($fallback_e);
 
                 \NTWP\Core\Logger::error_log(
@@ -2188,7 +2188,7 @@ class Import_Coordinator {
 
             return $this->progress_tracker->updateProgress($this->task_id, $progress_data);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 sprintf('页面进度更新异常: %s', $e->getMessage()),
                 'Progress Tracking'
@@ -2261,7 +2261,7 @@ class Import_Coordinator {
                 return false;
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if (class_exists('NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::error_log(
                     sprintf('任务状态原子性更新失败: %s', $e->getMessage()),

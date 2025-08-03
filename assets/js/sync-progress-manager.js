@@ -22,16 +22,10 @@
 
         constructor() {
             this.taskId = null;
-            this.updateInterval = null;
             this.container = null;
             this.isVisible = false;
-            this.lastUpdateTime = 0;
-            this.updateFrequency = 2000; // 2秒更新间隔（AJAX模式）
-
             // SSE相关属性
-            this.useSSE = true; // 默认使用SSE模式
             this.sseManager = null;
-            this.fallbackToAjax = false;
 
             // 绑定方法上下文
             this.updateProgress = this.updateProgress.bind(this);
@@ -54,11 +48,7 @@
             this.taskId = taskId;
             this.syncType = syncType;
 
-            // 检查是否强制使用AJAX模式
-            if (options.forceAjax) {
-                this.useSSE = false;
-                this.fallbackToAjax = true;
-            }
+
 
             // 创建进度UI
             this.createProgressUI();
@@ -206,13 +196,8 @@
          * 开始进度更新
          */
         startProgressUpdates() {
-            if (this.useSSE && !this.fallbackToAjax) {
-                // 使用SSE模式
-                this.startSSEUpdates();
-            } else {
-                // 使用AJAX轮询模式
-                this.startAjaxUpdates();
-            }
+            // 只使用SSE模式
+            this.startSSEUpdates();
         }
 
         /**
@@ -222,17 +207,15 @@
             try {
                 // 检查SSE支持
                 if (typeof EventSource === 'undefined') {
-                    console.warn('⚠️ [进度管理器] 浏览器不支持SSE，回退到AJAX模式');
-                    this.fallbackToAjax = true;
-                    this.startAjaxUpdates();
+                    console.error('❌ [进度管理器] 浏览器不支持SSE');
+                    this.updateStatusText('error', { message: '浏览器不支持实时进度更新' });
                     return;
                 }
 
                 // 检查SSEProgressManager是否可用
                 if (typeof SSEProgressManager === 'undefined') {
-                    console.warn('⚠️ [进度管理器] SSEProgressManager未加载，回退到AJAX模式');
-                    this.fallbackToAjax = true;
-                    this.startAjaxUpdates();
+                    console.error('❌ [进度管理器] SSEProgressManager未加载');
+                    this.updateStatusText('error', { message: 'SSE进度管理器未加载' });
                     return;
                 }
 
@@ -253,28 +236,12 @@
                 this.sseManager.start();
 
             } catch (error) {
-                console.error('❌ [进度管理器] SSE启动失败，回退到AJAX模式:', error);
-                this.fallbackToAjax = true;
-                this.startAjaxUpdates();
+                console.error('❌ [进度管理器] SSE启动失败:', error);
+                this.updateStatusText('error', { message: 'SSE连接启动失败' });
             }
         }
 
-        /**
-         * 开始AJAX轮询更新
-         */
-        startAjaxUpdates() {
-            if (this.updateInterval) {
-                clearInterval(this.updateInterval);
-            }
 
-            // 立即执行一次更新
-            this.fetchAndUpdateProgress();
-
-            // 设置定期更新
-            this.updateInterval = setInterval(() => {
-                this.fetchAndUpdateProgress();
-            }, this.updateFrequency);
-        }
         
         /**
          * 停止进度更新
@@ -286,11 +253,7 @@
                 this.sseManager = null;
             }
 
-            // 停止AJAX轮询
-            if (this.updateInterval) {
-                clearInterval(this.updateInterval);
-                this.updateInterval = null;
-            }
+
         }
 
         /**
@@ -327,17 +290,8 @@
          */
         handleSSEError(errorData) {
             console.error('❌ [SSE] 错误:', errorData);
-
-            // 如果是连接错误，尝试回退到AJAX模式
-            if (!this.fallbackToAjax) {
-                console.log('🔄 [进度管理器] SSE失败，回退到AJAX模式');
-                this.fallbackToAjax = true;
-                this.useSSE = false;
-                this.startAjaxUpdates();
-            } else {
-                // 显示错误信息
-                this.updateStatusText('error', { message: errorData.message || '同步过程中发生错误' });
-            }
+            // 显示错误信息
+            this.updateStatusText('error', { message: errorData.message || '同步过程中发生错误' });
         }
 
         /**
@@ -360,37 +314,7 @@
             }
         }
         
-        /**
-         * 获取并更新进度
-         */
-        fetchAndUpdateProgress() {
-            if (!this.taskId) return;
-            
-            $.ajax({
-                url: notionToWp.ajax_url,
-                type: 'POST',
-                dataType: 'json',
-                data: {
-                    action: 'notion_to_wordpress_get_sync_progress',
-                    nonce: notionToWp.nonce,
-                    task_id: this.taskId
-                },
-                success: (response) => {
-                    if (response.success && response.data) {
-                        this.updateProgress(response.data);
-                        this.lastUpdateTime = Date.now();
-                    } else {
-                        console.warn('⚠️ [进度管理器] 获取进度失败:', response.data?.message || '未知错误');
-                    }
-                },
-                error: (xhr, status, error) => {
-                    console.error('❌ [进度管理器] 进度查询网络错误:', error);
-                    
-                    // 网络错误时降低更新频率
-                    this.updateFrequency = Math.min(this.updateFrequency * 1.5, 10000);
-                }
-            });
-        }
+
         
         /**
          * 更新简洁进度显示

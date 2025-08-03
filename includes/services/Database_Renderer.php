@@ -1015,7 +1015,7 @@ class Database_Renderer {
             $valid_database_ids = [];
 
             foreach ($unique_database_ids as $database_id) {
-                if (isset($database_infos[$database_id]) && !($database_infos[$database_id] instanceof Exception)) {
+                if (isset($database_infos[$database_id]) && !($database_infos[$database_id] instanceof \Exception)) {
                     $valid_database_ids[] = $database_id;
                 }
             }

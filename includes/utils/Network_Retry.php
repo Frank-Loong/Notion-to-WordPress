@@ -447,13 +447,13 @@ class Network_Retry {
 
             // 检查WordPress错误
             if (is_wp_error($response)) {
-                throw new Exception($response->get_error_message());
+                throw new \Exception($response->get_error_message());
             }
 
             // 检查HTTP状态码
             $http_code = wp_remote_retrieve_response_code($response);
             if ($http_code >= 400) {
-                throw new Exception("HTTP错误 {$http_code}");
+                throw new \Exception("HTTP错误 {$http_code}");
             }
 
             return $response;

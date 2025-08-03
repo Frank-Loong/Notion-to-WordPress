@@ -369,6 +369,128 @@ class Progress_Tracker {
 
         // 使用内存存储
         $cacheKey = self::CACHE_PREFIX . $taskId;
-        return set_transient($cacheKey, $taskData, self::CACHE_EXPIRATION);
+        $success = set_transient($cacheKey, $taskData, self::CACHE_EXPIRATION);
+
+        // 触发WordPress钩子（与静态方法保持一致）
+        if ($success && isset($updates['progress'])) {
+            do_action('notion_to_wordpress_progress_update', $taskId, $taskData);
+        }
+
+        return $success;
+    }
+
+    // ==================== 扩展功能（第二阶段优化） ====================
+
+    /**
+     * 创建新任务（静态方法）
+     *
+     * @since 2.0.0-beta.1
+     * @param string $operation 操作类型
+     * @param int $total_items 总项目数
+     * @param array $metadata 元数据
+     * @param string|null $task_id 可选的任务ID，如果不提供则自动生成
+     * @return string 任务ID
+     */
+    public static function create_task(string $operation, int $total_items, array $metadata = [], ?string $task_id = null): string {
+        // 如果没有提供task_id，则生成一个新的
+        if (empty($task_id)) {
+            $task_id = uniqid('task_', true);
+        }
+
+        $task_data = [
+            'id' => $task_id,
+            'operation' => $operation,
+            'total_items' => $total_items,
+            'completed_items' => 0,
+            'status' => 'running',
+            'start_time' => time(),
+            'current_status' => 'Initializing...',
+            'metadata' => $metadata,
+            'errors' => []
+        ];
+
+        $instance = new self();
+        $instance->createTask($task_id, $task_data);
+
+        return $task_id;
+    }
+
+    /**
+     * 更新进度（静态方法）
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_id 任务ID
+     * @param int $completed 已完成数量
+     * @param string $status 状态消息
+     * @param array $data 额外数据
+     * @return void
+     */
+    public static function update_progress(string $task_id, int $completed, string $status = '', array $data = []): void {
+        $instance = new self();
+        $current_data = $instance->getTaskData($task_id);
+
+        if ($current_data === null) {
+            return;
+        }
+
+        $progress_data = [
+            'total' => $current_data['total_items'] ?? 0,
+            'processed' => $completed,
+            'percentage' => $current_data['total_items'] > 0 ? round(($completed / $current_data['total_items']) * 100, 2) : 0,
+            'status' => 'processing',
+            'message' => $status ?: "Processing {$completed} of {$current_data['total_items']} items"
+        ];
+
+        $instance->updateProgress($task_id, array_merge($progress_data, $data));
+
+        // 触发进度更新钩子
+        do_action('notion_to_wordpress_progress_update', $task_id, $progress_data);
+    }
+
+    /**
+     * 完成任务（静态方法）
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_id 任务ID
+     * @param array $summary 任务摘要
+     * @return void
+     */
+    public static function complete_task(string $task_id, array $summary = []): void {
+        $instance = new self();
+        $current_data = $instance->getTaskData($task_id);
+
+        if ($current_data === null) {
+            return;
+        }
+
+        $completion_data = [
+            'status' => 'completed',
+            'end_time' => time(),
+            'summary' => $summary,
+            'progress' => [
+                'total' => $current_data['total_items'] ?? 0,
+                'processed' => $current_data['total_items'] ?? 0,
+                'percentage' => 100,
+                'status' => 'completed',
+                'message' => 'Task completed successfully'
+            ]
+        ];
+
+        $instance->updateTask($task_id, $completion_data);
+
+        // 触发完成钩子
+        do_action('notion_to_wordpress_task_completed', $task_id, $completion_data);
+    }
+
+    /**
+     * 获取任务状态（静态方法）
+     *
+     * @since 2.0.0-beta.1
+     * @param string $task_id 任务ID
+     * @return array 任务状态
+     */
+    public static function get_task_status(string $task_id): array {
+        $instance = new self();
+        return $instance->getTaskData($task_id) ?? [];
     }
 }

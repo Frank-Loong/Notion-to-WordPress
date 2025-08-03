@@ -465,7 +465,7 @@ class Concurrent_Network_Manager {
                 // cURL错误
                 $this->pool_stats['connection_errors']++;
 
-                $this->responses[$request_id] = new WP_Error(
+                $this->responses[$request_id] = new \WP_Error(
                     'curl_error',
                     sprintf('cURL错误 %d: %s', $error_code, $error_message)
                 );
@@ -479,7 +479,7 @@ class Concurrent_Network_Manager {
                 // HTTP错误
                 $this->pool_stats['connection_errors']++;
 
-                $this->responses[$request_id] = new WP_Error(
+                $this->responses[$request_id] = new \WP_Error(
                     'http_error',
                     sprintf('HTTP错误 %d', $http_code)
                 );

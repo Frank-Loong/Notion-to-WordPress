@@ -256,8 +256,7 @@ class Main {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_performance_stats', $this->admin, 'handle_refresh_performance_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_reset_performance_stats', $this->admin, 'handle_reset_performance_stats' );
 
-		// 进度管理相关AJAX钩子
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_sync_progress', $this->admin, 'handle_get_sync_progress' );
+		// 同步控制相关AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_sync', $this->admin, 'handle_cancel_sync' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_retry_failed', $this->admin, 'handle_retry_failed' );
 
@@ -268,6 +267,8 @@ class Main {
 		// 数据库索引优化相关AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_database_indexes_request', $this->admin, 'handle_database_indexes_request' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_analyze_query_performance', $this->admin, 'handle_analyze_query_performance' );
+
+
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );

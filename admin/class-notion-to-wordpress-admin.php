@@ -676,7 +676,7 @@ class Notion_To_WordPress_Admin {
 
             wp_send_json_success(['message' => $message]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(['message' => __('保存设置时发生错误：', 'notion-to-wordpress') . $e->getMessage()]);
         }
     }
@@ -714,7 +714,7 @@ class Notion_To_WordPress_Admin {
 
             wp_send_json_success(['message' => __('连接成功！数据库可访问。', 'notion-to-wordpress')]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Test Connection']);
@@ -760,25 +760,29 @@ class Notion_To_WordPress_Admin {
 
         if (!empty($task_id) && class_exists('NTWP\\Core\\Progress_Tracker')) {
             try {
-                // 使用Progress_Tracker（现在只支持内存存储）
-                $progress_tracker = new \NTWP\Core\Progress_Tracker();
-
-                // 创建进度跟踪任务
-                $task_data = [
-                    'status' => 'connecting',
-                    'progress' => [
-                        'total' => 0,
-                        'processed' => 0,
-                        'percentage' => 0,
-                        'success' => 0,
-                        'failed' => 0
+                // 使用新的静态方法创建任务，传递前端的task_id以确保一致性
+                $created_task_id = \NTWP\Core\Progress_Tracker::create_task(
+                    'manual_sync',
+                    0, // 初始时不知道总数
+                    [
+                        'sync_type' => 'manual',
+                        'user_id' => get_current_user_id(),
+                        'start_time' => time()
                     ],
-                    'timing' => [
-                        'startTime' => time()
-                    ]
-                ];
+                    $task_id // 传递前端的task_id
+                );
 
-                $progress_tracker->createTask($task_id, $task_data);
+                // 验证任务ID一致性（现在应该总是相等）
+                if ($created_task_id !== $task_id) {
+                    \NTWP\Core\Logger::warning_log(
+                        sprintf('任务ID不一致: 前端=%s, 后端=%s', $task_id, $created_task_id),
+                        'Manual Sync'
+                    );
+                    $task_id = $created_task_id;
+                }
+
+                // 使用传统方法创建Progress_Tracker实例（用于Import_Coordinator）
+                $progress_tracker = new \NTWP\Core\Progress_Tracker();
 
                 if (class_exists('NTWP\\Core\\Logger')) {
                     \NTWP\Core\Logger::info_log(
@@ -786,7 +790,7 @@ class Notion_To_WordPress_Admin {
                         'Manual Sync'
                     );
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 // 进度跟踪失败不影响同步功能
                 if (class_exists('NTWP\\Core\\Logger')) {
                     \NTWP\Core\Logger::warning_log(
@@ -812,7 +816,7 @@ class Notion_To_WordPress_Admin {
                         $progress_tracker->updateProgress($task_id, [
                             'error' => '请先配置API密钥和数据库ID'
                         ]);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         // 忽略进度跟踪错误
                     }
                 }
@@ -871,7 +875,7 @@ class Notion_To_WordPress_Admin {
                                 'endTime' => time()
                             ]
                         ]);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         // 忽略进度跟踪错误
                     }
                 }
@@ -879,19 +883,17 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            // 更新进度跟踪状态为完成
-            if ($progress_tracker && !empty($task_id)) {
+            // 使用新的静态方法完成任务（更简洁）
+            if (!empty($task_id) && class_exists('NTWP\\Core\\Progress_Tracker')) {
                 try {
-                    $progress_tracker->updateStatus($task_id, 'completed');
-                    $progress_tracker->updateProgress($task_id, [
-                        'total' => $result['total'] ?? 0,
-                        'processed' => $result['total'] ?? 0,
-                        'percentage' => 100,
-                        'success' => ($result['imported'] ?? 0) + ($result['updated'] ?? 0),
-                        'failed' => ($result['failed'] ?? 0),
-                        'timing' => [
-                            'endTime' => time()
-                        ]
+                    \NTWP\Core\Progress_Tracker::complete_task($task_id, [
+                        'total_processed' => $result['total'] ?? 0,
+                        'success_count' => ($result['imported'] ?? 0) + ($result['updated'] ?? 0),
+                        'error_count' => $result['failed'] ?? 0,
+                        'imported' => $result['imported'] ?? 0,
+                        'updated' => $result['updated'] ?? 0,
+                        'skipped' => $result['skipped'] ?? 0,
+                        'end_time' => time()
                     ]);
 
                     if (class_exists('NTWP\\Core\\Logger')) {
@@ -900,7 +902,7 @@ class Notion_To_WordPress_Admin {
                             'Manual Sync'
                         );
                     }
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     // 忽略进度跟踪错误
                     if (class_exists('NTWP\\Core\\Logger')) {
                         \NTWP\Core\Logger::warning_log(
@@ -931,7 +933,7 @@ class Notion_To_WordPress_Admin {
                             'endTime' => time()
                         ]
                     ]);
-                } catch (Exception $pe) {
+                } catch (\Exception $pe) {
                     // 忽略进度跟踪错误
                 }
             }
@@ -943,7 +945,7 @@ class Notion_To_WordPress_Admin {
             wp_send_json_error( [ 'message' => __('导入失败: ', 'notion-to-wordpress') . $e->getMessage() ] );
         }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 外层异常处理（包括验证异常）
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Manual Import']);
@@ -1009,7 +1011,7 @@ class Notion_To_WordPress_Admin {
             error_log('Notion to WordPress: 统计信息获取成功: ' . json_encode($result));
             wp_send_json_success($result);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Get Stats']);
@@ -1065,7 +1067,7 @@ class Notion_To_WordPress_Admin {
 
             return intval( $count ?: 0 );
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('Notion to WordPress: get_imported_posts_count 异常: ' . $e->getMessage());
             return 0;
         }
@@ -1102,7 +1104,7 @@ class Notion_To_WordPress_Admin {
 
             return intval( $count ?: 0 );
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             error_log('Notion to WordPress: get_published_posts_count 异常: ' . $e->getMessage());
             return 0;
         }
@@ -1130,7 +1132,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => __('清除日志时出现错误', 'notion-to-wordpress')]);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Clear Logs']);
@@ -1166,7 +1168,7 @@ class Notion_To_WordPress_Admin {
 
             wp_send_json_success($content);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'View Log']);
@@ -1200,7 +1202,7 @@ class Notion_To_WordPress_Admin {
                 'message' => __('验证令牌已刷新', 'notion-to-wordpress')
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Refresh Verification Token']);
@@ -1251,7 +1253,7 @@ class Notion_To_WordPress_Admin {
             }
             wp_send_json_success(['message' => __('调试测试成功', 'notion-to-wordpress'), 'data' => $test_data]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if (class_exists('NTWP\\Core\\Logger')) {
                 Logger::error_log('测试异常: ' . $e->getMessage(), 'Debug Test');
                 Logger::error_log('异常堆栈: ' . $e->getTraceAsString(), 'Debug Test');
@@ -1307,7 +1309,7 @@ class Notion_To_WordPress_Admin {
 
             wp_send_json_success($performance_data);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Refresh Performance Stats']);
@@ -1355,7 +1357,7 @@ class Notion_To_WordPress_Admin {
 
             wp_send_json_success('性能统计已重置');
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Reset Performance Stats']);
@@ -1402,7 +1404,7 @@ class Notion_To_WordPress_Admin {
                 ]);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Create Database Indexes']);
@@ -1440,7 +1442,7 @@ class Notion_To_WordPress_Admin {
                 'message' => '索引状态获取成功'
             ]);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Get Index Status']);
@@ -1484,7 +1486,7 @@ class Notion_To_WordPress_Admin {
                 ]);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Remove Database Indexes']);
@@ -1535,7 +1537,7 @@ class Notion_To_WordPress_Admin {
                 ]);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Optimize All Indexes']);
@@ -1607,7 +1609,7 @@ class Notion_To_WordPress_Admin {
                 ]);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Get Queue Status']);
@@ -1651,7 +1653,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => '现代异步引擎不可用']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Cancel Queue Task']);
@@ -1689,7 +1691,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => '现代异步引擎不可用']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Cleanup Queue']);
@@ -1738,7 +1740,7 @@ class Notion_To_WordPress_Admin {
                 ]);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error(['message' => '获取异步状态时发生异常: ' . $e->getMessage()]);
         }
     }
@@ -1804,7 +1806,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => '异步处理器不可用']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Async Operation Control']);
@@ -1848,7 +1850,7 @@ class Notion_To_WordPress_Admin {
             $recommendations = $this->generate_smart_recommendations($memory_limit_bytes, $php_version, $has_api_key, $has_database_id);
             
             wp_send_json_success($recommendations);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             wp_send_json_error('获取推荐配置失败: ' . $e->getMessage());
         }
     }
@@ -1951,47 +1953,7 @@ class Notion_To_WordPress_Admin {
         ];
     }
 
-    /**
-     * 处理获取同步进度的AJAX请求
-     *
-     * @since 2.0.0-beta.1
-     */
-    public function handle_get_sync_progress() {
-        try {
-            // 使用统一的AJAX验证
-            $validation_result = $this->validate_ajax_request('notion_to_wordpress_nonce');
-            if (!$validation_result['is_valid']) {
-                wp_send_json_error(['message' => $validation_result['error_message']], $validation_result['http_code']);
-                return;
-            }
 
-            $task_id = sanitize_text_field($_POST['task_id'] ?? '');
-
-            if (empty($task_id)) {
-                wp_send_json_error(['message' => __('任务ID不能为空', 'notion-to-wordpress')], 400);
-                return;
-            }
-            // 获取进度信息
-            if (class_exists('NTWP\\Core\\Progress_Tracker')) {
-                // 使用Progress_Tracker（现在只支持内存存储）
-                $tracker = new \NTWP\Core\Progress_Tracker();
-                $progress = $tracker->getProgress($task_id);
-
-                wp_send_json_success($progress);
-            } else {
-                wp_send_json_error(['message' => '进度跟踪器不可用']);
-            }
-
-        } catch (Exception $e) {
-            // 使用统一错误处理
-            if (class_exists('\\NTWP\\Core\\Error_Handler')) {
-                $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Get Sync Progress']);
-                wp_send_json_error(['message' => __('获取同步进度失败: ', 'notion-to-wordpress') . $error->get_error_message()]);
-            } else {
-                wp_send_json_error(['message' => __('获取同步进度失败: ', 'notion-to-wordpress') . $e->getMessage()]);
-            }
-        }
-    }
 
     /**
      * 处理取消同步的AJAX请求
@@ -2026,7 +1988,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => '异步引擎不可用']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Cancel Sync']);
@@ -2070,7 +2032,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => '异步引擎不可用']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Retry Failed']);
@@ -2111,7 +2073,7 @@ class Notion_To_WordPress_Admin {
                 exit('SSE流处理器不可用');
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'SSE Progress']);
@@ -2189,7 +2151,7 @@ class Notion_To_WordPress_Admin {
                     wp_send_json_error(['message' => '未知的索引操作']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Database Indexes Request']);
@@ -2256,7 +2218,7 @@ class Notion_To_WordPress_Admin {
         } else {
             wp_send_json_error(['message' => '数据库索引优化器不可用']);
             }
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Get Database Indexes Status']);
@@ -2358,7 +2320,7 @@ class Notion_To_WordPress_Admin {
                 wp_send_json_error(['message' => '数据库索引优化器不可用']);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 使用统一错误处理
             if (class_exists('\\NTWP\\Core\\Error_Handler')) {
                 $error = \NTWP\Core\Error_Handler::exception_to_wp_error($e, ['context' => 'Analyze Query Performance']);
@@ -2368,4 +2330,6 @@ class Notion_To_WordPress_Admin {
             }
         }
     }
+
+
 }

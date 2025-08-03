@@ -345,7 +345,7 @@ class API implements API_Interface {
 
                 return $operation();
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 $last_exception = $e;
                 $error_type = $this->classify_api_error_precise($e);
                 
@@ -381,7 +381,7 @@ class API implements API_Interface {
             throw $last_exception;
         }
 
-        throw new Exception("未知的重试失败: {$operation_name}");
+        throw new \Exception("未知的重试失败: {$operation_name}");
     }
 
     /**
@@ -510,7 +510,7 @@ class API implements API_Interface {
 
             case 'ABORT_SYNC':
                 // 终止同步
-                throw new Exception('同步被终止: 无法解决的错误');
+                throw new \Exception('同步被终止: 无法解决的错误');
 
             default:
                 // 默认回退到无过滤器同步
@@ -600,7 +600,7 @@ class API implements API_Interface {
                     usleep(500000); // 0.5秒延迟
                 }
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::warning_log(
                     "分页同步第 {$page_count} 页失败: " . $e->getMessage(),
                     'Paginated Sync'
@@ -636,7 +636,7 @@ class API implements API_Interface {
 
         try {
             return $this->get_database_pages($database_id, $filter, true);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 如果仍然失败，进一步降级
             \NTWP\Core\Logger::warning_log(
                 "节流同步失败，进一步降级: " . $e->getMessage(),
@@ -947,14 +947,14 @@ class API implements API_Interface {
         $response = $last_error ?: $response;
 
         if (is_wp_error($response)) {
-            throw new Exception(__('API请求失败: ', 'notion-to-wordpress') . $response->get_error_message());
+            throw new \Exception(__('API请求失败: ', 'notion-to-wordpress') . $response->get_error_message());
         }
 
         $response_code = wp_remote_retrieve_response_code($response);
         if ($response_code < 200 || $response_code >= 300) {
             $error_body = json_decode(wp_remote_retrieve_body($response), true);
             $error_message = $error_body['message'] ?? wp_remote_retrieve_body($response);
-            throw new Exception(__('API错误 (', 'notion-to-wordpress') . $response_code . '): ' . $error_message);
+            throw new \Exception(__('API错误 (', 'notion-to-wordpress') . $response_code . '): ' . $error_message);
         }
 
         $body = wp_remote_retrieve_body($response);
@@ -1106,7 +1106,7 @@ class API implements API_Interface {
 
                 try {
                     $blocks[$i]['children'] = $this->get_page_content($block['id'], $depth + 1, $max_depth);
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     // 快速跳过404错误，不记录详细日志
                     if (strpos($e->getMessage(), '404') !== false) {
                         continue;
@@ -1189,7 +1189,7 @@ class API implements API_Interface {
                     }
                 }
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::warning_log(
                     '批量获取块内容失败: ' . $e->getMessage(),
                     'Batch Content'
@@ -1257,7 +1257,7 @@ class API implements API_Interface {
                     usleep(200000); // 0.2秒延迟
                 }
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::warning_log(
                     "批次 " . ($batch_index + 1) . " 处理失败，回退到单个处理: " . $e->getMessage(),
                     'Batch Fallback'
@@ -1267,7 +1267,7 @@ class API implements API_Interface {
                 foreach ($batch as $block_id) {
                     try {
                         $all_results[$block_id] = $this->get_block_children($block_id);
-                    } catch (Exception $e) {
+                    } catch (\Exception $e) {
                         $all_results[$block_id] = [];
                     }
                 }
@@ -1315,7 +1315,7 @@ class API implements API_Interface {
                 }
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 并发失败时回退到串行处理
             \NTWP\Core\Logger::warning_log(
                 '并发获取失败，回退到串行: ' . $e->getMessage(),
@@ -1325,7 +1325,7 @@ class API implements API_Interface {
             foreach ($block_ids as $block_id) {
                 try {
                     $results[$block_id] = $this->get_block_children($block_id);
-                } catch (Exception $e) {
+                } catch (\Exception $e) {
                     $results[$block_id] = [];
                 }
             }
@@ -1365,7 +1365,7 @@ class API implements API_Interface {
                 $has_more = $response['has_more'] ?? false;
                 $start_cursor = $response['next_cursor'] ?? null;
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 // 快速跳过404错误，不记录详细日志
                 if (strpos($e->getMessage(), '404') !== false) {
                     break;
@@ -1428,7 +1428,7 @@ class API implements API_Interface {
             $endpoint = 'users/me';
             $this->send_request($endpoint);
             return true;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 可以在这里记录具体的错误信息 $e->getMessage()
             return false;
         }
@@ -1452,7 +1452,7 @@ class API implements API_Interface {
             }
 
             return true;
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return new WP_Error('connection_failed', __('连接测试失败: ', 'notion-to-wordpress') . $e->getMessage());
         }
     }
@@ -1493,7 +1493,7 @@ class API implements API_Interface {
                 );
 
                 return $database_info;
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::debug_log(
                     '数据库信息获取失败: ' . $e->getMessage(),
                     'Database Info'
@@ -1524,7 +1524,7 @@ class API implements API_Interface {
                 );
 
                 return $page_data;
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::error_log(
                     '页面详情获取失败: ' . $page_id . ', 错误: ' . $e->getMessage(),
                     'Page Details'
@@ -1583,7 +1583,7 @@ class API implements API_Interface {
                     $enriched_pages[] = $page;
                     $failed_count++;
                 }
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 // 快速跳过失败的页面，不记录详细日志
                 $enriched_pages[] = $page;
                 $failed_count++;
@@ -1692,7 +1692,7 @@ class API implements API_Interface {
             foreach ($responses as $index => $response) {
                 if (is_wp_error($response)) {
                     $error_message = $response->get_error_message();
-                    $results[$index] = new Exception("批量请求失败 (#{$index}): " . $error_message);
+                    $results[$index] = new \Exception("批量请求失败 (#{$index}): " . $error_message);
                     $error_count++;
 
                     \NTWP\Core\Logger::error_log(
@@ -1705,7 +1705,7 @@ class API implements API_Interface {
                     if ($response_code < 200 || $response_code >= 300) {
                         $error_body = json_decode($response['body'], true);
                         $error_message = $error_body['message'] ?? $response['body'];
-                        $results[$index] = new Exception("API错误 (#{$index}, {$response_code}): " . $error_message);
+                        $results[$index] = new \Exception("API错误 (#{$index}, {$response_code}): " . $error_message);
                         $error_count++;
 
                         \NTWP\Core\Logger::error_log(
@@ -1734,7 +1734,7 @@ class API implements API_Interface {
 
             return $results;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 '批量API请求异常: ' . $e->getMessage(),
                 'Batch API'
@@ -1776,7 +1776,7 @@ class API implements API_Interface {
             foreach ($responses as $index => $response) {
                 $page_id = $page_ids[$index];
 
-                if ($response instanceof Exception) {
+                if ($response instanceof \Exception) {
                     \NTWP\Core\Logger::error_log(
                         "获取页面失败 ({$page_id}): " . $response->getMessage(),
                         'Batch Pages'
@@ -1789,7 +1789,7 @@ class API implements API_Interface {
 
             return $fetched_pages;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 '批量获取页面异常: ' . $e->getMessage(),
                 'Batch Pages'
@@ -1831,7 +1831,7 @@ class API implements API_Interface {
             foreach ($responses as $index => $response) {
                 $block_id = $block_ids[$index];
 
-                if ($response instanceof Exception) {
+                if ($response instanceof \Exception) {
                     \NTWP\Core\Logger::error_log(
                         "获取块内容失败 ({$block_id}): " . $response->getMessage(),
                         'Batch Blocks'
@@ -1845,7 +1845,7 @@ class API implements API_Interface {
 
             return $block_contents;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 '批量获取块内容异常: ' . $e->getMessage(),
                 'Batch Blocks'
@@ -1896,7 +1896,7 @@ class API implements API_Interface {
             foreach ($responses as $index => $response) {
                 $database_id = $database_ids[$index];
 
-                if ($response instanceof Exception) {
+                if ($response instanceof \Exception) {
                     \NTWP\Core\Logger::error_log(
                         "查询数据库失败 ({$database_id}): " . $response->getMessage(),
                         'Batch Databases'
@@ -1910,7 +1910,7 @@ class API implements API_Interface {
 
             return $database_results;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 '批量查询数据库异常: ' . $e->getMessage(),
                 'Batch Databases'
@@ -1958,7 +1958,7 @@ class API implements API_Interface {
             foreach ($responses as $index => $response) {
                 $database_id = $database_ids[$index];
 
-                if ($response instanceof Exception) {
+                if ($response instanceof \Exception) {
                     \NTWP\Core\Logger::error_log(
                         "获取数据库信息失败 ({$database_id}): " . $response->getMessage(),
                         'Batch Database Info'
@@ -1971,7 +1971,7 @@ class API implements API_Interface {
 
             return $fetched_databases;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             \NTWP\Core\Logger::error_log(
                 '批量获取数据库信息异常: ' . $e->getMessage(),
                 'Batch Database Info'
@@ -2094,7 +2094,7 @@ class API implements API_Interface {
 
             return $result;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $error_type = $this->classify_api_error_precise($e);
             $processing_time = round((microtime(true) - $start_time) * 1000);
 
@@ -2134,7 +2134,7 @@ class API implements API_Interface {
 
                 return $result;
 
-            } catch (Exception $fallback_exception) {
+            } catch (\Exception $fallback_exception) {
                 $context = $this->sanitize_error_context([
                     'database_id' => $database_id,
                     'original_error' => $e->getMessage(),
@@ -2180,7 +2180,7 @@ class API implements API_Interface {
             $count = count($response['results'] ?? []);
             return $count;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 预估失败，返回中等数据集大小
             \NTWP\Core\Logger::debug_log(
                 "数据库大小预估失败: {$e->getMessage()}",
@@ -2223,7 +2223,7 @@ class API implements API_Interface {
                     $with_details
                 );
 
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 if (class_exists('\\NTWP\\Core\\Logger')) {
                     \NTWP\Core\Logger::warning_log(
                         sprintf('数据库 %s 增量获取失败: %s', $database_id, $e->getMessage()),
@@ -2283,7 +2283,7 @@ class API implements API_Interface {
             // 转换为UTC时间并格式化为ISO 8601
             $date->setTimezone(new DateTimeZone('UTC'));
             return $date->format('Y-m-d\TH:i:s\Z');
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             // 如果解析失败，记录错误并返回空字符串
             if (class_exists('\\NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::warning_log(
@@ -2563,25 +2563,25 @@ class API implements API_Interface {
             switch ($test_scenario) {
                 case 'filter_error':
                     // 模拟过滤器错误
-                    throw new Exception('filter validation failed: property last_edited_time does not exist', 400);
+                    throw new \Exception('filter validation failed: property last_edited_time does not exist', 400);
 
                 case 'network_error':
                     // 模拟网络错误
-                    throw new Exception('timeout occurred during network request', 0);
+                    throw new \Exception('timeout occurred during network request', 0);
 
                 case 'rate_limit_error':
                     // 模拟限流错误
-                    throw new Exception('rate limit exceeded: too many requests', 429);
+                    throw new \Exception('rate limit exceeded: too many requests', 429);
 
                 case 'auth_error':
                     // 模拟认证错误
-                    throw new Exception('unauthorized: invalid token', 401);
+                    throw new \Exception('unauthorized: invalid token', 401);
 
                 default:
-                    throw new Exception('unknown test scenario', 500);
+                    throw new \Exception('unknown test scenario', 500);
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             $error_type = $this->classify_api_error_precise($e);
             $processing_time = round((microtime(true) - $start_time) * 1000);
 
@@ -2755,7 +2755,7 @@ class API implements API_Interface {
 
             return $all_results;
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             if (class_exists('\\NTWP\\Core\\Logger')) {
                 \NTWP\Core\Logger::error_log(
                     sprintf('并发数据库获取失败: %s', $e->getMessage()),
@@ -2901,7 +2901,7 @@ class API implements API_Interface {
         if ($this->enable_api_merging && $this->api_merger) {
             try {
                 return $this->api_merger->merge_and_execute($requests, $options);
-            } catch (Exception $e) {
+            } catch (\Exception $e) {
                 \NTWP\Core\Logger::warning_log(
                     "API合并器执行失败，回退到标准批量请求: " . $e->getMessage(),
                     'API Service'
