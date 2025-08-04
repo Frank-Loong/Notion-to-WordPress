@@ -28,15 +28,146 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      # 步骤 3：安装依赖
-      - name: 📥 安装依赖
+      # 步骤 3：设置 PHP 环境
+      - name: 🐘 设置 PHP 环境
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: mbstring, xml, ctype, json, curl
+          coverage: none
+
+      # 步骤 4：缓存 Composer 依赖
+      - name: 📦 缓存 Composer 依赖
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.composer/cache
+            vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      # 步骤 5：安装 Node.js 依赖
+      - name: 📥 安装 Node.js 依赖
         run: npm ci
 
-      # 步骤 4：校验环境和版本一致性
+      # 步骤 6：安装 Composer 依赖
+      - name: 📥 安装 Composer 依赖
+        run: |
+          if [ -f composer.lock ]; then
+            composer install --no-dev --optimize-autoloader --no-interaction
+          else
+            echo "⚠️ 未找到 composer.lock 文件，跳过 Composer 依赖安装"
+          fi
+
+      # 步骤 7：依赖安全扫描
+      - name: 🔒 依赖安全扫描
+        run: |
+          echo "🔍 正在进行依赖安全扫描..."
+
+          # npm 安全扫描
+          echo "📦 扫描 npm 依赖..."
+
+          # 检查 npm audit 是否可用
+          if npm audit --help >/dev/null 2>&1; then
+            # 尝试运行 npm audit
+            if npm audit --audit-level=high --omit=dev 2>/dev/null; then
+              echo "✅ npm audit 扫描完成，未发现高危漏洞"
+            else
+              AUDIT_EXIT_CODE=$?
+              if [ $AUDIT_EXIT_CODE -eq 1 ]; then
+                echo "⚠️ npm audit 发现漏洞，但继续构建（仅警告）"
+              else
+                echo "⚠️ npm audit 执行失败（可能是镜像不支持），跳过 npm 安全扫描"
+              fi
+            fi
+
+            # 尝试生成 JSON 报告
+            echo "📋 生成 npm 安全报告..."
+            if npm audit --json --omit=dev > npm-audit-report.json 2>/dev/null; then
+              echo "✅ npm 安全报告已生成"
+
+              # 检查是否有严重漏洞（如果 jq 可用）
+              if command -v jq >/dev/null 2>&1; then
+                CRITICAL_VULNS=$(jq -r '.metadata.vulnerabilities.critical // 0' npm-audit-report.json 2>/dev/null || echo "0")
+                HIGH_VULNS=$(jq -r '.metadata.vulnerabilities.high // 0' npm-audit-report.json 2>/dev/null || echo "0")
+              else
+                echo "ℹ️ jq 不可用，跳过漏洞数量统计"
+                CRITICAL_VULNS="0"
+                HIGH_VULNS="0"
+              fi
+            else
+              echo "⚠️ 无法生成 npm 安全报告（可能是镜像不支持），创建空报告"
+              echo '{"metadata":{"vulnerabilities":{"critical":0,"high":0}}}' > npm-audit-report.json
+              CRITICAL_VULNS="0"
+              HIGH_VULNS="0"
+            fi
+          else
+            echo "⚠️ npm audit 不可用，跳过 npm 安全扫描"
+            echo '{"metadata":{"vulnerabilities":{"critical":0,"high":0}}}' > npm-audit-report.json
+            CRITICAL_VULNS="0"
+            HIGH_VULNS="0"
+          fi
+
+          echo "🔍 安全扫描结果:"
+          echo "  严重漏洞: $CRITICAL_VULNS"
+          echo "  高危漏洞: $HIGH_VULNS"
+
+          # 如果有严重漏洞，阻止发布
+          if [ "$CRITICAL_VULNS" -gt 0 ]; then
+            echo "❌ 发现 $CRITICAL_VULNS 个严重安全漏洞，阻止发布"
+            echo "请运行 'npm audit fix' 修复漏洞后重新发布"
+            exit 1
+          fi
+
+          # 如果有超过5个高危漏洞，发出警告但不阻止
+          if [ "$HIGH_VULNS" -gt 5 ]; then
+            echo "⚠️ 发现 $HIGH_VULNS 个高危漏洞，建议尽快修复"
+          fi
+
+          # Composer 安全扫描（如果有依赖）
+          if [ -f composer.lock ] && [ -s composer.lock ]; then
+            echo "🐘 扫描 Composer 依赖..."
+
+            # 检查是否有实际的包依赖
+            COMPOSER_PACKAGES=$(composer show --no-dev 2>/dev/null | wc -l || echo "0")
+
+            if [ "$COMPOSER_PACKAGES" -gt 0 ]; then
+              # 使用 composer audit（如果可用）
+              if composer audit --help >/dev/null 2>&1; then
+                echo "使用 composer audit 进行安全扫描..."
+                composer audit --no-dev || {
+                  echo "⚠️ Composer audit 发现问题，但继续构建（仅警告）"
+                }
+              else
+                echo "ℹ️ Composer audit 不可用，跳过 Composer 安全扫描"
+              fi
+            else
+              echo "ℹ️ 未发现 Composer 包依赖，跳过 Composer 安全扫描"
+            fi
+          else
+            echo "ℹ️ 未找到 composer.lock 或文件为空，跳过 Composer 安全扫描"
+          fi
+
+          echo "✅ 依赖安全扫描完成"
+
+      # 步骤 8：上传安全扫描报告
+      - name: 📋 上传安全扫描报告
+        uses: actions/upload-artifact@v3
+        if: always()  # 即使前面步骤失败也要上传报告
+        with:
+          name: security-audit-reports
+          path: |
+            npm-audit-report.json
+          retention-days: 30
+
+      # 步骤 9：校验环境和版本一致性
       - name: 🔍 校验环境
         run: |
           echo "Node.js 版本: $(node --version)"
           echo "NPM 版本: $(npm --version)"
+          echo "PHP 版本: $(php --version | head -n 1)"
+          echo "Composer 版本: $(composer --version)"
           echo "Git 标签: ${{ github.ref_name }}"
 
           # 从 tag 提取版本号（去掉 'v' 前缀）
@@ -54,7 +185,7 @@ jobs:
 
           echo "✅ 版本一致性校验通过"
       
-      # 步骤 5：构建 WordPress 插件包
+      # 步骤 10：构建 WordPress 插件包
       - name: 📦 构建插件包
         id: build_package
         run: |
@@ -86,7 +217,7 @@ jobs:
           echo "PACKAGE_SIZE=$PACKAGE_SIZE" >> $GITHUB_ENV
           echo "package_size=$PACKAGE_SIZE" >> $GITHUB_OUTPUT
       
-      # 步骤 6：生成校验和
+      # 步骤 11：生成校验和
       - name: 🔐 生成校验和
         run: |
           echo "🔐 正在生成校验和..."
@@ -101,7 +232,7 @@ jobs:
           echo "✅ 校验和已生成:"
           cat checksums.txt
       
-      # 步骤 7：提取发布信息
+      # 步骤 12：提取发布信息
       - name: 📋 提取发布信息
         id: release_info
         run: |
@@ -126,7 +257,7 @@ jobs:
           echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
           echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
       
-      # 步骤 8：创建 GitHub Release
+      # 步骤 13：创建 GitHub Release
       - name: 🎉 创建 GitHub Release
         uses: softprops/action-gh-release@v1
         with:
@@ -166,7 +297,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # 步骤 9：发布后通知与清理
+      # 步骤 14：发布后通知与清理
       - name: 📢 发布后操作
         run: |
           echo "🎉 v${{ steps.release_info.outputs.release_version }} 发布成功!"

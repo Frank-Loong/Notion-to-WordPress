@@ -88,6 +88,20 @@
 ## Contributing ⭐
 If this project helps you, please smash that **Star**! PRs, issues, translations and ideas are warmly welcome.
 
+### 🚀 Quick Developer Setup
+```bash
+# Clone and setup
+git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
+cd Notion-to-WordPress
+npm install && npm link
+
+# Check project health
+ntwp doctor
+
+# Build and test
+ntwp build package
+```
+
 * [🚀 Developer Guide](./docs/DEVELOPER_GUIDE.md) - Complete development and contributing guide
 * [Open an Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 * [Feature Requests](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)

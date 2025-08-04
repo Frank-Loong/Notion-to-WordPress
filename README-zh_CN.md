@@ -88,6 +88,20 @@
 ## 贡献 ⭐
 如果这个项目帮助到了你，请 **点个 ⭐Star 支持一下**！同时欢迎 PR、Issue、翻译与任何形式的贡献。
 
+### 🚀 开发者快速设置
+```bash
+# 克隆并设置
+git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
+cd Notion-to-WordPress
+npm install && npm link
+
+# 检查项目健康状况
+ntwp doctor
+
+# 构建和测试
+ntwp build package
+```
+
 * [🚀 开发者指南](./docs/DEVELOPER_GUIDE-zh_CN.md) - 完整的开发和贡献指南
 * [提交 Issue](https://github.com/Frank-Loong/Notion-to-WordPress/issues)
 * [功能请求](https://github.com/Frank-Loong/Notion-to-WordPress/discussions)

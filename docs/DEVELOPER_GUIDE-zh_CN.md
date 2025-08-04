@@ -35,47 +35,59 @@
 git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
 cd Notion-to-WordPress
 
-# 2. 安装依赖
+# 2. 安装依赖并设置CLI工具
 npm install
+npm link
 
-# 3. 验证版本一致性
-npm run version:check
+# 3. 检查项目健康状况
+ntwp doctor
 
 # 4. 构建测试
-npm run build
+ntwp build package
 
 # 5. 检查结果
-# Linux/Mac: ls -la build/notion-to-wordpress-*.zip
-# Windows: Get-ChildItem build/notion-to-wordpress-*.zip
+ls -la build/notion-to-wordpress-*.zip
 ```
+
+**现代化CLI工具特性：**
+- 用户友好的界面和清晰的描述
+- 内置帮助系统：`ntwp help-guide --quick`
+- 更好的错误信息和建议
+- 进度指示器和彩色输出
 
 ### ⚡ 简化开发工作流
 
-**日常开发的3步工作流：**
+**现代化CLI工作流：**
 
 ```bash
-# 1. 检查版本一致性
-npm run version:check
+# 1. 检查项目健康状况
+ntwp doctor
 
-# 2. 升级版本（如需要）
-npm run version:patch    # 或 minor/major/beta
+# 2. 检查版本一致性
+ntwp version check
 
-# 3. 构建生产包
-npm run build
+# 3. 升级版本（如需要）
+ntwp version bump patch    # 或 minor/major/beta
+
+# 4. 构建生产包
+ntwp build package
+
+# 5. 验证所有配置
+ntwp validate all
 ```
 
 **常用命令速查：**
-- `npm run help` - 查看所有可用命令
-- `npm run version:help` - 查看版本管理帮助
-- `npm run version:check` - 仅检查版本一致性
-- `npm run clean` - 清理构建文件
+- `ntwp doctor` - 检查项目健康状况
+- `ntwp version check` - 检查版本一致性
+- `ntwp build package` - 构建生产包
+- `ntwp help-guide --quick` - 快速开始指南
 
 ### ✅ 环境要求
 
 | 组件 | 最低版本 | 推荐版本 |
 |------|----------|----------|
-| Node.js | 16.0+ | 18.0+ |
-| npm | 8.0+ | 9.0+ |
+| Node.js | 18.0+ | 20.0+ |
+| npm | 8.0+ | 10.0+ |
 | Git | 2.0+ | 最新版 |
 | PHP | 8.0+ | 8.1+ |
 | WordPress | 6.0+ | 最新版 |
@@ -396,11 +408,11 @@ sequenceDiagram
 git checkout -b feature/your-feature
 
 # 2. 开发和测试
-npm run version:check
-npm run build
+ntwp version check
+ntwp build package
 
 # 3. 代码检查
-npm run validate:config
+ntwp validate config
 php -l notion-to-wordpress.php
 
 # 4. 提交代码
@@ -431,75 +443,61 @@ git merge feature/your-feature
 
 ## 🔧 命令参考
 
-### 🏗️ 构建命令
+### 📋 完整命令参考
 
-| 命令 | 功能 | 用途 |
+| 分类 | 命令 | 说明 |
 |------|------|------|
-| `npm run build` | 构建生产包 | 发布前构建 |
-| `npm run build:clean` | 清理构建目录 | 移除旧构建 |
-| `npm run build:verify` | 验证构建结果 | 构建后验证 |
-| `npm run clean` | 清理所有构建文件 | 快速清理 |
+| **项目** | `ntwp doctor` | 检查项目健康状况并诊断问题 |
+| | `ntwp info` | 显示项目信息 |
+| | `ntwp init` | 初始化新项目（设置向导） |
+| **版本** | `ntwp version check` | 检查文件间版本一致性 |
+| | `ntwp version bump patch` | 升级补丁版本 (1.0.0 → 1.0.1) |
+| | `ntwp version bump minor` | 升级小版本 (1.0.0 → 1.1.0) |
+| | `ntwp version bump major` | 升级主版本 (1.0.0 → 2.0.0) |
+| | `ntwp version bump beta` | 升级到测试版本 |
+| | `ntwp version set X.Y.Z` | 设置自定义版本 |
+| **构建** | `ntwp build package` | 构建生产ZIP包 |
+| | `ntwp build clean` | 清理构建目录 |
+| | `ntwp build verify` | 验证构建结果 |
+| **验证** | `ntwp validate all` | 运行所有验证 |
+| | `ntwp validate config` | 验证配置 |
+| | `ntwp validate github-actions` | 验证CI配置 |
+| **发布** | `ntwp release patch --dry-run` | 预览补丁发布 |
+| | `ntwp release patch` | 发布补丁版本 |
+| | `ntwp release minor` | 发布小版本 |
+| | `ntwp release major` | 发布主版本 |
+| | `ntwp release beta` | 发布测试版本 |
+| **帮助** | `ntwp` | 显示主帮助 |
+| | `ntwp help-guide --quick` | 快速开始指南 |
+| | `ntwp help-guide --faq` | 常见问题 |
+| | `ntwp config --list` | 显示当前配置 |
 
-### 📦 开发工作流
+### 📦 典型开发工作流
 
-| 步骤 | 命令 | 说明 |
-|------|------|------|
-| 1. 检查版本 | `npm run version:check` | 验证版本一致性 |
-| 2. 升级版本 | `npm run version:patch` | 根据需要升级版本 |
-| 3. 构建打包 | `npm run build` | 生成生产包 |
-| 4. 测试构建 | `npm run build:verify` | 验证构建结果 |
+```bash
+# 1. 检查项目健康状况
+ntwp doctor
 
-### 🚀 发布命令
+# 2. 检查版本一致性
+ntwp version check
 
-| 命令 | 功能 | 说明 |
-|------|------|------|
-| `npm run release:patch` | 补丁发布 | 自动发布到GitHub |
-| `npm run release:minor` | 小版本发布 | 包含新功能 |
-| `npm run release:major` | 主版本发布 | 破坏性更改 |
-| `npm run release:beta` | 测试版发布 | 预发布版本 |
-| `node scripts/release.js custom --version=X.Y.Z --dry-run` | 自定义发布 | 设置特定版本 |
-| `npm run release:dry-run` | 预览发布 | 安全预览模式 |
-| `npm run release:help` | 显示帮助 | 查看选项 |
+# 3. 升级版本（如需要）
+ntwp version bump patch    # 或 minor/major/beta
 
-### 🔍 版本管理
+# 4. 构建生产包
+ntwp build package
 
-| 命令 | 功能 | 用途 |
-|------|------|------|
-| `npm run version:check` | 检查版本一致性 | 验证所有文件版本号一致 |
-| `node scripts/version-bump.js --version=X.Y.Z` | 自定义版本号 | 直接更新所有版本文档 |
-| `npm run version:patch` | 补丁版本升级 | 1.0.0 → 1.0.1 |
-| `npm run version:minor` | 小版本升级 | 1.0.0 → 1.1.0 |
-| `npm run version:major` | 主版本升级 | 1.0.0 → 2.0.0 |
-| `npm run version:beta` | 测试版本升级 | 1.0.0 → 1.0.1-beta.1 |
-| `npm run version:help` | 显示帮助 | 显示使用说明 |
+# 5. 验证所有配置
+ntwp validate all
 
-**注意**：由于 npm 参数传递有限制，自定义版本设置请直接使用 `node` 命令。
+# 6. 预览发布
+ntwp release patch --dry-run
 
-### 🧪 测试命令
+# 7. 发布到GitHub
+ntwp release patch
+```
 
-| 命令 | 功能 | 用途 |
-|------|------|------|
-| `npm run test` | 运行默认测试 | 快速测试套件 |
-| `npm run test:integration` | 集成测试 | 全面测试 |
-| `npm run test:syntax` | 语法检查 | 代码验证 |
-| `npm run test:release` | 测试发布流程 | 安全发布预览 |
-| `npm run validate` | 运行所有验证 | 完整验证套件 |
-| `npm run validate:config` | 验证配置 | 环境检查 |
-| `npm run validate:github-actions` | 验证CI配置 | 发布前检查 |
-| `npm run validate:version` | 验证版本一致性 | 版本检查 |
-
-### 🔧 工具命令
-
-| 命令 | 功能 | 用途 |
-|------|------|------|
-| `npm run help` | 显示所有命令 | 显示分类命令列表 |
-| `npm run clean` | 清理构建文件 | 移除构建目录 |
-| `npm run dev` | 开发环境部署 | 快速构建和部署 |
-| `npm run dev:deploy` | 部署到本地WordPress | 本地环境部署 |
-
-**自定义命令**（请直接使用 `node` 命令）：
-- `node scripts/version-bump.js --version=X.Y.Z` - 设置自定义版本
-- `node scripts/release.js custom --version=X.Y.Z --dry-run` - 自定义发布
+**注意**：所有命令都支持 `--help` 查看详细使用信息。
 
 ### 📝 单元测试指导
 
@@ -617,13 +615,13 @@ node --version  # 需要18+
 npm install
 
 # 验证环境
-npm run validate:config
+ntwp validate config
 ```
 
 #### 版本不一致
 ```bash
 # 自动修复版本不一致（选择合适的类型）
-npm run version:patch
+ntwp version bump patch
 
 # 手动检查版本
 # Linux/Mac:
@@ -635,7 +633,7 @@ Select-String "Version:" notion-to-wordpress.php
 Select-String "version" package.json
 
 # 查看帮助信息
-npm run version:help
+ntwp version --help
 ```
 
 #### 插件激活失败
@@ -775,11 +773,11 @@ ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ```bash
 # 1. 发布前检查
 git status                    # 确保工作目录干净
-npm run validate:config       # 验证配置
-npm run release:dry-run       # 预览发布
+ntwp validate config          # 验证配置
+ntwp release patch --dry-run  # 预览发布
 
 # 2. 执行发布
-npm run release:patch         # 选择合适类型
+ntwp release patch            # 选择合适类型
 
 # 3. 发布后验证
 # - 检查GitHub Actions状态
@@ -791,13 +789,16 @@ npm run release:patch         # 选择合适类型
 
 ```bash
 # 候选版本
-node scripts/release.js custom --version=1.8.1-rc.1
+ntwp version set 1.8.1-rc.1
+ntwp release patch
 
 # 热修复版本
-node scripts/release.js custom --version=1.8.1-hotfix.1
+ntwp version set 1.8.1-hotfix.1
+ntwp release patch
 
 # 预览模式
-node scripts/release.js custom --version=X.Y.Z --dry-run
+ntwp version set X.Y.Z
+ntwp release patch --dry-run
 ```
 
 ---
@@ -1168,8 +1169,8 @@ cd Notion-to-WordPress
 git checkout -b feature/your-feature-name
 
 # 4. 开发测试
-npm run version:check
-npm run build
+ntwp version check
+ntwp build package
 
 # 5. 提交更改
 git add .

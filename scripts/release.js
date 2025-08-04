@@ -17,7 +17,7 @@ const chalk = require('chalk');
 const minimist = require('minimist');
 
 // 导入自定义工具
-const VersionBumper = require('./version-bump.js');
+const VersionManager = require('./version.js');
 const BuildTool = require('./build.js');
 
 class ReleaseController {
@@ -158,7 +158,7 @@ class ReleaseController {
 
         // 检查所需工具文件
         const requiredFiles = [
-            path.join(__dirname, 'version-bump.js'),
+            path.join(__dirname, 'version.js'),
             path.join(__dirname, 'build.js')
         ];
 
@@ -171,8 +171,8 @@ class ReleaseController {
         // 检查 Node.js 版本
         const nodeVersion = process.version;
         const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
-        if (majorVersion < 16) {
-            throw new Error(`需要 Node.js 16 以上版本，当前版本: ${nodeVersion}`);
+        if (majorVersion < 18) {
+            throw new Error(`需要 Node.js 18 以上版本，当前版本: ${nodeVersion}`);
         }
 
         this.success('环境验证通过');
@@ -184,11 +184,11 @@ class ReleaseController {
     prepareVersions() {
         this.log('📋 正在准备版本信息...');
 
-        const versionBumper = new VersionBumper();
+        const versionManager = new VersionManager();
 
         // 获取当前版本
-        this.currentVersion = versionBumper.getCurrentVersion();
-        versionBumper.validateVersion();
+        this.currentVersion = versionManager.getCurrentVersion();
+        // 版本验证已在getCurrentVersion中完成
 
         // 计算新版本
         if (this.customVersion) {
@@ -196,7 +196,7 @@ class ReleaseController {
             this.newVersion = this.customVersion;
         } else {
             // 根据发布类型计算新版本
-            this.newVersion = versionBumper.bumpVersion(this.currentVersion, this.releaseType);
+            this.newVersion = versionManager.bumpVersion(this.currentVersion, this.releaseType);
         }
 
         this.log(`当前版本: ${chalk.yellow(this.currentVersion)}`);
@@ -248,18 +248,19 @@ class ReleaseController {
         }
 
         try {
-            const versionBumper = new VersionBumper();
+            const versionManager = new VersionManager();
 
             if (this.customVersion) {
                 // 使用自定义版本
                 this.log(`  设置自定义版本: ${this.customVersion}`);
-                versionBumper.updateToCustomVersion(this.customVersion);
+                versionManager.updateToCustomVersion(this.customVersion);
                 this.newVersion = this.customVersion;
             } else {
                 // 使用标准发布类型
                 this.log(`  执行 ${this.releaseType} 版本升级`);
-                versionBumper.run(this.releaseType);
-                this.newVersion = versionBumper.getNewVersion();
+                versionManager.run(this.releaseType);
+                // 重新获取新版本号
+                this.newVersion = versionManager.getCurrentVersion();
             }
 
             this.completedSteps.push('version-bump');

@@ -10,7 +10,7 @@ namespace NTWP\Core\Performance;
  * 提供实时进度查询和状态更新功能
  *
  * @since      2.0.0-beta.2
- * @version    2.0.0-beta.2
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

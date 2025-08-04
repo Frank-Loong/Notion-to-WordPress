@@ -35,47 +35,55 @@
 git clone https://github.com/Frank-Loong/Notion-to-WordPress.git
 cd Notion-to-WordPress
 
-# 2. Install dependencies
+# 2. Install dependencies and setup CLI
 npm install
+npm link
 
-# 3. Verify version consistency
-npm run version:check
+# 3. Check project health
+ntwp doctor
 
 # 4. Build test
-npm run build
+ntwp build package
 
 # 5. Check results
-# Linux/Mac: ls -la build/notion-to-wordpress-*.zip
-# Windows: Get-ChildItem build/notion-to-wordpress-*.zip
+ls -la build/notion-to-wordpress-*.zip
 ```
 
 ### ⚡ Quick Development Workflow
 
-**3-Step Daily Development Workflow:**
+**Modern CLI Workflow (Recommended):**
 
 ```bash
-# 1. Check version consistency
-npm run version:check
+# 1. Check project health
+ntwp doctor
 
-# 2. Bump version (if needed)
-npm run version:patch    # or minor/major/beta
+# 2. Check version consistency
+ntwp version check
 
-# 3. Build production package
-npm run build
+# 3. Bump version (if needed)
+ntwp version bump patch    # or minor/major/beta
+
+# 4. Build production package
+ntwp build package
+
+# 5. Validate everything
+ntwp validate all
 ```
 
-**Quick Command Reference:**
-- `npm run help` - Show all available commands
-- `npm run version:help` - Show version management help
-- `npm run version:check` - Check version consistency only
-- `npm run clean` - Clean build files
+
+
+**Essential Commands:**
+- `ntwp doctor` - Check project health
+- `ntwp version check` - Check version consistency
+- `ntwp build package` - Build production package
+- `ntwp help-guide --quick` - Quick start guide
 
 ### ✅ System Requirements
 
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
-| Node.js | 16.0+ | 18.0+ |
-| npm | 8.0+ | 9.0+ |
+| Node.js | 18.0+ | 20.0+ |
+| npm | 8.0+ | 10.0+ |
 | Git | 2.0+ | Latest |
 | PHP | 8.0+ | 8.1+ |
 | WordPress | 6.0+ | Latest |
@@ -379,11 +387,11 @@ sequenceDiagram
 git checkout -b feature/your-feature
 
 # 2. Development and testing
-npm run version:check
-npm run build
+ntwp version check
+ntwp build package
 
 # 3. Code checks
-npm run validate:config
+ntwp validate config
 php -l notion-to-wordpress.php
 
 # 4. Commit code
@@ -414,75 +422,61 @@ Types:
 
 ## 🔧 Command Reference
 
-### 🏗️ Build Commands
+### 📋 Complete Command Reference
 
-| Command | Function | Purpose |
-|---------|----------|---------|
-| `npm run build` | Build production package | Pre-release build |
-| `npm run build:clean` | Clean build directory | Remove old builds |
-| `npm run build:verify` | Verify build results | Post-build validation |
-| `npm run clean` | Clean all build files | Quick cleanup |
+| Category | Command | Description |
+|----------|---------|-------------|
+| **Project** | `ntwp doctor` | Check project health and diagnose issues |
+| | `ntwp info` | Display project information |
+| | `ntwp init` | Initialize new project (setup wizard) |
+| **Version** | `ntwp version check` | Check version consistency across files |
+| | `ntwp version bump patch` | Bump patch version (1.0.0 → 1.0.1) |
+| | `ntwp version bump minor` | Bump minor version (1.0.0 → 1.1.0) |
+| | `ntwp version bump major` | Bump major version (1.0.0 → 2.0.0) |
+| | `ntwp version bump beta` | Bump to beta version |
+| | `ntwp version set X.Y.Z` | Set custom version |
+| **Build** | `ntwp build package` | Build production ZIP package |
+| | `ntwp build clean` | Clean build directory |
+| | `ntwp build verify` | Verify build results |
+| **Validate** | `ntwp validate all` | Run all validations |
+| | `ntwp validate config` | Validate configuration |
+| | `ntwp validate github-actions` | Validate CI configuration |
+| **Release** | `ntwp release patch --dry-run` | Preview patch release |
+| | `ntwp release patch` | Release patch version |
+| | `ntwp release minor` | Release minor version |
+| | `ntwp release major` | Release major version |
+| | `ntwp release beta` | Release beta version |
+| **Help** | `ntwp` | Show main help |
+| | `ntwp help-guide --quick` | Quick start guide |
+| | `ntwp help-guide --faq` | FAQ |
+| | `ntwp config --list` | Show current configuration |
 
-### 📦 Development Workflow
+### 📦 Typical Development Workflow
 
-| Step | Command | Description |
-|------|---------|-------------|
-| 1. Check version | `npm run version:check` | Validate version consistency |
-| 2. Bump version | `npm run version:patch` | Upgrade version as needed |
-| 3. Build package | `npm run build` | Generate production package |
-| 4. Test build | `npm run build:verify` | Verify build results |
+```bash
+# 1. Check project health
+ntwp doctor
 
-### 🚀 Release Commands
+# 2. Check version consistency
+ntwp version check
 
-| Command | Function | Description |
-|---------|----------|-------------|
-| `npm run release:patch` | Patch release | Auto-release to GitHub |
-| `npm run release:minor` | Minor release | Contains new features |
-| `npm run release:major` | Major release | Breaking changes |
-| `npm run release:beta` | Beta release | Pre-release version |
-| `node scripts/release.js custom --version=X.Y.Z --dry-run` | Custom release | Set specific version |
-| `npm run release:dry-run` | Preview release | Safe preview mode |
-| `npm run release:help` | Show help | View options |
+# 3. Bump version (if needed)
+ntwp version bump patch    # or minor/major/beta
 
-### 🔍 Version Management
+# 4. Build production package
+ntwp build package
 
-| Command | Function | Purpose |
-|---------|----------|---------|
-| `npm run version:check` | Check version consistency | Validate all files have same version |
-| `node scripts/version-bump.js --version=X.Y.Z` | Set custom version | Directly update all version files |
-| `npm run version:patch` | Patch version upgrade | 1.0.0 → 1.0.1 |
-| `npm run version:minor` | Minor version upgrade | 1.0.0 → 1.1.0 |
-| `npm run version:major` | Major version upgrade | 1.0.0 → 2.0.0 |
-| `npm run version:beta` | Beta version upgrade | 1.0.0 → 1.0.1-beta.1 |
-| `npm run version:help` | Show help | Display usage information |
+# 5. Validate everything
+ntwp validate all
 
-**Note**: For custom version setting, use `node` command directly due to npm parameter passing limitations.
+# 6. Preview release
+ntwp release patch --dry-run
 
-### 🧪 Testing Commands
+# 7. Release to GitHub
+ntwp release patch
+```
 
-| Command | Function | Purpose |
-|---------|----------|---------|
-| `npm run test` | Run default tests | Quick test suite |
-| `npm run test:integration` | Integration testing | Comprehensive testing |
-| `npm run test:syntax` | Syntax check | Code validation |
-| `npm run test:release` | Test release process | Safe release preview |
-| `npm run validate` | Run all validations | Complete validation suite |
-| `npm run validate:config` | Validate configuration | Environment check |
-| `npm run validate:github-actions` | Validate CI configuration | Pre-release check |
-| `npm run validate:version` | Validate version consistency | Version check |
-
-### 🔧 Utility Commands
-
-| Command | Function | Purpose |
-|---------|----------|---------|
-| `npm run help` | Show all commands | Display categorized command list |
-| `npm run clean` | Clean build files | Remove build directory |
-| `npm run dev` | Development deployment | Quick build and deploy |
-| `npm run dev:deploy` | Deploy to local WordPress | Local environment deployment |
-
-**Custom Commands** (use `node` directly):
-- `node scripts/version-bump.js --version=X.Y.Z` - Set custom version
-- `node scripts/release.js custom --version=X.Y.Z --dry-run` - Custom release
+**Note**: All commands support `--help` for detailed usage information.
 
 ### 📝 Unit Testing Guide
 
@@ -600,13 +594,13 @@ node --version  # Requires 18+
 npm install
 
 # Verify environment
-npm run validate:config
+ntwp validate config
 ```
 
 #### Version Inconsistency
 ```bash
 # Auto-fix version inconsistency (choose appropriate type)
-npm run version:patch
+ntwp version bump patch
 
 # Manual version check
 # Linux/Mac:
@@ -618,7 +612,7 @@ Select-String "Version:" notion-to-wordpress.php
 Select-String "version" package.json
 
 # View help information
-npm run version:help
+ntwp version --help
 ```
 
 #### Plugin Activation Failure
@@ -758,11 +752,11 @@ ALTER TABLE wp_posts CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 ```bash
 # 1. Pre-release checks
 git status                    # Ensure clean working directory
-npm run validate:config       # Validate configuration
-npm run release:dry-run       # Preview release
+ntwp validate config          # Validate configuration
+ntwp release patch --dry-run  # Preview release
 
 # 2. Execute release
-npm run release:patch         # Choose appropriate type
+ntwp release patch            # Choose appropriate type
 
 # 3. Post-release verification
 # - Check GitHub Actions status
@@ -774,13 +768,16 @@ npm run release:patch         # Choose appropriate type
 
 ```bash
 # Release candidates
-node scripts/release.js custom --version=1.8.1-rc.1
+ntwp version set 1.8.1-rc.1
+ntwp release patch
 
 # Hotfix versions
-node scripts/release.js custom --version=1.8.1-hotfix.1
+ntwp version set 1.8.1-hotfix.1
+ntwp release patch
 
 # Preview mode
-node scripts/release.js custom --version=X.Y.Z --dry-run
+ntwp version set X.Y.Z
+ntwp release patch --dry-run
 ```
 
 ---
@@ -1151,8 +1148,8 @@ cd Notion-to-WordPress
 git checkout -b feature/your-feature-name
 
 # 4. Develop and test
-npm run version:check
-npm run build
+ntwp version check
+ntwp build package
 
 # 5. Commit changes
 git add .

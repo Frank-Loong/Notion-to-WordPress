@@ -40,7 +40,7 @@ const releaseConfig = {
     // 版本管理配置
     // ========================================
     version: {
-        // 需要更新版本的文件
+        // 需要更新版本的文件（与 scripts/version-bump.js 保持一致）
         files: [
             {
                 path: 'notion-to-wordpress.php',
@@ -58,22 +58,22 @@ const releaseConfig = {
                 ]
             },
             {
+                path: 'release.config.js',
+                patterns: [
+                    {
+                        // 文件头部的 @version 注释
+                        regex: /(\* @version\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    }
+                ]
+            },
+            {
                 path: 'readme.txt',
                 patterns: [
                     {
                         // WordPress 插件稳定标签
                         regex: /(Stable tag:\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
                         replacement: '$1{VERSION}'
-                    }
-                ]
-            },
-            {
-                path: 'includes/class-notion-to-wordpress.php',
-                patterns: [
-                    {
-                        // 类版本属性
-                        regex: /(\$this->version\s*=\s*')([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(';)/,
-                        replacement: '$1{VERSION}$3'
                     }
                 ]
             },
@@ -99,6 +99,24 @@ const releaseConfig = {
                         // npm 锁定文件版本 - packages根级别（第9行左右）
                         regex: /(\s*"":\s*\{[^}]*?"version":\s*")([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(.*")/s,
                         replacement: '$1{VERSION}$3'
+                    }
+                ]
+            },
+            {
+                path: 'README.md',
+                patterns: [
+                    {
+                        regex: /(©\s*2025\s+Frank-Loong\s*·\s*Notion-to-WordPress\s+v)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
+                    }
+                ]
+            },
+            {
+                path: 'README-zh_CN.md',
+                patterns: [
+                    {
+                        regex: /(©\s*2025\s+Frank-Loong\s*·\s*Notion-to-WordPress\s+v)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
+                        replacement: '$1{VERSION}'
                     }
                 ]
             }
