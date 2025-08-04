@@ -1,7 +1,7 @@
 /**
  * Notion数据库渲染器样式 - 简化版
  *
- * 专门为新的Notion_Database_Renderer类设计的简洁样式，
+ * 专门为新的DatabaseRenderer类设计的简洁样式，
  * 移除了复杂的Grid布局和JavaScript交互，专注于静态展示。
  *
  * @since      1.1.3

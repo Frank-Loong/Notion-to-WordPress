@@ -35,16 +35,13 @@
     "autoload": {
         "psr-4": {
             "NTWP\\Core\\": "includes/core/",
-            "NTWP\\Utils\\": "includes/utils/",
             "NTWP\\Framework\\": "includes/framework/",
-            "NTWP\\Services\\": "includes/services/",
             "NTWP\\Handlers\\": "includes/handlers/",
-            "NTWP\\Contracts\\": "includes/contracts/",
-            "NTWP\\API\\": "includes/api/"
-        },
-        "classmap": [
-            "admin/"
-        ]
+            "NTWP\\Infrastructure\\": "includes/infrastructure/",
+            "NTWP\\Services\\": "includes/services/",
+            "NTWP\\Utils\\": "includes/utils/",
+            "NTWP\\Admin\\": "admin/"
+        }
     },
     "autoload-dev": {
         "psr-4": {

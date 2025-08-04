@@ -125,29 +125,48 @@ notion-to-wordpress/
 ├── admin/                  # 后台管理界面
 ├── includes/               # 核心功能类（分层架构）
 │   ├── core/              # Core层 - 基础设施服务
-│   │   ├── class-notion-logger.php
-│   │   ├── class-notion-security.php
-│   │   ├── class-notion-text-processor.php
-│   │   └── class-notion-http-client.php
+│   │   ├── Foundation/    # 基础组件
+│   │   │   ├── Logger.php
+│   │   │   ├── Container.php
+│   │   │   └── ErrorHandler.php
+│   │   ├── Network/       # 网络组件
+│   │   │   ├── HttpClient.php
+│   │   │   └── StreamProcessor.php
+│   │   ├── Performance/   # 性能组件
+│   │   │   ├── PerformanceMonitor.php
+│   │   │   ├── ProgressTracker.php
+│   │   │   └── AlgorithmOptimizer.php
+│   │   └── Task/          # 任务组件
+│   │       ├── TaskExecutor.php
+│   │       ├── AsyncTaskScheduler.php
+│   │       └── ModernAsyncEngine.php
 │   ├── services/          # Services层 - 业务逻辑服务
-│   │   ├── class-notion-api.php
-│   │   ├── class-notion-content-converter.php
-│   │   ├── class-notion-database-renderer.php
-│   │   ├── class-notion-image-processor.php
-│   │   ├── class-notion-metadata-extractor.php
-│   │   └── class-notion-sync-manager.php
+│   │   ├── Api/           # API服务
+│   │   │   ├── NotionApi.php
+│   │   │   └── ApiInterface.php
+│   │   ├── Content/       # 内容服务
+│   │   │   ├── ContentConverter.php
+│   │   │   ├── DatabaseRenderer.php
+│   │   │   ├── ImageProcessor.php
+│   │   │   ├── MetadataExtractor.php
+│   │   │   └── TextProcessor.php
+│   │   ├── Sync/          # 同步服务
+│   │   │   ├── SyncManager.php
+│   │   │   ├── ContentSyncService.php
+│   │   │   └── IncrementalDetector.php
+│   │   └── TaskService.php
 │   ├── handlers/          # Handlers层 - 协调器服务
-│   │   ├── class-notion-import-coordinator.php  # (原Notion_Pages)
-│   │   ├── class-notion-to-wordpress-integrator.php
-│   │   └── class-notion-to-wordpress-webhook.php
+│   │   ├── ImportHandler.php  # (原Notion_Pages)
+│   │   ├── Integrator.php
+│   │   └── WebhookHandler.php
 │   ├── utils/             # Utils层 - 工具支持服务
-│   │   ├── class-notion-to-wordpress-helper.php
-│   │   ├── class-notion-network-retry.php
-│   │   └── class-notion-concurrent-network-manager.php
+│   │   ├── Helper.php
+│   │   ├── NetworkRetry.php
+│   │   └── ConcurrentNetworkManager.php
 │   └── framework/         # Framework层 - 框架管理服务
-│       ├── class-notion-to-wordpress.php
-│       ├── class-notion-to-wordpress-loader.php
-│       └── class-notion-to-wordpress-i18n.php
+│       ├── Main.php
+│       ├── Loader.php
+│       └── I18n.php
 ├── scripts/                # 自动化脚本
 │   ├── build.js
 │   └── release.js
@@ -164,9 +183,9 @@ classDiagram
         -version: string
         -plugin_name: string
         -loader: Notion_To_WordPress_Loader
-        -notion_api: Notion_API
-        -notion_pages: Notion_Import_Coordinator
-        -admin: Notion_To_WordPress_Admin
+        -notion_api: NotionApi
+        -notion_pages: ImportHandler
+        -admin: AdminController
         +__construct()
         +load_dependencies()
         +instantiate_objects()
@@ -175,7 +194,7 @@ classDiagram
     }
 
     %% Services层
-    class Notion_API {
+    class NotionApi {
         -api_key: string
         -api_base: string
         +get_database_pages()
@@ -185,8 +204,8 @@ classDiagram
     }
 
     %% Handlers层
-    class Notion_Import_Coordinator {
-        -notion_api: Notion_API
+    class ImportHandler {
+        -notion_api: NotionApi
         -database_id: string
         -field_mapping: array
         +import_pages()
@@ -195,18 +214,18 @@ classDiagram
         +convert_blocks_to_html()
     }
 
-    class Notion_To_WordPress_Admin {
+    class AdminController {
         -plugin_name: string
         -version: string
-        -notion_api: Notion_API
-        -notion_pages: Notion_Import_Coordinator
+        -notion_api: NotionApi
+        -notion_pages: ImportHandler
         +handle_manual_import()
         +handle_test_connection()
         +handle_refresh_all()
     }
 
     class Notion_To_WordPress_Webhook {
-        -notion_pages: Notion_Import_Coordinator
+        -notion_pages: ImportHandler
         +handle_webhook()
         +handle_specific_event()
         +handle_page_updated()
@@ -231,15 +250,15 @@ classDiagram
     }
 
     %% 关系
-    Notion_To_WordPress --> Notion_API
-    Notion_To_WordPress --> Notion_Import_Coordinator
-    Notion_To_WordPress --> Notion_To_WordPress_Admin
-    Notion_To_WordPress_Admin --> Notion_API
-    Notion_To_WordPress_Admin --> Notion_Import_Coordinator
-    Notion_Import_Coordinator --> Notion_API
-    Notion_To_WordPress_Webhook --> Notion_Import_Coordinator
-    Notion_Import_Coordinator --> Notion_To_WordPress_Helper
-    Notion_Import_Coordinator --> Notion_Logger
+    Notion_To_WordPress --> NotionApi
+    Notion_To_WordPress --> ImportHandler
+    Notion_To_WordPress --> AdminController
+    AdminController --> NotionApi
+    AdminController --> ImportHandler
+    ImportHandler --> NotionApi
+    Notion_To_WordPress_Webhook --> ImportHandler
+    ImportHandler --> Notion_To_WordPress_Helper
+    ImportHandler --> Notion_Logger
 ```
 
 ### 🔄 数据流向
@@ -258,8 +277,8 @@ Notion API → API通信层 → 数据转换 → 同步引擎 → WordPress数�
 sequenceDiagram
     participant U as 用户/管理员
     participant A as Admin界面
-    participant IC as Notion_Import_Coordinator
-    participant API as Notion_API
+    participant IC as ImportHandler
+    participant API as NotionApi
     participant WP as WordPress数据库
 
     U->>A: 点击智能同步按钮
@@ -290,8 +309,8 @@ sequenceDiagram
 sequenceDiagram
     participant C as WordPress Cron
     participant M as Notion_To_WordPress
-    participant IC as Notion_Import_Coordinator
-    participant API as Notion_API
+    participant IC as ImportHandler
+    participant API as NotionApi
     participant WP as WordPress数据库
 
     C->>M: 触发notion_cron_import事件
@@ -331,8 +350,8 @@ sequenceDiagram
 sequenceDiagram
     participant N as Notion
     participant W as Webhook处理器
-    participant IC as Notion_Import_Coordinator
-    participant API as Notion_API
+    participant IC as ImportHandler
+    participant API as NotionApi
     participant WP as WordPress数据库
 
     N->>W: 发送Webhook事件
@@ -503,13 +522,13 @@ tests/
 /**
  * Notion API 单元测试
  */
-class Test_Notion_API extends WP_UnitTestCase {
+class Test_NotionApi extends WP_UnitTestCase {
 
     private $notion_api;
 
     public function setUp(): void {
         parent::setUp();
-        $this->notion_api = new Notion_API();
+        $this->notion_api = new NotionApi();
     }
 
     /**
@@ -796,14 +815,14 @@ node scripts/release.js custom --version=X.Y.Z --dry-run
 try {
     $result = $this->some_operation();
     if (is_wp_error($result)) {
-        return \NTWP\Core\Error_Handler::handle_wp_error($result, 'Operation Context');
+        return \NTWP\Core\Foundation\ErrorHandler::handle_wp_error($result, 'Operation Context');
     }
 } catch (Exception $e) {
-    return \NTWP\Core\Error_Handler::handle_exception($e, 'Operation Context');
+    return \NTWP\Core\Foundation\ErrorHandler::handle_exception($e, 'Operation Context');
 }
 
 // 增强的错误日志记录，包含上下文信息
-\NTWP\Core\Error_Handler::log_error(
+\NTWP\Core\Foundation\ErrorHandler::log_error(
     'Operation failed',
     'Context Name',
     ['additional' => 'data']
@@ -811,7 +830,7 @@ try {
 ```
 
 **核心组件：**
-- `\NTWP\Core\Error_Handler`：集中化的错误处理和日志记录
+- `\NTWP\Core\Foundation\ErrorHandler`：集中化的错误处理和日志记录
 - 一致的错误分类和严重性级别
 - 增强的调试信息和堆栈跟踪
 - 与WordPress错误系统（WP_Error）集成
@@ -830,13 +849,13 @@ try {
 
 ```php
 // 使用统一验证API密钥
-$result = \NTWP\Core\Security::validate_notion_api_key($api_key);
+$result = \NTWP\Core\Foundation\Security::validate_notion_api_key($api_key);
 if (!$result['is_valid']) {
     throw new \InvalidArgumentException($result['error_message']);
 }
 
 // 批量验证插件配置选项
-$validation_result = \NTWP\Core\Security::validate_plugin_options($options);
+$validation_result = \NTWP\Core\Foundation\Security::validate_plugin_options($options);
 if (!$validation_result['is_valid']) {
     foreach ($validation_result['errors'] as $error) {
         // 处理验证错误
@@ -845,8 +864,8 @@ if (!$validation_result['is_valid']) {
 ```
 
 **核心组件：**
-- `\NTWP\Core\Validation_Rules`：集中化的验证规则和常量
-- `\NTWP\Core\Security`：验证方法和安全工具
+- `\NTWP\Utils\Validator`：集中化的验证规则和常量
+- `\NTWP\Core\Foundation\Security`：验证方法和安全工具
 - 一致的错误处理和用户友好的消息
 - 支持单项和批量验证
 
@@ -1048,7 +1067,7 @@ public function sync_notion_page( $page_id ) {
 /**
  * 错误分类处理
  */
-class Notion_Error_Handler {
+class ErrorHandler {
 
     const ERROR_TYPES = [
         'API_ERROR' => 'API调用错误',

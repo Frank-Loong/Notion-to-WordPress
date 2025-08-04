@@ -21,7 +21,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-class i18n {
+class I18n {
 
     /**
      * 标记textdomain是否已加载，避免重复日志
@@ -73,7 +73,7 @@ class i18n {
             }
 
             if ( $plugin_language !== 'auto' ) {
-                \NTWP\Core\Logger::debug_log('Overriding locale to: ' . $plugin_language . ' for domain: ' . $domain, 'Notion i18n');
+                \NTWP\Core\Foundation\Logger::debug_log('Overriding locale to: ' . $plugin_language . ' for domain: ' . $domain, 'Notion i18n');
                 return $plugin_language;
             }
         }
@@ -104,9 +104,9 @@ class i18n {
 
             if ( file_exists( $mo_file ) ) {
                 load_textdomain( 'notion-to-wordpress', $mo_file );
-                \NTWP\Core\Logger::debug_log('Force loaded ' . $plugin_language . ' translations from: ' . $mo_file, 'Notion i18n');
+                \NTWP\Core\Foundation\Logger::debug_log('Force loaded ' . $plugin_language . ' translations from: ' . $mo_file, 'Notion i18n');
             } else {
-                \NTWP\Core\Logger::error_log('Translation file not found: ' . $mo_file, 'Notion i18n');
+                \NTWP\Core\Foundation\Logger::error_log('Translation file not found: ' . $mo_file, 'Notion i18n');
             }
         }
     }

@@ -57,18 +57,18 @@ class Main {
 	 *
 	 * @since    1.0.6
 	 * @access   protected
-	 * @var      \NTWP\Services\API    $notion_api    Notion API处理器实例。
+	 * @var      \NTWP\Services\Api\NotionApi    $notion_api    Notion API处理器实例。
 	 */
-	protected \NTWP\Services\API $notion_api;
+	protected \NTWP\Services\Api\NotionApi $notion_api;
 
 	/**
-	 * Notion导入协调器实例。
+	 * Notion导入处理器实例。
 	 *
 	 * @since    1.0.6
 	 * @access   protected
-	 * @var      \NTWP\Handlers\Import_Coordinator    $notion_pages    Notion导入协调器实例。
+	 * @var      \NTWP\Handlers\ImportHandler    $notion_pages    Notion导入处理器实例。
 	 */
-	protected \NTWP\Handlers\Import_Coordinator $notion_pages;
+	protected \NTWP\Handlers\ImportHandler $notion_pages;
 
 	/**
 	 * 后台区域处理器实例。
@@ -124,7 +124,7 @@ class Main {
 	 *
 	 * Framework层 - 框架管理服务：
 	 * - Loader. 协调插件的钩子。
-	 * - i18n. 定义国际化功能。
+	 * - I18n. 定义国际化功能。
 	 *
 	 * Services层 - 业务逻辑服务：
 	 * - API. API接口服务。
@@ -135,7 +135,7 @@ class Main {
 	 * - Sync_Manager. 同步管理服务。
 	 *
 	 * Handlers层 - 协调器服务：
-	 * - Import_Coordinator. 导入协调器（原Notion_Pages）。
+	 * - ImportHandler. 导入处理器（重构后的导入协调器）。
 	 * - Integrator. 集成协调器。
 	 * - Webhook. Webhook处理器。
 	 *
@@ -151,8 +151,8 @@ class Main {
 		// Utils层 - 工具类（已迁移到PSR-4自动加载）
 		// Handlers层 - 协调器服务（已迁移到PSR-4自动加载）
 
-		// Admin层 - 后台管理（仍需手动加载，未迁移到PSR-4）
-		require_once \NTWP\Utils\Helper::plugin_path( 'admin/class-notion-to-wordpress-admin.php' );
+		// Admin层 - 后台管理（已迁移到PSR-4自动加载）
+		// require_once \NTWP\Infrastructure\Helper::plugin_path( 'admin/Controllers/AdminController.php' );
 
 		$this->loader = new \NTWP\Framework\Loader();
 	}
@@ -168,11 +168,11 @@ class Main {
 	 */
 	private function instantiate_objects() {
 		// 初始化日志记录器
-		\NTWP\Core\Logger::init();
+		\NTWP\Core\Foundation\Logger::init();
 
 		// 初始化现代异步处理系统
 		if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
-			\NTWP\Core\Modern_Async_Engine::init();
+			\NTWP\Core\Foundation\Task\ModernAsyncEngine::init();
 		}
 
 		// 获取选项
@@ -182,13 +182,13 @@ class Main {
 		$field_mapping = $options['field_mapping'] ?? array();
 
 		// 实例化API处理器
-		$this->notion_api = new \NTWP\Services\API( $api_key );
+		$this->notion_api = new \NTWP\Services\Api\NotionApi( $api_key );
 
-		// 实例化导入协调器（使用新的适配器）
-		$this->notion_pages = new \NTWP\Handlers\Import_Coordinator( $this->notion_api, $database_id, $field_mapping );
+		// 实例化导入处理器（使用兼容构造函数）
+		$this->notion_pages = new \NTWP\Handlers\ImportHandler( $this->notion_api, $database_id, $field_mapping );
 
-		// 实例化后台处理器
-		$this->admin = new \Notion_To_WordPress_Admin(
+		// 实例化后台控制器
+		$this->admin = new \NTWP\Admin\Controllers\AdminController(
 			$this->get_plugin_name(),
 			$this->get_version(),
 			$this->notion_api,
@@ -204,13 +204,13 @@ class Main {
 	/**
 	 * 为此插件定义区域设置以进行国际化。
 	 *
-	 * 使用i18n类来设置域并向WordPress注册钩子。
+	 * 使用I18n类来设置域并向WordPress注册钩子。
 	 *
 	 * @since    1.0.5
 	 * @access   private
 	 */
 	private function set_locale() {
-		$plugin_i18n = new \NTWP\Framework\i18n();
+		$plugin_i18n = new \NTWP\Framework\I18n();
 
 		// 注册多个钩子来确保语言切换生效
 		$this->loader->add_filter( 'plugin_locale', $plugin_i18n, 'maybe_override_locale', 10, 2 );
@@ -282,16 +282,16 @@ class Main {
 
 		// 新增：添加新的cron事件
 		$this->loader->add_action('notion_to_wordpress_cron_update', $this->notion_pages, 'update_post_from_notion_cron', 10, 1);
-		$this->loader->add_action('notion_to_wordpress_log_cleanup', '\NTWP\Utils\Helper', 'run_log_cleanup');
+		$this->loader->add_action('notion_to_wordpress_log_cleanup', '\NTWP\Infrastructure\Helper', 'run_log_cleanup');
 
 		// 队列系统集成
 		if (class_exists('NTWP\\Core\\Queue_Manager')) {
-			\NTWP\Core\Queue_Manager::init();
+			\NTWP\Core\Foundation\Queue_Manager::init();
 		}
 
 		// 异步处理器集成
 		if (class_exists('NTWP\\Core\\Async_Processor')) {
-			\NTWP\Core\Async_Processor::init();
+			\NTWP\Core\Foundation\Async_Processor::init();
 		}
 	}
 
@@ -377,7 +377,7 @@ class Main {
 		$database_id = $options['notion_database_id'] ?? '';
 
 		if (empty($database_id)) {
-			\NTWP\Core\Logger::error_log( 'Cron import failed: Database ID is not set.' );
+			\NTWP\Core\Foundation\Logger::error_log( 'Cron import failed: Database ID is not set.' );
 			return;
 		}
 
@@ -407,9 +407,9 @@ class Main {
 			$result = $this->notion_pages->import_pages($check_deletions, $incremental);
 
 			if (is_wp_error($result)) {
-				\NTWP\Core\Logger::error_log('Cron import failed: ' . $result->get_error_message());
+				\NTWP\Core\Foundation\Logger::error_log('Cron import failed: ' . $result->get_error_message());
 			} else {
-				\NTWP\Core\Logger::info_log(
+				\NTWP\Core\Foundation\Logger::info_log(
 					sprintf('定时同步完成 - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d',
 						$result['total'] ?? 0,
 						$result['imported'] ?? 0,
@@ -421,7 +421,7 @@ class Main {
 				);
 			}
 		} catch ( Exception $e ) {
-			\NTWP\Core\Logger::error_log( 'Notion import error: ' . $e->getMessage() );
+			\NTWP\Core\Foundation\Logger::error_log( 'Notion import error: ' . $e->getMessage() );
 		}
 	}
 
@@ -453,7 +453,7 @@ class Main {
 
 			),
 			'custom_field_mappings' => array(),
-			'debug_level'         => \NTWP\Core\Logger::DEBUG_LEVEL_ERROR,
+			'debug_level'         => \NTWP\Core\Foundation\Logger::DEBUG_LEVEL_ERROR,
 			// 默认启用数学和图表支持，确保渲染正常
 			'enable_math_support' => 1,
 			'enable_mermaid_support' => 1,
@@ -513,7 +513,7 @@ class Main {
 		// 基础样式（总是加载）
 		wp_enqueue_style(
 			$this->plugin_name . '-custom',
-			\NTWP\Utils\Helper::plugin_url('assets/css/custom-styles.css'),
+			\NTWP\Infrastructure\Helper::plugin_url('assets/css/custom-styles.css'),
 			array(),
 			$this->version
 		);
@@ -521,7 +521,7 @@ class Main {
 		// 宽松加载策略：在前端页面总是加载LaTeX样式，确保摘要页面也能正常显示
 		wp_enqueue_style(
 			$this->plugin_name . '-latex',
-			\NTWP\Utils\Helper::plugin_url('assets/css/latex-styles.css'),
+			\NTWP\Infrastructure\Helper::plugin_url('assets/css/latex-styles.css'),
 			array(),
 			$this->version
 		);
@@ -530,7 +530,7 @@ class Main {
 		if ($this->has_notion_database_content()) {
 			wp_enqueue_style(
 				$this->plugin_name . '-database',
-				\NTWP\Utils\Helper::plugin_url('assets/css/notion-database.css'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/css/notion-database.css'),
 				array(),
 				$this->version
 			);
@@ -549,7 +549,7 @@ class Main {
 			// 使用本地KaTeX资源
 			wp_enqueue_style(
 				'katex',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.css'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/katex.min.css'),
 				array(),
 				$this->version
 			);
@@ -565,7 +565,7 @@ class Main {
 			// 本地兜底样式
 			wp_enqueue_style(
 				'katex-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.css'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/katex.min.css'),
 				array(),
 				$this->version
 			);
@@ -575,7 +575,7 @@ class Main {
 			// 使用本地JavaScript资源
 			wp_register_script(
 				'katex',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/katex.min.js'),
 				array(),
 				$this->version,
 				true
@@ -583,7 +583,7 @@ class Main {
 			
 			wp_register_script(
 				'katex-mhchem',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
 				array( 'katex' ),
 				$this->version,
 				true
@@ -591,7 +591,7 @@ class Main {
 			
 			wp_register_script(
 				'katex-auto-render',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
 				array( 'katex' ),
 				$this->version,
 				true
@@ -599,7 +599,7 @@ class Main {
 			
 			wp_enqueue_script(
 				'mermaid',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js'),
 				array(),
 				$this->version,
 				true
@@ -617,7 +617,7 @@ class Main {
 			// 本地兜底脚本
 			wp_register_script(
 				'katex-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/katex.min.js'),
 				array(),
 				$this->version,
 				true
@@ -635,7 +635,7 @@ class Main {
 			// mhchem 本地兜底
 			wp_register_script(
 				'katex-mhchem-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
 				array( 'katex-fallback' ),
 				$this->version,
 				true
@@ -653,7 +653,7 @@ class Main {
 			// auto-render 本地兜底
 			wp_register_script(
 				'katex-auto-render-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
 				array( 'katex-fallback' ),
 				$this->version,
 				true
@@ -674,16 +674,16 @@ class Main {
 				if (typeof katex === 'undefined') {
 					console.log('KaTeX CDN failed, loading fallback...');
 					var script = document.createElement('script');
-					script.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.js') . "';
+					script.src = '" . \NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/katex.min.js') . "';
 					script.onload = function() {
 						// 加载mhchem兜底
 						var mhchemScript = document.createElement('script');
-						mhchemScript.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/katex/mhchem.min.js') . "';
+						mhchemScript.src = '" . \NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/mhchem.min.js') . "';
 						document.head.appendChild(mhchemScript);
 
 						// 加载auto-render兜底
 						var autoRenderScript = document.createElement('script');
-						autoRenderScript.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/katex/auto-render.min.js') . "';
+						autoRenderScript.src = '" . \NTWP\Infrastructure\Helper::plugin_url('assets/vendor/katex/auto-render.min.js') . "';
 						document.head.appendChild(autoRenderScript);
 					};
 					document.head.appendChild(script);
@@ -695,7 +695,7 @@ class Main {
 				if (typeof mermaid === 'undefined') {
 					console.log('Mermaid CDN failed, loading fallback...');
 					var script = document.createElement('script');
-					script.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js') . "';
+					script.src = '" . \NTWP\Infrastructure\Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js') . "';
 					document.head.appendChild(script);
 				}
 			" );
@@ -709,7 +709,7 @@ class Main {
 			// KaTeX渲染脚本
 			wp_enqueue_script(
 				$this->plugin_name . '-katex-mermaid',
-				\NTWP\Utils\Helper::plugin_url('assets/js/katex-mermaid.js'),
+				\NTWP\Infrastructure\Helper::plugin_url('assets/js/katex-mermaid.js'),
 				array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
 				$this->version,
 				true
@@ -722,7 +722,7 @@ class Main {
 		// 懒加载和性能优化脚本
 		wp_enqueue_script(
 			$this->plugin_name . '-lazy-loading',
-			\NTWP\Utils\Helper::plugin_url('assets/js/lazy-loading.js'),
+			\NTWP\Infrastructure\Helper::plugin_url('assets/js/lazy-loading.js'),
 			array(),
 			$this->version,
 			true
@@ -731,7 +731,7 @@ class Main {
 		// 前端资源优化脚本
 		wp_enqueue_script(
 			$this->plugin_name . '-resource-optimizer',
-			\NTWP\Utils\Helper::plugin_url('assets/js/resource-optimizer.js'),
+			\NTWP\Infrastructure\Helper::plugin_url('assets/js/resource-optimizer.js'),
 			array($this->plugin_name . '-lazy-loading'),
 			$this->version,
 			true
@@ -748,7 +748,7 @@ class Main {
 		// 注册锚点导航脚本，支持区块锚点跳转
 		wp_enqueue_script(
 			$this->plugin_name . '-anchor-navigation',
-			\NTWP\Utils\Helper::plugin_url('assets/js/anchor-navigation.js'),
+			\NTWP\Infrastructure\Helper::plugin_url('assets/js/anchor-navigation.js'),
 			array(),
 			$this->version,
 			true

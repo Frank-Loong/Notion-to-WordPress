@@ -9,10 +9,12 @@ namespace NTWP\Utils;
  * 提供简化的API接口，兼容现有代码
  * 作为新旧异步系统之间的桥梁
  *
- * @since      2.0.0-beta.2
+ * @since      2.0.0-beta.1
+ * @version    2.0.0-beta.1
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
+ * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
 // 防止直接访问
@@ -30,12 +32,12 @@ class AsyncHelper {
      * @return string 任务ID
      */
     public static function import_pages_async(array $pages, array $options = []): string {
-        if (class_exists('Notion_Modern_Async_Engine')) {
+        if (class_exists('ModernAsyncEngine')) {
             // 使用现代异步引擎
-            return Notion_Modern_Async_Engine::execute('import_pages', $pages, [
+            return Notion_ModernAsyncEngine::execute('import_pages', $pages, [
                 'batch_size' => $options['batch_size'] ?? 20,
                 'timeout' => $options['timeout'] ?? 300,
-                'priority' => Notion_Modern_Async_Engine::PRIORITY_NORMAL
+                'priority' => Notion_ModernAsyncEngine::PRIORITY_NORMAL
             ]);
         } else {
             // 回退到同步处理
@@ -51,11 +53,11 @@ class AsyncHelper {
      * @return string 任务ID
      */
     public static function update_pages_async(array $pages, array $options = []): string {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::execute('update_pages', $pages, [
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::execute('update_pages', $pages, [
                 'batch_size' => $options['batch_size'] ?? 15,
                 'timeout' => $options['timeout'] ?? 300,
-                'priority' => Notion_Modern_Async_Engine::PRIORITY_HIGH
+                'priority' => Notion_ModernAsyncEngine::PRIORITY_HIGH
             ]);
         } else {
             return self::process_synchronously('update_pages', $pages, $options);
@@ -70,11 +72,11 @@ class AsyncHelper {
      * @return string 任务ID
      */
     public static function process_images_async(array $images, array $options = []): string {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::execute('process_images', $images, [
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::execute('process_images', $images, [
                 'batch_size' => $options['batch_size'] ?? 10,
                 'timeout' => $options['timeout'] ?? 600,
-                'priority' => Notion_Modern_Async_Engine::PRIORITY_LOW
+                'priority' => Notion_ModernAsyncEngine::PRIORITY_LOW
             ]);
         } else {
             return self::process_synchronously('process_images', $images, $options);
@@ -89,11 +91,11 @@ class AsyncHelper {
      * @return string 任务ID
      */
     public static function delete_posts_async(array $posts, array $options = []): string {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::execute('delete_posts', $posts, [
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::execute('delete_posts', $posts, [
                 'batch_size' => $options['batch_size'] ?? 25,
                 'timeout' => $options['timeout'] ?? 180,
-                'priority' => Notion_Modern_Async_Engine::PRIORITY_NORMAL
+                'priority' => Notion_ModernAsyncEngine::PRIORITY_NORMAL
             ]);
         } else {
             return self::process_synchronously('delete_posts', $posts, $options);
@@ -108,11 +110,11 @@ class AsyncHelper {
      * @return string 任务ID
      */
     public static function sync_incremental_async(array $data, array $options = []): string {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::execute('sync_incremental', $data, [
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::execute('sync_incremental', $data, [
                 'batch_size' => $options['batch_size'] ?? 30,
                 'timeout' => $options['timeout'] ?? 300,
-                'priority' => Notion_Modern_Async_Engine::PRIORITY_HIGH
+                'priority' => Notion_ModernAsyncEngine::PRIORITY_HIGH
             ]);
         } else {
             return self::process_synchronously('sync_incremental', $data, $options);
@@ -126,8 +128,8 @@ class AsyncHelper {
      * @return array 进度信息
      */
     public static function get_task_progress(string $taskId): array {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::getProgress($taskId);
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::getProgress($taskId);
         } else {
             return [
                 'status' => 'unavailable',
@@ -144,8 +146,8 @@ class AsyncHelper {
      * @return bool 是否成功取消
      */
     public static function cancel_task(string $taskId): bool {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::cancel($taskId);
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::cancel($taskId);
         } else {
             return false;
         }
@@ -157,8 +159,8 @@ class AsyncHelper {
      * @return array 系统状态
      */
     public static function get_system_status(): array {
-        if (class_exists('Notion_Modern_Async_Engine')) {
-            return Notion_Modern_Async_Engine::getStatus();
+        if (class_exists('ModernAsyncEngine')) {
+            return Notion_ModernAsyncEngine::getStatus();
         } else {
             return [
                 'queue_size' => 0,
@@ -177,7 +179,7 @@ class AsyncHelper {
      * @return bool 是否使用现代引擎
      */
     public static function is_modern_engine_available(): bool {
-        return class_exists('Notion_Modern_Async_Engine');
+        return class_exists('ModernAsyncEngine');
     }
     
     /**
@@ -222,7 +224,7 @@ class AsyncHelper {
     private static function process_synchronously(string $operation, array $data, array $options): string {
         $taskId = sprintf('sync_%s_%s', $operation, uniqid());
 
-        \NTWP\Core\Logger::warning_log(
+        \NTWP\Core\Foundation\Logger::warning_log(
             sprintf('现代异步引擎不可用，使用同步处理: %s, 数据量: %d', $operation, count($data)),
             'Async Helper'
         );

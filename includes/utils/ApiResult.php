@@ -327,12 +327,12 @@ class ApiResult {
             
             if ($this->success) {
                 if ($this->fallback_used) {
-                    \NTWP\Core\Logger::warning_log($log_message, $log_category);
+                    \NTWP\Core\Foundation\Logger::warning_log($log_message, $log_category);
                 } else {
-                    \NTWP\Core\Logger::info_log($log_message, $log_category);
+                    \NTWP\Core\Foundation\Logger::info_log($log_message, $log_category);
                 }
             } else {
-                \NTWP\Core\Logger::error_log($log_message, $log_category);
+                \NTWP\Core\Foundation\Logger::error_log($log_message, $log_category);
             }
         }
     }

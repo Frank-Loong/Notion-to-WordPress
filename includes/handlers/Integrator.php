@@ -59,7 +59,7 @@ class Integrator {
             // 确保有密码的文章处于发布状态，否则密码保护无效
             if ($post_data['post_status'] === 'draft') {
                 $post_data['post_status'] = 'publish';
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     '文章有密码但状态为草稿，已自动调整为已发布状态以使密码生效',
                     'Post Status'
                 );
@@ -67,7 +67,7 @@ class Integrator {
         }
 
         // 记录最终的文章数据
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             sprintf('文章数据: 标题=%s, 状态=%s, 类型=%s, 密码=%s',
                 $post_data['post_title'],
                 $post_data['post_status'],
@@ -85,7 +85,7 @@ class Integrator {
         $content_preview = substr($content, 0, 200) . (strlen($content) > 200 ? '...' : '');
         $has_wordpress_links_before = strpos($content, 'frankloong.local') !== false;
 
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             sprintf('准备调用WordPress函数: 操作=%s, 内容长度=%d, 包含WordPress链接=%s',
                 $existing_post_id ? 'UPDATE' : 'INSERT',
                 strlen($content),
@@ -94,7 +94,7 @@ class Integrator {
             'WordPress Integration'
         );
 
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             '内容预览: ' . $content_preview,
             'WordPress Integration'
         );
@@ -103,7 +103,7 @@ class Integrator {
         if ($existing_post_id) {
             $post_data['ID'] = $existing_post_id;
 
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 sprintf('调用wp_update_post: 文章ID=%d', $existing_post_id),
                 'WordPress Integration'
             );
@@ -111,18 +111,18 @@ class Integrator {
             $post_id = wp_update_post($post_data, true);
 
             if (is_wp_error($post_id)) {
-                \NTWP\Core\Logger::error_log(
+                \NTWP\Core\Foundation\Logger::error_log(
                     'wp_update_post失败: ' . $post_id->get_error_message(),
                     'WordPress Integration'
                 );
             } else {
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     sprintf('wp_update_post成功: 返回ID=%d', $post_id),
                     'WordPress Integration'
                 );
             }
         } else {
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 '调用wp_insert_post: 创建新文章',
                 'WordPress Integration'
             );
@@ -130,12 +130,12 @@ class Integrator {
             $post_id = wp_insert_post($post_data, true);
 
             if (is_wp_error($post_id)) {
-                \NTWP\Core\Logger::error_log(
+                \NTWP\Core\Foundation\Logger::error_log(
                     'wp_insert_post失败: ' . $post_id->get_error_message(),
                     'WordPress Integration'
                 );
             } else {
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     sprintf('wp_insert_post成功: 新文章ID=%d', $post_id),
                     'WordPress Integration'
                 );
@@ -150,7 +150,7 @@ class Integrator {
                 $saved_content = $verification_post->post_content;
                 $has_wordpress_links_after = strpos($saved_content, 'frankloong.local') !== false;
 
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     sprintf('WordPress函数调用后验证: 保存长度=%d, 包含WordPress链接=%s',
                         strlen($saved_content),
                         $has_wordpress_links_after ? '是' : '否'
@@ -160,18 +160,18 @@ class Integrator {
 
                 // 检查内容是否正确保存
                 if ($has_wordpress_links_before && !$has_wordpress_links_after) {
-                    \NTWP\Core\Logger::error_log(
+                    \NTWP\Core\Foundation\Logger::error_log(
                         '关键问题：WordPress链接在wp_update_post/wp_insert_post后丢失！',
                         'WordPress Integration'
                     );
                 } elseif ($has_wordpress_links_before && $has_wordpress_links_after) {
-                    \NTWP\Core\Logger::debug_log(
+                    \NTWP\Core\Foundation\Logger::debug_log(
                         'WordPress链接成功保存到数据库',
                         'WordPress Integration'
                     );
                 }
             } else {
-                \NTWP\Core\Logger::error_log(
+                \NTWP\Core\Foundation\Logger::error_log(
                     '无法重新获取文章进行验证',
                     'WordPress Integration'
                 );
@@ -199,7 +199,7 @@ class Integrator {
     public static function apply_custom_fields(int $post_id, array $custom_fields): void {
         foreach ($custom_fields as $field_name => $field_value) {
             update_post_meta($post_id, $field_name, $field_value);
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 "应用自定义字段: {$field_name} = {$field_value}",
                 'Custom Fields'
             );
@@ -216,7 +216,7 @@ class Integrator {
     public static function apply_taxonomies(int $post_id, array $metadata): void {
         if (!empty($metadata['categories'])) {
             wp_set_post_categories($post_id, $metadata['categories']);
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 "设置分类: " . implode(', ', $metadata['categories']),
                 'Taxonomies'
             );
@@ -224,7 +224,7 @@ class Integrator {
         
         if (!empty($metadata['tags'])) {
             wp_set_post_tags($post_id, $metadata['tags']);
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 "设置标签: " . implode(', ', $metadata['tags']),
                 'Taxonomies'
             );
@@ -267,7 +267,7 @@ class Integrator {
                 // 直接使用外链作为特色图片（通过自定义字段）
                 update_post_meta($post_id, '_notion_featured_image_url', esc_url_raw($image_url));
 
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     'Using external featured image URL: ' . $image_url,
                     'Featured Image'
                 );
@@ -287,7 +287,7 @@ class Integrator {
             update_post_meta($post_id, '_notion_featured_image_placeholder', $attachment_id);
             return true;
         } elseif (is_wp_error($attachment_id)) {
-            \NTWP\Core\Logger::error_log(
+            \NTWP\Core\Foundation\Logger::error_log(
                 'Featured image download failed: ' . $attachment_id->get_error_message()
             );
             return false;
@@ -339,7 +339,7 @@ class Integrator {
         $result = wp_delete_post($post_id, $force_delete);
 
         if ($result) {
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 "文章删除成功: ID {$post_id}",
                 'Post Deletion'
             );
@@ -361,7 +361,7 @@ class Integrator {
      */
     private static function clear_post_cache(int $post_id): void {
         // 缓存已禁用，无需清理操作
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             "文章缓存清理请求（缓存已禁用）: 文章ID {$post_id}",
             'Integrator Cache'
         );
@@ -406,7 +406,7 @@ class Integrator {
 
         // 简化处理：直接返回URL作为外部图片
         // 实际的下载和处理逻辑将在图片处理器中实现
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             "图片处理委托给图片处理器: {$image_url}",
             'Image Processing'
         );
@@ -462,7 +462,7 @@ class Integrator {
     public static function validate_post_data(array $metadata): bool|WP_Error {
         // 确保标题字段存在，如果为空则提供默认值
         if (empty($metadata['title'])) {
-            \NTWP\Core\Logger::warning_log('文章标题为空，将在创建时提供默认标题', 'WordPress Integration');
+            \NTWP\Core\Foundation\Logger::warning_log('文章标题为空，将在创建时提供默认标题', 'WordPress Integration');
             // 不再返回错误，而是在后续处理中提供默认标题
         }
 
@@ -640,7 +640,7 @@ class Integrator {
 
                 if ($update_result === false) {
                     $stats['errors']++;
-                    \NTWP\Core\Logger::error_log(
+                    \NTWP\Core\Foundation\Logger::error_log(
                         sprintf('更新文章 %d 链接转换失败', $post->ID),
                         'Delayed Link Conversion'
                     );
@@ -654,7 +654,7 @@ class Integrator {
 
         // 只在有实际更新或错误时记录日志
         if ($stats['updated'] > 0 || $stats['errors'] > 0) {
-            \NTWP\Core\Logger::info_log(
+            \NTWP\Core\Foundation\Logger::info_log(
                 sprintf('延迟链接转换完成: 处理=%d, 更新=%d, 错误=%d',
                     $stats['processed'], $stats['updated'], $stats['errors']),
                 'Delayed Link Conversion'
@@ -703,7 +703,7 @@ class Integrator {
                 $original_link = $url_matches[1];
 
                 // 使用现有的链接转换逻辑
-                $converted_link = \NTWP\Core\Text_Processor::convert_notion_page_to_wordpress($original_link);
+                $converted_link = \NTWP\Services\Content\TextProcessor::convert_notion_page_to_wordpress($original_link);
 
                 if ($converted_link !== $original_link) {
                     // 替换href属性中的URL
@@ -779,13 +779,13 @@ class Integrator {
 
                 if (is_wp_error($result)) {
                     $stats['errors']++;
-                    \NTWP\Core\Logger::error_log(
+                    \NTWP\Core\Foundation\Logger::error_log(
                         sprintf('修复文章 %d 的公式HTML实体失败: %s', $post->ID, $result->get_error_message()),
                         'Formula Fix'
                     );
                 } else {
                     $stats['fixed']++;
-                    \NTWP\Core\Logger::debug_log(
+                    \NTWP\Core\Foundation\Logger::debug_log(
                         sprintf('成功修复文章 %d 的公式HTML实体', $post->ID),
                         'Formula Fix'
                     );
@@ -793,7 +793,7 @@ class Integrator {
             }
         }
 
-        \NTWP\Core\Logger::info_log(
+        \NTWP\Core\Foundation\Logger::info_log(
             sprintf('公式HTML实体修复完成: 处理=%d, 修复=%d, 错误=%d',
                 $stats['processed'], $stats['fixed'], $stats['errors']),
             'Formula Fix'
@@ -817,8 +817,8 @@ class Integrator {
         }
 
         // 开始性能监控
-        if (class_exists('\\NTWP\\Core\\Performance_Monitor')) {
-            \NTWP\Core\Performance_Monitor::start_timer('batch_update_meta');
+        if (class_exists('\\NTWP\\Core\\Performance\\PerformanceMonitor')) {
+            \NTWP\Core\Foundation\Performance\PerformanceMonitor::start_timer('batch_update_meta');
         }
 
         try {
@@ -840,19 +840,19 @@ class Integrator {
             }
 
             // 结束性能监控
-            if (class_exists('\\NTWP\\Core\\Performance_Monitor')) {
-                \NTWP\Core\Performance_Monitor::end_timer('batch_update_meta');
-                \NTWP\Core\Performance_Monitor::record_db_operation('batch_update_meta', $total_count, 0);
+            if (class_exists('\\NTWP\\Core\\Performance\\PerformanceMonitor')) {
+                \NTWP\Core\Foundation\Performance\PerformanceMonitor::end_timer('batch_update_meta');
+                \NTWP\Core\Foundation\Performance\PerformanceMonitor::record_db_operation('batch_update_meta', $total_count, 0);
             }
 
             if ($success_count === $total_count) {
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     sprintf('批量更新post_meta成功: %d/%d条记录', $success_count, $total_count),
                     'Batch Update'
                 );
                 return true;
             } else {
-                \NTWP\Core\Logger::warning_log(
+                \NTWP\Core\Foundation\Logger::warning_log(
                     sprintf('批量更新post_meta部分成功: %d/%d条记录', $success_count, $total_count),
                     'Batch Update'
                 );
@@ -860,7 +860,7 @@ class Integrator {
             }
 
         } catch (Exception $e) {
-            \NTWP\Core\Logger::error_log(
+            \NTWP\Core\Foundation\Logger::error_log(
                 '批量更新post_meta异常: ' . $e->getMessage(),
                 'Batch Update'
             );
@@ -914,7 +914,7 @@ class Integrator {
                 $post_id = wp_insert_post($post_data);
                 if (is_wp_error($post_id)) {
                     $results['failed'][] = $post_data;
-                    \NTWP\Core\Logger::error_log(
+                    \NTWP\Core\Foundation\Logger::error_log(
                         '批量插入文章失败: ' . $post_id->get_error_message(),
                         'Batch Insert'
                     );
@@ -929,7 +929,7 @@ class Integrator {
             }
         }
 
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             sprintf('批量插入文章完成: 成功=%d, 失败=%d',
                 count($results['success']), count($results['failed'])),
             'Batch Insert'

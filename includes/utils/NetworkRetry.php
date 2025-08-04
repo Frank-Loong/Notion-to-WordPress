@@ -170,7 +170,7 @@ class NetworkRetry {
                 if ($attempt > 0) {
                     self::$retry_stats['successful_retries']++;
                     
-                    \NTWP\Core\Logger::debug_log(
+                    \NTWP\Core\Foundation\Logger::debug_log(
                         sprintf(
                             '重试成功：第 %d 次尝试成功，总耗时: %.2f秒',
                             $attempt + 1,
@@ -192,7 +192,7 @@ class NetworkRetry {
                 if (self::is_permanent_error_enhanced($e)) {
                     self::$retry_stats['permanent_errors']++;
                     
-                    \NTWP\Core\Logger::debug_log(
+                    \NTWP\Core\Foundation\Logger::debug_log(
                         sprintf(
                             '检测到永久性错误，停止重试: %s',
                             $e->getMessage()
@@ -207,7 +207,7 @@ class NetworkRetry {
                 if ($attempt >= $max_retries) {
                     self::$retry_stats['failed_retries']++;
                     
-                    \NTWP\Core\Logger::error_log(
+                    \NTWP\Core\Foundation\Logger::error_log(
                         sprintf(
                             '重试失败：已达到最大重试次数 %d，最后错误: %s',
                             $max_retries,
@@ -227,7 +227,7 @@ class NetworkRetry {
                 // 记录错误类型统计
                 self::record_error_type_stats($e);
                 
-                \NTWP\Core\Logger::debug_log(
+                \NTWP\Core\Foundation\Logger::debug_log(
                     sprintf(
                         '重试 %d/%d 失败: %s，%d毫秒后重试',
                         $attempt + 1,
@@ -391,7 +391,7 @@ class NetworkRetry {
             'avg_delay_time' => 0
         ];
 
-        \NTWP\Core\Logger::debug_log(
+        \NTWP\Core\Foundation\Logger::debug_log(
             '重试统计信息已重置',
             'Network Retry'
         );
@@ -407,7 +407,7 @@ class NetworkRetry {
         if (!in_array($error_code, self::$temporary_errors)) {
             self::$temporary_errors[] = $error_code;
 
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 "添加临时性错误类型: {$error_code}",
                 'Network Retry'
             );
@@ -424,7 +424,7 @@ class NetworkRetry {
         if (!in_array($error_code, self::$permanent_errors)) {
             self::$permanent_errors[] = $error_code;
 
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 "添加永久性错误类型: {$error_code}",
                 'Network Retry'
             );
@@ -533,7 +533,7 @@ class NetworkRetry {
         $error_type = self::get_error_type_description($exception);
 
         if ($delay > 0) {
-            \NTWP\Core\Logger::debug_log(
+            \NTWP\Core\Foundation\Logger::debug_log(
                 sprintf(
                     '[%s] 重试 %d/%d: %s，%d毫秒后重试',
                     $error_type,
@@ -545,7 +545,7 @@ class NetworkRetry {
                 'Network Retry'
             );
         } else {
-            \NTWP\Core\Logger::error_log(
+            \NTWP\Core\Foundation\Logger::error_log(
                 sprintf(
                     '[%s] 重试失败: %s',
                     $error_type,
@@ -767,27 +767,27 @@ class NetworkRetry {
 
     /**
      * 集成到性能监控系统
-     * 将重试统计信息发送到Notion_Performance_Monitor
+     * 将重试统计信息发送到PerformanceMonitor
      *
      * @since    2.0.0-beta.1
      */
     public static function integrate_with_performance_monitor() {
-        if (!class_exists('\\NTWP\\Core\\Performance_Monitor')) {
+        if (!class_exists('\\NTWP\\Core\\Performance\\PerformanceMonitor')) {
             return;
         }
 
         $stats = self::get_enhanced_retry_stats();
 
         // 记录重试性能数据
-        if (method_exists('Notion_Performance_Monitor', 'record_custom_metric')) {
-            \NTWP\Core\Performance_Monitor::record_custom_metric('network_retry_success_rate', $stats['success_rate']);
-            \NTWP\Core\Performance_Monitor::record_custom_metric('network_retry_avg_delay', $stats['avg_delay_time']);
-            \NTWP\Core\Performance_Monitor::record_custom_metric('network_retry_smart_count', $stats['smart_retries']);
+        if (method_exists('PerformanceMonitor', 'record_custom_metric')) {
+            \NTWP\Core\Foundation\Performance\PerformanceMonitor::record_custom_metric('network_retry_success_rate', $stats['success_rate']);
+            \NTWP\Core\Foundation\Performance\PerformanceMonitor::record_custom_metric('network_retry_avg_delay', $stats['avg_delay_time']);
+            \NTWP\Core\Foundation\Performance\PerformanceMonitor::record_custom_metric('network_retry_smart_count', $stats['smart_retries']);
         }
 
         // 记录到日志以便监控
         if ($stats['total_attempts'] > 0) {
-            \NTWP\Core\Logger::info_log(
+            \NTWP\Core\Foundation\Logger::info_log(
                 sprintf(
                     '智能重试统计: 总尝试=%d, 成功率=%.2f%%, 平均延迟=%.2fms, 智能重试=%d',
                     $stats['total_attempts'],

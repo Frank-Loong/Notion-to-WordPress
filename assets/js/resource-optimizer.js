@@ -978,8 +978,8 @@
         }
     });
 
-    // 暴露调试接口
-    if (window.location.search.includes('debug=1')) {
+    // 暴露调试接口（仅在开发模式下）
+    if (window.location.search.includes('debug=1') || window.location.hostname === 'localhost') {
         window.debugResourceOptimizer = {
             getMetrics: () => window.NotionResourceOptimizer.getMetrics(),
             getCacheStats: () => window.NotionResourceOptimizer.getCacheStats(),
@@ -987,7 +987,9 @@
             reportMetrics: () => window.NotionResourceOptimizer.reportPerformanceMetrics(),
             getConfig: () => window.NotionResourceOptimizer.getConfig()
         };
-        console.log('[资源优化器] 调试接口已启用，使用 window.debugResourceOptimizer 访问');
+        if (console && console.log) {
+            console.log('[资源优化器] 调试接口已启用，使用 window.debugResourceOptimizer 访问');
+        }
     }
 
 })(window, document);

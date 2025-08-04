@@ -8,10 +8,10 @@ namespace NTWP\Utils;
  *
  * 提供一系列静态工具方法，包括数据处理、路径管理、状态映射等基础功能。
  * 专门的功能已迁移到对应的专门类中：
- * - 日志功能 → NTWP\Core\Logger
- * - 安全过滤 → NTWP\Core\Security
- * - 文本处理 → NTWP\Core\Text_Processor
- * - HTTP请求 → NTWP\Core\HTTP_Client
+ * - 日志功能 → NTWP\Core\Foundation\Logger
+ * - 安全过滤 → NTWP\Core\Foundation\Security
+ * - 文本处理 → NTWP\Services\Content\TextProcessor 
+ * - HTTP请求 → NTWP\Core\Foundation\HTTP_Client
  *
  * 本类保留委托方法以确保向后兼容性，建议使用对应的专门类。
  *
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
 class Helper {
 
     // ==================== 已移除废弃常量 ====================
-    // 注意：调试级别常量已移除，请使用 NTWP\Core\Logger 类中的常量
+    // 注意：调试级别常量已移除，请使用 NTWP\Core\Foundation\Logger 类中的常量
 
     // ==================== 纯工具方法 ====================
 
@@ -233,8 +233,8 @@ class Helper {
      */
     public static function init(): void {
         // 委托给专门的日志系统
-        if (class_exists('NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::init();
+        if (class_exists('NTWP\\Core\\Foundation\\Logger')) {
+            \NTWP\Core\Foundation\Logger::init();
         }
     }
 

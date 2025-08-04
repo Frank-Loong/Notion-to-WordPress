@@ -125,29 +125,31 @@ notion-to-wordpress/
 ├── admin/                  # Admin interface
 ├── includes/               # Core functionality classes (Layered Architecture)
 │   ├── core/              # Core Layer - Infrastructure Services
-│   │   ├── class-notion-logger.php
-│   │   ├── class-notion-security.php
-│   │   ├── class-notion-text-processor.php
-│   │   └── class-notion-http-client.php
+│   │   ├── Logger.php
+│   │   ├── Security.php
+│   │   ├── TextProcessor.php
+│   │   └── HttpClient.php
 │   ├── services/          # Services Layer - Business Logic Services
-│   │   ├── class-notion-api.php
-│   │   ├── class-notion-content-converter.php
-│   │   ├── class-notion-database-renderer.php
-│   │   ├── class-notion-image-processor.php
-│   │   ├── class-notion-metadata-extractor.php
-│   │   └── class-notion-sync-manager.php
+│   │   ├── NotionApi.php
+│   │   ├── ContentConverter.php
+│   │   ├── DatabaseRenderer.php
+│   │   ├── ImageProcessor.php
+│   │   ├── MetadataExtractor.php
+│   │   └── SyncManager.php
 │   ├── handlers/          # Handlers Layer - Coordinator Services
-│   │   ├── class-notion-import-coordinator.php  # (formerly Notion_Pages)
-│   │   ├── class-notion-to-wordpress-integrator.php
-│   │   └── class-notion-to-wordpress-webhook.php
+│   │   ├── ImportHandler.php  # (formerly Notion_Pages)
+│   │   ├── Integrator.php
+│   │   ├── SseHandler.php
+│   │   └── WebhookHandler.php
 │   ├── utils/             # Utils Layer - Tool Support Services
-│   │   ├── class-notion-to-wordpress-helper.php
-│   │   ├── class-notion-network-retry.php
-│   │   └── class-notion-concurrent-network-manager.php
+│   │   ├── Helper.php
+│   │   ├── NetworkRetry.php
+│   │   ├── SmartApiMerger.php
+│   │   └── Validator.php
 │   └── framework/         # Framework Layer - Framework Management Services
-│       ├── class-notion-to-wordpress.php
-│       ├── class-notion-to-wordpress-loader.php
-│       └── class-notion-to-wordpress-i18n.php
+│       ├── Main.php
+│       ├── Loader.php
+│       └── I18n.php
 ├── scripts/                # Automation scripts
 │   ├── build.js
 │   └── release.js
@@ -164,9 +166,9 @@ classDiagram
         -version: string
         -plugin_name: string
         -loader: Notion_To_WordPress_Loader
-        -notion_api: Notion_API
-        -notion_pages: Notion_Import_Coordinator
-        -admin: Notion_To_WordPress_Admin
+        -notion_api: NotionApi
+        -notion_pages: ImportHandler
+        -admin: AdminController
         +__construct()
         +load_dependencies()
         +instantiate_objects()
@@ -175,7 +177,7 @@ classDiagram
     }
 
     %% Services Layer
-    class Notion_API {
+    class NotionApi {
         -api_key: string
         -api_base: string
         +get_database_pages()
@@ -185,8 +187,8 @@ classDiagram
     }
 
     %% Handlers Layer
-    class Notion_Import_Coordinator {
-        -notion_api: Notion_API
+    class ImportHandler {
+        -notion_api: NotionApi
         -database_id: string
         -field_mapping: array
         +import_pages()
@@ -195,18 +197,18 @@ classDiagram
         +convert_blocks_to_html()
     }
 
-    class Notion_To_WordPress_Admin {
+    class AdminController {
         -plugin_name: string
         -version: string
-        -notion_api: Notion_API
-        -notion_pages: Notion_Import_Coordinator
+        -notion_api: NotionApi
+        -notion_pages: ImportHandler
         +handle_manual_import()
         +handle_test_connection()
         +handle_refresh_all()
     }
 
     class Notion_To_WordPress_Webhook {
-        -notion_pages: Notion_Import_Coordinator
+        -notion_pages: ImportHandler
         +handle_webhook()
         +handle_specific_event()
         +handle_page_updated()
@@ -231,15 +233,15 @@ classDiagram
     }
 
     %% Relationships
-    Notion_To_WordPress --> Notion_API
-    Notion_To_WordPress --> Notion_Import_Coordinator
-    Notion_To_WordPress --> Notion_To_WordPress_Admin
-    Notion_To_WordPress_Admin --> Notion_API
-    Notion_To_WordPress_Admin --> Notion_Import_Coordinator
-    Notion_Import_Coordinator --> Notion_API
-    Notion_To_WordPress_Webhook --> Notion_Import_Coordinator
-    Notion_Import_Coordinator --> Notion_To_WordPress_Helper
-    Notion_Import_Coordinator --> Notion_Logger
+    Notion_To_WordPress --> NotionApi
+    Notion_To_WordPress --> ImportHandler
+    Notion_To_WordPress --> AdminController
+    AdminController --> NotionApi
+    AdminController --> ImportHandler
+    ImportHandler --> NotionApi
+    Notion_To_WordPress_Webhook --> ImportHandler
+    ImportHandler --> Notion_To_WordPress_Helper
+    ImportHandler --> Notion_Logger
 ```
 
 ### 🔄 Data Flow
@@ -258,8 +260,8 @@ Notion API → API Communication Layer → Data Transform → Sync Engine → Wo
 sequenceDiagram
     participant U as User/Admin
     participant A as Admin Interface
-    participant IC as Notion_Import_Coordinator
-    participant API as Notion_API
+    participant IC as ImportHandler
+    participant API as NotionApi
     participant WP as WordPress Database
 
     U->>A: Click Smart Sync Button
@@ -291,7 +293,7 @@ sequenceDiagram
     participant C as WordPress Cron
     participant M as Notion_To_WordPress
     participant P as Notion_Pages
-    participant API as Notion_API
+    participant API as NotionApi
     participant WP as WordPress Database
 
     C->>M: Trigger notion_cron_import event
@@ -332,7 +334,7 @@ sequenceDiagram
     participant N as Notion
     participant W as Webhook Handler
     participant P as Notion_Pages
-    participant API as Notion_API
+    participant API as NotionApi
     participant WP as WordPress Database
 
     N->>W: Send Webhook Event
@@ -503,13 +505,13 @@ tests/
 /**
  * Notion API Unit Tests
  */
-class Test_Notion_API extends WP_UnitTestCase {
+class Test_NotionApi extends WP_UnitTestCase {
 
     private $notion_api;
 
     public function setUp(): void {
         parent::setUp();
-        $this->notion_api = new Notion_API();
+        $this->notion_api = new NotionApi();
     }
 
     /**
@@ -796,14 +798,14 @@ The plugin implements a comprehensive error handling system that provides consis
 try {
     $result = $this->some_operation();
     if (is_wp_error($result)) {
-        return \NTWP\Core\Error_Handler::handle_wp_error($result, 'Operation Context');
+        return \NTWP\Core\Foundation\ErrorHandler::handle_wp_error($result, 'Operation Context');
     }
 } catch (Exception $e) {
-    return \NTWP\Core\Error_Handler::handle_exception($e, 'Operation Context');
+    return \NTWP\Core\Foundation\ErrorHandler::handle_exception($e, 'Operation Context');
 }
 
 // Enhanced error logging with context
-\NTWP\Core\Error_Handler::log_error(
+\NTWP\Core\Foundation\ErrorHandler::log_error(
     'Operation failed',
     'Context Name',
     ['additional' => 'data']
@@ -811,7 +813,7 @@ try {
 ```
 
 **Key Components:**
-- `\NTWP\Core\Error_Handler`: Centralized error handling and logging
+- `\NTWP\Core\Foundation\ErrorHandler`: Centralized error handling and logging
 - Consistent error classification and severity levels
 - Enhanced debugging information and stack traces
 - Integration with WordPress error system (WP_Error)
@@ -830,13 +832,13 @@ The plugin implements a unified input validation framework for consistent and se
 
 ```php
 // Use unified validation for API keys
-$result = \NTWP\Core\Security::validate_notion_api_key($api_key);
+$result = \NTWP\Core\Foundation\Security::validate_notion_api_key($api_key);
 if (!$result['is_valid']) {
     throw new \InvalidArgumentException($result['error_message']);
 }
 
 // Batch validation for plugin options
-$validation_result = \NTWP\Core\Security::validate_plugin_options($options);
+$validation_result = \NTWP\Core\Foundation\Security::validate_plugin_options($options);
 if (!$validation_result['is_valid']) {
     foreach ($validation_result['errors'] as $error) {
         // Handle validation errors
@@ -845,8 +847,8 @@ if (!$validation_result['is_valid']) {
 ```
 
 **Key Components:**
-- `\NTWP\Core\Validation_Rules`: Centralized validation rules and constants
-- `\NTWP\Core\Security`: Validation methods and security utilities
+- `\NTWP\Utils\Validator`: Centralized validation rules and constants
+- `\NTWP\Core\Foundation\Security`: Validation methods and security utilities
 - Consistent error handling and user-friendly messages
 - Support for both individual and batch validation
 
@@ -1048,7 +1050,7 @@ public function sync_notion_page( $page_id ) {
 /**
  * Error classification handling
  */
-class Notion_Error_Handler {
+class ErrorHandler {
 
     const ERROR_TYPES = [
         'API_ERROR' => 'API call error',

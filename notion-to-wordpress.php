@@ -76,7 +76,7 @@ if ( file_exists( $autoloader_path ) ) {
 
 /**
  * 插件激活时运行的代码
- * 此操作的文档位于 includes/class-notion-to-wordpress.php
+ * 此操作的代码位于 includes/framework/Main.php
  */
 function activate_notion_to_wordpress() {
 	// 设置标记以在下次加载时显示 autoloader 日志
@@ -95,14 +95,14 @@ function activate_notion_to_wordpress() {
  */
 function init_modern_async_system() {
 	// 记录现代异步系统启动
-	if (class_exists('NTWP\\Core\\Logger')) {
-		NTWP\Core\Logger::info_log('现代异步处理系统已启动，无需外部依赖', 'Plugin Activation');
+	if (class_exists('NTWP\\Core\\Foundation\\Logger')) {
+		\NTWP\Core\Foundation\Logger::info_log('现代异步处理系统已启动，无需外部依赖', 'Plugin Activation');
 	}
 }
 
 /**
  * 插件停用时运行的代码
- * 此操作的文档位于 includes/class-notion-to-wordpress.php
+ * 此操作的文档位于 includes/framework/Main.php
  */
 function deactivate_notion_to_wordpress() {
 	// Clear any scheduled cron jobs
