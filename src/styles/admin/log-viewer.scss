@@ -1,0 +1,666 @@
+/**
+ * 日志查看器样式 - 现代化设计
+ * 
+ * 为日志查看器组件提供美观的UI样式
+ */
+
+// 变量定义
+:root {
+  --log-primary-color: #0073aa;
+  --log-secondary-color: #f1f1f1;
+  --log-border-color: #ddd;
+  --log-text-color: #23282d;
+  --log-bg-color: #ffffff;
+  --log-hover-color: #f8f9fa;
+  --log-border-radius: 6px;
+  --log-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --log-transition: all 0.2s ease;
+  
+  // 日志级别颜色
+  --log-debug-color: #6c757d;
+  --log-info-color: #17a2b8;
+  --log-warning-color: #ffc107;
+  --log-error-color: #dc3545;
+  
+  // 日志级别背景色
+  --log-debug-bg: #f8f9fa;
+  --log-info-bg: #d1ecf1;
+  --log-warning-bg: #fff3cd;
+  --log-error-bg: #f8d7da;
+}
+
+// 主容器
+.notion-log-viewer-component {
+  background: var(--log-bg-color);
+  border: 1px solid var(--log-border-color);
+  border-radius: var(--log-border-radius);
+  overflow: hidden;
+  box-shadow: var(--log-shadow);
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+}
+
+// 工具栏
+.log-viewer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--log-secondary-color);
+  border-bottom: 1px solid var(--log-border-color);
+  gap: 12px;
+  flex-wrap: wrap;
+
+  .toolbar-left,
+  .toolbar-center,
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .toolbar-center {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .log-file-selector,
+  .view-mode-toggle,
+  .log-level-filter,
+  .log-source-filter {
+    padding: 6px 12px;
+    border: 1px solid var(--log-border-color);
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    min-width: 120px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--log-primary-color);
+      box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.2);
+    }
+  }
+
+  .log-search-input {
+    padding: 6px 12px;
+    border: 1px solid var(--log-border-color);
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    min-width: 200px;
+    transition: var(--log-transition);
+
+    &:focus {
+      outline: none;
+      border-color: var(--log-primary-color);
+      box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.2);
+    }
+
+    &::placeholder {
+      color: #999;
+    }
+  }
+
+  .log-date-from,
+  .log-date-to {
+    padding: 6px 8px;
+    border: 1px solid var(--log-border-color);
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    width: 140px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--log-primary-color);
+      box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.2);
+    }
+  }
+
+  .auto-refresh-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    cursor: pointer;
+
+    input[type="checkbox"] {
+      margin: 0;
+    }
+  }
+
+  .refresh-button,
+  .export-button,
+  .clear-button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--log-border-color);
+    border-radius: 4px;
+    background: white;
+    color: var(--log-text-color);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--log-transition);
+
+    &:hover {
+      background: var(--log-hover-color);
+      border-color: var(--log-primary-color);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .icon {
+      font-size: 16px;
+    }
+  }
+
+  .clear-button {
+    border-color: var(--log-error-color);
+    color: var(--log-error-color);
+
+    &:hover {
+      background: var(--log-error-bg);
+    }
+  }
+}
+
+// 统计信息
+.log-stats-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid var(--log-border-color);
+  font-size: 14px;
+
+  .log-stats {
+    display: flex;
+    gap: 16px;
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      .stat-label {
+        color: #666;
+      }
+
+      .stat-value {
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 3px;
+        background: white;
+        border: 1px solid var(--log-border-color);
+        min-width: 24px;
+        text-align: center;
+
+        &.error-count {
+          background: var(--log-error-bg);
+          color: var(--log-error-color);
+        }
+
+        &.warning-count {
+          background: var(--log-warning-bg);
+          color: #856404;
+        }
+
+        &.info-count {
+          background: var(--log-info-bg);
+          color: #0c5460;
+        }
+
+        &.debug-count {
+          background: var(--log-debug-bg);
+          color: var(--log-debug-color);
+        }
+      }
+    }
+  }
+
+  .log-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #666;
+
+    .loading-indicator {
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+// 内容容器
+.log-content-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+// 结构化视图
+.log-structured-viewer {
+  height: 100%;
+  overflow: hidden;
+
+  .log-entries-container {
+    height: 100%;
+    overflow-y: auto;
+    padding: 8px;
+
+    .log-entries {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-entry {
+      border: 1px solid var(--log-border-color);
+      border-radius: 4px;
+      padding: 8px 12px;
+      background: white;
+      transition: var(--log-transition);
+
+      &:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      &.log-debug {
+        border-left: 4px solid var(--log-debug-color);
+        background: var(--log-debug-bg);
+      }
+
+      &.log-info {
+        border-left: 4px solid var(--log-info-color);
+        background: var(--log-info-bg);
+      }
+
+      &.log-warning {
+        border-left: 4px solid var(--log-warning-color);
+        background: var(--log-warning-bg);
+      }
+
+      &.log-error {
+        border-left: 4px solid var(--log-error-color);
+        background: var(--log-error-bg);
+      }
+
+      .log-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+        font-size: 12px;
+
+        .log-level {
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 3px;
+          color: white;
+          min-width: 60px;
+          text-align: center;
+        }
+
+        .log-debug .log-level {
+          background: var(--log-debug-color);
+        }
+
+        .log-info .log-level {
+          background: var(--log-info-color);
+        }
+
+        .log-warning .log-level {
+          background: #856404;
+        }
+
+        .log-error .log-level {
+          background: var(--log-error-color);
+        }
+
+        .log-source {
+          background: #e9ecef;
+          padding: 2px 6px;
+          border-radius: 3px;
+          color: #495057;
+          font-family: monospace;
+        }
+
+        .log-time {
+          color: #6c757d;
+          margin-left: auto;
+        }
+      }
+
+      .log-message {
+        font-size: 14px;
+        line-height: 1.4;
+        word-break: break-word;
+        white-space: pre-wrap;
+      }
+
+      .log-context {
+        margin-top: 8px;
+        padding: 8px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 3px;
+        font-size: 12px;
+
+        pre {
+          margin: 0;
+          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+      }
+    }
+
+    .log-more-info {
+      text-align: center;
+      padding: 12px;
+      color: #6c757d;
+      font-size: 14px;
+      border-top: 1px solid var(--log-border-color);
+      background: #f8f9fa;
+    }
+  }
+}
+
+// 原始视图
+.log-raw-viewer {
+  height: 100%;
+  padding: 8px;
+
+  .log-raw-content {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 4px;
+    white-space: pre;
+    overflow: auto;
+  }
+}
+
+// 占位符样式
+.empty-placeholder,
+.error-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+  color: #6c757d;
+
+  .empty-icon,
+  .error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+
+  .empty-message,
+  .error-message {
+    font-size: 16px;
+  }
+
+  .error-icon {
+    color: var(--log-error-color);
+  }
+
+  .error-message {
+    color: var(--log-error-color);
+  }
+}
+
+// 导出对话框
+.export-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+
+  .export-dialog {
+    background: white;
+    border-radius: 8px;
+    padding: 24px;
+    min-width: 300px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+    h3 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: var(--log-text-color);
+    }
+
+    .export-options {
+      margin-bottom: 20px;
+
+      label {
+        display: block;
+        margin-bottom: 8px;
+        cursor: pointer;
+
+        input[type="radio"] {
+          margin-right: 8px;
+        }
+      }
+    }
+
+    .export-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+
+      button {
+        padding: 8px 16px;
+        border: 1px solid var(--log-border-color);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: var(--log-transition);
+
+        &.export-confirm {
+          background: var(--log-primary-color);
+          color: white;
+          border-color: var(--log-primary-color);
+
+          &:hover {
+            background: #005a87;
+          }
+        }
+
+        &.export-cancel {
+          background: white;
+          color: var(--log-text-color);
+
+          &:hover {
+            background: var(--log-hover-color);
+          }
+        }
+      }
+    }
+  }
+}
+
+// 动画
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 响应式设计
+@media (max-width: 1024px) {
+  .log-viewer-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .log-search-input {
+      min-width: auto;
+      flex: 1;
+    }
+  }
+
+  .log-stats-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    .log-stats {
+      justify-content: space-around;
+      flex-wrap: wrap;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .notion-log-viewer-component {
+    height: 500px;
+  }
+
+  .log-viewer-toolbar {
+    .toolbar-left,
+    .toolbar-center,
+    .toolbar-right {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .log-file-selector,
+    .view-mode-toggle,
+    .log-level-filter,
+    .log-source-filter,
+    .log-search-input {
+      min-width: auto;
+    }
+  }
+
+  .log-stats-container {
+    .log-stats {
+      .stat-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 2px;
+      }
+    }
+  }
+
+  .log-structured-viewer {
+    .log-entries-container {
+      .log-entry {
+        .log-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+
+          .log-time {
+            margin-left: 0;
+          }
+        }
+      }
+    }
+  }
+}
+
+// 深色模式支持
+@media (prefers-color-scheme: dark) {
+  :root {
+    --log-bg-color: #2c3338;
+    --log-text-color: #f0f0f1;
+    --log-border-color: #3c434a;
+    --log-secondary-color: #23282d;
+    --log-hover-color: #3c434a;
+    
+    --log-debug-bg: #3c434a;
+    --log-info-bg: #1e3a4a;
+    --log-warning-bg: #4a3c1e;
+    --log-error-bg: #4a1e1e;
+  }
+
+  .notion-log-viewer-component {
+    color: var(--log-text-color);
+  }
+
+  .log-viewer-toolbar {
+    .log-file-selector,
+    .view-mode-toggle,
+    .log-level-filter,
+    .log-source-filter,
+    .log-search-input,
+    .log-date-from,
+    .log-date-to,
+    .refresh-button,
+    .export-button,
+    .clear-button {
+      background: var(--log-bg-color);
+      color: var(--log-text-color);
+      border-color: var(--log-border-color);
+    }
+  }
+
+  .log-structured-viewer {
+    .log-entries-container {
+      .log-entry {
+        background: var(--log-bg-color);
+        border-color: var(--log-border-color);
+
+        .log-header {
+          .log-source {
+            background: var(--log-border-color);
+            color: var(--log-text-color);
+          }
+        }
+
+        .log-context {
+          background: var(--log-border-color);
+          border-color: var(--log-hover-color);
+        }
+      }
+    }
+  }
+
+  .log-raw-viewer {
+    .log-raw-content {
+      background: var(--log-bg-color);
+      color: var(--log-text-color);
+    }
+  }
+
+  .export-dialog-overlay {
+    .export-dialog {
+      background: var(--log-bg-color);
+      color: var(--log-text-color);
+    }
+  }
+}
