@@ -136,31 +136,41 @@ class Notion_To_WordPress_Admin {
         // 创建nonce用于内联脚本安全
         $script_nonce = wp_create_nonce('notion_wp_script_nonce');
         
-        // 添加CSP nonce到脚本标签
-        // 先加载SSE进度管理器
+        // 加载现代化TypeScript构建文件
+        // 运行时文件（必须首先加载）
         wp_enqueue_script(
-            $this->plugin_name . '-sse-progress',
-            Helper::plugin_url('assets/js/sse-progress-manager.js'),
+            $this->plugin_name . '-runtime',
+            Helper::plugin_url('assets/dist/js/runtime.js'),
             array(),
             $this->version,
-            true // 在页脚加载
+            true
         );
 
-        // 再加载主进度管理器（依赖SSE管理器）
+        // 第三方库文件
         wp_enqueue_script(
-            $this->plugin_name . '-sync-progress',
-            Helper::plugin_url('assets/js/sync-progress-manager.js'),
-            array('jquery', $this->plugin_name . '-sse-progress'),
+            $this->plugin_name . '-vendors',
+            Helper::plugin_url('assets/dist/js/vendors.js'),
+            array($this->plugin_name . '-runtime'),
             $this->version,
-            true // 在页脚加载
+            true
         );
 
+        // 公共模块文件
+        wp_enqueue_script(
+            $this->plugin_name . '-common',
+            Helper::plugin_url('assets/dist/js/common.js'),
+            array($this->plugin_name . '-vendors'),
+            $this->version,
+            true
+        );
+
+        // 管理界面主文件（现代化TypeScript版本）
         wp_enqueue_script(
             $this->plugin_name . '-admin',
-            Helper::plugin_url('assets/js/admin-interactions.js'),
-            array('jquery', $this->plugin_name . '-sync-progress'),
+            Helper::plugin_url('assets/dist/js/admin.js'),
+            array('jquery', $this->plugin_name . '-common'),
             $this->version,
-            true // 在页脚加载
+            true
         );
 
         // 为JS提供统一的PHP数据对象
