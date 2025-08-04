@@ -1,0 +1,361 @@
+/**
+ * 同步进度UI样式 - 现代化设计
+ * 
+ * 为同步进度管理器提供美观的UI样式
+ */
+
+// 变量定义
+:root {
+  --progress-primary-color: #0073aa;
+  --progress-success-color: #46b450;
+  --progress-error-color: #dc3232;
+  --progress-warning-color: #ffb900;
+  --progress-bg-color: #f1f1f1;
+  --progress-text-color: #23282d;
+  --progress-border-radius: 6px;
+  --progress-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --progress-animation-duration: 0.3s;
+}
+
+// 主容器
+.notion-sync-progress-container {
+  position: fixed;
+  z-index: 9999;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 400px;
+  max-width: 600px;
+  background: white;
+  border-radius: var(--progress-border-radius);
+  box-shadow: var(--progress-shadow);
+  border: 1px solid #ddd;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  
+  // 位置变体
+  &.position-top {
+    top: 20px;
+  }
+  
+  &.position-center {
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  &.position-bottom {
+    bottom: 20px;
+  }
+  
+  // 主题变体
+  &.theme-minimal {
+    border: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    
+    .sync-progress-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .sync-progress-body {
+      padding: 12px 16px;
+    }
+  }
+  
+  &.theme-detailed {
+    .sync-progress-body {
+      padding: 20px;
+    }
+    
+    .progress-info {
+      margin-top: 16px;
+    }
+  }
+  
+  // 状态样式
+  &.status-running {
+    border-left: 4px solid var(--progress-primary-color);
+  }
+  
+  &.status-completed {
+    border-left: 4px solid var(--progress-success-color);
+  }
+  
+  &.status-failed {
+    border-left: 4px solid var(--progress-error-color);
+  }
+  
+  &.status-cancelled {
+    border-left: 4px solid var(--progress-warning-color);
+  }
+}
+
+// 进度内容
+.sync-progress-content {
+  overflow: hidden;
+  border-radius: var(--progress-border-radius);
+}
+
+// 头部
+.sync-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #f9f9f9;
+  border-bottom: 1px solid #eee;
+}
+
+.sync-progress-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--progress-text-color);
+}
+
+.sync-progress-icon {
+  font-size: 16px;
+  animation: spin 2s linear infinite;
+  
+  .status-completed & {
+    animation: none;
+  }
+  
+  .status-failed & {
+    animation: none;
+  }
+  
+  .status-cancelled & {
+    animation: none;
+  }
+}
+
+.sync-progress-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background-color var(--progress-animation-duration);
+  
+  &:hover {
+    background-color: #eee;
+  }
+}
+
+// 主体
+.sync-progress-body {
+  padding: 16px 20px 20px;
+}
+
+// 进度条容器
+.progress-bar-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+// 进度条
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--progress-bg-color);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--progress-primary-color);
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+  position: relative;
+  
+  &.progress-active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.3),
+      transparent
+    );
+    animation: progress-shine 1.5s infinite;
+  }
+  
+  .status-completed & {
+    background: var(--progress-success-color);
+  }
+  
+  .status-failed & {
+    background: var(--progress-error-color);
+  }
+}
+
+.progress-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  animation: progress-shine 2s infinite;
+}
+
+.progress-percentage {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--progress-primary-color);
+  min-width: 40px;
+  text-align: right;
+  
+  .status-completed & {
+    color: var(--progress-success-color);
+  }
+  
+  .status-failed & {
+    color: var(--progress-error-color);
+  }
+}
+
+// 进度信息
+.progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-status {
+  font-size: 14px;
+  color: var(--progress-text-color);
+  font-weight: 500;
+}
+
+.progress-current-item {
+  font-size: 13px;
+  color: #666;
+  font-style: italic;
+}
+
+.progress-eta {
+  font-size: 12px;
+  color: #888;
+}
+
+// 动画
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes progress-shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .notion-sync-progress-container {
+    left: 10px;
+    right: 10px;
+    min-width: auto;
+    max-width: none;
+    transform: none;
+    
+    &.position-center {
+      top: 50%;
+      left: 10px;
+      right: 10px;
+      transform: translateY(-50%);
+    }
+  }
+  
+  .sync-progress-header,
+  .sync-progress-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  .progress-bar-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .progress-percentage {
+    text-align: center;
+    min-width: auto;
+  }
+}
+
+// 深色模式支持
+@media (prefers-color-scheme: dark) {
+  .notion-sync-progress-container {
+    background: #2c3338;
+    border-color: #3c434a;
+    color: #f0f0f1;
+  }
+  
+  .sync-progress-header {
+    background: #23282d;
+    border-bottom-color: #3c434a;
+  }
+  
+  .sync-progress-title,
+  .progress-status {
+    color: #f0f0f1;
+  }
+  
+  .progress-bar {
+    background: #3c434a;
+  }
+  
+  .sync-progress-close {
+    color: #a7aaad;
+    
+    &:hover {
+      background-color: #3c434a;
+    }
+  }
+}
+
+// 高对比度模式支持
+@media (prefers-contrast: high) {
+  .notion-sync-progress-container {
+    border: 2px solid #000;
+  }
+  
+  .progress-fill {
+    background: #000;
+  }
+  
+  .progress-percentage {
+    color: #000;
+  }
+}

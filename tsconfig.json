@@ -1,0 +1,81 @@
+{
+  "compilerOptions": {
+    // 基础配置
+    "target": "ES2018",                    // 编译目标，支持现代浏览器
+    "module": "ESNext",                    // 模块系统
+    "moduleResolution": "node",            // 模块解析策略
+    "lib": ["ES2018", "DOM", "DOM.Iterable"], // 包含的库
+    
+    // 输出配置
+    "outDir": "./dist",                    // 输出目录
+    "rootDir": "./src",                    // 根目录
+    "declaration": true,                   // 生成声明文件
+    "declarationMap": true,                // 生成声明文件映射
+    "sourceMap": true,                     // 生成源码映射
+    
+    // 严格类型检查
+    "strict": true,                        // 启用所有严格类型检查
+    "noImplicitAny": true,                 // 不允许隐式any类型
+    "strictNullChecks": true,              // 严格空值检查
+    "strictFunctionTypes": true,           // 严格函数类型检查
+    "noImplicitReturns": true,             // 函数必须有返回值
+    "noImplicitThis": true,                // 不允许隐式this
+    "noUnusedLocals": true,                // 不允许未使用的局部变量
+    "noUnusedParameters": true,            // 不允许未使用的参数
+    
+    // 模块解析
+    "esModuleInterop": true,               // 启用ES模块互操作
+    "allowSyntheticDefaultImports": true,  // 允许合成默认导入
+    "resolveJsonModule": true,             // 支持导入JSON文件
+    "isolatedModules": true,               // 每个文件作为独立模块
+    
+    // 路径映射
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@/admin/*": ["admin/*"],
+      "@/frontend/*": ["frontend/*"],
+      "@/shared/*": ["shared/*"],
+      "@/utils/*": ["shared/utils/*"],
+      "@/types/*": ["shared/types/*"],
+      "@/constants/*": ["shared/constants/*"],
+      "@/core/*": ["shared/core/*"]
+    },
+    
+    // 其他配置
+    "skipLibCheck": true,                  // 跳过库文件类型检查
+    "forceConsistentCasingInFileNames": true, // 强制文件名大小写一致
+    "allowJs": true,                       // 允许JavaScript文件
+    "checkJs": false,                      // 不检查JavaScript文件
+    "incremental": true,                   // 增量编译
+    "tsBuildInfoFile": "./dist/.tsbuildinfo" // 构建信息文件
+  },
+  
+  // 包含的文件
+  "include": [
+    "src/**/*",
+    "types/**/*"
+  ],
+  
+  // 排除的文件
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "assets/js/*.js",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ],
+  
+  // TypeScript项目引用
+  "references": [],
+  
+  // 编译选项
+  "compileOnSave": false,
+  
+  // 类型根目录
+  "typeRoots": [
+    "./node_modules/@types",
+    "./types"
+  ]
+}

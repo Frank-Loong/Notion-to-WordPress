@@ -1,0 +1,568 @@
+/**
+ * 错误显示组件样式 - 现代化设计
+ * 
+ * 为错误显示组件提供美观的UI样式
+ */
+
+// 变量定义
+:root {
+  --error-primary-color: #dc3545;
+  --error-secondary-color: #f1f1f1;
+  --error-border-color: #ddd;
+  --error-text-color: #23282d;
+  --error-bg-color: #ffffff;
+  --error-hover-color: #f8f9fa;
+  --error-border-radius: 6px;
+  --error-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --error-transition: all 0.2s ease;
+  
+  // 严重性颜色
+  --error-critical-color: #dc3545;
+  --error-high-color: #fd7e14;
+  --error-medium-color: #ffc107;
+  --error-low-color: #6c757d;
+  
+  // 严重性背景色
+  --error-critical-bg: #f8d7da;
+  --error-high-bg: #fff3cd;
+  --error-medium-bg: #fff3cd;
+  --error-low-bg: #f8f9fa;
+  
+  // 类型颜色
+  --error-auth-color: #dc3545;
+  --error-network-color: #17a2b8;
+  --error-server-color: #fd7e14;
+  --error-validation-color: #ffc107;
+  --error-rate-limit-color: #6f42c1;
+  --error-data-color: #20c997;
+}
+
+// 主容器
+.notion-error-display-component {
+  background: var(--error-bg-color);
+  border: 1px solid var(--error-border-color);
+  border-radius: var(--error-border-radius);
+  overflow: hidden;
+  box-shadow: var(--error-shadow);
+  margin: 16px 0;
+}
+
+// 错误显示头部
+.error-display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--error-secondary-color);
+  border-bottom: 1px solid var(--error-border-color);
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--error-text-color);
+  }
+
+  .error-status {
+    font-size: 14px;
+    color: #666;
+
+    .status-indicator {
+      font-weight: 500;
+    }
+  }
+}
+
+// 错误统计
+.error-stats-container {
+  padding: 16px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid var(--error-border-color);
+
+  .error-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .stat-label {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .stat-value {
+        font-weight: 600;
+        font-size: 16px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: white;
+        border: 1px solid var(--error-border-color);
+        min-width: 32px;
+        text-align: center;
+
+        &.total-count {
+          color: var(--error-text-color);
+        }
+
+        &.unresolved-count {
+          background: var(--error-critical-bg);
+          color: var(--error-critical-color);
+          border-color: var(--error-critical-color);
+        }
+
+        &.critical-count {
+          background: var(--error-critical-bg);
+          color: var(--error-critical-color);
+        }
+
+        &.high-count {
+          background: var(--error-high-bg);
+          color: #856404;
+        }
+      }
+    }
+  }
+}
+
+// 错误工具栏
+.error-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--error-secondary-color);
+  border-bottom: 1px solid var(--error-border-color);
+  gap: 12px;
+
+  .toolbar-left,
+  .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .error-filter-select,
+  .error-severity-select {
+    padding: 6px 12px;
+    border: 1px solid var(--error-border-color);
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    min-width: 120px;
+
+    &:focus {
+      outline: none;
+      border-color: var(--error-primary-color);
+      box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+    }
+  }
+
+  .show-resolved-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+
+    input[type="checkbox"] {
+      margin: 0;
+    }
+  }
+
+  .refresh-button,
+  .export-button,
+  .clear-button {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: 1px solid var(--error-border-color);
+    border-radius: 4px;
+    background: white;
+    color: var(--error-text-color);
+    font-size: 14px;
+    cursor: pointer;
+    transition: var(--error-transition);
+
+    &:hover {
+      background: var(--error-hover-color);
+      border-color: var(--error-primary-color);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .icon {
+      font-size: 16px;
+    }
+  }
+
+  .clear-button {
+    border-color: var(--error-primary-color);
+    color: var(--error-primary-color);
+
+    &:hover {
+      background: var(--error-critical-bg);
+    }
+  }
+}
+
+// 错误列表容器
+.error-list-container {
+  max-height: 600px;
+  overflow-y: auto;
+
+  .error-list {
+    padding: 16px;
+
+    .empty-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      text-align: center;
+      color: #666;
+
+      .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+      }
+
+      .empty-message {
+        font-size: 16px;
+      }
+    }
+  }
+}
+
+// 错误项
+.error-item {
+  border: 1px solid var(--error-border-color);
+  border-radius: var(--error-border-radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  background: white;
+  transition: var(--error-transition);
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  &.resolved {
+    opacity: 0.7;
+    background: #f8f9fa;
+  }
+
+  // 严重性样式
+  &.severity-critical {
+    border-left: 4px solid var(--error-critical-color);
+    background: var(--error-critical-bg);
+  }
+
+  &.severity-high {
+    border-left: 4px solid var(--error-high-color);
+    background: var(--error-high-bg);
+  }
+
+  &.severity-medium {
+    border-left: 4px solid var(--error-medium-color);
+    background: var(--error-medium-bg);
+  }
+
+  &.severity-low {
+    border-left: 4px solid var(--error-low-color);
+    background: var(--error-low-bg);
+  }
+
+  .error-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+
+    .error-type-badge,
+    .error-severity-badge,
+    .error-resolved-badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: white;
+    }
+
+    .error-type-badge {
+      background: var(--error-primary-color);
+
+      &.type-auth_error {
+        background: var(--error-auth-color);
+      }
+
+      &.type-network_error {
+        background: var(--error-network-color);
+      }
+
+      &.type-server_error {
+        background: var(--error-server-color);
+      }
+
+      &.type-validation_error {
+        background: var(--error-validation-color);
+        color: #856404;
+      }
+
+      &.type-rate_limit_error {
+        background: var(--error-rate-limit-color);
+      }
+
+      &.type-data_error {
+        background: var(--error-data-color);
+      }
+    }
+
+    .error-severity-badge {
+      &.severity-critical {
+        background: var(--error-critical-color);
+      }
+
+      &.severity-high {
+        background: var(--error-high-color);
+      }
+
+      &.severity-medium {
+        background: var(--error-medium-color);
+        color: #856404;
+      }
+
+      &.severity-low {
+        background: var(--error-low-color);
+      }
+    }
+
+    .error-resolved-badge {
+      background: #28a745;
+    }
+
+    .error-time {
+      color: #6c757d;
+      font-size: 12px;
+      margin-left: auto;
+    }
+  }
+
+  .error-message {
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    word-break: break-word;
+  }
+
+  .error-context {
+    margin-bottom: 8px;
+    font-size: 12px;
+
+    strong {
+      color: #495057;
+    }
+
+    pre {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 8px;
+      margin: 4px 0 0 0;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  }
+
+  .error-retry-info {
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: #6c757d;
+
+    .retry-count {
+      background: #e9ecef;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+  }
+
+  .error-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border: 1px solid var(--error-border-color);
+      border-radius: 4px;
+      background: white;
+      color: var(--error-text-color);
+      font-size: 12px;
+      cursor: pointer;
+      transition: var(--error-transition);
+
+      &:hover {
+        background: var(--error-hover-color);
+      }
+
+      .icon {
+        font-size: 14px;
+      }
+    }
+
+    .resolve-button {
+      border-color: #28a745;
+      color: #28a745;
+
+      &:hover {
+        background: #d4edda;
+      }
+    }
+
+    .retry-button {
+      border-color: #17a2b8;
+      color: #17a2b8;
+
+      &:hover {
+        background: #d1ecf1;
+      }
+    }
+
+    .details-button {
+      border-color: #6c757d;
+      color: #6c757d;
+
+      &:hover {
+        background: #f8f9fa;
+      }
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .error-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+
+    .toolbar-left,
+    .toolbar-right {
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .error-filter-select,
+    .error-severity-select {
+      min-width: auto;
+      flex: 1;
+    }
+  }
+
+  .error-stats-container {
+    .error-stats {
+      justify-content: space-around;
+      gap: 12px;
+
+      .stat-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 4px;
+      }
+    }
+  }
+
+  .error-item {
+    .error-header {
+      .error-time {
+        margin-left: 0;
+        margin-top: 4px;
+      }
+    }
+
+    .error-actions {
+      button {
+        flex: 1;
+        justify-content: center;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .error-toolbar {
+    .toolbar-left,
+    .toolbar-right {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+
+  .error-stats-container {
+    .error-stats {
+      flex-direction: column;
+      gap: 8px;
+
+      .stat-item {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+    }
+  }
+}
+
+// 深色模式支持
+@media (prefers-color-scheme: dark) {
+  :root {
+    --error-bg-color: #2c3338;
+    --error-text-color: #f0f0f1;
+    --error-border-color: #3c434a;
+    --error-secondary-color: #23282d;
+    --error-hover-color: #3c434a;
+  }
+
+  .notion-error-display-component {
+    color: var(--error-text-color);
+  }
+
+  .error-toolbar {
+    .error-filter-select,
+    .error-severity-select,
+    .refresh-button,
+    .export-button,
+    .clear-button {
+      background: var(--error-bg-color);
+      color: var(--error-text-color);
+      border-color: var(--error-border-color);
+    }
+  }
+
+  .error-item {
+    background: var(--error-bg-color);
+    border-color: var(--error-border-color);
+
+    .error-context pre {
+      background: var(--error-border-color);
+      border-color: var(--error-hover-color);
+    }
+
+    .error-actions button {
+      background: var(--error-bg-color);
+      color: var(--error-text-color);
+      border-color: var(--error-border-color);
+    }
+  }
+}

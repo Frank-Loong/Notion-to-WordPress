@@ -706,33 +706,49 @@ class Main {
 			wp_enqueue_script( 'katex-mhchem' );
 			wp_enqueue_script( 'katex-auto-render' );
 
-			// KaTeX渲染脚本
+			// 加载现代化TypeScript构建的数学渲染器
 			wp_enqueue_script(
 				$this->plugin_name . '-katex-mermaid',
-				\NTWP\Infrastructure\Helper::plugin_url('assets/js/katex-mermaid.js'),
+				\NTWP\Utils\Helper::plugin_url('assets/dist/js/katex-mermaid.js'),
 				array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
 				$this->version,
 				true
 			);
 		} // 结束数学支持条件加载
 
-		// 条件加载：仅在启用Mermaid支持时加载（已在上面的KaTeX部分统一处理）
-		// Mermaid相关脚本已在上面的KaTeX部分处理，支持智能检测
-
-		// 懒加载和性能优化脚本
+		// 加载现代化前端系统
+		// 运行时文件（必须首先加载）
 		wp_enqueue_script(
-			$this->plugin_name . '-lazy-loading',
-			\NTWP\Infrastructure\Helper::plugin_url('assets/js/lazy-loading.js'),
+			$this->plugin_name . '-frontend-runtime',
+			\NTWP\Utils\Helper::plugin_url('assets/dist/js/runtime.js'),
 			array(),
 			$this->version,
 			true
 		);
 
-		// 前端资源优化脚本
+		// 第三方库文件
 		wp_enqueue_script(
-			$this->plugin_name . '-resource-optimizer',
-			\NTWP\Infrastructure\Helper::plugin_url('assets/js/resource-optimizer.js'),
-			array($this->plugin_name . '-lazy-loading'),
+			$this->plugin_name . '-frontend-vendors',
+			\NTWP\Utils\Helper::plugin_url('assets/dist/js/vendors.js'),
+			array($this->plugin_name . '-frontend-runtime'),
+			$this->version,
+			true
+		);
+
+		// 公共模块文件
+		wp_enqueue_script(
+			$this->plugin_name . '-frontend-common',
+			\NTWP\Utils\Helper::plugin_url('assets/dist/js/common.js'),
+			array($this->plugin_name . '-frontend-vendors'),
+			$this->version,
+			true
+		);
+
+		// 前端主文件（现代化TypeScript版本）
+		wp_enqueue_script(
+			$this->plugin_name . '-frontend',
+			\NTWP\Utils\Helper::plugin_url('assets/dist/js/frontend.js'),
+			array('jquery', $this->plugin_name . '-frontend-common'),
 			$this->version,
 			true
 		);
@@ -740,18 +756,9 @@ class Main {
 		// 传递CDN配置到前端
 		$cdn_config = $this->get_cdn_config();
 		wp_localize_script(
-			$this->plugin_name . '-resource-optimizer',
+			$this->plugin_name . '-frontend',
 			'notionCdnConfig',
 			$cdn_config
-		);
-
-		// 注册锚点导航脚本，支持区块锚点跳转
-		wp_enqueue_script(
-			$this->plugin_name . '-anchor-navigation',
-			\NTWP\Infrastructure\Helper::plugin_url('assets/js/anchor-navigation.js'),
-			array(),
-			$this->version,
-			true
 		);
 	}
 

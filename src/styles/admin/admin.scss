@@ -1,0 +1,385 @@
+/**
+ * 管理界面主样式
+ */
+
+@import '../shared/variables';
+
+// 基础样式重置
+.notion-wp-admin {
+  font-family: $font-family-base;
+  font-size: $font-size-base;
+  line-height: $line-height-normal;
+  color: $text-primary;
+
+  * {
+    box-sizing: border-box;
+  }
+
+  // 清除浮动
+  &::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+}
+
+// 头部样式
+.notion-wp-header {
+  background: $bg-primary;
+  border-bottom: 1px solid $border-color;
+  padding: $spacing-4 $spacing-6;
+  margin-bottom: $spacing-6;
+
+  &-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: $content-max-width;
+    margin: 0 auto;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    display: flex;
+    align-items: center;
+    gap: $spacing-3;
+  }
+
+  .notion-wp-logo {
+    width: 32px;
+    height: 32px;
+    background: #0073aa;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+
+    &::before {
+      content: 'N';
+    }
+  }
+
+  .notion-wp-version {
+    background: $gray-100;
+    color: $text-secondary;
+    padding: $spacing-1 $spacing-2;
+    border-radius: $border-radius-base;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+  }
+}
+
+// 布局容器
+.notion-wp-layout {
+  display: flex;
+  max-width: $content-max-width;
+  margin: 0 auto;
+  gap: $spacing-6;
+  min-height: 600px;
+}
+
+// 侧边栏
+.notion-wp-sidebar {
+  flex: 0 0 $sidebar-width;
+  background: $bg-secondary;
+  border-radius: $border-radius-lg;
+  padding: $spacing-4;
+  height: fit-content;
+  position: sticky;
+  top: $spacing-4;
+}
+
+// 菜单
+.notion-wp-menu {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+
+  &-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: $spacing-3 $spacing-4;
+    background: transparent;
+    border: none;
+    border-radius: $border-radius-base;
+    color: $text-secondary;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    text-align: left;
+    cursor: pointer;
+    transition: all $transition-fast;
+
+    &:hover {
+      background: $bg-primary;
+      color: $text-primary;
+      transform: translateX(2px);
+    }
+
+    &.active {
+      background: $primary-color;
+      color: $white;
+      box-shadow: $shadow-sm;
+
+      &:hover {
+        background: $secondary-color;
+        transform: none;
+      }
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+
+      &:hover {
+        background: transparent;
+        color: $text-secondary;
+        transform: none;
+      }
+    }
+  }
+}
+
+// 内容区域
+.notion-wp-content {
+  flex: 1;
+  background: $bg-primary;
+  border-radius: $border-radius-lg;
+  padding: $spacing-6;
+  box-shadow: $shadow-sm;
+}
+
+// 标签页内容
+.notion-wp-tab-content {
+  display: none;
+
+  &.active {
+    display: block;
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 表单样式
+.notion-wp-form {
+  .form-group {
+    margin-bottom: $spacing-5;
+
+    label {
+      display: block;
+      margin-bottom: $spacing-2;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+    }
+
+    .form-control {
+      width: 100%;
+      height: $input-height;
+      padding: $input-padding-y $input-padding-x;
+      border: $input-border-width solid $input-border-color;
+      border-radius: $input-border-radius;
+      font-size: $font-size-base;
+      transition: all $transition-fast;
+
+      &:focus {
+        outline: none;
+        border-color: $input-focus-border-color;
+        box-shadow: $input-focus-box-shadow;
+      }
+
+      &.is-invalid {
+        border-color: $error-color;
+      }
+
+      &.is-valid {
+        border-color: $success-color;
+      }
+    }
+
+    textarea.form-control {
+      height: auto;
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-text {
+      margin-top: $spacing-1;
+      font-size: $font-size-sm;
+      color: $text-muted;
+    }
+
+    .invalid-feedback {
+      margin-top: $spacing-1;
+      font-size: $font-size-sm;
+      color: $error-color;
+    }
+
+    .valid-feedback {
+      margin-top: $spacing-1;
+      font-size: $font-size-sm;
+      color: $success-color;
+    }
+  }
+}
+
+// 按钮样式
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: $button-height;
+  padding: $button-padding-y $button-padding-x;
+  border: 1px solid transparent;
+  border-radius: $button-border-radius;
+  font-size: $font-size-base;
+  font-weight: $button-font-weight;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all $transition-fast;
+  gap: $spacing-2;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  // 主要按钮
+  &-primary {
+    background: $primary-color;
+    color: $white;
+    border-color: $primary-color;
+
+    &:hover:not(:disabled) {
+      background: $secondary-color;
+      border-color: $secondary-color;
+    }
+  }
+
+  // 次要按钮
+  &-secondary {
+    background: $gray-100;
+    color: $text-primary;
+    border-color: $border-color;
+
+    &:hover:not(:disabled) {
+      background: $gray-200;
+      border-color: $border-color-dark;
+    }
+  }
+
+  // 成功按钮
+  &-success {
+    background: $success-color;
+    color: $white;
+    border-color: $success-color;
+
+    &:hover:not(:disabled) {
+      background: darken($success-color, 10%);
+      border-color: darken($success-color, 10%);
+    }
+  }
+
+  // 危险按钮
+  &-danger {
+    background: $error-color;
+    color: $white;
+    border-color: $error-color;
+
+    &:hover:not(:disabled) {
+      background: darken($error-color, 10%);
+      border-color: darken($error-color, 10%);
+    }
+  }
+
+  // 警告按钮
+  &-warning {
+    background: $warning-color;
+    color: $white;
+    border-color: $warning-color;
+
+    &:hover:not(:disabled) {
+      background: darken($warning-color, 10%);
+      border-color: darken($warning-color, 10%);
+    }
+  }
+
+  // 小尺寸按钮
+  &-sm {
+    height: 32px;
+    padding: $spacing-1 $spacing-3;
+    font-size: $font-size-sm;
+  }
+
+  // 大尺寸按钮
+  &-lg {
+    height: 48px;
+    padding: $spacing-3 $spacing-6;
+    font-size: $font-size-lg;
+  }
+}
+
+// 响应式设计
+@media (max-width: $breakpoint-lg) {
+  .notion-wp-layout {
+    flex-direction: column;
+  }
+
+  .notion-wp-sidebar {
+    flex: none;
+    position: static;
+  }
+
+  .notion-wp-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: $spacing-2;
+
+    &-item {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+  }
+}
+
+@media (max-width: $breakpoint-md) {
+  .notion-wp-header {
+    padding: $spacing-3 $spacing-4;
+
+    &-content {
+      flex-direction: column;
+      gap: $spacing-2;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: $font-size-xl;
+    }
+  }
+
+  .notion-wp-content {
+    padding: $spacing-4;
+  }
+}
+
+// 导入功能样式
+@import 'sync-progress';
+@import 'database-view';
+@import 'log-viewer';
+@import 'settings';
+@import 'error-display';

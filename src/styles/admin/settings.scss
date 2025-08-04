@@ -1,0 +1,485 @@
+/**
+ * 设置组件样式 - 现代化设计
+ * 
+ * 为设置组件提供美观的UI样式
+ */
+
+// 变量定义
+:root {
+  --settings-primary-color: #0073aa;
+  --settings-secondary-color: #f1f1f1;
+  --settings-border-color: #ddd;
+  --settings-text-color: #23282d;
+  --settings-bg-color: #ffffff;
+  --settings-hover-color: #f8f9fa;
+  --settings-border-radius: 6px;
+  --settings-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --settings-transition: all 0.2s ease;
+  
+  // 状态颜色
+  --settings-success-color: #28a745;
+  --settings-error-color: #dc3545;
+  --settings-warning-color: #ffc107;
+  --settings-info-color: #17a2b8;
+  
+  // 状态背景色
+  --settings-success-bg: #d4edda;
+  --settings-error-bg: #f8d7da;
+  --settings-warning-bg: #fff3cd;
+  --settings-info-bg: #d1ecf1;
+}
+
+// 主容器
+.notion-settings-component {
+  background: var(--settings-bg-color);
+  border: 1px solid var(--settings-border-color);
+  border-radius: var(--settings-border-radius);
+  overflow: hidden;
+  box-shadow: var(--settings-shadow);
+  margin: 16px 0;
+}
+
+// 设置头部
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--settings-secondary-color);
+  border-bottom: 1px solid var(--settings-border-color);
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    color: var(--settings-text-color);
+  }
+
+  .settings-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+
+    .unsaved-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--settings-warning-color);
+      font-weight: 500;
+
+      .icon {
+        animation: pulse 2s infinite;
+      }
+    }
+
+    .status-indicator {
+      color: #666;
+    }
+  }
+}
+
+// 设置表单
+.settings-form {
+  padding: 20px;
+
+  .settings-section {
+    margin-bottom: 32px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    h3 {
+      margin: 0 0 16px 0;
+      font-size: 18px;
+      color: var(--settings-text-color);
+      border-bottom: 2px solid var(--settings-primary-color);
+      padding-bottom: 8px;
+    }
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: var(--settings-text-color);
+
+      &.checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-weight: normal;
+
+        input[type="checkbox"] {
+          display: none;
+        }
+
+        .checkmark {
+          width: 20px;
+          height: 20px;
+          border: 2px solid var(--settings-border-color);
+          border-radius: 4px;
+          position: relative;
+          transition: var(--settings-transition);
+
+          &::after {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 2px;
+            width: 6px;
+            height: 10px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            opacity: 0;
+            transition: var(--settings-transition);
+          }
+        }
+
+        input[type="checkbox"]:checked + .checkmark {
+          background: var(--settings-primary-color);
+          border-color: var(--settings-primary-color);
+
+          &::after {
+            opacity: 1;
+          }
+        }
+      }
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="email"],
+    input[type="url"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--settings-border-color);
+      border-radius: 4px;
+      font-size: 14px;
+      transition: var(--settings-transition);
+
+      &:focus {
+        outline: none;
+        border-color: var(--settings-primary-color);
+        box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.2);
+      }
+
+      &.error {
+        border-color: var(--settings-error-color);
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+      }
+
+      &:disabled {
+        background: var(--settings-secondary-color);
+        color: #999;
+        cursor: not-allowed;
+      }
+    }
+
+    select {
+      cursor: pointer;
+    }
+
+    .help-text {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: #666;
+      line-height: 1.4;
+    }
+
+    .field-error {
+      display: block;
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--settings-error-color);
+      font-weight: 500;
+    }
+  }
+}
+
+// 高级设置
+.advanced-section {
+  .advanced-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 6px 12px;
+      border: 1px solid var(--settings-border-color);
+      border-radius: 4px;
+      background: white;
+      color: var(--settings-text-color);
+      font-size: 14px;
+      cursor: pointer;
+      transition: var(--settings-transition);
+
+      &:hover {
+        background: var(--settings-hover-color);
+        border-color: var(--settings-primary-color);
+      }
+
+      .icon {
+        font-size: 12px;
+        transition: transform 0.2s ease;
+      }
+    }
+  }
+
+  .advanced-content {
+    padding: 16px;
+    background: #f8f9fa;
+    border: 1px solid var(--settings-border-color);
+    border-radius: 4px;
+    margin-top: 16px;
+  }
+}
+
+// 操作按钮
+.settings-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 24px;
+  border-top: 1px solid var(--settings-border-color);
+  margin-top: 32px;
+
+  .actions-left,
+  .actions-right {
+    display: flex;
+    gap: 12px;
+  }
+
+  button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: 1px solid var(--settings-border-color);
+    border-radius: 4px;
+    background: white;
+    color: var(--settings-text-color);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--settings-transition);
+
+    &:hover {
+      background: var(--settings-hover-color);
+      border-color: var(--settings-primary-color);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &.primary {
+      background: var(--settings-primary-color);
+      color: white;
+      border-color: var(--settings-primary-color);
+
+      &:hover {
+        background: #005a87;
+        border-color: #005a87;
+      }
+    }
+
+    &.save-button {
+      min-width: 120px;
+    }
+
+    &.reset-button {
+      border-color: var(--settings-warning-color);
+      color: #856404;
+
+      &:hover {
+        background: var(--settings-warning-bg);
+      }
+    }
+
+    &.test-connection-button {
+      border-color: var(--settings-info-color);
+      color: #0c5460;
+
+      &:hover {
+        background: var(--settings-info-bg);
+      }
+    }
+
+    .icon {
+      font-size: 16px;
+    }
+  }
+}
+
+// 条件显示组
+.webhook-secret-group,
+.cache-duration-group,
+.debug-level-group {
+  margin-left: 28px;
+  padding-left: 16px;
+  border-left: 2px solid var(--settings-border-color);
+}
+
+// 动画
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .settings-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+
+    .settings-status {
+      align-self: flex-end;
+    }
+  }
+
+  .settings-form {
+    padding: 16px;
+
+    .settings-section {
+      margin-bottom: 24px;
+    }
+  }
+
+  .settings-actions {
+    flex-direction: column;
+    gap: 16px;
+
+    .actions-left,
+    .actions-right {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .advanced-section {
+    .advanced-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+  }
+
+  .form-group {
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="email"],
+    input[type="url"],
+    select,
+    textarea {
+      font-size: 16px; // 防止iOS缩放
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-actions {
+    .actions-left,
+    .actions-right {
+      flex-direction: column;
+    }
+
+    button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  .webhook-secret-group,
+  .cache-duration-group,
+  .debug-level-group {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    padding-top: 12px;
+    border-top: 1px solid var(--settings-border-color);
+  }
+}
+
+// 深色模式支持
+@media (prefers-color-scheme: dark) {
+  :root {
+    --settings-bg-color: #2c3338;
+    --settings-text-color: #f0f0f1;
+    --settings-border-color: #3c434a;
+    --settings-secondary-color: #23282d;
+    --settings-hover-color: #3c434a;
+  }
+
+  .notion-settings-component {
+    color: var(--settings-text-color);
+  }
+
+  .settings-form {
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    input[type="email"],
+    input[type="url"],
+    select,
+    textarea {
+      background: var(--settings-bg-color);
+      color: var(--settings-text-color);
+      border-color: var(--settings-border-color);
+    }
+
+    .form-group {
+      label.checkbox-label {
+        .checkmark {
+          border-color: var(--settings-border-color);
+          background: var(--settings-bg-color);
+        }
+      }
+    }
+  }
+
+  .advanced-section {
+    .advanced-content {
+      background: var(--settings-border-color);
+      border-color: var(--settings-hover-color);
+    }
+
+    .advanced-toggle {
+      background: var(--settings-bg-color);
+      color: var(--settings-text-color);
+      border-color: var(--settings-border-color);
+    }
+  }
+
+  .settings-actions {
+    button {
+      background: var(--settings-bg-color);
+      color: var(--settings-text-color);
+      border-color: var(--settings-border-color);
+
+      &:hover {
+        background: var(--settings-hover-color);
+      }
+    }
+  }
+}
