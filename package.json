@@ -3,6 +3,9 @@
   "version": "2.0.0-beta.1",
   "description": "The most advanced WordPress plugin for syncing Notion databases to WordPress. Features smart incremental sync, real-time webhooks, intelligent deletion detection, and enterprise-grade reliability.",
   "main": "notion-to-wordpress.php",
+  "bin": {
+    "ntwp": "./scripts/cli.js"
+  },
   "scripts": {
     "build": "npm run build:webpack && node scripts/build.js",
     "build:clean": "node -e \"const fs=require('fs'); if(fs.existsSync('build')) fs.rmSync('build', {recursive:true}); console.log('Build directory cleaned')\"",
@@ -40,17 +43,24 @@
     "test:release:minor": "node scripts/release.js minor --dry-run",
     "test:release:major": "node scripts/release.js major --dry-run",
     "test:release:beta": "node scripts/release.js beta --dry-run",
-    "validate": "npm run validate:config && npm run validate:version && npm run validate:github-actions",
-    "validate:config": "node scripts/validate-config.js",
-    "validate:github-actions": "node scripts/validate-github-actions.js",
-    "validate:version": "npm run version:check",
-    "version:check": "node scripts/version-bump.js check",
-    "version:patch": "node scripts/version-bump.js patch",
-    "version:minor": "node scripts/version-bump.js minor",
-    "version:major": "node scripts/version-bump.js major",
-    "version:beta": "node scripts/version-bump.js beta",
-    "version:custom": "node scripts/version-bump.js custom",
-    "version:help": "node scripts/version-bump.js help"
+    "validate": "node scripts/validate.js all",
+    "validate:config": "node scripts/validate.js config",
+    "validate:github-actions": "node scripts/validate.js github-actions",
+    "validate:version": "node scripts/validate.js version",
+    "validate:environment": "node scripts/validate.js environment",
+    "version:check": "node scripts/version.js check",
+    "version:patch": "node scripts/version.js patch",
+    "version:minor": "node scripts/version.js minor",
+    "version:major": "node scripts/version.js major",
+    "version:beta": "node scripts/version.js beta",
+    "version:custom": "node scripts/version.js custom",
+    "version:help": "node scripts/version.js help",
+    "ntwp": "node scripts/cli.js",
+    "doctor": "node scripts/cli.js doctor",
+    "info": "node scripts/cli.js info",
+    "init": "node scripts/cli.js init",
+    "quick-start": "node scripts/cli.js help-guide --quick",
+    "faq": "node scripts/cli.js help-guide --faq"
   },
   "keywords": [
     "wordpress",
@@ -77,7 +87,7 @@
   },
   "homepage": "https://github.com/Frank-Loong/Notion-to-WordPress#readme",
   "engines": {
-    "node": ">=16.0.0",
+    "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
   "devDependencies": {
