@@ -44,7 +44,7 @@
 - **🌍 Multilingual** – i18n built-in (English & Simplified Chinese)
 - **📝 Clean uninstall** – optional removal of settings, logs & imported content
 
-> Need help or dive deeper? Visit the [User Guidei 📚](./docs/Wiki.md) – English | [中文](./docs/Wiki.zh_CN.md), which includes templates, screenshots, and troubleshooting. 
+> Need help or dive deeper? Visit the [User Guide 📚](./docs/Wiki.md) – English | [中文](./docs/Wiki.zh_CN.md), which includes templates, screenshots, and troubleshooting. 
 
 ## Quick Start
 
