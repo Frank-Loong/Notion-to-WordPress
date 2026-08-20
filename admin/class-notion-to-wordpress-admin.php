@@ -492,6 +492,19 @@ class Notion_To_WordPress_Admin {
             $options['webhook_token'] = Helper::generate_token( 32 );
         }
 
+        // Webhook 删除处理方式（对应 Wiki 智能删除检测的可配置删除行为）。默认值 delete 保持原有行为。
+        $allowed_delete_actions      = array('delete', 'trash', 'draft');
+        $delete_action               = isset($_POST['webhook_delete_action']) ? sanitize_text_field($_POST['webhook_delete_action']) : 'delete';
+        $options['webhook_delete_action'] = in_array($delete_action, $allowed_delete_actions, true) ? $delete_action : 'delete';
+
+        // Webhook 同步选项（修复：此前未在保存时持久化，导致后台勾选无效）。
+        $options['webhook_incremental_sync'] = isset($_POST['webhook_incremental_sync']) ? 1 : 0;
+        $options['webhook_check_deletions']  = isset($_POST['webhook_check_deletions']) ? 1 : 0;
+
+        // Webhook 安全加固选项（对应 Wiki §Webhook 安全）。
+        $options['webhook_signature_verification'] = isset($_POST['webhook_signature_verification']) ? 1 : 0;
+        $options['webhook_ip_whitelist']           = isset($_POST['webhook_ip_whitelist']) ? sanitize_textarea_field($_POST['webhook_ip_whitelist']) : '';
+
         // Debug Level
         $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
 

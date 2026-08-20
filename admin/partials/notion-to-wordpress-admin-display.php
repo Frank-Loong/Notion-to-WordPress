@@ -268,6 +268,32 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                     <p class="description"><?php esc_html_e('数据库结构变化时检查删除的页面（单页面事件不受影响）', 'notion-to-wordpress'); ?></p>
                                                 </fieldset>
                                             </div>
+
+                                            <div class="notion-wp-field">
+                                                <label for="webhook_delete_action"><?php esc_html_e('Webhook 删除处理方式', 'notion-to-wordpress'); ?></label>
+                                                <?php $webhook_delete_action = $options['webhook_delete_action'] ?? 'delete'; ?>
+                                                <select id="webhook_delete_action" name="webhook_delete_action">
+                                                    <option value="delete" <?php selected($webhook_delete_action, 'delete'); ?>><?php esc_html_e('彻底删除（默认）', 'notion-to-wordpress'); ?></option>
+                                                    <option value="trash" <?php selected($webhook_delete_action, 'trash'); ?>><?php esc_html_e('移至回收站', 'notion-to-wordpress'); ?></option>
+                                                    <option value="draft" <?php selected($webhook_delete_action, 'draft'); ?>><?php esc_html_e('标记为草稿', 'notion-to-wordpress'); ?></option>
+                                                </select>
+                                                <p class="description"><?php esc_html_e('当 Notion 页面被删除时，对应 WordPress 文章的处理方式。对应 Wiki「智能删除检测」的可配置删除行为。', 'notion-to-wordpress'); ?></p>
+                                            </div>
+
+                                            <div class="notion-wp-field">
+                                                <label><?php esc_html_e('Webhook 安全加固', 'notion-to-wordpress'); ?></label>
+                                                <?php $webhook_signature_verification = $options['webhook_signature_verification'] ?? 0; ?>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="webhook_signature_verification" value="1" <?php checked($webhook_signature_verification, 1); ?>>
+                                                        <?php esc_html_e('启用 Notion 签名验证', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                    <p class="description"><?php esc_html_e('校验 Notion 的 X-Notion-Signature（HMAC-SHA256），并启用时间戳检查与重放攻击防护。需先完成 Notion 订阅握手以获取 verification_token。', 'notion-to-wordpress'); ?></p>
+                                                </fieldset>
+                                                <label for="webhook_ip_whitelist"><?php esc_html_e('IP 白名单（可选）', 'notion-to-wordpress'); ?></label>
+                                                <input type="text" id="webhook_ip_whitelist" name="webhook_ip_whitelist" class="regular-text" value="<?php echo esc_attr($options['webhook_ip_whitelist'] ?? ''); ?>" placeholder="203.0.113.10, 198.51.100.0/24">
+                                                <p class="description"><?php esc_html_e('仅允许白名单内的来源 IP 访问 Webhook 终端点，多个用逗号分隔，留空表示不限制。', 'notion-to-wordpress'); ?></p>
+                                            </div>
                                         </div>
 
                                     </td>

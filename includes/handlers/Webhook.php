@@ -89,7 +89,20 @@ class Webhook {
 
         // 获取请求体
         $body = $request->get_json_params();
-        
+
+        // Webhook 安全加固（Wiki §Webhook 安全）：签名验证 / 时间戳检查 / 重放攻击防护 / IP 白名单。
+        // 仅对“非握手、非 challenge”的正式事件请求执行；握手请求（含 verification_token）由下方逻辑处理。
+        $options = get_option('notion_to_wordpress_options', []);
+        if (!empty($options['webhook_signature_verification'])
+            && !isset($body['verification_token'])
+            && !isset($body['challenge'])) {
+            $sig_result = $this->verify_notion_request($request, $body);
+            if (is_wp_error($sig_result)) {
+                \NTWP\Core\Logger::warning_log('Webhook 安全校验失败: ' . $sig_result->get_error_message(), 'Notion Webhook');
+                return new WP_REST_Response(['status' => 'error', 'message' => $sig_result->get_error_message()], 403);
+            }
+        }
+
         // Step 2: Subscription verification —— Notion 仅发送 { "verification_token": "..." }
         // 只要检测到 verification_token 字段，即视为验证请求，直接返回 200 空响应
         if (isset($body['verification_token']) && !isset($body['event'])) {
@@ -268,12 +281,29 @@ class Webhook {
             return __('未找到对应的WordPress文章', 'notion-to-wordpress');
         }
 
-        // 删除WordPress文章
-        $result = wp_delete_post($post_id, true); // true表示彻底删除，不放入回收站
+        // 根据 Wiki「智能删除检测」的可配置删除行为处理：彻底删除 / 移至回收站 / 标记为草稿。
+        $options       = get_option('notion_to_wordpress_options', []);
+        $delete_action = $options['webhook_delete_action'] ?? 'delete';
+
+        if ($delete_action === 'draft') {
+            // 标记为草稿，而不是直接删除（保留内容，便于恢复）。
+            $updated = wp_update_post(array('ID' => $post_id, 'post_status' => 'draft'));
+            if ($updated && !is_wp_error($updated)) {
+                \NTWP\Core\Logger::info_log('已将WordPress文章标记为草稿，文章ID: ' . $post_id . '，对应Notion页面ID: ' . $page_id, 'Notion Webhook');
+                return sprintf(__('已将对应WordPress文章标记为草稿 (ID: %d)', 'notion-to-wordpress'), $post_id);
+            }
+            \NTWP\Core\Logger::error_log('将WordPress文章标记为草稿失败，文章ID: ' . $post_id);
+            return __('将WordPress文章标记为草稿失败', 'notion-to-wordpress');
+        }
+
+        // delete（彻底删除）或 trash（移至回收站）均复用 Integrator::delete_post，保持与插件其它删除逻辑一致。
+        $force   = ($delete_action === 'delete');
+        $result  = Integrator::delete_post($post_id, $force);
+        $label   = $force ? __('彻底删除', 'notion-to-wordpress') : __('移至回收站', 'notion-to-wordpress');
 
         if ($result) {
-            \NTWP\Core\Logger::info_log('已删除WordPress文章，文章ID: ' . $post_id . '，对应Notion页面ID: ' . $page_id, 'Notion Webhook');
-            return sprintf(__('已删除对应的WordPress文章 (ID: %d)', 'notion-to-wordpress'), $post_id);
+            \NTWP\Core\Logger::info_log('已' . $label . 'WordPress文章，文章ID: ' . $post_id . '，对应Notion页面ID: ' . $page_id, 'Notion Webhook');
+            return sprintf(__('已%s对应的WordPress文章 (ID: %d)', 'notion-to-wordpress'), $label, $post_id);
         } else {
             \NTWP\Core\Logger::error_log('删除WordPress文章失败，文章ID: ' . $post_id);
             return __('删除WordPress文章失败', 'notion-to-wordpress');
@@ -453,5 +483,120 @@ class Webhook {
         $posts = get_posts($args);
 
         return !empty($posts) ? $posts[0] : 0;
+    }
+
+    /**
+     * 校验 Notion Webhook 请求的签名、时间戳、重放攻击与来源 IP（Wiki §Webhook 安全）。
+     *
+     * 采用 Notion 官方方案：以订阅握手时获取的 verification_token 为密钥，
+     * 对「原始请求体」计算 HMAC-SHA256，并与 X-Notion-Signature 头（格式 sha256=...）比对。
+     *
+     * @since    2.0.0
+     * @param    WP_REST_Request $request REST 请求对象
+     * @param    array           $body    已解析的请求体
+     * @return   true|WP_Error            校验通过返回 true，失败返回 WP_Error
+     */
+    private function verify_notion_request($request, array $body) {
+        $options      = get_option('notion_to_wordpress_options', []);
+        $verify_token = $options['webhook_verify_token'] ?? '';
+        $signature    = $request->get_header('x-notion-signature');
+
+        // 尚未完成 Notion 订阅握手（无 verification_token）时不强制校验，避免误伤正常请求。
+        if (empty($verify_token)) {
+            \NTWP\Core\Logger::warning_log('Webhook 签名验证已启用，但未找到 verification_token，跳过签名校验', 'Notion Webhook');
+            return true;
+        }
+
+        if (empty($signature)) {
+            return new WP_Error('missing_signature', __('缺少 X-Notion-Signature 请求头', 'notion-to-wordpress'));
+        }
+
+        // 重放攻击防护：拒绝短时间内重复出现的相同签名。
+        $sig_key = 'ntwp_webhook_replay_' . hash('sha256', $signature);
+        if (get_transient($sig_key) !== false) {
+            return new WP_Error('replay_detected', __('检测到重放攻击：签名已被使用过', 'notion-to-wordpress'));
+        }
+
+        // 签名验证：HMAC-SHA256(原始请求体, verification_token) 与 X-Notion-Signature 比对（恒定时间比较）。
+        $raw_body = (string) $request->get_body();
+        $expected = 'sha256=' . hash_hmac('sha256', $raw_body, $verify_token);
+        if (!hash_equals($expected, (string) $signature)) {
+            return new WP_Error('invalid_signature', __('Webhook 签名校验失败', 'notion-to-wordpress'));
+        }
+
+        // 时间戳检查：若负载包含 timestamp（Unix 秒），拒绝过期（>15 分钟）或异常超前（>5 分钟）的事件。
+        $event_ts = $body['timestamp'] ?? ($body['event']['timestamp'] ?? 0);
+        if (!empty($event_ts) && is_numeric($event_ts)) {
+            $age = time() - (int) $event_ts;
+            if ($age > 900 || $age < -300) {
+                return new WP_Error('stale_event', __('Webhook 事件时间戳超出允许范围', 'notion-to-wordpress'));
+            }
+        }
+
+        // IP 白名单（可选）。
+        $ip_whitelist = trim($options['webhook_ip_whitelist'] ?? '');
+        if ($ip_whitelist !== '') {
+            $client_ip = $this->get_client_ip();
+            $allowed   = false;
+            foreach (array_map('trim', explode(',', $ip_whitelist)) as $range) {
+                if ($range === '' || $this->ip_in_range($client_ip, $range)) {
+                    $allowed = true;
+                    break;
+                }
+            }
+            if (!$allowed) {
+                return new WP_Error('ip_not_allowed', __('请求来源 IP 不在白名单内', 'notion-to-wordpress'));
+            }
+        }
+
+        // 校验通过：记录签名以防止重放（10 分钟 TTL）。
+        set_transient($sig_key, time(), 10 * MINUTE_IN_SECONDS);
+
+        return true;
+    }
+
+    /**
+     * 获取客户端真实 IP（考虑反向代理场景）。
+     *
+     * @since  2.0.0
+     * @return string
+     */
+    private function get_client_ip(): string {
+        $ip = '';
+        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+            $ip = trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+        } elseif (!empty($_SERVER['REMOTE_ADDR'])) {
+            $ip = (string) $_SERVER['REMOTE_ADDR'];
+        }
+        return (string) filter_var($ip, FILTER_VALIDATE_IP) ?: '';
+    }
+
+    /**
+     * 判断 IP 是否落在给定范围（支持精确匹配与 IPv4 CIDR）。
+     *
+     * @since  2.0.0
+     * @param  string $ip    客户端 IP
+     * @param  string $range 精确 IP 或 CIDR（如 198.51.100.0/24）
+     * @return bool
+     */
+    private function ip_in_range(string $ip, string $range): bool {
+        if ($ip === '') {
+            return false;
+        }
+        if (strpos($range, '/') === false) {
+            return $ip === $range;
+        }
+        list($subnet, $bits) = array_pad(explode('/', $range, 2), 2, '0');
+        $bits = (int) $bits;
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && filter_var($subnet, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $ip_long     = ip2long($ip);
+            $subnet_long = ip2long($subnet);
+            if ($ip_long === false || $subnet_long === false || $bits < 0 || $bits > 32) {
+                return false;
+            }
+            $mask = (~((1 << (32 - $bits)) - 1)) & 0xFFFFFFFF;
+            return ($ip_long & $mask) === ($subnet_long & $mask);
+        }
+        return $ip === $range;
     }
 }
