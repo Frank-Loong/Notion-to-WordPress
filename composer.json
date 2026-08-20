@@ -30,7 +30,7 @@
         "source": "https://github.com/Frank-Loong/Notion-to-WordPress"
     },
     "require": {
-        "php": ">=7.4"
+        "php": ">=8.0"
     },
     "autoload": {
         "psr-4": {
@@ -70,8 +70,7 @@
         "sort-packages": true,
         "allow-plugins": {
             "composer/installers": true
-        },
-        "disable-tls": true
+        }
     },
     "extra": {
         "installer-name": "notion-to-wordpress",
