@@ -77,15 +77,27 @@ if ( file_exists( $autoloader_path ) ) {
 /**
  * 插件激活时运行的代码
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
+ *
+ * 支持 WordPress Multisite：网络激活时为每个子站初始化默认选项与 cron。
  */
 function activate_notion_to_wordpress() {
-	// 设置标记以在下次加载时显示 autoloader 日志
-	update_option('notion_to_wordpress_show_autoloader_log', true);
-	
 	// 初始化现代异步处理系统
 	init_modern_async_system();
 
-	NTWP\Framework\Main::activate();
+	if ( is_multisite() ) {
+		// 网络激活：为每个子站初始化默认选项
+		$sites = get_sites( array( 'number' => 0 ) );
+		foreach ( $sites as $site ) {
+			switch_to_blog( (int) $site->blog_id );
+			update_option( 'notion_to_wordpress_show_autoloader_log', true );
+			NTWP\Framework\Main::activate();
+			restore_current_blog();
+		}
+	} else {
+		// 单站点激活
+		update_option( 'notion_to_wordpress_show_autoloader_log', true );
+		NTWP\Framework\Main::activate();
+	}
 }
 
 /**
@@ -103,12 +115,26 @@ function init_modern_async_system() {
 /**
  * 插件停用时运行的代码
  * 此操作的文档位于 includes/class-notion-to-wordpress.php
+ *
+ * 支持 WordPress Multisite：网络停用时清理每个子站的 cron。
  */
 function deactivate_notion_to_wordpress() {
-	// Clear any scheduled cron jobs
-	wp_clear_scheduled_hook('notion_cron_import');
-	wp_clear_scheduled_hook('notion_to_wordpress_cron_update');
-	wp_clear_scheduled_hook('notion_to_wordpress_log_cleanup');
+	if ( is_multisite() ) {
+		// 网络停用：清理每个子站的 cron
+		$sites = get_sites( array( 'number' => 0 ) );
+		foreach ( $sites as $site ) {
+			switch_to_blog( (int) $site->blog_id );
+			wp_clear_scheduled_hook( 'notion_cron_import' );
+			wp_clear_scheduled_hook( 'notion_to_wordpress_cron_update' );
+			wp_clear_scheduled_hook( 'notion_to_wordpress_log_cleanup' );
+			restore_current_blog();
+		}
+	} else {
+		// 单站点停用
+		wp_clear_scheduled_hook( 'notion_cron_import' );
+		wp_clear_scheduled_hook( 'notion_to_wordpress_cron_update' );
+		wp_clear_scheduled_hook( 'notion_to_wordpress_log_cleanup' );
+	}
 }
 
 register_activation_hook( NOTION_TO_WORDPRESS_FILE, 'activate_notion_to_wordpress' );
