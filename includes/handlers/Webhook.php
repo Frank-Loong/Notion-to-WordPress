@@ -284,6 +284,19 @@ class Webhook {
 
         $page_id = $this->extract_page_id($body);
 
+        // P1-07 API 缓存清除：Webhook 事件触发同步时，清除 Notion API 响应缓存，
+        // 确保本次同步获取最新数据（而非过期的缓存）。
+        if (method_exists($this->notion_pages, 'notion_api') || property_exists($this->notion_pages, 'notion_api')) {
+            // Import_Coordinator 有 notion_api 属性
+        }
+        // 通过选项中的 database_id 清除缓存（API::clear_api_cache 接受空参数时自动读取选项）
+        $options = get_option('notion_to_wordpress_options', []);
+        $db_id = $options['notion_database_id'] ?? '';
+        if (!empty($db_id)) {
+            $cache_key = 'ntwp_api_dbpages_' . md5($db_id);
+            delete_transient($cache_key);
+        }
+
         // 添加调试日志
         \NTWP\Core\Logger::info_log('处理事件: ' . $event_type . ', 页面ID: ' . $page_id, 'Notion Webhook');
 

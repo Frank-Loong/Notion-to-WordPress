@@ -1015,6 +1015,21 @@ class API implements API_Interface {
             'Database Pages'
         );
 
+        // P1-07 API 响应缓存：未开启 Webhook 时，对数据库页面列表做 Transient 缓存，
+        // 避免短时间内重复同步导致大量 Notion API 调用。Webhook 触发的同步会主动清除缓存。
+        $cache_enabled = $this->is_api_cache_enabled();
+        if ( $cache_enabled && empty( $filter ) && ! $with_details ) {
+            $cache_key = 'ntwp_api_dbpages_' . md5( $database_id );
+            $cached = get_transient( $cache_key );
+            if ( false !== $cached && is_array( $cached ) ) {
+                \NTWP\Core\Logger::debug_log(
+                    sprintf( 'API 缓存命中，数据库 %s 返回 %d 个页面（跳过 API 调用）', $database_id, count( $cached ) ),
+                    'API Cache'
+                );
+                return $cached;
+            }
+        }
+
         $all_results = [];
         $has_more = true;
         $start_cursor = null;
@@ -1024,7 +1039,7 @@ class API implements API_Interface {
             // 智能分页大小优化：根据数据量动态调整
             $options = get_option('notion_to_wordpress_options', []);
             $base_page_size = $options['api_page_size'] ?? 100;
-            
+
             // 动态优化：首次请求使用较大分页，后续根据结果调整
             $page_size = empty($all_results) ? min(100, $base_page_size) : min(100, $base_page_size * 1.5);
 
@@ -1064,9 +1079,69 @@ class API implements API_Interface {
             'Database Pages'
         );
 
-
+        // 写入 API 缓存（仅在无 filter/无 details 时缓存，TTL 可配置）
+        if ( $cache_enabled && empty( $filter ) && ! $with_details && ! empty( $all_results ) ) {
+            $cache_key = 'ntwp_api_dbpages_' . md5( $database_id );
+            $ttl = $this->get_api_cache_ttl();
+            set_transient( $cache_key, $all_results, $ttl );
+            \NTWP\Core\Logger::debug_log(
+                sprintf( 'API 缓存已写入，数据库 %s，%d 个页面，TTL %d 秒', $database_id, count( $all_results ), $ttl ),
+                'API Cache'
+            );
+        }
 
         return $all_results;
+    }
+
+    /**
+     * 检查 API 响应缓存是否启用。
+     *
+     * 启用条件：选项中 api_cache_enabled 为真，且未启用 Webhook
+     * （Webhook 模式下由事件驱动同步，缓存会导致延迟）。
+     *
+     * @since 2.0.0
+     * @return bool
+     */
+    public function is_api_cache_enabled(): bool {
+        $options = get_option( 'notion_to_wordpress_options', [] );
+        $cache_enabled = $options['api_cache_enabled'] ?? false;
+        $webhook_enabled = $options['webhook_enabled'] ?? 0;
+
+        // Webhook 启用时不缓存（事件驱动已足够实时，缓存反而引入延迟）
+        return ! empty( $cache_enabled ) && empty( $webhook_enabled );
+    }
+
+    /**
+     * 获取 API 缓存 TTL（秒），可配置 1-60 分钟。
+     *
+     * @since 2.0.0
+     * @return int TTL 秒数，默认 300（5 分钟）
+     */
+    public function get_api_cache_ttl(): int {
+        $options = get_option( 'notion_to_wordpress_options', [] );
+        $ttl_minutes = (int) ( $options['api_cache_ttl_minutes'] ?? 5 );
+        $ttl_minutes = max( 1, min( 60, $ttl_minutes ) ); // 限制 1-60 分钟
+
+        return $ttl_minutes * MINUTE_IN_SECONDS;
+    }
+
+    /**
+     * 清除指定数据库的 API 响应缓存。
+     *
+     * Webhook 触发同步时应调用此方法，确保下次同步获取最新数据。
+     *
+     * @since 2.0.0
+     * @param string $database_id Notion 数据库 ID
+     */
+    public function clear_api_cache( string $database_id = '' ): void {
+        if ( empty( $database_id ) ) {
+            $options = get_option( 'notion_to_wordpress_options', [] );
+            $database_id = $options['notion_database_id'] ?? '';
+        }
+        if ( ! empty( $database_id ) ) {
+            delete_transient( 'ntwp_api_dbpages_' . md5( $database_id ) );
+            \NTWP\Core\Logger::debug_log( "API 缓存已清除，数据库: {$database_id}", 'API Cache' );
+        }
     }
 
     /**

@@ -294,6 +294,21 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <input type="text" id="webhook_ip_whitelist" name="webhook_ip_whitelist" class="regular-text" value="<?php echo esc_attr($options['webhook_ip_whitelist'] ?? ''); ?>" placeholder="203.0.113.10, 198.51.100.0/24">
                                                 <p class="description"><?php esc_html_e('仅允许白名单内的来源 IP 访问 Webhook 终端点，多个用逗号分隔，留空表示不限制。', 'notion-to-wordpress'); ?></p>
                                             </div>
+
+                                            <div class="notion-wp-field">
+                                                <label><?php esc_html_e('API 响应缓存', 'notion-to-wordpress'); ?></label>
+                                                <?php $api_cache_enabled = $options['api_cache_enabled'] ?? 0; ?>
+                                                <fieldset>
+                                                    <label>
+                                                        <input type="checkbox" name="api_cache_enabled" value="1" <?php checked($api_cache_enabled, 1); ?>>
+                                                        <?php esc_html_e('启用 Notion API 响应缓存', 'notion-to-wordpress'); ?>
+                                                    </label>
+                                                    <p class="description"><?php esc_html_e('缓存数据库页面列表，减少 API 调用。仅在未启用 Webhook 时生效（Webhook 模式下由事件驱动，无需缓存）。', 'notion-to-wordpress'); ?></p>
+                                                </fieldset>
+                                                <label for="api_cache_ttl_minutes"><?php esc_html_e('缓存有效期（分钟）', 'notion-to-wordpress'); ?></label>
+                                                <input type="number" id="api_cache_ttl_minutes" name="api_cache_ttl_minutes" min="1" max="60" value="<?php echo esc_attr($options['api_cache_ttl_minutes'] ?? 5); ?>" class="small-text">
+                                                <p class="description"><?php esc_html_e('1-60 分钟，默认 5 分钟。', 'notion-to-wordpress'); ?></p>
+                                            </div>
                                         </div>
 
                                     </td>

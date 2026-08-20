@@ -505,6 +505,10 @@ class Notion_To_WordPress_Admin {
         $options['webhook_signature_verification'] = isset($_POST['webhook_signature_verification']) ? 1 : 0;
         $options['webhook_ip_whitelist']           = isset($_POST['webhook_ip_whitelist']) ? sanitize_textarea_field($_POST['webhook_ip_whitelist']) : '';
 
+        // P1-07 API 响应缓存选项（仅未启用 Webhook 时有效）。
+        $options['api_cache_enabled']       = isset($_POST['api_cache_enabled']) ? 1 : 0;
+        $options['api_cache_ttl_minutes']   = isset($_POST['api_cache_ttl_minutes']) ? max(1, min(60, (int)$_POST['api_cache_ttl_minutes'])) : 5;
+
         // Debug Level
         $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
 
