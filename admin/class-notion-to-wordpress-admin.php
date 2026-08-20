@@ -489,7 +489,7 @@ class Notion_To_WordPress_Admin {
 
         // 保留已生成的 webhook_token；若不存在则生成一次
         if ( empty( $options['webhook_token'] ) ) {
-            $options['webhook_token'] = Helper::generate_token( 32 );
+            $options['webhook_token'] = \NTWP\Core\HTTP_Client::generate_token( 32 );
         }
 
         // Webhook 删除处理方式（对应 Wiki 智能删除检测的可配置删除行为）。默认值 delete 保持原有行为。

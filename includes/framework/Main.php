@@ -280,8 +280,10 @@ class Main {
 		$this->loader->add_filter( 'cron_schedules', $this, 'add_custom_cron_schedules' );
 
 		// 新增：添加新的cron事件
-		$this->loader->add_action('notion_to_wordpress_cron_update', $this->notion_pages, 'update_post_from_notion_cron', 10, 1);
-		$this->loader->add_action('notion_to_wordpress_log_cleanup', '\NTWP\Utils\Helper', 'run_log_cleanup');
+		// 注：notion_to_wordpress_cron_update 对应的 update_post_from_notion_cron 方法在
+		// Import_Coordinator 中并未实现（且全库无调度点），为避免钩子触发时调用不存在的方法导致
+		// 致命错误，此处不再注册该钩子。清理逻辑（uninstall.php）保留以清除历史遗留调度。
+		$this->loader->add_action('notion_to_wordpress_log_cleanup', '\NTWP\Core\Logger', 'run_log_cleanup');
 
 		// 队列系统集成
 		if (class_exists('NTWP\\Core\\Queue_Manager')) {

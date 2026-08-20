@@ -207,7 +207,7 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                         <?php 
                                         $webhook_enabled = $options['webhook_enabled'] ?? 0;
                                         $verification_token = $options['webhook_verify_token'] ?? '';
-                                        $webhook_token = $options['webhook_token'] ?? \NTWP\Utils\Helper::generate_token(32);
+                                        $webhook_token = $options['webhook_token'] ?? \NTWP\Core\HTTP_Client::generate_token(32);
                                         $webhook_url = site_url('wp-json/notion-to-wordpress/v1/webhook/' . $webhook_token);
                                         ?>
                                         <label for="webhook_enabled" class="checkbox-with-label">
