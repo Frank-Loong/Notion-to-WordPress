@@ -386,11 +386,17 @@ class Main {
 		$incremental = $options['cron_incremental_sync'] ?? true;
 		$check_deletions = $options['cron_check_deletions'] ?? true;
 
-		$this->_core_import_process( $database_id, $options, $incremental, $check_deletions );
+		$completed = $this->_core_import_process( $database_id, $options, $incremental, $check_deletions );
 
-		// 更新上次同步时间
-		$options['last_sync_time'] = current_time( 'mysql' );
-		update_option( 'notion_to_wordpress_options', $options );
+		// 断点续传：仅在本次同步完整完成时才推进 last_sync_time。
+		// 若因超时/资源限制中断（interrupted），不更新 last_sync_time，
+		// 确保下次增量同步能重新覆盖本次未处理的存量页面，而非漏掉它们。
+		if ( $completed ) {
+			$options['last_sync_time'] = current_time( 'mysql' );
+			update_option( 'notion_to_wordpress_options', $options );
+		} else {
+			\NTWP\Core\Logger::info_log( '本次定时同步因超时中断，last_sync_time 未推进，下次同步将从剩余页面继续', 'Cron Sync' );
+		}
 	}
 
 	/**
@@ -401,28 +407,35 @@ class Main {
 	 * @param array  $options 插件设置选项
 	 * @param bool   $incremental 是否启用增量同步
 	 * @param bool   $check_deletions 是否检查删除
+	 * @return bool 是否完整完成（false 表示因超时/异常中断，仍有页面未处理）
 	 */
-	private function _core_import_process( string $database_id, array $options, bool $incremental = true, bool $check_deletions = true ): void {
+	private function _core_import_process( string $database_id, array $options, bool $incremental = true, bool $check_deletions = true ): bool {
 		try {
 			// 使用统一的import_pages方法，支持增量同步和删除检测
 			$result = $this->notion_pages->import_pages($check_deletions, $incremental);
 
 			if (is_wp_error($result)) {
 				\NTWP\Core\Logger::error_log('Cron import failed: ' . $result->get_error_message());
-			} else {
-				\NTWP\Core\Logger::info_log(
-					sprintf('定时同步完成 - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d',
-						$result['total'] ?? 0,
-						$result['imported'] ?? 0,
-						$result['updated'] ?? 0,
-						$result['deleted'] ?? 0,
-						$result['failed'] ?? 0
-					),
-					'Cron Sync'
-				);
+				return false;
 			}
+
+			\NTWP\Core\Logger::info_log(
+				sprintf('定时同步完成 - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d%s',
+					$result['total'] ?? 0,
+					$result['imported'] ?? 0,
+					$result['updated'] ?? 0,
+					$result['deleted'] ?? 0,
+					$result['failed'] ?? 0,
+					!empty($result['interrupted']) ? ' [中断]' : ''
+				),
+				'Cron Sync'
+			);
+
+			// 断点续传：返回是否完整完成
+			return empty($result['interrupted']);
 		} catch ( Exception $e ) {
 			\NTWP\Core\Logger::error_log( 'Notion import error: ' . $e->getMessage() );
+			return false;
 		}
 	}
 

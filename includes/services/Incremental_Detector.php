@@ -309,6 +309,39 @@ class Incremental_Detector {
     }
     
     /**
+     * 检测变更类型（属性变更 vs 内容变更）
+     *
+     * 评审 P0-07 变更感知优化的核心方法：区分「属性变更」（分类/标签/状态等，
+     * 仅需更新元数据）与「内容变更」（正文块变化，需重写正文），
+     * 使调用方可以避免属性变更引发的无效正文重同步。
+     *
+     * @since 2.0.0
+     * @param array $page Notion页面数据
+     * @param int $post_id WordPress文章ID
+     * @return string 变更类型：'none' | 'properties_only' | 'content' | 'both'
+     */
+    public static function detect_change_type(array $page, int $post_id): string {
+        $changes = self::detect_content_changes($page, $post_id, false);
+
+        if (empty($changes)) {
+            return 'none';
+        }
+
+        // 内容块变化（正文）——需要重写正文
+        $has_content = isset($changes['content']) || isset($changes['title']);
+        // 属性变化（分类/标签/状态/其他字段映射）——仅需更新元数据
+        $has_properties = isset($changes['properties']) || isset($changes['last_edited_time']);
+
+        if ($has_content && $has_properties) {
+            return 'both';
+        }
+        if ($has_content) {
+            return 'content';
+        }
+        return 'properties_only';
+    }
+
+    /**
      * 判断是否应该跳过同步
      *
      * 只对已同步过的页面进行增量检测

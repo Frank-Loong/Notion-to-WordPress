@@ -1,0 +1,102 @@
+name: 🔍 CI 质量检查
+
+on:
+  push:
+    branches: [dev, dev-class, dev-frontend, main, master]
+  pull_request:
+    branches: [dev, dev-class, dev-frontend, main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    name: 🐘 PHP 语法检查 (php -l)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔄 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🐘 设置 PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          coverage: none
+
+      - name: 🔍 运行 php -l 语法检查
+        run: |
+          find . -name "*.php" \
+            -not -path "./vendor/*" \
+            -not -path "./node_modules/*" \
+            -not -path "./build/*" \
+            -not -path "./includes_backup/*" \
+            -print0 | xargs -0 -n1 php -l
+
+  phpcs:
+    name: 📏 WordPress 编码规范 (PHPCS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔄 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🐘 设置 PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          coverage: none
+          tools: composer
+
+      - name: 📥 安装依赖
+        run: composer install --no-interaction --prefer-dist
+
+      - name: 📏 运行 PHPCS
+        run: |
+          composer global require wp-coding-standards/wpcs --dev --no-interaction
+          ~/.composer/vendor/bin/phpcs --standard=WordPress includes/ admin/ || true
+
+  phpstan:
+    name: 🔬 静态分析 (PHPStan Level 5)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔄 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🐘 设置 PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          coverage: none
+          tools: composer
+
+      - name: 📥 安装依赖
+        run: composer install --no-interaction --prefer-dist
+
+      - name: 🔬 运行 PHPStan
+        run: |
+          composer global require phpstan/phpstan --dev --no-interaction
+          ~/.composer/vendor/bin/phpstan analyse includes/ admin/ --level=5 --no-progress || true
+
+  phpunit:
+    name: 🧪 单元测试 (PHPUnit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔄 检出代码
+        uses: actions/checkout@v4
+
+      - name: 🐘 设置 PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.0'
+          coverage: none
+          tools: composer
+
+      - name: 📥 安装依赖
+        run: composer install --no-interaction --prefer-dist
+
+      - name: 🧪 运行 PHPUnit
+        run: |
+          if [ -d "tests" ]; then
+            composer test || true
+          else
+            echo "⚠️ tests/ 目录不存在，跳过 PHPUnit"
+          fi

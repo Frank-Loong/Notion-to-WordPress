@@ -478,7 +478,10 @@ class Import_Coordinator {
                 'deleted' => 0,
                 'skipped' => 0,
                 'created' => 0,
-                'errors' => 0
+                'errors' => 0,
+                // 断点续传标记：true 表示本次同步因超时/资源限制而中断，仍有页面未处理。
+                // 调用方（如 cron）据此决定是否推进 last_sync_time，避免漏掉未处理的存量页面。
+                'interrupted' => false
             ];
 
             // 更新进度：获取到页面列表
@@ -615,6 +618,11 @@ class Import_Coordinator {
                             ),
                             'Performance'
                         );
+
+                        // 断点续传：标记本次同步中断，仍有页面未处理。
+                        // 调用方（cron）检测到此标记后不应推进 last_sync_time，
+                        // 下次同步将从未处理的页面继续，而非漏掉它们。
+                        $stats['interrupted'] = true;
 
                         // 设置处理状态，下次同步将从这里继续
                         if ($processed_count > 0) {

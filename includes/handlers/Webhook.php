@@ -212,6 +212,61 @@ class Webhook {
     }
 
     /**
+     * 判断 Webhook 事件是否为重复投递（幂等性去重）。
+     *
+     * Notion 在 Webhook 网络抖动时会重试同一事件。若不做去重，page.created /
+     * page.content_updated 等事件会被重复处理，导致 WordPress 中重复创建文章或
+     * 重复触发同步。本方法通过 Transient 缓存事件指纹来去重：
+     *
+     * 1. 优先使用事件自身 ID（$body['id']，Notion 新版结构为每个事件分配唯一 ID）；
+     * 2. 退回使用「事件类型 + 对象 ID + last_edited_time」组合指纹（兼容无事件 ID 的旧结构）。
+     *
+     * 去重窗口默认 10 分钟，与 Notion 的重试窗口（通常数分钟内）匹配。
+     *
+     * @since    2.0.0
+     * @param    string    $event_type    事件类型（如 page.updated）
+     * @param    array     $body          Webhook 请求体
+     * @return   bool                     是否为重复事件（true = 应跳过处理）
+     */
+    private function is_duplicate_event(string $event_type, array $body): bool {
+        // 提取事件唯一 ID（优先）
+        $event_id = $body['id'] ?? ($body['event']['id'] ?? '');
+        if (!empty($event_id)) {
+            $key = 'ntwp_webhook_event_' . hash('sha256', (string) $event_id);
+            if (get_transient($key) !== false) {
+                return true;
+            }
+            set_transient($key, time(), 10 * MINUTE_IN_SECONDS);
+            return false;
+        }
+
+        // 退回：无事件 ID 时，用「事件类型 + 对象 ID + 最后编辑时间」构造指纹。
+        $object_id = $body['data']['id']
+            ?? ($body['event']['data']['id']
+            ?? ($body['entity']['id']
+            ?? ($body['page']['id']
+            ?? ($body['block']['id']
+            ?? ''))));
+        $last_edited = $body['data']['last_edited_time']
+            ?? ($body['event']['data']['last_edited_time']
+            ?? ($body['last_edited_time']
+            ?? ''));
+
+        // 若对象 ID 与最后编辑时间都缺失，无法可靠去重，放行处理（宁可不拦截也不误拦）。
+        if (empty($object_id) && empty($last_edited)) {
+            return false;
+        }
+
+        $fingerprint = $event_type . '|' . (string) $object_id . '|' . (string) $last_edited;
+        $key = 'ntwp_webhook_event_' . hash('sha256', $fingerprint);
+        if (get_transient($key) !== false) {
+            return true;
+        }
+        set_transient($key, time(), 10 * MINUTE_IN_SECONDS);
+        return false;
+    }
+
+    /**
      * 处理特定的webhook事件
      *
      * @since    1.1.0
@@ -220,6 +275,13 @@ class Webhook {
      * @return   string                   处理结果消息
      */
     private function handle_specific_event(string $event_type, array $body): string {
+        // 幂等去重：Notion 在网络抖动时会重试同一事件，若不加以去重会导致重复创建/更新文章。
+        // 采用「事件 ID 优先，退回 object_id + last_edited_time 指纹」策略，Transient 缓存 10 分钟。
+        if ($this->is_duplicate_event($event_type, $body)) {
+            \NTWP\Core\Logger::info_log('检测到重复 Webhook 事件，已跳过: ' . $event_type, 'Notion Webhook');
+            return __('重复事件，已跳过处理', 'notion-to-wordpress');
+        }
+
         $page_id = $this->extract_page_id($body);
 
         // 添加调试日志
