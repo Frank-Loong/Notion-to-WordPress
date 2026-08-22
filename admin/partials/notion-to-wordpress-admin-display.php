@@ -309,6 +309,15 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                                 <input type="number" id="api_cache_ttl_minutes" name="api_cache_ttl_minutes" min="1" max="60" value="<?php echo esc_attr($options['api_cache_ttl_minutes'] ?? 5); ?>" class="small-text">
                                                 <p class="description"><?php esc_html_e('1-60 分钟，默认 5 分钟。', 'notion-to-wordpress'); ?></p>
                                             </div>
+                                            <div class="notion-wp-field">
+                                                <label for="output_format"><?php esc_html_e('输出格式', 'notion-to-wordpress'); ?></label>
+                                                <?php $output_format = $options['output_format'] ?? 'classic'; ?>
+                                                <select id="output_format" name="output_format">
+                                                    <option value="classic" <?php selected($output_format, 'classic'); ?>><?php esc_html_e('经典（传统 HTML）', 'notion-to-wordpress'); ?></option>
+                                                    <option value="gutenberg" <?php selected($output_format, 'gutenberg'); ?>><?php esc_html_e('Gutenberg 区块（原生 wp: 标记）', 'notion-to-wordpress'); ?></option>
+                                                </select>
+                                                <p class="description"><?php esc_html_e('选择 Gutenberg 区块可在 WordPress 块编辑器中以原生区块形式二次编辑内容；经典模式输出纯净 HTML。', 'notion-to-wordpress'); ?></p>
+                                            </div>
                                         </div>
 
                                     </td>

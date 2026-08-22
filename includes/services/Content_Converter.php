@@ -43,6 +43,12 @@ class Content_Converter {
     private static $preloader_enabled = false;
 
     /**
+     * 是否以 Gutenberg 区块格式输出（仅在 convert_blocks_to_html 调用期间有效）
+     * @var bool
+     */
+    private static $gutenberg_mode = false;
+
+    /**
      * 🚀 注入预处理的数据库数据
      *
      * @param array $preprocessed_data 预处理数据
@@ -90,12 +96,24 @@ class Content_Converter {
      * 将 Notion 块数组转换为 HTML 内容
      *
      * @since 2.0.0-beta.1
-     * @param array $blocks Notion 块数组
+     * @param array  $blocks        Notion 块数组
      * @param \NTWP\Services\API $notion_api Notion API 实例
-     * @param string $state_id 状态管理器ID，用于图片处理状态隔离
+     * @param string $state_id      状态管理器ID，用于图片处理状态隔离
+     * @param string|null $output_format 输出格式：'classic'（默认）或 'gutenberg'。
+     *                                     为 null 时从插件配置 notion_to_wordpress_options['output_format'] 读取。
      * @return string HTML 内容
      */
-    public static function convert_blocks_to_html(array $blocks, \NTWP\Services\API $notion_api, string $state_id = null): string {
+    public static function convert_blocks_to_html(array $blocks, \NTWP\Services\API $notion_api, string $state_id = null, string $output_format = null): string {
+        // 确定输出格式：显式参数优先，否则读取插件配置（默认 classic）
+        if ($output_format === null) {
+            $opts           = get_option('notion_to_wordpress_options', []);
+            $output_format  = $opts['output_format'] ?? 'classic';
+        }
+
+        // 设置本次转换的 Gutenberg 区块输出模式（classic / gutenberg）
+        // 该标志在一次调用及其递归子块转换中保持一致，下次顶级调用会在入口重置
+        self::$gutenberg_mode = ($output_format === 'gutenberg');
+
         // 检查是否启用性能模式
         $options = get_option('notion_to_wordpress_options', []);
         $performance_mode = $options['enable_performance_mode'] ?? 1;
@@ -172,23 +190,23 @@ class Content_Converter {
                 if ($list_wrapper !== $current_list_tag) {
                     if ($list_wrapper !== null) {
                         // 关闭之前的列表（包括 todo 列表）
-                        $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                        $html .= self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                     }
-                    $html .= '<' . $current_list_tag . '>';
+                    $html .= self::open_list_wrapper($current_list_tag);
                     $list_wrapper = $current_list_tag;
                 }
             } elseif ($is_todo_item) {
                 // 待办事项列表，统一使用 ul，并带有 class 方便样式
                 if ($list_wrapper !== 'todo') {
                     if ($list_wrapper !== null) {
-                        $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                        $html .= self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                     }
-                    $html .= '<ul class="notion-to-do-list">';
+                    $html .= self::open_list_wrapper('ul', 'notion-to-do-list');
                     $list_wrapper = 'todo';
                 }
             } elseif ($list_wrapper !== null) {
                 // 当前块非列表项，关闭现有列表
-                $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                $html .= self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                 $list_wrapper = null;
             }
 
@@ -236,7 +254,7 @@ class Content_Converter {
 
         // 确保最后关闭任何未关闭的列表
         if ($list_wrapper !== null) {
-            $html .= ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+            $html .= self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
         }
 
         return $html;
@@ -266,7 +284,9 @@ class Content_Converter {
             }
         }
 
-        return !empty($child_blocks) ? self::convert_blocks_to_html($child_blocks, $notion_api) : '';
+        return !empty($child_blocks)
+            ? self::convert_blocks_to_html($child_blocks, $notion_api, null, self::$gutenberg_mode ? 'gutenberg' : 'classic')
+            : '';
     }
 
     /**
@@ -312,6 +332,80 @@ class Content_Converter {
 
         // 尝试直接在第一层HTML标签上添加ID和类名，避免额外嵌套
         return self::add_attributes_to_first_tag($block_html, $safe_id, $safe_class);
+    }
+
+    /**
+     * Gutenberg 输出模式下，将单个块 HTML 包裹为对应的 wp: 区块注释。
+     * 非 Gutenberg 模式（classic/default）下原样返回，保证向后兼容、零副作用。
+     *
+     * @since 2.0.0
+     * @param string   $html       块的 HTML 内容
+     * @param string   $block_type 块类型（paragraph/heading/separator/quote/image/list-item）
+     * @param int|null $level      标题层级（仅 heading 使用）
+     * @return string
+     */
+    private static function maybe_wrap_gutenberg_block(string $html, string $block_type, ?int $level = null): string {
+        if (!self::$gutenberg_mode) {
+            return $html;
+        }
+
+        switch ($block_type) {
+            case 'paragraph':
+                return "<!-- wp:paragraph -->\n" . $html . "\n<!-- /wp:paragraph -->";
+
+            case 'heading':
+                $level = ($level >= 1 && $level <= 6) ? $level : 2;
+                return '<!-- wp:heading {"level":' . $level . '} -->' . "\n" . $html . "\n<!-- /wp:heading -->";
+
+            case 'separator':
+                return "<!-- wp:separator -->\n" . $html . "\n<!-- /wp:separator -->";
+
+            case 'quote':
+                return "<!-- wp:quote -->\n" . $html . "\n<!-- /wp:quote -->";
+
+            case 'image':
+                return "<!-- wp:image -->\n" . $html . "\n<!-- /wp:image -->";
+
+            case 'list-item':
+                return "<!-- wp:list-item -->\n" . $html . "\n<!-- /wp:list-item -->";
+
+            default:
+                return $html;
+        }
+    }
+
+    /**
+     * 列表容器开标签：Gutenberg 模式下追加 wp:list 区块注释。
+     * classic 模式返回原始 <ul>/<ol> 开标签，保持输出不变。
+     *
+     * @since 2.0.0
+     * @param string $tag         列表标签（ul/ol）
+     * @param string $extra_class 额外 class（如 notion-to-do-list）
+     * @return string
+     */
+    private static function open_list_wrapper(string $tag, string $extra_class = ''): string {
+        $class_attr = $extra_class !== '' ? ' class="' . esc_attr($extra_class) . '"' : '';
+        $open       = '<' . $tag . $class_attr . '>';
+        if (self::$gutenberg_mode) {
+            return '<!-- wp:list -->' . $open;
+        }
+        return $open;
+    }
+
+    /**
+     * 列表容器闭标签：Gutenberg 模式下追加 wp:list 结束注释。
+     * classic 模式返回原始 </ul>/</ol>，保持输出不变。
+     *
+     * @since 2.0.0
+     * @param string $tag 列表标签（ul/ol）
+     * @return string
+     */
+    private static function close_list_wrapper(string $tag): string {
+        $close = '</' . $tag . '>';
+        if (self::$gutenberg_mode) {
+            return $close . '<!-- /wp:list -->';
+        }
+        return $close;
     }
 
     /**
@@ -410,6 +504,7 @@ class Content_Converter {
     private static function _convert_block_paragraph(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['paragraph']['rich_text']);
         $html = empty($text) ? '<p>&nbsp;</p>' : '<p>' . $text . '</p>';
+        $html = self::maybe_wrap_gutenberg_block($html, 'paragraph');
         $html .= self::_convert_child_blocks($block, $notion_api);
         return $html;
     }
@@ -419,7 +514,8 @@ class Content_Converter {
      */
     private static function _convert_block_heading_1(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['heading_1']['rich_text']);
-        return '<h1>' . $text . '</h1>' . self::_convert_child_blocks($block, $notion_api);
+        $html = '<h1>' . $text . '</h1>';
+        return self::maybe_wrap_gutenberg_block($html, 'heading', 1) . self::_convert_child_blocks($block, $notion_api);
     }
 
     /**
@@ -427,7 +523,8 @@ class Content_Converter {
      */
     private static function _convert_block_heading_2(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['heading_2']['rich_text']);
-        return '<h2>' . $text . '</h2>' . self::_convert_child_blocks($block, $notion_api);
+        $html = '<h2>' . $text . '</h2>';
+        return self::maybe_wrap_gutenberg_block($html, 'heading', 2) . self::_convert_child_blocks($block, $notion_api);
     }
 
     /**
@@ -435,7 +532,8 @@ class Content_Converter {
      */
     private static function _convert_block_heading_3(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['heading_3']['rich_text']);
-        return '<h3>' . $text . '</h3>' . self::_convert_child_blocks($block, $notion_api);
+        $html = '<h3>' . $text . '</h3>';
+        return self::maybe_wrap_gutenberg_block($html, 'heading', 3) . self::_convert_child_blocks($block, $notion_api);
     }
 
     /**
@@ -443,7 +541,8 @@ class Content_Converter {
      */
     private static function _convert_block_bulleted_list_item(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['bulleted_list_item']['rich_text']);
-        return '<li>' . $text . self::_convert_child_blocks($block, $notion_api) . '</li>';
+        $html = '<li>' . $text . self::_convert_child_blocks($block, $notion_api) . '</li>';
+        return self::maybe_wrap_gutenberg_block($html, 'list-item');
     }
 
     /**
@@ -451,7 +550,8 @@ class Content_Converter {
      */
     private static function _convert_block_numbered_list_item(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['numbered_list_item']['rich_text']);
-        return '<li>' . $text . self::_convert_child_blocks($block, $notion_api) . '</li>';
+        $html = '<li>' . $text . self::_convert_child_blocks($block, $notion_api) . '</li>';
+        return self::maybe_wrap_gutenberg_block($html, 'list-item');
     }
 
     /**
@@ -470,7 +570,7 @@ class Content_Converter {
         $html .= self::_convert_child_blocks($block, $notion_api);
         $html .= '</li>';
 
-        return $html;
+        return self::maybe_wrap_gutenberg_block($html, 'list-item');
     }
 
     /**
@@ -493,7 +593,7 @@ class Content_Converter {
      * 转换分割线块
      */
     private static function _convert_block_divider(array $block, \NTWP\Services\API $notion_api): string {
-        return '<hr>';
+        return self::maybe_wrap_gutenberg_block('<hr>', 'separator');
     }
 
     /**
@@ -502,7 +602,7 @@ class Content_Converter {
     private static function _convert_block_quote(array $block, \NTWP\Services\API $notion_api): string {
         $text = self::extract_rich_text($block['quote']['rich_text']);
         $child_content = self::_convert_child_blocks($block, $notion_api);
-        return '<blockquote>' . $text . $child_content . '</blockquote>';
+        return self::maybe_wrap_gutenberg_block('<blockquote>' . $text . $child_content . '</blockquote>', 'quote');
     }
 
     /**
@@ -610,7 +710,7 @@ class Content_Converter {
                 $html .= '<figcaption>' . $caption . '</figcaption>';
             }
             $html .= '</figure>';
-            return $html;
+            return self::maybe_wrap_gutenberg_block($html, 'image');
         }
     }
 
@@ -1341,13 +1441,14 @@ class Content_Converter {
 
                 if ($list_wrapper !== $required_wrapper) {
                     if ($list_wrapper !== null) {
-                        $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                        $html_parts[] = self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                     }
-                    $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
-                    $list_wrapper = $required_wrapper;
+                    $todo_class    = $required_wrapper === 'todo' ? 'notion-todo-list' : '';
+                    $html_parts[]  = self::open_list_wrapper($required_wrapper === 'todo' ? 'ul' : $required_wrapper, $todo_class);
+                    $list_wrapper  = $required_wrapper;
                 }
             } elseif ($list_wrapper !== null) {
-                $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                $html_parts[] = self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                 $list_wrapper = null;
             }
 
@@ -1363,7 +1464,7 @@ class Content_Converter {
 
         // 关闭未关闭的列表
         if ($list_wrapper !== null) {
-            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+            $html_parts[] = self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
         }
 
         // 一次性拼接所有HTML片段
@@ -1641,13 +1742,14 @@ class Content_Converter {
 
                     if ($list_wrapper !== $required_wrapper) {
                         if ($list_wrapper !== null) {
-                            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                            $html_parts[] = self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                         }
-                        $html_parts[] = ($required_wrapper === 'todo') ? '<ul class="notion-todo-list">' : '<' . $required_wrapper . '>';
-                        $list_wrapper = $required_wrapper;
+                        $todo_class    = $required_wrapper === 'todo' ? 'notion-todo-list' : '';
+                        $html_parts[]  = self::open_list_wrapper($required_wrapper === 'todo' ? 'ul' : $required_wrapper, $todo_class);
+                        $list_wrapper  = $required_wrapper;
                     }
                 } elseif ($list_wrapper !== null) {
-                    $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+                    $html_parts[] = self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
                     $list_wrapper = null;
                 }
 
@@ -1678,7 +1780,7 @@ class Content_Converter {
 
         // 关闭未关闭的列表
         if ($list_wrapper !== null) {
-            $html_parts[] = ($list_wrapper === 'todo') ? '</ul>' : '</' . $list_wrapper . '>';
+            $html_parts[] = self::close_list_wrapper($list_wrapper === 'todo' ? 'ul' : $list_wrapper);
         }
 
         if (class_exists('\\NTWP\\Core\\Logger')) {

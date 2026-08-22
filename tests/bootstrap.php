@@ -82,6 +82,18 @@ if (!function_exists('__')) {
     }
 }
 
+if (!function_exists('esc_html')) {
+    function esc_html($text) {
+        return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
+    }
+}
+
+if (!function_exists('esc_attr')) {
+    function esc_attr($text) {
+        return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
+    }
+}
+
 // 载入 Composer 自动加载（若存在）
 $autoload = __DIR__ . '/../vendor/autoload.php';
 if (file_exists($autoload)) {

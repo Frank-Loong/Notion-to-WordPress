@@ -509,6 +509,9 @@ class Notion_To_WordPress_Admin {
         $options['api_cache_enabled']       = isset($_POST['api_cache_enabled']) ? 1 : 0;
         $options['api_cache_ttl_minutes']   = isset($_POST['api_cache_ttl_minutes']) ? max(1, min(60, (int)$_POST['api_cache_ttl_minutes'])) : 5;
 
+        // P1-02 输出格式：classic（默认）或 gutenberg（原生区块标记，便于在块编辑器二次编辑）。
+        $options['output_format'] = isset($_POST['output_format']) && $_POST['output_format'] === 'gutenberg' ? 'gutenberg' : 'classic';
+
         // Debug Level
         $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
 
