@@ -374,22 +374,24 @@ class Main {
 	 */
 	public function cron_import_pages() {
 		// 获取选项
-		$options     = get_option( 'notion_to_wordpress_options', array() );
-		$database_id = $options['notion_database_id'] ?? '';
+		$options = get_option( 'notion_to_wordpress_options', array() );
 
-		if (empty($database_id)) {
-			\NTWP\Core\Logger::error_log( 'Cron import failed: Database ID is not set.' );
+		// P1-01 多数据库：统一从配置中读取需要同步的数据库列表（含主库与附加库）
+		$databases = \NTWP\Services\Database_Config::get_configured_databases( $options );
+
+		if ( empty( $databases ) ) {
+			\NTWP\Core\Logger::error_log( 'Cron import failed: 未配置任何数据库 ID。' );
 			return;
 		}
 
 		// 定时同步默认启用增量同步和删除检测
-		$incremental = $options['cron_incremental_sync'] ?? true;
+		$incremental     = $options['cron_incremental_sync'] ?? true;
 		$check_deletions = $options['cron_check_deletions'] ?? true;
 
-		$completed = $this->_core_import_process( $database_id, $options, $incremental, $check_deletions );
+		$completed = $this->_core_import_process( $databases, $options, $incremental, $check_deletions );
 
-		// 断点续传：仅在本次同步完整完成时才推进 last_sync_time。
-		// 若因超时/资源限制中断（interrupted），不更新 last_sync_time，
+		// 断点续传：仅在全部数据库均完整完成时才推进 last_sync_time。
+		// 若任何数据库因超时/资源限制中断（interrupted），不更新 last_sync_time，
 		// 确保下次增量同步能重新覆盖本次未处理的存量页面，而非漏掉它们。
 		if ( $completed ) {
 			$options['last_sync_time'] = current_time( 'mysql' );
@@ -403,40 +405,54 @@ class Main {
 	 * 核心导入逻辑，可由cron或手动调用。
 	 *
 	 * @since 1.1.0
-	 * @param string $database_id 要导入的数据库ID
+	 * @param array  $databases    需要同步的数据库列表（P1-01 多数据库）
 	 * @param array  $options 插件设置选项
 	 * @param bool   $incremental 是否启用增量同步
 	 * @param bool   $check_deletions 是否检查删除
-	 * @return bool 是否完整完成（false 表示因超时/异常中断，仍有页面未处理）
+	 * @return bool 是否全部完整完成（false 表示任一数据库因超时/异常中断，仍有页面未处理）
 	 */
-	private function _core_import_process( string $database_id, array $options, bool $incremental = true, bool $check_deletions = true ): bool {
-		try {
-			// 使用统一的import_pages方法，支持增量同步和删除检测
-			$result = $this->notion_pages->import_pages($check_deletions, $incremental);
+	private function _core_import_process( array $databases, array $options, bool $incremental = true, bool $check_deletions = true ): bool {
+		$all_completed = true;
 
-			if (is_wp_error($result)) {
-				\NTWP\Core\Logger::error_log('Cron import failed: ' . $result->get_error_message());
-				return false;
+		foreach ( $databases as $db ) {
+			$database_id    = $db['id'];
+			$field_mapping  = $db['field_mapping'] ?? ( $options['field_mapping'] ?? [] );
+			$coordinator    = new \NTWP\Handlers\Import_Coordinator( $this->notion_api, $database_id, $field_mapping );
+
+			try {
+				// 使用统一的import_pages方法，支持增量同步和删除检测
+				$result = $coordinator->import_pages( $check_deletions, $incremental );
+
+				if ( is_wp_error( $result ) ) {
+					$all_completed = false;
+					\NTWP\Core\Logger::error_log( 'Cron import failed (DB ' . $database_id . '): ' . $result->get_error_message() );
+					continue;
+				}
+
+				\NTWP\Core\Logger::info_log(
+					sprintf( '定时同步完成(库 %s) - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d%s',
+						$database_id,
+						$result['total'] ?? 0,
+						$result['imported'] ?? 0,
+						$result['updated'] ?? 0,
+						$result['deleted'] ?? 0,
+						$result['failed'] ?? 0,
+						! empty( $result['interrupted'] ) ? ' [中断]' : ''
+					),
+					'Cron Sync'
+				);
+
+				// 断点续传：任一数据库中断则整体视为未完整完成
+				if ( ! empty( $result['interrupted'] ) ) {
+					$all_completed = false;
+				}
+			} catch ( Exception $e ) {
+				$all_completed = false;
+				\NTWP\Core\Logger::error_log( 'Notion import error (DB ' . $database_id . '): ' . $e->getMessage() );
 			}
-
-			\NTWP\Core\Logger::info_log(
-				sprintf('定时同步完成 - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d%s',
-					$result['total'] ?? 0,
-					$result['imported'] ?? 0,
-					$result['updated'] ?? 0,
-					$result['deleted'] ?? 0,
-					$result['failed'] ?? 0,
-					!empty($result['interrupted']) ? ' [中断]' : ''
-				),
-				'Cron Sync'
-			);
-
-			// 断点续传：返回是否完整完成
-			return empty($result['interrupted']);
-		} catch ( Exception $e ) {
-			\NTWP\Core\Logger::error_log( 'Notion import error: ' . $e->getMessage() );
-			return false;
 		}
+
+		return $all_completed;
 	}
 
 	/**

@@ -25,6 +25,19 @@ $options = get_option('notion_to_wordpress_options', []);
 // 从选项数组中安全获取值，带默认值
 $api_key               = $options['notion_api_key'] ?? '';
 $database_id           = $options['notion_database_id'] ?? '';
+$additional_databases   = $options['notion_databases'] ?? [];
+if (is_array($additional_databases)) {
+    $additional_databases_text = implode("\n", array_map(
+        function ($db) {
+            $id   = is_array($db) ? ($db['id'] ?? '') : (string) $db;
+            $name = is_array($db) ? ($db['name'] ?? '') : '';
+            return $name !== '' ? ($name . '|' . $id) : $id;
+        },
+        $additional_databases
+    ));
+} else {
+    $additional_databases_text = '';
+}
 $sync_schedule         = $options['sync_schedule'] ?? 'manual';
 $delete_on_uninstall   = $options['delete_on_uninstall'] ?? 0;
 $field_mapping         = $options['field_mapping'] ?? [
@@ -156,6 +169,13 @@ $script_nonce = wp_create_nonce('notion_wp_script_nonce');
                                             <div class="validation-feedback" id="database-id-feedback"></div>
                                         </div>
                                         <p class="description"><?php echo wp_kses( __('可以从Notion数据库URL中找到，格式如：https://www.notion.so/xxx/<strong>数据库ID</strong>?v=xxx', 'notion-to-wordpress'), ['strong' => []] ); ?></p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th scope="row"><label for="additional_databases"><?php esc_html_e('附加数据库（多库同步）', 'notion-to-wordpress'); ?></label></th>
+                                    <td>
+                                        <textarea id="additional_databases" name="additional_databases" rows="4" class="large-text code" placeholder="<?php esc_attr_e('每行一个数据库 ID，可选 “名称|ID” 格式', 'notion-to-wordpress'); ?>"><?php echo esc_textarea($additional_databases_text); ?></textarea>
+                                        <p class="description"><?php esc_html_e('除上方主数据库外，额外同步的 Notion 数据库。每行一个 ID；如需备注可用“名称|ID”。为空则仅同步主数据库。定时与手动同步都会遍历全部配置的数据库。', 'notion-to-wordpress'); ?></p>
                                     </td>
                                 </tr>
                                 <tr>

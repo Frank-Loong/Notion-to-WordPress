@@ -512,6 +512,11 @@ class Notion_To_WordPress_Admin {
         // P1-02 输出格式：classic（默认）或 gutenberg（原生区块标记，便于在块编辑器二次编辑）。
         $options['output_format'] = isset($_POST['output_format']) && $_POST['output_format'] === 'gutenberg' ? 'gutenberg' : 'classic';
 
+        // P1-01 多数据库：附加数据库列表（每行一个，可选 "名称|ID" 格式）。
+        // 主数据库仍由 notion_database_id（React 前端管理）提供，此处仅补充额外库。
+        $raw_additional = isset($_POST['additional_databases']) ? sanitize_textarea_field($_POST['additional_databases']) : '';
+        $options['notion_databases'] = \NTWP\Services\Database_Config::parse_database_list($raw_additional);
+
         // Debug Level
         $options['debug_level'] = isset( $_POST['debug_level'] ) ? intval( $_POST['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
 
@@ -837,8 +842,11 @@ class Notion_To_WordPress_Admin {
             // 获取选项
             $options = get_option( 'notion_to_wordpress_options', [] );
 
-            // 检查必要的设置
-            if ( empty( $options['notion_api_key'] ) || empty( $options['notion_database_id'] ) ) {
+            // 检查必要的设置（P1-01：主库或附加多数据库任一存在即可）
+            $has_database = ! empty( $options['notion_database_id'] )
+                || ( ! empty( $options['notion_databases'] ) && is_array( $options['notion_databases'] ) && count( $options['notion_databases'] ) > 0 );
+
+            if ( empty( $options['notion_api_key'] ) || ! $has_database ) {
                 // 更新进度跟踪状态为失败
                 if ($progress_tracker && !empty($task_id)) {
                     try {
@@ -854,40 +862,59 @@ class Notion_To_WordPress_Admin {
                 return;
             }
 
-            // 初始化API和Pages对象
+            // 初始化 API
             $api_key = $options['notion_api_key'];
-            $database_id = $options['notion_database_id'];
             $field_mapping = $options['field_mapping'] ?? [];
             $custom_field_mappings = $options['custom_field_mappings'] ?? [];
 
-            // 实例化API和Pages对象
-            error_log('Notion to WordPress: 创建API实例，API Key: ' . substr($api_key, 0, 10) . '...');
             $notion_api = new API( $api_key );
 
-            error_log('Notion to WordPress: 创建导入协调器实例，Database ID: ' . $database_id);
-            $notion_pages = new Import_Coordinator( $notion_api, $database_id, $field_mapping );
-            $notion_pages->set_custom_field_mappings($custom_field_mappings);
-
-            // 设置进度跟踪器（如果可用）
-            if ($progress_tracker && !empty($task_id) && method_exists($notion_pages, 'setProgressTracker')) {
-                $notion_pages->setProgressTracker($task_id, $progress_tracker);
+            // P1-01 多数据库：遍历所有配置的数据库（主库 + 附加库，去重）
+            $databases = \NTWP\Services\Database_Config::get_configured_databases( $options );
+            if ( empty( $databases ) ) {
+                wp_send_json_error( [ 'message' => __( '请先配置至少一个数据库 ID', 'notion-to-wordpress' ) ] );
+                return;
             }
 
-            // 检查是否启用增量同步
             $incremental = isset($_POST['incremental']) ? (bool) $_POST['incremental'] : true;
             $check_deletions = isset($_POST['check_deletions']) ? (bool) $_POST['check_deletions'] : true;
 
             if (class_exists('NTWP\\Core\\Logger')) {
-                Logger::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no'), 'Manual Sync');
+                Logger::info_log('手动同步参数 - 增量: ' . ($incremental ? 'yes' : 'no') . ', 检查删除: ' . ($check_deletions ? 'yes' : 'no') . ', 数据库数: ' . count($databases), 'Manual Sync');
             }
 
-            // 执行导入
-            if (class_exists('NTWP\\Core\\Logger')) {
-                Logger::info_log('开始执行import_pages()', 'Manual Sync');
-            }
-            $result = $notion_pages->import_pages($check_deletions, $incremental);
-            if (class_exists('NTWP\\Core\\Logger')) {
-                Logger::info_log('import_pages()执行完成，结果: ' . print_r($result, true), 'Manual Sync');
+            // 聚合各数据库同步结果
+            $result = [
+                'total' => 0, 'imported' => 0, 'updated' => 0, 'failed' => 0,
+                'deleted' => 0, 'skipped' => 0, 'created' => 0, 'errors' => 0,
+            ];
+
+            foreach ( $databases as $db ) {
+                $coordinator = new Import_Coordinator( $notion_api, $db['id'], $db['field_mapping'] ?? $field_mapping );
+                $coordinator->set_custom_field_mappings( $custom_field_mappings );
+
+                if ($progress_tracker && !empty($task_id) && method_exists($coordinator, 'setProgressTracker')) {
+                    $coordinator->setProgressTracker($task_id, $progress_tracker);
+                }
+
+                if (class_exists('NTWP\\Core\\Logger')) {
+                    Logger::info_log('开始执行 import_pages() (DB ' . $db['id'] . ')', 'Manual Sync');
+                }
+
+                $db_result = $coordinator->import_pages($check_deletions, $incremental);
+
+                if ( is_wp_error( $db_result ) ) {
+                    wp_send_json_error( [ 'message' => $db_result->get_error_message() ] );
+                    return;
+                }
+
+                foreach ( array( 'total', 'imported', 'updated', 'failed', 'deleted', 'skipped', 'created', 'errors' ) as $key ) {
+                    $result[ $key ] += ( $db_result[ $key ] ?? 0 );
+                }
+
+                if (class_exists('NTWP\\Core\\Logger')) {
+                    Logger::info_log('import_pages() 完成 (DB ' . $db['id'] . ')，结果: ' . print_r($db_result, true), 'Manual Sync');
+                }
             }
 
             // 更新最后同步时间
