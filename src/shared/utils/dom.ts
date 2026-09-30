@@ -33,17 +33,17 @@ export function createElement<K extends keyof HTMLElementTagNameMap>(
   textContent?: string
 ): HTMLElementTagNameMap[K] {
   const element = document.createElement(tagName);
-  
+
   if (attributes) {
     Object.entries(attributes).forEach(([key, value]) => {
       element.setAttribute(key, value);
     });
   }
-  
+
   if (textContent) {
     element.textContent = textContent;
   }
-  
+
   return element;
 }
 
@@ -57,14 +57,21 @@ export function addClass(element: HTMLElement, ...classNames: string[]): void {
 /**
  * 移除CSS类
  */
-export function removeClass(element: HTMLElement, ...classNames: string[]): void {
+export function removeClass(
+  element: HTMLElement,
+  ...classNames: string[]
+): void {
   element.classList.remove(...classNames);
 }
 
 /**
  * 切换CSS类
  */
-export function toggleClass(element: HTMLElement, className: string, force?: boolean): boolean {
+export function toggleClass(
+  element: HTMLElement,
+  className: string,
+  force?: boolean
+): boolean {
   return element.classList.toggle(className, force);
 }
 
@@ -78,14 +85,21 @@ export function hasClass(element: HTMLElement, className: string): boolean {
 /**
  * 设置元素属性
  */
-export function setAttribute(element: HTMLElement, name: string, value: string): void {
+export function setAttribute(
+  element: HTMLElement,
+  name: string,
+  value: string
+): void {
   element.setAttribute(name, value);
 }
 
 /**
  * 获取元素属性
  */
-export function getAttribute(element: HTMLElement, name: string): string | null {
+export function getAttribute(
+  element: HTMLElement,
+  name: string
+): string | null {
   return element.getAttribute(name);
 }
 
@@ -99,14 +113,20 @@ export function removeAttribute(element: HTMLElement, name: string): void {
 /**
  * 设置元素样式
  */
-export function setStyle(element: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+export function setStyle(
+  element: HTMLElement,
+  styles: Partial<CSSStyleDeclaration>
+): void {
   Object.assign(element.style, styles);
 }
 
 /**
  * 获取计算样式
  */
-export function getComputedStyle(element: HTMLElement, property?: string): string | CSSStyleDeclaration {
+export function getComputedStyle(
+  element: HTMLElement,
+  property?: string
+): string | CSSStyleDeclaration {
   const computed = window.getComputedStyle(element);
   return property ? computed.getPropertyValue(property) : computed;
 }
@@ -169,10 +189,10 @@ export function delegate(
   eventType: string,
   callback: EventCallback
 ): void {
-  addEventListener(container, eventType as keyof HTMLElementEventMap, (event) => {
+  addEventListener(container, eventType as keyof HTMLElementEventMap, event => {
     const target = event.target as HTMLElement;
     const delegateTarget = target.closest(selector) as HTMLElement;
-    
+
     if (delegateTarget && container.contains(delegateTarget)) {
       callback.call(delegateTarget, event);
     }
@@ -186,18 +206,21 @@ export function getOffset(element: HTMLElement): { top: number; left: number } {
   const rect = element.getBoundingClientRect();
   return {
     top: rect.top + window.pageYOffset,
-    left: rect.left + window.pageXOffset
+    left: rect.left + window.pageXOffset,
   };
 }
 
 /**
  * 获取元素尺寸信息
  */
-export function getSize(element: HTMLElement): { width: number; height: number } {
+export function getSize(element: HTMLElement): {
+  width: number;
+  height: number;
+} {
   const rect = element.getBoundingClientRect();
   return {
     width: rect.width,
-    height: rect.height
+    height: rect.height,
   };
 }
 
@@ -219,7 +242,8 @@ export function isInViewport(element: HTMLElement): boolean {
   return (
     rect.top >= 0 &&
     rect.left >= 0 &&
-    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.bottom <=
+      (window.innerHeight || document.documentElement.clientHeight) &&
     rect.right <= (window.innerWidth || document.documentElement.clientWidth)
   );
 }
@@ -244,18 +268,18 @@ export function debounce<T extends (...args: any[]) => any>(
   immediate = false
 ): (...args: Parameters<T>) => void {
   let timeout: NodeJS.Timeout | null = null;
-  
+
   return function executedFunction(...args: Parameters<T>) {
     const later = () => {
       timeout = null;
       if (!immediate) func(...args);
     };
-    
+
     const callNow = immediate && !timeout;
-    
+
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
-    
+
     if (callNow) func(...args);
   };
 }
@@ -268,12 +292,12 @@ export function throttle<T extends (...args: any[]) => any>(
   limit: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean;
-  
+
   return function executedFunction(...args: Parameters<T>) {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+      setTimeout(() => (inThrottle = false), limit);
     }
   };
 }

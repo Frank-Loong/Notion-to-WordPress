@@ -1,6 +1,6 @@
 /**
  * Webhook组件 - 现代化TypeScript版本
- * 
+ *
  * 提供Webhook配置界面的交互功能，包括：
  * - 配置表单处理
  * - 实时验证
@@ -27,15 +27,17 @@ export class WebhookComponent extends BaseComponent {
   protected defaultOptions: WebhookComponentOptions = {
     autoValidate: true,
     showAdvancedOptions: false,
-    enableTesting: true
+    enableTesting: true,
   };
 
-  constructor(options: WebhookComponentOptions = {} as WebhookComponentOptions) {
+  constructor(
+    options: WebhookComponentOptions = {} as WebhookComponentOptions
+  ) {
     const finalOptions = {
       autoValidate: true,
       showAdvancedOptions: false,
       enableTesting: true,
-      ...options
+      ...options,
     };
     super(finalOptions);
     this.options = finalOptions;
@@ -120,20 +122,48 @@ export class WebhookComponent extends BaseComponent {
 
     this.elements = {
       container: this.element,
-      enabledCheckbox: this.element.querySelector('#webhook_enabled') as HTMLInputElement,
-      settingsContainer: this.element.querySelector('#webhook-settings') as HTMLElement,
-      tokenInput: this.element.querySelector('#webhook_token') as HTMLInputElement,
-      urlDisplay: this.element.querySelector('#webhook_url') as HTMLInputElement,
-      verificationTokenInput: this.element.querySelector('#verification_token') as HTMLInputElement,
-      generateTokenBtn: this.element.querySelector('#generate-webhook-token') as HTMLButtonElement,
-      testWebhookBtn: this.element.querySelector('#test-webhook') as HTMLButtonElement,
-      refreshTokenBtn: this.element.querySelector('#refresh-verification-token') as HTMLButtonElement,
-      copyUrlBtn: this.element.querySelector('.copy-webhook-url') as HTMLButtonElement,
-      statusIndicator: this.element.querySelector('.webhook-status') as HTMLElement,
-      advancedToggle: this.element.querySelector('#webhook-advanced-toggle') as HTMLButtonElement,
-      advancedOptions: this.element.querySelector('#webhook-advanced-options') as HTMLElement,
-      incrementalSyncCheckbox: this.element.querySelector('#webhook_incremental_sync') as HTMLInputElement,
-      checkDeletionsCheckbox: this.element.querySelector('#webhook_check_deletions') as HTMLInputElement
+      enabledCheckbox: this.element.querySelector(
+        '#webhook_enabled'
+      ) as HTMLInputElement,
+      settingsContainer: this.element.querySelector(
+        '#webhook-settings'
+      ) as HTMLElement,
+      tokenInput: this.element.querySelector(
+        '#webhook_token'
+      ) as HTMLInputElement,
+      urlDisplay: this.element.querySelector(
+        '#webhook_url'
+      ) as HTMLInputElement,
+      verificationTokenInput: this.element.querySelector(
+        '#verification_token'
+      ) as HTMLInputElement,
+      generateTokenBtn: this.element.querySelector(
+        '#generate-webhook-token'
+      ) as HTMLButtonElement,
+      testWebhookBtn: this.element.querySelector(
+        '#test-webhook'
+      ) as HTMLButtonElement,
+      refreshTokenBtn: this.element.querySelector(
+        '#refresh-verification-token'
+      ) as HTMLButtonElement,
+      copyUrlBtn: this.element.querySelector(
+        '.copy-webhook-url'
+      ) as HTMLButtonElement,
+      statusIndicator: this.element.querySelector(
+        '.webhook-status'
+      ) as HTMLElement,
+      advancedToggle: this.element.querySelector(
+        '#webhook-advanced-toggle'
+      ) as HTMLButtonElement,
+      advancedOptions: this.element.querySelector(
+        '#webhook-advanced-options'
+      ) as HTMLElement,
+      incrementalSyncCheckbox: this.element.querySelector(
+        '#webhook_incremental_sync'
+      ) as HTMLInputElement,
+      checkDeletionsCheckbox: this.element.querySelector(
+        '#webhook_check_deletions'
+      ) as HTMLInputElement,
     };
   }
 
@@ -143,7 +173,7 @@ export class WebhookComponent extends BaseComponent {
   private setupEventListeners(): void {
     // Webhook启用/禁用
     if (this.elements.enabledCheckbox) {
-      this.elements.enabledCheckbox.addEventListener('change', (e) => {
+      this.elements.enabledCheckbox.addEventListener('change', e => {
         this.handleWebhookToggle((e.target as HTMLInputElement).checked);
       });
     }
@@ -238,7 +268,7 @@ export class WebhookComponent extends BaseComponent {
 
     // 更新状态
     this.updateWebhookStatus(enabled);
-    
+
     // 如果启用且没有令牌，自动生成
     if (enabled && !this.elements.tokenInput?.value) {
       this.handleGenerateToken();
@@ -253,19 +283,19 @@ export class WebhookComponent extends BaseComponent {
   private handleGenerateToken(): void {
     // 生成新令牌
     const newToken = this.generateSecureToken();
-    
+
     if (this.elements.tokenInput) {
       this.elements.tokenInput.value = newToken;
     }
-    
+
     // 更新URL显示
     this.updateWebhookUrl(newToken);
-    
+
     // 验证新令牌
     if (this.options.autoValidate) {
       this.validateToken();
     }
-    
+
     showSuccess('已生成新的Webhook令牌');
     emit('webhook:component:token:generated', { token: newToken });
   }
@@ -281,7 +311,7 @@ export class WebhookComponent extends BaseComponent {
 
     const token = this.elements.tokenInput?.value;
     const url = this.elements.urlDisplay?.value;
-    
+
     if (!token || !url) {
       showError('请先配置Webhook令牌和URL');
       return;
@@ -289,7 +319,7 @@ export class WebhookComponent extends BaseComponent {
 
     // 设置测试状态
     this.setTestingState(true);
-    
+
     try {
       // 通过Webhook管理器执行测试
       // 这里应该调用公共方法或者直接实现测试逻辑
@@ -310,7 +340,7 @@ export class WebhookComponent extends BaseComponent {
       this.elements.refreshTokenBtn.disabled = true;
       this.elements.refreshTokenBtn.textContent = '刷新中...';
     }
-    
+
     try {
       // 通过Webhook管理器刷新
       // 这里应该调用公共方法或者直接实现刷新逻辑
@@ -331,16 +361,16 @@ export class WebhookComponent extends BaseComponent {
    */
   private async handleCopyUrl(): Promise<void> {
     const url = this.elements.urlDisplay?.value;
-    
+
     if (!url) {
       showError('没有可复制的URL');
       return;
     }
-    
+
     try {
       await navigator.clipboard.writeText(url);
       showSuccess('Webhook URL已复制到剪贴板');
-      
+
       // 临时改变按钮文本
       if (this.elements.copyUrlBtn) {
         const originalText = this.elements.copyUrlBtn.textContent;
@@ -351,8 +381,7 @@ export class WebhookComponent extends BaseComponent {
           }
         }, 2000);
       }
-      
-    } catch (error) {
+    } catch {
       // 降级到传统方法
       this.fallbackCopyToClipboard(url);
       showSuccess('Webhook URL已复制到剪贴板');
@@ -364,9 +393,10 @@ export class WebhookComponent extends BaseComponent {
    */
   private toggleAdvancedOptions(): void {
     if (!this.elements.advancedOptions || !this.elements.advancedToggle) return;
-    
-    const isVisible = !this.elements.advancedOptions.classList.contains('notion-wp-hidden');
-    
+
+    const isVisible =
+      !this.elements.advancedOptions.classList.contains('notion-wp-hidden');
+
     if (isVisible) {
       this.slideUp(this.elements.advancedOptions, () => {
         this.elements.advancedOptions?.classList.add('notion-wp-hidden');
@@ -384,12 +414,15 @@ export class WebhookComponent extends BaseComponent {
    */
   private validateToken(): void {
     const token = this.elements.tokenInput?.value || '';
-    
+
     // 这里可以添加实时验证逻辑
     if (token.length < 16) {
       this.showTokenValidation('令牌长度至少需要16个字符', 'warning');
     } else if (!/^[a-zA-Z0-9_-]+$/.test(token)) {
-      this.showTokenValidation('令牌只能包含字母、数字、下划线和连字符', 'error');
+      this.showTokenValidation(
+        '令牌只能包含字母、数字、下划线和连字符',
+        'error'
+      );
     } else {
       this.showTokenValidation('令牌格式正确', 'success');
     }
@@ -398,7 +431,10 @@ export class WebhookComponent extends BaseComponent {
   /**
    * 显示令牌验证结果
    */
-  private showTokenValidation(message: string, type: 'success' | 'warning' | 'error'): void {
+  private showTokenValidation(
+    message: string,
+    type: 'success' | 'warning' | 'error'
+  ): void {
     // 这里可以添加具体的UI反馈逻辑
     console.log(`Token validation [${type}]: ${message}`);
   }
@@ -407,13 +443,14 @@ export class WebhookComponent extends BaseComponent {
    * 生成安全令牌
    */
   private generateSecureToken(length: number = 32): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
     let result = '';
-    
+
     for (let i = 0; i < length; i++) {
       result += chars[Math.floor(Math.random() * chars.length)];
     }
-    
+
     return result;
   }
 
@@ -423,7 +460,7 @@ export class WebhookComponent extends BaseComponent {
   private updateWebhookUrl(token: string): void {
     const baseUrl = window.location.origin;
     const webhookUrl = `${baseUrl}/wp-json/notion-to-wordpress/v1/webhook/${token}`;
-    
+
     if (this.elements.urlDisplay) {
       this.elements.urlDisplay.value = webhookUrl;
     }
@@ -436,7 +473,7 @@ export class WebhookComponent extends BaseComponent {
     if (this.elements.tokenInput) {
       this.elements.tokenInput.value = token;
     }
-    
+
     this.updateWebhookUrl(token);
   }
 
@@ -445,13 +482,13 @@ export class WebhookComponent extends BaseComponent {
    */
   private updateStatusDisplay(status: any): void {
     if (!this.elements.statusIndicator) return;
-    
+
     const { enabled, configured, tested, issues } = status;
-    
+
     let statusClass = 'status-disabled';
     let statusText = '未启用';
     let statusIcon = '⚪';
-    
+
     if (enabled) {
       if (issues && issues.length > 0) {
         statusClass = 'status-error';
@@ -471,7 +508,7 @@ export class WebhookComponent extends BaseComponent {
         statusIcon = '⚠️';
       }
     }
-    
+
     this.elements.statusIndicator.className = `webhook-status ${statusClass}`;
     this.elements.statusIndicator.innerHTML = `${statusIcon} ${statusText}`;
   }
@@ -481,10 +518,12 @@ export class WebhookComponent extends BaseComponent {
    */
   private handleTestResult(result: any): void {
     if (result.success) {
-      showSuccess(`Webhook测试成功！响应时间: ${result.details?.responseTime || 0}ms`);
+      showSuccess(
+        `Webhook测试成功！响应时间: ${result.details?.responseTime || 0}ms`
+      );
     } else {
       showError(`Webhook测试失败: ${result.message}`);
-      
+
       if (result.suggestions && result.suggestions.length > 0) {
         setTimeout(() => {
           showWarning('建议: ' + result.suggestions.join(', '));
@@ -500,7 +539,7 @@ export class WebhookComponent extends BaseComponent {
     if (result.errors && result.errors.length > 0) {
       console.warn('Webhook配置错误:', result.errors);
     }
-    
+
     if (result.warnings && result.warnings.length > 0) {
       console.warn('Webhook配置警告:', result.warnings);
     }
@@ -512,7 +551,9 @@ export class WebhookComponent extends BaseComponent {
   private setTestingState(testing: boolean): void {
     if (this.elements.testWebhookBtn) {
       this.elements.testWebhookBtn.disabled = testing;
-      this.elements.testWebhookBtn.textContent = testing ? '测试中...' : '测试Webhook';
+      this.elements.testWebhookBtn.textContent = testing
+        ? '测试中...'
+        : '测试Webhook';
     }
   }
 
@@ -548,10 +589,10 @@ export class WebhookComponent extends BaseComponent {
     element.style.height = '0';
     element.style.overflow = 'hidden';
     element.style.transition = 'height 0.3s ease-out';
-    
+
     const height = element.scrollHeight;
     element.style.height = height + 'px';
-    
+
     setTimeout(() => {
       element.style.height = '';
       element.style.overflow = '';
@@ -566,11 +607,11 @@ export class WebhookComponent extends BaseComponent {
     element.style.height = element.scrollHeight + 'px';
     element.style.overflow = 'hidden';
     element.style.transition = 'height 0.3s ease-out';
-    
+
     setTimeout(() => {
       element.style.height = '0';
     }, 10);
-    
+
     setTimeout(() => {
       element.style.height = '';
       element.style.overflow = '';
@@ -586,7 +627,7 @@ export class WebhookComponent extends BaseComponent {
     // 初始化UI状态
     const enabled = this.elements.enabledCheckbox?.checked || false;
     this.updateWebhookStatus(enabled);
-    
+
     // 如果启用了高级选项，显示相关UI
     if (this.options.showAdvancedOptions && this.elements.advancedOptions) {
       this.elements.advancedOptions.classList.remove('notion-wp-hidden');

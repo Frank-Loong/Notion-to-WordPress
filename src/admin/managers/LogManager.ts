@@ -1,6 +1,6 @@
 /**
  * 日志管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有admin-interactions.js和Logs.ts的日志功能完全迁移，包括：
  * - 日志获取和显示
  * - 过滤和搜索
@@ -53,7 +53,7 @@ export interface LogManagerOptions {
  */
 export class LogManager {
   private static instance: LogManager | null = null;
-  
+
   private options!: Required<LogManagerOptions>;
   private logs: LogEntry[] = [];
   private filteredLogs: LogEntry[] = [];
@@ -66,18 +66,18 @@ export class LogManager {
     if (LogManager.instance) {
       return LogManager.instance;
     }
-    
+
     LogManager.instance = this;
-    
+
     this.options = {
       autoRefresh: false,
       refreshInterval: 10000, // 10秒
       maxEntries: 1000,
       enableExport: true,
       enableClear: true,
-      ...options
+      ...options,
     };
-    
+
     this.init();
   }
 
@@ -97,7 +97,7 @@ export class LogManager {
   private init(): void {
     this.setupEventListeners();
     this.loadLogFiles();
-    
+
     console.log('📋 [日志管理器] 已初始化');
     emit('log:manager:initialized');
   }
@@ -127,7 +127,7 @@ export class LogManager {
   async loadLogFiles(): Promise<string[]> {
     try {
       const response = await post('notion_to_wordpress_get_log_files', {});
-      
+
       if (response && response.data) {
         this.logFiles = response.data;
         emit('log:files:loaded', { files: this.logFiles });
@@ -149,7 +149,7 @@ export class LogManager {
     if (!file && this.logFiles.length === 0) {
       await this.loadLogFiles();
     }
-    
+
     const targetFile = file || this.logFiles[0];
     if (!targetFile) {
       throw new Error('没有可用的日志文件');
@@ -157,11 +157,14 @@ export class LogManager {
 
     try {
       const response = await post('notion_to_wordpress_view_log', {
-        file: targetFile
+        file: targetFile,
       });
-      
+
       if (response && response.data) {
-        emit('log:content:loaded', { file: targetFile, content: response.data });
+        emit('log:content:loaded', {
+          file: targetFile,
+          content: response.data,
+        });
         return response.data;
       } else {
         throw new Error('加载日志内容失败');
@@ -177,24 +180,24 @@ export class LogManager {
    */
   async getLogs(filter: LogFilter = {}): Promise<LogEntry[]> {
     this.setLoading(true);
-    
+
     try {
       const response = await post('notion_to_wordpress_get_logs', {
         limit: this.options.maxEntries,
-        ...filter
+        ...filter,
       });
 
       if (response && response.data) {
         this.logs = this.parseLogEntries(response.data);
         this.currentFilter = filter;
         this.applyFilters();
-        
-        emit('log:entries:loaded', { 
-          logs: this.logs, 
+
+        emit('log:entries:loaded', {
+          logs: this.logs,
           filtered: this.filteredLogs,
-          filter 
+          filter,
         });
-        
+
         return this.logs;
       } else {
         throw new Error('获取日志失败');
@@ -215,12 +218,12 @@ export class LogManager {
     if (Array.isArray(data)) {
       return data.map(entry => this.parseLogEntry(entry));
     }
-    
+
     // 如果是字符串，尝试解析为日志行
     if (typeof data === 'string') {
       return this.parseLogString(data);
     }
-    
+
     return [];
   }
 
@@ -235,7 +238,7 @@ export class LogManager {
       message: entry.message || '',
       context: entry.context,
       source: entry.source || 'unknown',
-      file: entry.file
+      file: entry.file,
     };
   }
 
@@ -245,14 +248,14 @@ export class LogManager {
   private parseLogString(logString: string): LogEntry[] {
     const lines = logString.split('\n').filter(line => line.trim());
     const entries: LogEntry[] = [];
-    
+
     lines.forEach(line => {
       const entry = this.parseLogLine(line);
       if (entry) {
         entries.push(entry);
       }
     });
-    
+
     return entries;
   }
 
@@ -267,7 +270,7 @@ export class LogManager {
       // 2024-01-01 12:00:00 ERROR message
       /^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+(\w+)\s+(.+)$/,
       // ERROR: message
-      /^(\w+):\s*(.+)$/
+      /^(\w+):\s*(.+)$/,
     ];
 
     for (const pattern of patterns) {
@@ -294,7 +297,7 @@ export class LogManager {
           level: this.normalizeLogLevel(level),
           message: message.trim(),
           source: 'file',
-          file: this.currentFilter.file
+          file: this.currentFilter.file,
         };
       }
     }
@@ -306,16 +309,18 @@ export class LogManager {
       level: 'info',
       message: line.trim(),
       source: 'file',
-      file: this.currentFilter.file
+      file: this.currentFilter.file,
     };
   }
 
   /**
    * 标准化日志级别
    */
-  private normalizeLogLevel(level: string): 'debug' | 'info' | 'warning' | 'error' {
+  private normalizeLogLevel(
+    level: string
+  ): 'debug' | 'info' | 'warning' | 'error' {
     const normalized = level.toLowerCase();
-    
+
     switch (normalized) {
       case 'debug':
       case 'trace':
@@ -354,7 +359,10 @@ export class LogManager {
       }
 
       // 来源过滤
-      if (this.currentFilter.source && log.source !== this.currentFilter.source) {
+      if (
+        this.currentFilter.source &&
+        log.source !== this.currentFilter.source
+      ) {
         return false;
       }
 
@@ -367,7 +375,8 @@ export class LogManager {
       }
 
       if (this.currentFilter.dateTo) {
-        const toDate = new Date(this.currentFilter.dateTo).getTime() + 24 * 60 * 60 * 1000; // 包含整天
+        const toDate =
+          new Date(this.currentFilter.dateTo).getTime() + 24 * 60 * 60 * 1000; // 包含整天
         if (log.timestamp > toDate) {
           return false;
         }
@@ -385,10 +394,10 @@ export class LogManager {
       return true;
     });
 
-    emit('log:filtered', { 
-      total: this.logs.length, 
+    emit('log:filtered', {
+      total: this.logs.length,
       filtered: this.filteredLogs.length,
-      filter: this.currentFilter 
+      filter: this.currentFilter,
     });
   }
 
@@ -433,7 +442,7 @@ export class LogManager {
 
     try {
       const response = await post('notion_to_wordpress_clear_logs', {});
-      
+
       if (response && response.data) {
         this.logs = [];
         this.filteredLogs = [];
@@ -462,9 +471,9 @@ export class LogManager {
       const logs = this.filteredLogs.length > 0 ? this.filteredLogs : this.logs;
       const content = this.formatLogsForExport(logs, format);
       const filename = `logs_${new Date().toISOString().split('T')[0]}.${format}`;
-      
+
       this.downloadFile(content, filename, this.getMimeType(format));
-      
+
       emit('log:exported', { format, count: logs.length });
       showSuccess(`已导出 ${logs.length} 条日志`);
     } catch (error) {
@@ -480,24 +489,33 @@ export class LogManager {
     switch (format) {
       case 'json':
         return JSON.stringify(logs, null, 2);
-      
-      case 'csv':
+
+      case 'csv': {
         const headers = 'Timestamp,Level,Source,Message,Context\n';
-        const rows = logs.map(log => {
-          const timestamp = new Date(log.timestamp).toISOString();
-          const context = log.context ? JSON.stringify(log.context).replace(/"/g, '""') : '';
-          const message = log.message.replace(/"/g, '""');
-          return `"${timestamp}","${log.level}","${log.source}","${message}","${context}"`;
-        }).join('\n');
+        const rows = logs
+          .map(log => {
+            const timestamp = new Date(log.timestamp).toISOString();
+            const context = log.context
+              ? JSON.stringify(log.context).replace(/"/g, '""')
+              : '';
+            const message = log.message.replace(/"/g, '""');
+            return `"${timestamp}","${log.level}","${log.source}","${message}","${context}"`;
+          })
+          .join('\n');
         return headers + rows;
-      
+      }
+
       case 'txt':
       default:
-        return logs.map(log => {
-          const timestamp = new Date(log.timestamp).toLocaleString();
-          const context = log.context ? `\nContext: ${JSON.stringify(log.context, null, 2)}` : '';
-          return `[${timestamp}] ${log.level.toUpperCase()}: ${log.message}${context}`;
-        }).join('\n\n');
+        return logs
+          .map(log => {
+            const timestamp = new Date(log.timestamp).toLocaleString();
+            const context = log.context
+              ? `\nContext: ${JSON.stringify(log.context, null, 2)}`
+              : '';
+            return `[${timestamp}] ${log.level.toUpperCase()}: ${log.message}${context}`;
+          })
+          .join('\n\n');
     }
   }
 
@@ -519,19 +537,23 @@ export class LogManager {
   /**
    * 下载文件
    */
-  private downloadFile(content: string, filename: string, mimeType: string): void {
+  private downloadFile(
+    content: string,
+    filename: string,
+    mimeType: string
+  ): void {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
     link.style.display = 'none';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     URL.revokeObjectURL(url);
   }
 
@@ -582,12 +604,12 @@ export class LogManager {
       info: 0,
       warning: 0,
       error: 0,
-      sources: {}
+      sources: {},
     };
 
     this.filteredLogs.forEach(log => {
       stats[log.level]++;
-      
+
       if (!stats.sources[log.source]) {
         stats.sources[log.source] = 0;
       }
@@ -652,11 +674,11 @@ export class LogManager {
    */
   destroy(): void {
     this.stopAutoRefresh();
-    
+
     // 清理事件监听器
     document.removeEventListener('visibilitychange', this.refreshLogs);
     window.removeEventListener('focus', this.refreshLogs);
-    
+
     LogManager.instance = null;
     emit('log:manager:destroyed');
     console.log('📋 [日志管理器] 已销毁');

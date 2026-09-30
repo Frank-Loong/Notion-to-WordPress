@@ -19,8 +19,8 @@ const KATEX_OPTIONS = {
   strict: 'warn',
   trust: false,
   macros: {
-    '\\f': '#1f(#2)'
-  }
+    '\\f': '#1f(#2)',
+  },
 };
 
 // Mermaid配置选项
@@ -32,12 +32,12 @@ const MERMAID_CONFIG = {
   fontSize: 14,
   flowchart: {
     useMaxWidth: true,
-    htmlLabels: true
+    htmlLabels: true,
   },
   sequence: {
     useMaxWidth: true,
-    wrap: true
-  }
+    wrap: true,
+  },
 };
 
 /**
@@ -109,7 +109,9 @@ class ResourceFallbackManager {
    * 按顺序加载KaTeX相关文件
    */
   static async loadKatexFallback(): Promise<void> {
-    const basePath = window.location.origin + '/wp-content/plugins/notion-to-wordpress/assets/vendor/katex/';
+    const basePath =
+      window.location.origin +
+      '/wp-content/plugins/notion-to-wordpress/assets/vendor/katex/';
 
     console.info('📦 [Notion to WordPress] 开始加载KaTeX本地备用资源...');
 
@@ -134,7 +136,9 @@ class ResourceFallbackManager {
    * 加载Mermaid备用资源
    */
   static async loadMermaidFallback(): Promise<void> {
-    const basePath = window.location.origin + '/wp-content/plugins/notion-to-wordpress/assets/vendor/mermaid/';
+    const basePath =
+      window.location.origin +
+      '/wp-content/plugins/notion-to-wordpress/assets/vendor/mermaid/';
 
     console.info('📦 [Notion to WordPress] 开始加载Mermaid本地备用资源...');
 
@@ -190,20 +194,22 @@ export class MathRenderer {
       '.katex-math',
       '.math-expression',
       '[data-math]',
-      '.wp-block-notion-math'
+      '.wp-block-notion-math',
     ];
 
     const mathElements = document.querySelectorAll(mathSelectors.join(', '));
     if (mathElements.length > 0) {
       console.log(`🧮 发现 ${mathElements.length} 个数学公式元素`);
-      this.loadKaTeX().then(() => {
-        mathElements.forEach(element => {
-          this.renderMathElement(element as HTMLElement);
+      this.loadKaTeX()
+        .then(() => {
+          mathElements.forEach(element => {
+            this.renderMathElement(element as HTMLElement);
+          });
+        })
+        .catch(error => {
+          console.error('KaTeX加载失败:', error);
+          ResourceFallbackManager.showCompatibilityTips();
         });
-      }).catch(error => {
-        console.error('KaTeX加载失败:', error);
-        ResourceFallbackManager.showCompatibilityTips();
-      });
     }
 
     // 检测Mermaid图表 - 支持多种选择器
@@ -212,33 +218,41 @@ export class MathRenderer {
       '.mermaid-chart',
       '.diagram',
       '[data-mermaid]',
-      '.wp-block-notion-mermaid'
+      '.wp-block-notion-mermaid',
     ];
 
-    const mermaidElements = document.querySelectorAll(mermaidSelectors.join(', '));
+    const mermaidElements = document.querySelectorAll(
+      mermaidSelectors.join(', ')
+    );
     if (mermaidElements.length > 0) {
       console.log(`📊 发现 ${mermaidElements.length} 个图表元素`);
-      this.loadMermaid().then(() => {
-        mermaidElements.forEach(element => {
-          this.renderMermaidElement(element as HTMLElement);
+      this.loadMermaid()
+        .then(() => {
+          mermaidElements.forEach(element => {
+            this.renderMermaidElement(element as HTMLElement);
+          });
+        })
+        .catch(error => {
+          console.error('Mermaid加载失败:', error);
+          ResourceFallbackManager.showCompatibilityTips();
         });
-      }).catch(error => {
-        console.error('Mermaid加载失败:', error);
-        ResourceFallbackManager.showCompatibilityTips();
-      });
     }
 
     // 检测化学公式
-    const chemElements = document.querySelectorAll('.notion-chemistry, .chemistry, [data-chemistry]');
+    const chemElements = document.querySelectorAll(
+      '.notion-chemistry, .chemistry, [data-chemistry]'
+    );
     if (chemElements.length > 0) {
       console.log(`🧪 发现 ${chemElements.length} 个化学公式元素`);
-      this.loadKaTeX().then(() => {
-        chemElements.forEach(element => {
-          this.renderChemistryElement(element as HTMLElement);
+      this.loadKaTeX()
+        .then(() => {
+          chemElements.forEach(element => {
+            this.renderChemistryElement(element as HTMLElement);
+          });
+        })
+        .catch(error => {
+          console.error('化学公式渲染失败:', error);
         });
-      }).catch(error => {
-        console.error('化学公式渲染失败:', error);
-      });
     }
   }
 
@@ -322,9 +336,10 @@ export class MathRenderer {
     await Promise.all([cssPromise, jsPromise]);
 
     // 3. 加载mhchem扩展（化学公式支持）
-    const mhchemPromise = new Promise<void>((resolve) => {
+    const mhchemPromise = new Promise<void>(resolve => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js';
+      script.src =
+        'https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/mhchem.min.js';
       script.onload = () => resolve();
       script.onerror = () => {
         console.warn('mhchem扩展加载失败，化学公式功能可能不可用');
@@ -396,7 +411,8 @@ export class MathRenderer {
   private async loadMermaidFromCDN(): Promise<void> {
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js';
+      script.src =
+        'https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js';
       script.onload = () => resolve();
       script.onerror = () => reject(new Error('Mermaid CDN加载失败'));
       document.head.appendChild(script);
@@ -426,11 +442,23 @@ export class MathRenderer {
       return;
     }
 
+    // Rendering can be requested by more than one frontend lifecycle event.
+    // Re-reading KaTeX's generated MathML/HTML on a later pass corrupts the
+    // source expression, especially for posts imported before data-expression
+    // was introduced.
+    if (
+      element.classList.contains('katex-rendered') ||
+      element.getAttribute('data-rendered') === 'true'
+    ) {
+      return;
+    }
+
     // 获取数学表达式
-    const expression = element.textContent ||
-                      element.getAttribute('data-expression') ||
-                      element.getAttribute('data-math') ||
-                      element.innerHTML;
+    const expression =
+      element.getAttribute('data-expression') ||
+      element.getAttribute('data-math') ||
+      element.textContent ||
+      element.innerHTML;
 
     if (!expression || expression.trim() === '') {
       console.warn('数学表达式为空，跳过渲染');
@@ -438,22 +466,39 @@ export class MathRenderer {
     }
 
     try {
-      // 判断是否为行内公式
-      const isInline = element.classList.contains('inline') ||
-                      element.classList.contains('katex-inline') ||
-                      element.hasAttribute('data-inline');
+      const rawExpression = expression.trim();
+      const isDisplayDelimited =
+        rawExpression.startsWith('$$') && rawExpression.endsWith('$$');
+      const isInlineDelimited =
+        !isDisplayDelimited &&
+        rawExpression.startsWith('$') &&
+        rawExpression.endsWith('$');
+      const normalizedExpression = isDisplayDelimited
+        ? rawExpression.slice(2, -2).trim()
+        : isInlineDelimited
+          ? rawExpression.slice(1, -1).trim()
+          : rawExpression;
+
+      // Notion source output includes TeX delimiters; KaTeX.render expects the
+      // expression alone. Keep compatibility with hand-authored markup too.
+      const isInline =
+        element.classList.contains('inline') ||
+        element.classList.contains('notion-equation-inline') ||
+        element.classList.contains('katex-inline') ||
+        element.hasAttribute('data-inline') ||
+        isInlineDelimited;
 
       // 使用完整的KaTeX配置
       const options = {
         ...KATEX_OPTIONS,
-        displayMode: !isInline,
+        displayMode: isDisplayDelimited || !isInline,
         throwOnError: false,
         errorColor: '#cc0000',
-        strict: 'warn'
+        strict: 'warn',
       };
 
       // 渲染数学公式
-      (window as any).katex.render(expression, element, options);
+      (window as any).katex.render(normalizedExpression, element, options);
 
       // 添加成功渲染的标记
       element.classList.add('katex-rendered');
@@ -483,9 +528,10 @@ export class MathRenderer {
     }
 
     // 获取化学表达式
-    const expression = element.textContent ||
-                      element.getAttribute('data-chemistry') ||
-                      element.getAttribute('data-chem');
+    const expression =
+      element.textContent ||
+      element.getAttribute('data-chemistry') ||
+      element.getAttribute('data-chem');
 
     if (!expression || expression.trim() === '') {
       console.warn('化学表达式为空，跳过渲染');
@@ -494,12 +540,14 @@ export class MathRenderer {
 
     try {
       // 化学公式通常使用mhchem语法，需要包装在\ce{}中
-      const chemExpression = expression.startsWith('\\ce{') ? expression : `\\ce{${expression}}`;
+      const chemExpression = expression.startsWith('\\ce{')
+        ? expression
+        : `\\ce{${expression}}`;
 
       const options = {
         ...KATEX_OPTIONS,
         displayMode: false,
-        throwOnError: false
+        throwOnError: false,
       };
 
       (window as any).katex.render(chemExpression, element, options);
@@ -530,11 +578,12 @@ export class MathRenderer {
     }
 
     // 获取图表代码
-    const diagram = element.textContent ||
-                   element.getAttribute('data-mermaid') ||
-                   element.getAttribute('data-code') ||
-                   element.getAttribute('data-diagram') ||
-                   element.innerHTML;
+    const diagram =
+      element.textContent ||
+      element.getAttribute('data-mermaid') ||
+      element.getAttribute('data-code') ||
+      element.getAttribute('data-diagram') ||
+      element.innerHTML;
 
     if (!diagram || diagram.trim() === '') {
       console.warn('图表代码为空，跳过渲染');
@@ -550,26 +599,29 @@ export class MathRenderer {
       element.classList.add('mermaid-rendering');
 
       // 渲染图表
-      (window as any).mermaid.render(id, diagram).then((result: any) => {
-        // 渲染成功
-        element.innerHTML = result.svg;
-        element.classList.remove('mermaid-rendering');
-        element.classList.add('mermaid-rendered');
-        element.setAttribute('data-rendered', 'true');
+      (window as any).mermaid
+        .render(id, diagram)
+        .then((result: any) => {
+          // 渲染成功
+          element.innerHTML = result.svg;
+          element.classList.remove('mermaid-rendering');
+          element.classList.add('mermaid-rendered');
+          element.setAttribute('data-rendered', 'true');
 
-        // 添加响应式支持
-        const svg = element.querySelector('svg');
-        if (svg) {
-          svg.style.maxWidth = '100%';
-          svg.style.height = 'auto';
-        }
+          // 添加响应式支持
+          const svg = element.querySelector('svg');
+          if (svg) {
+            svg.style.maxWidth = '100%';
+            svg.style.height = 'auto';
+          }
 
-        console.log('✅ Mermaid图表渲染成功');
-      }).catch((error: any) => {
-        // 渲染失败
-        console.error('❌ Mermaid渲染错误:', error);
+          console.log('✅ Mermaid图表渲染成功');
+        })
+        .catch((error: any) => {
+          // 渲染失败
+          console.error('❌ Mermaid渲染错误:', error);
 
-        element.innerHTML = `
+          element.innerHTML = `
           <div style="color: #cc0000; background: #ffe6e6; padding: 10px; border-radius: 5px; border: 1px solid #ffcccc;">
             <strong>图表渲染错误</strong><br>
             <small>${error.message || '未知错误'}</small><br>
@@ -579,9 +631,9 @@ export class MathRenderer {
             </details>
           </div>
         `;
-        element.classList.remove('mermaid-rendering');
-        element.classList.add('mermaid-error');
-      });
+          element.classList.remove('mermaid-rendering');
+          element.classList.add('mermaid-error');
+        });
     } catch (error) {
       console.error('❌ Mermaid渲染异常:', error);
 
@@ -599,24 +651,36 @@ export class MathRenderer {
    * 手动渲染指定元素
    */
   public renderElement(element: HTMLElement): void {
-    if (element.classList.contains('notion-equation') ||
-        element.classList.contains('katex-math') ||
-        element.hasAttribute('data-math')) {
-      this.loadKaTeX().then(() => {
-        this.renderMathElement(element);
-      }).catch(console.error);
-    } else if (element.classList.contains('notion-mermaid') ||
-               element.classList.contains('mermaid-chart') ||
-               element.hasAttribute('data-mermaid')) {
-      this.loadMermaid().then(() => {
-        this.renderMermaidElement(element);
-      }).catch(console.error);
-    } else if (element.classList.contains('notion-chemistry') ||
-               element.classList.contains('chemistry') ||
-               element.hasAttribute('data-chemistry')) {
-      this.loadKaTeX().then(() => {
-        this.renderChemistryElement(element);
-      }).catch(console.error);
+    if (
+      element.classList.contains('notion-equation') ||
+      element.classList.contains('katex-math') ||
+      element.hasAttribute('data-math')
+    ) {
+      this.loadKaTeX()
+        .then(() => {
+          this.renderMathElement(element);
+        })
+        .catch(console.error);
+    } else if (
+      element.classList.contains('notion-mermaid') ||
+      element.classList.contains('mermaid-chart') ||
+      element.hasAttribute('data-mermaid')
+    ) {
+      this.loadMermaid()
+        .then(() => {
+          this.renderMermaidElement(element);
+        })
+        .catch(console.error);
+    } else if (
+      element.classList.contains('notion-chemistry') ||
+      element.classList.contains('chemistry') ||
+      element.hasAttribute('data-chemistry')
+    ) {
+      this.loadKaTeX()
+        .then(() => {
+          this.renderChemistryElement(element);
+        })
+        .catch(console.error);
     }
   }
 
@@ -641,9 +705,15 @@ export class MathRenderer {
     return {
       katexLoaded: this.katexLoaded,
       mermaidLoaded: this.mermaidLoaded,
-      mathElements: document.querySelectorAll('.notion-equation, .katex-math, [data-math]').length,
-      mermaidElements: document.querySelectorAll('.notion-mermaid, .mermaid-chart, [data-mermaid]').length,
-      chemElements: document.querySelectorAll('.notion-chemistry, .chemistry, [data-chemistry]').length
+      mathElements: document.querySelectorAll(
+        '.notion-equation, .katex-math, [data-math]'
+      ).length,
+      mermaidElements: document.querySelectorAll(
+        '.notion-mermaid, .mermaid-chart, [data-mermaid]'
+      ).length,
+      chemElements: document.querySelectorAll(
+        '.notion-chemistry, .chemistry, [data-chemistry]'
+      ).length,
     };
   }
 

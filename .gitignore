@@ -33,6 +33,7 @@ logs/
 
 # Build & release artifacts
 build/
+/dist/
 *.zip
 *.tar.gz
 *.tgz
@@ -41,6 +42,7 @@ build/
 
 # Coverage / test output
 coverage/
+.phpunit.result.cache
 
 # Misc
 npm-debug.log*
@@ -54,4 +56,4 @@ yarn-error.log*
 
 # Other plugin runtime caches/uploads (if generated inside plugin folder)
 uploads/
-.cache/ 
+.cache/

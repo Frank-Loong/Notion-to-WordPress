@@ -39,7 +39,7 @@ export class TabManager extends BaseComponent {
       saveActiveTab: true,
       storageKey: 'active_tab',
       animationDuration: 300,
-      ...options
+      ...options,
     };
   }
 
@@ -99,22 +99,25 @@ export class TabManager extends BaseComponent {
     if (!this.element) return;
 
     const tabElements = this.element.querySelectorAll('[data-tab]');
-    
+
     tabElements.forEach(tabElement => {
       const element = tabElement as HTMLElement;
       const tabId = element.getAttribute('data-tab');
-      
+
       if (tabId) {
-        const contentElement = document.querySelector(`#${tabId}`) as HTMLElement;
+        const contentElement = document.querySelector(
+          `#${tabId}`
+        ) as HTMLElement;
         const title = element.textContent?.trim() || tabId;
-        const disabled = element.hasAttribute('disabled') || hasClass(element, 'disabled');
+        const disabled =
+          element.hasAttribute('disabled') || hasClass(element, 'disabled');
 
         this.tabs.set(tabId, {
           id: tabId,
           element,
           contentElement,
           title,
-          disabled
+          disabled,
         });
 
         // 设置ARIA属性
@@ -125,7 +128,10 @@ export class TabManager extends BaseComponent {
 
         if (contentElement) {
           contentElement.setAttribute('role', 'tabpanel');
-          contentElement.setAttribute('aria-labelledby', element.id || `tab-${tabId}`);
+          contentElement.setAttribute(
+            'aria-labelledby',
+            element.id || `tab-${tabId}`
+          );
           addClass(contentElement, this.tabOptions.tabContentClass!);
         }
       }
@@ -140,7 +146,7 @@ export class TabManager extends BaseComponent {
    */
   public activateTab(tabId: string): void {
     const tab = this.tabs.get(tabId);
-    
+
     if (!tab || tab.disabled) {
       return;
     }
@@ -168,15 +174,15 @@ export class TabManager extends BaseComponent {
     this.setState({
       ui: {
         ...this.getState().ui,
-        activeTab: tabId
-      }
+        activeTab: tabId,
+      },
     });
 
     // 发送事件
     this.emit('tab:change', {
       activeTab: tabId,
       previousTab: previousTabId,
-      tabInfo: tab
+      tabInfo: tab,
     });
 
     console.log(`Tab activated: ${tabId}`);
@@ -185,9 +191,12 @@ export class TabManager extends BaseComponent {
   /**
    * 切换标签内容
    */
-  private switchTabContent(previousTabId: string | null, activeTabId: string): void {
+  private switchTabContent(
+    previousTabId: string | null,
+    activeTabId: string
+  ): void {
     const activeTab = this.tabs.get(activeTabId);
-    
+
     if (!activeTab?.contentElement) {
       return;
     }
@@ -210,19 +219,19 @@ export class TabManager extends BaseComponent {
   private showTabContent(contentElement: HTMLElement): void {
     removeClass(contentElement, 'hidden');
     addClass(contentElement, this.tabOptions.activeTabClass!);
-    
+
     // 添加淡入动画
     contentElement.style.display = 'none';
     contentElement.style.display = 'block';
-    
+
     // 使用jQuery风格的淡入效果（如果需要）
     if (this.tabOptions.animationDuration! > 0) {
       contentElement.style.opacity = '0';
       contentElement.style.transition = `opacity ${this.tabOptions.animationDuration}ms ease`;
-      
+
       // 触发重排
-      contentElement.offsetHeight;
-      
+      contentElement.getBoundingClientRect();
+
       contentElement.style.opacity = '1';
     }
 
@@ -235,11 +244,11 @@ export class TabManager extends BaseComponent {
    */
   private hideTabContent(contentElement: HTMLElement): void {
     removeClass(contentElement, this.tabOptions.activeTabClass!);
-    
+
     if (this.tabOptions.animationDuration! > 0) {
       contentElement.style.transition = `opacity ${this.tabOptions.animationDuration}ms ease`;
       contentElement.style.opacity = '0';
-      
+
       setTimeout(() => {
         addClass(contentElement, 'hidden');
         contentElement.style.transition = '';
@@ -259,7 +268,7 @@ export class TabManager extends BaseComponent {
   private updateTabStates(): void {
     this.tabs.forEach((tab, tabId) => {
       const isActive = tabId === this.activeTabId;
-      
+
       // 更新标签样式
       if (isActive) {
         addClass(tab.element, this.tabOptions.activeTabClass!);
@@ -305,7 +314,9 @@ export class TabManager extends BaseComponent {
 
     // 如果没有指定活动标签，使用第一个可用标签
     if (!activeTabId) {
-      const firstTab = Array.from(this.tabs.values()).find(tab => !tab.disabled);
+      const firstTab = Array.from(this.tabs.values()).find(
+        tab => !tab.disabled
+      );
       activeTabId = firstTab?.id;
     }
 
@@ -326,10 +337,12 @@ export class TabManager extends BaseComponent {
   /**
    * 添加标签
    */
-  public addTab(tabInfo: Omit<TabInfo, 'disabled'> & { disabled?: boolean }): void {
+  public addTab(
+    tabInfo: Omit<TabInfo, 'disabled'> & { disabled?: boolean }
+  ): void {
     const tab: TabInfo = {
       disabled: false,
-      ...tabInfo
+      ...tabInfo,
     };
 
     this.tabs.set(tab.id, tab);
@@ -342,7 +355,10 @@ export class TabManager extends BaseComponent {
 
     if (tab.contentElement) {
       tab.contentElement.setAttribute('role', 'tabpanel');
-      tab.contentElement.setAttribute('aria-labelledby', tab.element.id || `tab-${tab.id}`);
+      tab.contentElement.setAttribute(
+        'aria-labelledby',
+        tab.element.id || `tab-${tab.id}`
+      );
       addClass(tab.contentElement, this.tabOptions.tabContentClass!);
     }
 
@@ -364,7 +380,9 @@ export class TabManager extends BaseComponent {
 
     // 如果是活动标签，切换到其他标签
     if (this.activeTabId === tabId) {
-      const remainingTabs = Array.from(this.tabs.keys()).filter(id => id !== tabId);
+      const remainingTabs = Array.from(this.tabs.keys()).filter(
+        id => id !== tabId
+      );
       if (remainingTabs.length > 0) {
         this.activateTab(remainingTabs[0]);
       } else {
@@ -394,15 +412,17 @@ export class TabManager extends BaseComponent {
     const tab = this.tabs.get(tabId);
     if (tab) {
       tab.disabled = true;
-      
+
       // 如果是活动标签，切换到其他标签
       if (this.activeTabId === tabId) {
-        const enabledTabs = Array.from(this.tabs.values()).filter(t => !t.disabled);
+        const enabledTabs = Array.from(this.tabs.values()).filter(
+          t => !t.disabled
+        );
         if (enabledTabs.length > 0) {
           this.activateTab(enabledTabs[0].id);
         }
       }
-      
+
       this.updateTabStates();
     }
   }

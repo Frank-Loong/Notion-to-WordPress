@@ -1,6 +1,6 @@
 /**
  * 错误管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有Error_Handler.php和admin-interactions.js的错误处理功能完全迁移，包括：
  * - 全局错误捕获和处理
  * - 错误分类和恢复策略
@@ -12,7 +12,7 @@ import { emit } from '../../shared/core/EventBus';
 import { post } from '../../shared/utils/ajax';
 import { showError, showWarning } from '../../shared/utils/toast';
 
-export type ErrorType = 
+export type ErrorType =
   | 'FILTER_ERROR'
   | 'AUTH_ERROR'
   | 'RATE_LIMIT_ERROR'
@@ -63,7 +63,7 @@ export interface ErrorManagerOptions {
  */
 export class ErrorManager {
   private static instance: ErrorManager | null = null;
-  
+
   private options!: Required<ErrorManagerOptions>;
   private errorHistory: ErrorInfo[] = [];
   private retryConfig: RetryConfig = {
@@ -71,7 +71,7 @@ export class ErrorManager {
     baseDelay: 1000,
     maxDelay: 30000,
     backoffMultiplier: 2,
-    retryableErrors: ['NETWORK_ERROR', 'SERVER_ERROR', 'RATE_LIMIT_ERROR']
+    retryableErrors: ['NETWORK_ERROR', 'SERVER_ERROR', 'RATE_LIMIT_ERROR'],
   };
   private retryTimers = new Map<string, NodeJS.Timeout>();
 
@@ -79,9 +79,9 @@ export class ErrorManager {
     if (ErrorManager.instance) {
       return ErrorManager.instance;
     }
-    
+
     ErrorManager.instance = this;
-    
+
     this.options = {
       enableGlobalHandling: true,
       enableRetry: true,
@@ -89,9 +89,9 @@ export class ErrorManager {
       enableReporting: false,
       maxErrorHistory: 100,
       reportingEndpoint: '',
-      ...options
+      ...options,
     };
-    
+
     this.init();
   }
 
@@ -112,7 +112,7 @@ export class ErrorManager {
     if (this.options.enableGlobalHandling) {
       this.setupGlobalErrorHandling();
     }
-    
+
     console.log('🛡️ [错误管理器] 已初始化');
     emit('error:manager:initialized');
   }
@@ -122,21 +122,21 @@ export class ErrorManager {
    */
   private setupGlobalErrorHandling(): void {
     // 全局错误捕获
-    window.addEventListener('error', (event) => {
+    window.addEventListener('error', event => {
       this.handleGlobalError(event.error, {
         filename: event.filename,
         lineno: event.lineno,
         colno: event.colno,
-        type: 'javascript'
+        type: 'javascript',
       });
     });
 
     // Promise 拒绝处理
-    window.addEventListener('unhandledrejection', (event) => {
+    window.addEventListener('unhandledrejection', event => {
       this.handleGlobalError(event.reason, {
-        type: 'promise_rejection'
+        type: 'promise_rejection',
       });
-      
+
       // 防止默认的控制台错误
       event.preventDefault();
     });
@@ -147,7 +147,10 @@ export class ErrorManager {
   /**
    * 处理全局错误
    */
-  private handleGlobalError(error: any, context: Record<string, any> = {}): void {
+  private handleGlobalError(
+    error: any,
+    context: Record<string, any> = {}
+  ): void {
     // 只处理我们的代码错误
     if (this.isOurError(error, context)) {
       const errorInfo = this.createErrorInfo(error, context);
@@ -161,16 +164,21 @@ export class ErrorManager {
   private isOurError(error: any, context: Record<string, any>): boolean {
     const filename = context.filename || '';
     const stack = error?.stack || '';
-    
-    return filename.includes('notion-to-wordpress') || 
-           stack.includes('notion-to-wordpress') ||
-           context.type === 'manual'; // 手动报告的错误
+
+    return (
+      filename.includes('notion-to-wordpress') ||
+      stack.includes('notion-to-wordpress') ||
+      context.type === 'manual'
+    ); // 手动报告的错误
   }
 
   /**
    * 创建错误信息对象
    */
-  private createErrorInfo(error: any, context: Record<string, any> = {}): ErrorInfo {
+  private createErrorInfo(
+    error: any,
+    context: Record<string, any> = {}
+  ): ErrorInfo {
     const errorInfo: ErrorInfo = {
       id: this.generateErrorId(),
       type: this.classifyError(error),
@@ -183,7 +191,7 @@ export class ErrorManager {
       userAgent: navigator.userAgent,
       url: window.location.href,
       retryCount: 0,
-      resolved: false
+      resolved: false,
     };
 
     return errorInfo;
@@ -201,60 +209,87 @@ export class ErrorManager {
    */
   private classifyError(error: any): ErrorType {
     const message = String(error?.message || error || '').toLowerCase();
-    
+
     // 过滤器错误
     if (message.includes('filter') && message.includes('validation')) {
       return 'FILTER_ERROR';
     }
-    
+
     // 认证错误
-    if (message.includes('unauthorized') || message.includes('auth') || 
-        message.includes('api key') || message.includes('token')) {
+    if (
+      message.includes('unauthorized') ||
+      message.includes('auth') ||
+      message.includes('api key') ||
+      message.includes('token')
+    ) {
       return 'AUTH_ERROR';
     }
-    
+
     // 速率限制错误
-    if (message.includes('rate limit') || message.includes('too many requests') ||
-        message.includes('quota exceeded')) {
+    if (
+      message.includes('rate limit') ||
+      message.includes('too many requests') ||
+      message.includes('quota exceeded')
+    ) {
       return 'RATE_LIMIT_ERROR';
     }
-    
+
     // 网络错误
-    if (message.includes('network') || message.includes('timeout') ||
-        message.includes('connection') || message.includes('fetch')) {
+    if (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('connection') ||
+      message.includes('fetch')
+    ) {
       return 'NETWORK_ERROR';
     }
-    
+
     // 服务器错误
-    if (message.includes('server error') || message.includes('internal error') ||
-        error?.status >= 500) {
+    if (
+      message.includes('server error') ||
+      message.includes('internal error') ||
+      error?.status >= 500
+    ) {
       return 'SERVER_ERROR';
     }
-    
+
     // 客户端错误
-    if (message.includes('bad request') || message.includes('invalid') ||
-        (error?.status >= 400 && error?.status < 500)) {
+    if (
+      message.includes('bad request') ||
+      message.includes('invalid') ||
+      (error?.status >= 400 && error?.status < 500)
+    ) {
       return 'CLIENT_ERROR';
     }
-    
+
     // 验证错误
-    if (message.includes('validation') || message.includes('invalid format') ||
-        message.includes('required field')) {
+    if (
+      message.includes('validation') ||
+      message.includes('invalid format') ||
+      message.includes('required field')
+    ) {
       return 'VALIDATION_ERROR';
     }
-    
+
     // 权限错误
-    if (message.includes('permission') || message.includes('forbidden') ||
-        message.includes('access denied')) {
+    if (
+      message.includes('permission') ||
+      message.includes('forbidden') ||
+      message.includes('access denied')
+    ) {
       return 'PERMISSION_ERROR';
     }
-    
+
     // 数据错误
-    if (message.includes('data') || message.includes('parse') ||
-        message.includes('json') || message.includes('format')) {
+    if (
+      message.includes('data') ||
+      message.includes('parse') ||
+      message.includes('json') ||
+      message.includes('format')
+    ) {
       return 'DATA_ERROR';
     }
-    
+
     return 'UNKNOWN_ERROR';
   }
 
@@ -263,21 +298,21 @@ export class ErrorManager {
    */
   private determineSeverity(error: any): ErrorSeverity {
     const type = this.classifyError(error);
-    
+
     switch (type) {
       case 'AUTH_ERROR':
       case 'PERMISSION_ERROR':
         return 'critical';
-      
+
       case 'SERVER_ERROR':
       case 'DATA_ERROR':
         return 'high';
-      
+
       case 'RATE_LIMIT_ERROR':
       case 'NETWORK_ERROR':
       case 'VALIDATION_ERROR':
         return 'medium';
-      
+
       default:
         return 'low';
     }
@@ -290,15 +325,15 @@ export class ErrorManager {
     if (typeof error === 'string') {
       return error;
     }
-    
+
     if (error?.message) {
       return error.message;
     }
-    
+
     if (error?.data?.message) {
       return error.data.message;
     }
-    
+
     return '未知错误';
   }
 
@@ -308,16 +343,16 @@ export class ErrorManager {
   handleError(errorInfo: ErrorInfo): void {
     // 添加到错误历史
     this.addToHistory(errorInfo);
-    
+
     // 记录错误日志
     this.logError(errorInfo);
-    
+
     // 根据错误类型采取不同策略
     this.executeErrorStrategy(errorInfo);
-    
+
     // 发送事件
     emit('error:handled', { errorInfo });
-    
+
     console.error('🚨 [错误处理]:', errorInfo);
   }
 
@@ -326,10 +361,13 @@ export class ErrorManager {
    */
   private addToHistory(errorInfo: ErrorInfo): void {
     this.errorHistory.unshift(errorInfo);
-    
+
     // 限制历史记录数量
     if (this.errorHistory.length > this.options.maxErrorHistory) {
-      this.errorHistory = this.errorHistory.slice(0, this.options.maxErrorHistory);
+      this.errorHistory = this.errorHistory.slice(
+        0,
+        this.options.maxErrorHistory
+      );
     }
   }
 
@@ -345,7 +383,7 @@ export class ErrorManager {
       context: errorInfo.context,
       timestamp: errorInfo.timestamp,
       stack: errorInfo.stack,
-      url: errorInfo.url
+      url: errorInfo.url,
     };
 
     // 发送到后端记录
@@ -362,23 +400,23 @@ export class ErrorManager {
       case 'RATE_LIMIT_ERROR':
         this.handleRateLimitError(errorInfo);
         break;
-      
+
       case 'AUTH_ERROR':
         this.handleAuthError(errorInfo);
         break;
-      
+
       case 'NETWORK_ERROR':
         this.handleNetworkError(errorInfo);
         break;
-      
+
       case 'SERVER_ERROR':
         this.handleServerError(errorInfo);
         break;
-      
+
       case 'VALIDATION_ERROR':
         this.handleValidationError(errorInfo);
         break;
-      
+
       default:
         this.handleGenericError(errorInfo);
     }
@@ -391,7 +429,7 @@ export class ErrorManager {
     if (this.options.enableNotifications) {
       showWarning('请求过于频繁，请稍后重试');
     }
-    
+
     if (this.options.enableRetry) {
       this.scheduleRetry(errorInfo, 60000); // 60秒后重试
     }
@@ -404,7 +442,7 @@ export class ErrorManager {
     if (this.options.enableNotifications) {
       showError('认证失败，请检查API密钥配置');
     }
-    
+
     // 通知管理员
     this.notifyAdmin('认证失败', errorInfo);
   }
@@ -416,7 +454,7 @@ export class ErrorManager {
     if (this.options.enableNotifications) {
       showError('网络连接失败，请检查网络连接');
     }
-    
+
     if (this.options.enableRetry) {
       this.scheduleRetry(errorInfo, 5000); // 5秒后重试
     }
@@ -429,7 +467,7 @@ export class ErrorManager {
     if (this.options.enableNotifications) {
       showError('服务器错误，请稍后重试');
     }
-    
+
     if (this.options.enableRetry) {
       this.scheduleRetry(errorInfo, 10000); // 10秒后重试
     }
@@ -442,7 +480,7 @@ export class ErrorManager {
     if (this.options.enableNotifications) {
       showError(`数据验证失败: ${errorInfo.message}`);
     }
-    
+
     // 验证错误通常不需要重试
   }
 
@@ -462,27 +500,27 @@ export class ErrorManager {
     if (!this.retryConfig.retryableErrors.includes(errorInfo.type)) {
       return;
     }
-    
+
     const retryCount = errorInfo.retryCount || 0;
-    
+
     if (retryCount >= this.retryConfig.maxAttempts) {
       console.warn('🔄 [重试] 达到最大重试次数:', errorInfo.id);
       return;
     }
-    
+
     // 计算退避延迟
     const backoffDelay = Math.min(
       delay * Math.pow(this.retryConfig.backoffMultiplier, retryCount),
       this.retryConfig.maxDelay
     );
-    
+
     const timer = setTimeout(() => {
       this.executeRetry(errorInfo);
       this.retryTimers.delete(errorInfo.id);
     }, backoffDelay);
-    
+
     this.retryTimers.set(errorInfo.id, timer);
-    
+
     console.log(`🔄 [重试] 安排重试: ${errorInfo.id}, 延迟: ${backoffDelay}ms`);
   }
 
@@ -491,12 +529,12 @@ export class ErrorManager {
    */
   private executeRetry(errorInfo: ErrorInfo): void {
     const retryCount = (errorInfo.retryCount || 0) + 1;
-    
+
     console.log(`🔄 [重试] 执行第${retryCount}次重试: ${errorInfo.id}`);
-    
+
     // 更新重试次数
     errorInfo.retryCount = retryCount;
-    
+
     // 发送重试事件
     emit('error:retry', { errorInfo, retryCount });
   }
@@ -506,7 +544,7 @@ export class ErrorManager {
    */
   private notifyAdmin(message: string, errorInfo: ErrorInfo): void {
     console.warn(`📧 [管理员通知] ${message}:`, errorInfo);
-    
+
     // 这里可以集成邮件通知或其他通知机制
     emit('error:admin:notify', { message, errorInfo });
   }
@@ -526,7 +564,10 @@ export class ErrorManager {
    * 手动报告错误
    */
   reportManualError(error: any, context: Record<string, any> = {}): string {
-    const errorInfo = this.createErrorInfo(error, { ...context, type: 'manual' });
+    const errorInfo = this.createErrorInfo(error, {
+      ...context,
+      type: 'manual',
+    });
     this.handleError(errorInfo);
     return errorInfo.id;
   }
@@ -565,12 +606,13 @@ export class ErrorManager {
       unresolved: this.getUnresolvedErrors().length,
       byType: {} as Record<ErrorType, number>,
       bySeverity: {} as Record<ErrorSeverity, number>,
-      recentErrors: this.errorHistory.slice(0, 10)
+      recentErrors: this.errorHistory.slice(0, 10),
     };
 
     this.errorHistory.forEach(error => {
       stats.byType[error.type] = (stats.byType[error.type] || 0) + 1;
-      stats.bySeverity[error.severity] = (stats.bySeverity[error.severity] || 0) + 1;
+      stats.bySeverity[error.severity] =
+        (stats.bySeverity[error.severity] || 0) + 1;
     });
 
     return stats;
@@ -614,13 +656,13 @@ export class ErrorManager {
     // 清理重试定时器
     this.retryTimers.forEach(timer => clearTimeout(timer));
     this.retryTimers.clear();
-    
+
     // 清理事件监听器
     if (this.options.enableGlobalHandling) {
       window.removeEventListener('error', this.handleGlobalError);
       window.removeEventListener('unhandledrejection', this.handleGlobalError);
     }
-    
+
     ErrorManager.instance = null;
     emit('error:manager:destroyed');
     console.log('🛡️ [错误管理器] 已销毁');

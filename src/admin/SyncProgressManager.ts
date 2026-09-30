@@ -1,6 +1,6 @@
 /**
  * 同步进度管理器 - 现代化TypeScript版本
- * 
+ *
  * 完全替代原有的sync-progress-manager.js，包括：
  * - SSE和UI管理器的统一协调
  * - 进度状态管理和持久化
@@ -9,8 +9,16 @@
  */
 
 import { emit, on } from '../shared/core/EventBus';
-import { SSEProgressManager, ProgressData, CompletionData } from './managers/SSEProgressManager';
-import { SyncProgressUI, ProgressUIData, ProgressUIOptions } from './managers/SyncProgressUI';
+import {
+  SSEProgressManager,
+  ProgressData,
+  CompletionData,
+} from './managers/SSEProgressManager';
+import {
+  SyncProgressUI,
+  ProgressUIData,
+  ProgressUIOptions,
+} from './managers/SyncProgressUI';
 
 export interface SyncProgressOptions {
   taskId: string;
@@ -38,7 +46,7 @@ export interface SyncProgressState {
  */
 export class SyncProgressManager {
   private static instance: SyncProgressManager | null = null;
-  
+
   private sseManager: SSEProgressManager | null = null;
   private uiManager!: SyncProgressUI;
   private state!: SyncProgressState;
@@ -48,9 +56,9 @@ export class SyncProgressManager {
     if (SyncProgressManager.instance) {
       return SyncProgressManager.instance;
     }
-    
+
     SyncProgressManager.instance = this;
-    
+
     this.uiManager = SyncProgressUI.getInstance();
     this.state = {
       taskId: null,
@@ -58,9 +66,9 @@ export class SyncProgressManager {
       isVisible: false,
       startTime: 0,
       lastUpdate: 0,
-      currentProgress: null
+      currentProgress: null,
     };
-    
+
     this.init();
   }
 
@@ -80,7 +88,7 @@ export class SyncProgressManager {
   private init(): void {
     this.setupEventListeners();
     this.setupVisibilityHandling();
-    
+
     console.log('📊 [同步进度管理器] 已初始化');
     emit('sync:progress:manager:initialized');
   }
@@ -141,7 +149,7 @@ export class SyncProgressManager {
       uiOptions = {},
       onProgress,
       onComplete,
-      onError
+      onError,
     } = options;
 
     // 如果已经有活跃的进度，先停止
@@ -156,7 +164,7 @@ export class SyncProgressManager {
       isVisible: false,
       startTime: Date.now(),
       lastUpdate: Date.now(),
-      currentProgress: null
+      currentProgress: null,
     };
 
     // 显示UI
@@ -164,9 +172,9 @@ export class SyncProgressManager {
       const finalUIOptions: ProgressUIOptions = {
         title: title || `${syncType}进行中`,
         syncType,
-        ...uiOptions
+        ...uiOptions,
       };
-      
+
       this.uiManager.show(taskId, finalUIOptions);
       this.state.isVisible = true;
     }
@@ -209,7 +217,7 @@ export class SyncProgressManager {
       isVisible: false,
       startTime: 0,
       lastUpdate: 0,
-      currentProgress: null
+      currentProgress: null,
     };
 
     emit('sync:progress:stopped', { taskId });
@@ -220,7 +228,7 @@ export class SyncProgressManager {
    * 启动SSE
    */
   private startSSE(
-    taskId: string, 
+    taskId: string,
     callbacks: {
       onProgress?: (data: ProgressData) => void;
       onComplete?: (data: CompletionData) => void;
@@ -245,7 +253,7 @@ export class SyncProgressManager {
       },
       onDisconnect: () => {
         console.log('📊 [同步进度管理器] SSE连接断开');
-      }
+      },
     });
 
     this.sseManager.start();
@@ -260,7 +268,7 @@ export class SyncProgressManager {
       current: data.progress.current,
       total: data.progress.total,
       message: data.progress.message,
-      step: data.progress.step
+      step: data.progress.step,
     };
 
     this.state.currentProgress = uiData;
@@ -317,7 +325,7 @@ export class SyncProgressManager {
     if (!this.state.isActive) return;
 
     const isVisible = !document.hidden;
-    
+
     if (isVisible) {
       console.log('📊 [同步进度管理器] 页面重新可见，检查进度状态');
       this.checkProgressStatus();
@@ -334,9 +342,10 @@ export class SyncProgressManager {
 
     // 检查是否长时间没有更新
     const timeSinceLastUpdate = Date.now() - this.state.lastUpdate;
-    if (timeSinceLastUpdate > 30000) { // 30秒没有更新
+    if (timeSinceLastUpdate > 30000) {
+      // 30秒没有更新
       console.warn('📊 [同步进度管理器] 长时间没有进度更新，可能需要重新连接');
-      
+
       // 尝试重新连接SSE
       if (this.sseManager) {
         this.sseManager.stop();
@@ -368,7 +377,10 @@ export class SyncProgressManager {
   /**
    * 设置状态
    */
-  setStatus(status: 'running' | 'completed' | 'failed' | 'cancelled', message?: string): void {
+  setStatus(
+    status: 'running' | 'completed' | 'failed' | 'cancelled',
+    message?: string
+  ): void {
     if (!this.state.isActive) return;
 
     if (this.state.isVisible) {
@@ -379,9 +391,12 @@ export class SyncProgressManager {
 
     // 完成状态自动隐藏
     if (status !== 'running') {
-      setTimeout(() => {
-        this.hideProgress();
-      }, status === 'completed' ? 1000 : 2000);
+      setTimeout(
+        () => {
+          this.hideProgress();
+        },
+        status === 'completed' ? 1000 : 2000
+      );
     }
   }
 
@@ -426,12 +441,12 @@ export class SyncProgressManager {
   destroy(): void {
     this.hideProgress();
     this.uiManager.destroy();
-    
+
     if (this.visibilityTimer) {
       clearTimeout(this.visibilityTimer);
       this.visibilityTimer = null;
     }
-    
+
     SyncProgressManager.instance = null;
     emit('sync:progress:manager:destroyed');
     console.log('📊 [同步进度管理器] 已销毁');

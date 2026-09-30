@@ -53,7 +53,7 @@ export class PerformanceMonitor {
 
     // 监控导航时间
     try {
-      const navObserver = new PerformanceObserver((list) => {
+      const navObserver = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
           if (entry.entryType === 'navigation') {
             const navEntry = entry as PerformanceNavigationTiming;
@@ -69,7 +69,7 @@ export class PerformanceMonitor {
 
     // 监控资源加载
     try {
-      const resourceObserver = new PerformanceObserver((list) => {
+      const resourceObserver = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
           if (entry.entryType === 'resource') {
             this.recordResourceMetric(entry as PerformanceResourceTiming);
@@ -84,7 +84,7 @@ export class PerformanceMonitor {
 
     // 监控长任务
     try {
-      const longTaskObserver = new PerformanceObserver((list) => {
+      const longTaskObserver = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
           if (entry.entryType === 'longtask') {
             this.recordMetric({
@@ -92,7 +92,7 @@ export class PerformanceMonitor {
               value: entry.duration,
               timestamp: Date.now(),
               type: 'timing',
-              tags: { type: 'longtask' }
+              tags: { type: 'longtask' },
             });
           }
         });
@@ -105,15 +105,18 @@ export class PerformanceMonitor {
 
     // 监控布局偏移
     try {
-      const clsObserver = new PerformanceObserver((list) => {
+      const clsObserver = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
-          if (entry.entryType === 'layout-shift' && !(entry as any).hadRecentInput) {
+          if (
+            entry.entryType === 'layout-shift' &&
+            !(entry as any).hadRecentInput
+          ) {
             this.recordMetric({
               name: 'cumulative_layout_shift',
               value: (entry as any).value,
               timestamp: Date.now(),
               type: 'gauge',
-              tags: { type: 'cls' }
+              tags: { type: 'cls' },
             });
           }
         });
@@ -130,13 +133,28 @@ export class PerformanceMonitor {
    */
   private recordNavigationMetrics(entry: PerformanceNavigationTiming): void {
     const metrics = [
-      { name: 'dns_lookup_time', value: entry.domainLookupEnd - entry.domainLookupStart },
-      { name: 'tcp_connect_time', value: entry.connectEnd - entry.connectStart },
+      {
+        name: 'dns_lookup_time',
+        value: entry.domainLookupEnd - entry.domainLookupStart,
+      },
+      {
+        name: 'tcp_connect_time',
+        value: entry.connectEnd - entry.connectStart,
+      },
       { name: 'request_time', value: entry.responseStart - entry.requestStart },
       { name: 'response_time', value: entry.responseEnd - entry.responseStart },
-      { name: 'dom_parse_time', value: entry.domContentLoadedEventStart - entry.responseEnd },
-      { name: 'dom_ready_time', value: entry.domContentLoadedEventEnd - entry.fetchStart },
-      { name: 'load_complete_time', value: entry.loadEventEnd - entry.fetchStart },
+      {
+        name: 'dom_parse_time',
+        value: entry.domContentLoadedEventStart - entry.responseEnd,
+      },
+      {
+        name: 'dom_ready_time',
+        value: entry.domContentLoadedEventEnd - entry.fetchStart,
+      },
+      {
+        name: 'load_complete_time',
+        value: entry.loadEventEnd - entry.fetchStart,
+      },
       { name: 'first_paint', value: entry.responseEnd - entry.fetchStart },
     ];
 
@@ -146,7 +164,7 @@ export class PerformanceMonitor {
           ...metric,
           timestamp: Date.now(),
           type: 'timing',
-          tags: { category: 'navigation' }
+          tags: { category: 'navigation' },
         });
       }
     });
@@ -167,8 +185,8 @@ export class PerformanceMonitor {
       tags: {
         category: 'resource',
         type: resourceType,
-        domain: url.hostname
-      }
+        domain: url.hostname,
+      },
     });
 
     // 记录资源大小
@@ -181,8 +199,8 @@ export class PerformanceMonitor {
         tags: {
           category: 'resource',
           type: resourceType,
-          domain: url.hostname
-        }
+          domain: url.hostname,
+        },
       });
     }
   }
@@ -192,13 +210,13 @@ export class PerformanceMonitor {
    */
   private getResourceType(entry: PerformanceResourceTiming): string {
     const url = entry.name.toLowerCase();
-    
+
     if (url.includes('.js')) return 'script';
     if (url.includes('.css')) return 'stylesheet';
     if (url.match(/\.(png|jpg|jpeg|gif|webp|svg)$/)) return 'image';
     if (url.match(/\.(woff|woff2|ttf|eot)$/)) return 'font';
     if (entry.initiatorType) return entry.initiatorType;
-    
+
     return 'other';
   }
 
@@ -209,7 +227,7 @@ export class PerformanceMonitor {
     // 监控First Contentful Paint
     if ('PerformanceObserver' in window) {
       try {
-        const paintObserver = new PerformanceObserver((list) => {
+        const paintObserver = new PerformanceObserver(list => {
           list.getEntries().forEach(entry => {
             if (entry.name === 'first-contentful-paint') {
               this.recordMetric({
@@ -217,7 +235,7 @@ export class PerformanceMonitor {
                 value: entry.startTime,
                 timestamp: Date.now(),
                 type: 'timing',
-                tags: { category: 'paint' }
+                tags: { category: 'paint' },
               });
             }
           });
@@ -236,10 +254,10 @@ export class PerformanceMonitor {
         value: document.hidden ? 0 : 1,
         timestamp: Date.now(),
         type: 'counter',
-        tags: { 
+        tags: {
           category: 'user_interaction',
-          state: document.hidden ? 'hidden' : 'visible'
-        }
+          state: document.hidden ? 'hidden' : 'visible',
+        },
       });
     });
   }
@@ -284,7 +302,7 @@ export class PerformanceMonitor {
       value: duration,
       timestamp: Date.now(),
       type: 'timing',
-      tags
+      tags,
     });
 
     return duration;
@@ -293,7 +311,11 @@ export class PerformanceMonitor {
   /**
    * 增加计数器
    */
-  incrementCounter(name: string, value = 1, tags?: Record<string, string>): void {
+  incrementCounter(
+    name: string,
+    value = 1,
+    tags?: Record<string, string>
+  ): void {
     const currentValue = this.counters.get(name) || 0;
     const newValue = currentValue + value;
     this.counters.set(name, newValue);
@@ -303,7 +325,7 @@ export class PerformanceMonitor {
       value: newValue,
       timestamp: Date.now(),
       type: 'counter',
-      tags
+      tags,
     });
   }
 
@@ -313,13 +335,13 @@ export class PerformanceMonitor {
   recordMemoryUsage(): void {
     if ('memory' in performance) {
       const memory = (performance as any).memory;
-      
+
       this.recordMetric({
         name: 'memory_used',
         value: memory.usedJSHeapSize,
         timestamp: Date.now(),
         type: 'gauge',
-        tags: { category: 'memory' }
+        tags: { category: 'memory' },
       });
 
       this.recordMetric({
@@ -327,7 +349,7 @@ export class PerformanceMonitor {
         value: memory.totalJSHeapSize,
         timestamp: Date.now(),
         type: 'gauge',
-        tags: { category: 'memory' }
+        tags: { category: 'memory' },
       });
 
       this.recordMetric({
@@ -335,7 +357,7 @@ export class PerformanceMonitor {
         value: memory.jsHeapSizeLimit,
         timestamp: Date.now(),
         type: 'gauge',
-        tags: { category: 'memory' }
+        tags: { category: 'memory' },
       });
     }
   }
@@ -357,11 +379,14 @@ export class PerformanceMonitor {
       summary: {
         totalMetrics: this.metrics.length,
         timeRange: {
-          start: this.metrics.length > 0 ? Math.min(...this.metrics.map(m => m.timestamp)) : now,
-          end: now
+          start:
+            this.metrics.length > 0
+              ? Math.min(...this.metrics.map(m => m.timestamp))
+              : now,
+          end: now,
         },
-        categories
-      }
+        categories,
+      },
     };
   }
 
@@ -372,7 +397,7 @@ export class PerformanceMonitor {
     this.reportTimer = setInterval(() => {
       const report = this.generateReport();
       eventBus.emit('performance:report', report);
-      
+
       // 记录内存使用情况
       this.recordMemoryUsage();
     }, this.reportInterval);
@@ -393,7 +418,7 @@ export class PerformanceMonitor {
    */
   cleanup(): void {
     this.stopPeriodicReporting();
-    
+
     this.observers.forEach(observer => {
       observer.disconnect();
     });
@@ -417,19 +442,19 @@ export class PerformanceMonitor {
     latest: number;
   } | null {
     const metrics = this.metrics.filter(m => m.name === metricName);
-    
+
     if (metrics.length === 0) {
       return null;
     }
 
     const values = metrics.map(m => m.value);
-    
+
     return {
       count: metrics.length,
       min: Math.min(...values),
       max: Math.max(...values),
       avg: values.reduce((sum, val) => sum + val, 0) / values.length,
-      latest: values[values.length - 1]
+      latest: values[values.length - 1],
     };
   }
 }

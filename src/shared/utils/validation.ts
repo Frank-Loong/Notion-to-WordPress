@@ -20,46 +20,52 @@ export interface ValidationResult {
 /**
  * 验证单个字段
  */
-export function validateField(value: any, rules: ValidationRule): ValidationResult {
+export function validateField(
+  value: any,
+  rules: ValidationRule
+): ValidationResult {
   const errors: string[] = [];
-  
+
   // 必填验证
-  if (rules.required && (!value || (typeof value === 'string' && value.trim() === ''))) {
+  if (
+    rules.required &&
+    (!value || (typeof value === 'string' && value.trim() === ''))
+  ) {
     errors.push('此字段为必填项');
   }
-  
+
   // 如果值为空且不是必填，跳过其他验证
   if (!value && !rules.required) {
     return { valid: true, errors: [] };
   }
-  
+
   const stringValue = String(value);
-  
+
   // 最小长度验证
   if (rules.minLength && stringValue.length < rules.minLength) {
     errors.push(`最少需要 ${rules.minLength} 个字符`);
   }
-  
+
   // 最大长度验证
   if (rules.maxLength && stringValue.length > rules.maxLength) {
     errors.push(`最多允许 ${rules.maxLength} 个字符`);
   }
-  
+
   // 正则表达式验证
   if (rules.pattern && !rules.pattern.test(stringValue)) {
     errors.push('格式不正确');
   }
-  
+
   // 邮箱验证
   if (rules.email && !isValidEmail(stringValue)) {
     errors.push('请输入有效的邮箱地址');
   }
-  
+
   // URL验证
   if (rules.url && !isValidUrl(stringValue)) {
     errors.push('请输入有效的URL地址');
   }
-  
+
   // 自定义验证
   if (rules.custom) {
     const customResult = rules.custom(value);
@@ -67,29 +73,32 @@ export function validateField(value: any, rules: ValidationRule): ValidationResu
       errors.push(typeof customResult === 'string' ? customResult : '验证失败');
     }
   }
-  
+
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
 /**
  * 验证表单数据
  */
-export function validateForm(data: Record<string, any>, rules: Record<string, ValidationRule>): ValidationResult {
+export function validateForm(
+  data: Record<string, any>,
+  rules: Record<string, ValidationRule>
+): ValidationResult {
   const allErrors: string[] = [];
-  
+
   for (const [field, fieldRules] of Object.entries(rules)) {
     const fieldResult = validateField(data[field], fieldRules);
     if (!fieldResult.valid) {
       allErrors.push(...fieldResult.errors.map(error => `${field}: ${error}`));
     }
   }
-  
+
   return {
     valid: allErrors.length === 0,
-    errors: allErrors
+    errors: allErrors,
   };
 }
 
@@ -138,7 +147,7 @@ export function validatePasswordStrength(password: string): {
 } {
   const feedback: string[] = [];
   let score = 0;
-  
+
   if (password.length < 6) {
     feedback.push('密码长度至少6位');
   } else if (password.length < 8) {
@@ -147,31 +156,31 @@ export function validatePasswordStrength(password: string): {
   } else {
     score += 2;
   }
-  
+
   if (/[a-z]/.test(password)) {
     score += 1;
   } else {
     feedback.push('建议包含小写字母');
   }
-  
+
   if (/[A-Z]/.test(password)) {
     score += 1;
   } else {
     feedback.push('建议包含大写字母');
   }
-  
+
   if (/\d/.test(password)) {
     score += 1;
   } else {
     feedback.push('建议包含数字');
   }
-  
+
   if (/[^a-zA-Z0-9]/.test(password)) {
     score += 1;
   } else {
     feedback.push('建议包含特殊字符');
   }
-  
+
   return { score, feedback };
 }
 
@@ -209,8 +218,9 @@ export function isValidJson(str: string): boolean {
 export function isValidColor(color: string): boolean {
   const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
   const rgbRegex = /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/;
-  const rgbaRegex = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0|1|0?\.\d+)\s*\)$/;
-  
+  const rgbaRegex =
+    /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0|1|0?\.\d+)\s*\)$/;
+
   return hexRegex.test(color) || rgbRegex.test(color) || rgbaRegex.test(color);
 }
 

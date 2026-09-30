@@ -30,11 +30,11 @@ export class LocalStorageManager {
     const item: StorageItem<T> = {
       value,
       timestamp: Date.now(),
-      ttl: options.ttl
+      ttl: options.ttl,
     };
 
     const fullKey = this.getFullKey(key, options.prefix);
-    
+
     try {
       window.localStorage.setItem(fullKey, JSON.stringify(item));
     } catch (error) {
@@ -47,13 +47,13 @@ export class LocalStorageManager {
    */
   get<T = any>(key: string, defaultValue?: T, prefix?: string): T | undefined {
     const fullKey = this.getFullKey(key, prefix);
-    
+
     try {
       const itemStr = window.localStorage.getItem(fullKey);
       if (!itemStr) return defaultValue;
 
       const item: StorageItem<T> = JSON.parse(itemStr);
-      
+
       // 检查是否过期
       if (this.isExpired(item)) {
         this.remove(key, prefix);
@@ -95,9 +95,9 @@ export class LocalStorageManager {
   has(key: string, prefix?: string): boolean {
     const fullKey = this.getFullKey(key, prefix);
     const item = window.localStorage.getItem(fullKey);
-    
+
     if (!item) return false;
-    
+
     try {
       const parsedItem: StorageItem = JSON.parse(item);
       return !this.isExpired(parsedItem);
@@ -138,7 +138,7 @@ export class LocalStorageManager {
   cleanup(): number {
     let cleanedCount = 0;
     const keys = this.keys();
-    
+
     keys.forEach(key => {
       const item = this.getRawItem(key);
       if (item && this.isExpired(item)) {
@@ -146,7 +146,7 @@ export class LocalStorageManager {
         cleanedCount++;
       }
     });
-    
+
     return cleanedCount;
   }
 
@@ -183,11 +183,11 @@ export class SessionStorageManager {
     const item: StorageItem<T> = {
       value,
       timestamp: Date.now(),
-      ttl: options.ttl
+      ttl: options.ttl,
     };
 
     const fullKey = this.getFullKey(key, options.prefix);
-    
+
     try {
       window.sessionStorage.setItem(fullKey, JSON.stringify(item));
     } catch (error) {
@@ -197,7 +197,7 @@ export class SessionStorageManager {
 
   get<T = any>(key: string, defaultValue?: T, prefix?: string): T | undefined {
     const fullKey = this.getFullKey(key, prefix);
-    
+
     try {
       const itemStr = window.sessionStorage.getItem(fullKey);
       if (!itemStr) return defaultValue;
@@ -265,7 +265,7 @@ export class MemoryCache<T = any> {
     this.cache.set(key, {
       value,
       timestamp: Date.now(),
-      ttl
+      ttl,
     });
   }
 

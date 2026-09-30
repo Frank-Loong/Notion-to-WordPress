@@ -60,7 +60,11 @@ export class LogsModule extends BaseComponent {
     // 绑定刷新按钮
     const refreshButton = this.$('#refresh-logs');
     if (refreshButton) {
-      this.addEventListener(refreshButton, 'click', this.handleRefresh.bind(this));
+      this.addEventListener(
+        refreshButton,
+        'click',
+        this.handleRefresh.bind(this)
+      );
     }
 
     // 绑定清空日志按钮
@@ -72,13 +76,21 @@ export class LogsModule extends BaseComponent {
     // 绑定导出按钮
     const exportButton = this.$('#export-logs');
     if (exportButton) {
-      this.addEventListener(exportButton, 'click', this.handleExport.bind(this));
+      this.addEventListener(
+        exportButton,
+        'click',
+        this.handleExport.bind(this)
+      );
     }
 
     // 绑定自动刷新开关
     const autoRefreshToggle = this.$('#auto-refresh') as HTMLInputElement;
     if (autoRefreshToggle) {
-      this.addEventListener(autoRefreshToggle, 'change', this.handleAutoRefreshToggle.bind(this));
+      this.addEventListener(
+        autoRefreshToggle,
+        'change',
+        this.handleAutoRefreshToggle.bind(this)
+      );
     }
 
     // 绑定过滤器
@@ -94,16 +106,20 @@ export class LogsModule extends BaseComponent {
    */
   private bindFilterEvents(): void {
     const filterElements = this.$$('.log-filter');
-    
+
     filterElements.forEach(element => {
-      this.addEventListener(element, 'change', this.handleFilterChange.bind(this));
+      this.addEventListener(
+        element,
+        'change',
+        this.handleFilterChange.bind(this)
+      );
     });
 
     // 搜索框
     const searchInput = this.$('#log-search') as HTMLInputElement;
     if (searchInput) {
       let searchTimeout: NodeJS.Timeout;
-      
+
       this.addEventListener(searchInput, 'input', () => {
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
@@ -120,7 +136,7 @@ export class LogsModule extends BaseComponent {
     try {
       const response = await post('notion_to_wordpress_get_logs', {
         limit: 1000,
-        ...this.currentFilter
+        ...this.currentFilter,
       });
 
       if (response.data.success) {
@@ -149,7 +165,9 @@ export class LogsModule extends BaseComponent {
       return;
     }
 
-    const logsHtml = this.filteredLogs.map(log => this.renderLogEntry(log)).join('');
+    const logsHtml = this.filteredLogs
+      .map(log => this.renderLogEntry(log))
+      .join('');
     container.innerHTML = `<div class="logs-list">${logsHtml}</div>`;
 
     // 更新统计信息
@@ -161,8 +179,9 @@ export class LogsModule extends BaseComponent {
    */
   private renderLogEntry(log: LogEntry): string {
     const timeAgo = formatTimeDiff(Date.now() - log.timestamp);
-    const contextHtml = log.context ? 
-      `<div class="log-context">${JSON.stringify(log.context, null, 2)}</div>` : '';
+    const contextHtml = log.context
+      ? `<div class="log-context">${JSON.stringify(log.context, null, 2)}</div>`
+      : '';
 
     return `
       <div class="log-entry log-${log.level}" data-log-id="${log.id}">
@@ -199,7 +218,10 @@ export class LogsModule extends BaseComponent {
       }
 
       // 来源过滤
-      if (this.currentFilter.source && log.source !== this.currentFilter.source) {
+      if (
+        this.currentFilter.source &&
+        log.source !== this.currentFilter.source
+      ) {
         return false;
       }
 
@@ -212,7 +234,8 @@ export class LogsModule extends BaseComponent {
       }
 
       if (this.currentFilter.dateTo) {
-        const toDate = new Date(this.currentFilter.dateTo).getTime() + 24 * 60 * 60 * 1000; // 包含整天
+        const toDate =
+          new Date(this.currentFilter.dateTo).getTime() + 24 * 60 * 60 * 1000; // 包含整天
         if (log.timestamp > toDate) {
           return false;
         }
@@ -247,7 +270,7 @@ export class LogsModule extends BaseComponent {
       error: this.filteredLogs.filter(log => log.level === 'error').length,
       warning: this.filteredLogs.filter(log => log.level === 'warning').length,
       info: this.filteredLogs.filter(log => log.level === 'info').length,
-      debug: this.filteredLogs.filter(log => log.level === 'debug').length
+      debug: this.filteredLogs.filter(log => log.level === 'debug').length,
     };
 
     statsContainer.innerHTML = `
@@ -283,10 +306,10 @@ export class LogsModule extends BaseComponent {
    */
   private async handleRefresh(event: Event): Promise<void> {
     event.preventDefault();
-    
+
     const button = event.target as HTMLButtonElement;
     const originalText = button.textContent;
-    
+
     button.disabled = true;
     button.textContent = '刷新中...';
 
@@ -311,7 +334,7 @@ export class LogsModule extends BaseComponent {
 
     try {
       const response = await post('notion_to_wordpress_clear_logs', {});
-      
+
       if (response.data.success) {
         this.logs = [];
         this.filteredLogs = [];
@@ -336,16 +359,19 @@ export class LogsModule extends BaseComponent {
       const csvContent = this.generateCSV();
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      
+
       if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `notion-wp-logs-${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute(
+          'download',
+          `notion-wp-logs-${new Date().toISOString().split('T')[0]}.csv`
+        );
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        
+
         showSuccess('日志已导出');
       }
     } catch (error) {
@@ -364,7 +390,7 @@ export class LogsModule extends BaseComponent {
       log.level,
       log.source,
       `"${log.message.replace(/"/g, '""')}"`,
-      log.context ? `"${JSON.stringify(log.context).replace(/"/g, '""')}"` : ''
+      log.context ? `"${JSON.stringify(log.context).replace(/"/g, '""')}"` : '',
     ]);
 
     return [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -390,10 +416,13 @@ export class LogsModule extends BaseComponent {
   private handleFilterChange(): void {
     this.currentFilter = {
       level: (this.$('#filter-level') as HTMLSelectElement)?.value || undefined,
-      source: (this.$('#filter-source') as HTMLSelectElement)?.value || undefined,
-      dateFrom: (this.$('#filter-date-from') as HTMLInputElement)?.value || undefined,
-      dateTo: (this.$('#filter-date-to') as HTMLInputElement)?.value || undefined,
-      search: (this.$('#log-search') as HTMLInputElement)?.value || undefined
+      source:
+        (this.$('#filter-source') as HTMLSelectElement)?.value || undefined,
+      dateFrom:
+        (this.$('#filter-date-from') as HTMLInputElement)?.value || undefined,
+      dateTo:
+        (this.$('#filter-date-to') as HTMLInputElement)?.value || undefined,
+      search: (this.$('#log-search') as HTMLInputElement)?.value || undefined,
     };
 
     // 移除空值
@@ -464,6 +493,6 @@ export class LogsModule extends BaseComponent {
 export default function createLogsModule(element?: HTMLElement): LogsModule {
   return new LogsModule({
     element,
-    selector: element ? undefined : '#logs-container'
+    selector: element ? undefined : '#logs-container',
   });
 }

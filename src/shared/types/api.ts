@@ -18,7 +18,7 @@ export interface NotionProperty {
 }
 
 // Notion属性类型枚举
-export type NotionPropertyType = 
+export type NotionPropertyType =
   | 'title'
   | 'rich_text'
   | 'number'
@@ -159,7 +159,7 @@ export interface NotionAnnotations {
 }
 
 // Notion颜色类型
-export type NotionColor = 
+export type NotionColor =
   | 'default'
   | 'gray'
   | 'brown'
@@ -203,7 +203,7 @@ export interface NotionBlock {
 }
 
 // Notion块类型
-export type NotionBlockType = 
+export type NotionBlockType =
   | 'paragraph'
   | 'heading_1'
   | 'heading_2'
@@ -276,7 +276,7 @@ export interface PaginatedResponse<T = any> {
   next_cursor?: string;
   has_more: boolean;
   type?: string;
-  page?: {};
+  page?: Record<string, unknown>;
 }
 
 // 搜索请求接口

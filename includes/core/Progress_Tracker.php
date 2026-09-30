@@ -5,7 +5,7 @@ namespace NTWP\Core;
 
 /**
  * 进度跟踪器
- * 
+ *
  * 负责跟踪异步任务的执行进度和状态
  * 提供实时进度查询和状态更新功能
  *
@@ -16,481 +16,484 @@ namespace NTWP\Core;
  */
 
 // 防止直接访问
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class Progress_Tracker {
-    
-    // 移除了文件存储相关属性，现在只使用内存存储
 
-    /**
-     * 内存存储缓存前缀
-     */
-    private const CACHE_PREFIX = 'ntwp_progress_';
+	// 移除了文件存储相关属性，现在只使用内存存储
 
-    /**
-     * 缓存过期时间（秒）
-     */
-    private const CACHE_EXPIRATION = 3600; // 1小时
+	/**
+	 * 内存存储缓存前缀
+	 */
+	private const CACHE_PREFIX = 'ntwp_progress_';
 
-    /**
-     * 构造函数
-     */
-    public function __construct() {
-        // 现在只使用内存存储
-    }
-    
-    /**
-     * 创建任务
-     *
-     * @param string $taskId 任务ID
-     * @param array $taskData 任务数据
-     * @return bool 是否创建成功
-     */
-    public function createTask(string $taskId, array $taskData): bool {
-        $progressData = array_merge($taskData, [
-            'created_at' => time(),
-            'updated_at' => time(),
-            'version' => '1.0'
-        ]);
+	/**
+	 * 缓存过期时间（秒）
+	 */
+	private const CACHE_EXPIRATION = 3600; // 1小时
 
-        // 使用内存存储（transient）
-        $cacheKey = self::CACHE_PREFIX . $taskId;
-        $result = set_transient($cacheKey, $progressData, self::CACHE_EXPIRATION);
+	/**
+	 * 构造函数
+	 */
+	public function __construct() {
+		// 现在只使用内存存储
+	}
 
-        if (!$result) {
-            \NTWP\Core\Logger::error_log(
-                sprintf('创建任务进度跟踪失败: %s', $taskId),
-                'Progress Tracker'
-            );
-        }
+	/**
+	 * 创建任务
+	 *
+	 * @param string $taskId 任务ID
+	 * @param array  $taskData 任务数据
+	 * @return bool 是否创建成功
+	 */
+	public function createTask( string $taskId, array $taskData ): bool {
+		$progressData = array_merge(
+			$taskData,
+			array(
+				'created_at' => time(),
+				'updated_at' => time(),
+				'version'    => '1.0',
+			)
+		);
 
-        return $result;
-    }
-    
-    /**
-     * 更新任务状态
-     * 
-     * @param string $taskId 任务ID
-     * @param string $status 新状态
-     * @return bool 是否更新成功
-     */
-    public function updateStatus(string $taskId, string $status): bool {
-        return $this->updateTask($taskId, ['status' => $status]);
-    }
-    
-    /**
-     * 更新任务进度
-     *
-     * @param string $taskId 任务ID
-     * @param array $progressUpdate 进度更新数据
-     * @return bool 是否更新成功
-     */
-    public function updateProgress(string $taskId, array $progressUpdate): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
+		// 使用内存存储（transient）
+		$cacheKey = self::CACHE_PREFIX . $taskId;
+		$result   = set_transient( $cacheKey, $progressData, self::CACHE_EXPIRATION );
 
-        // 合并进度数据
-        $currentProgress = $taskData['progress'] ?? [];
-        $newProgress = array_merge($currentProgress, $progressUpdate);
+		if ( ! $result ) {
+			\NTWP\Core\Logger::error_log(
+				sprintf( '创建任务进度跟踪失败: %s', $taskId ),
+				'Progress Tracker'
+			);
+		}
 
-        // 计算百分比
-        if (isset($newProgress['total']) && $newProgress['total'] > 0) {
-            $processed = $newProgress['processed'] ?? 0;
-            $newProgress['percentage'] = min(100, round(($processed / $newProgress['total']) * 100, 2));
-        }
+		return $result;
+	}
 
-        return $this->updateTask($taskId, ['progress' => $newProgress]);
-    }
+	/**
+	 * 更新任务状态
+	 *
+	 * @param string $taskId 任务ID
+	 * @param string $status 新状态
+	 * @return bool 是否更新成功
+	 */
+	public function updateStatus( string $taskId, string $status ): bool {
+		return $this->updateTask( $taskId, array( 'status' => $status ) );
+	}
 
-    /**
-     * 更新当前步骤
-     *
-     * @param string $taskId 任务ID
-     * @param string $currentStep 当前步骤ID
-     * @param array $stepData 步骤数据
-     * @return bool 是否更新成功
-     */
-    public function updateCurrentStep(string $taskId, string $currentStep, array $stepData = []): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
+	/**
+	 * 更新任务进度
+	 *
+	 * @param string $taskId 任务ID
+	 * @param array  $progressUpdate 进度更新数据
+	 * @return bool 是否更新成功
+	 */
+	public function updateProgress( string $taskId, array $progressUpdate ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
 
-        // 更新当前步骤
-        $updateData = [
-            'currentStep' => $currentStep,
-            'stepUpdatedAt' => time()
-        ];
+		// 合并进度数据
+		$currentProgress = $taskData['progress'] ?? array();
+		$newProgress     = array_merge( $currentProgress, $progressUpdate );
 
-        // 如果有步骤数据，也更新
-        if (!empty($stepData)) {
-            $currentSteps = $taskData['steps'] ?? [];
-            $currentSteps[$currentStep] = array_merge(
-                $currentSteps[$currentStep] ?? [],
-                $stepData,
-                ['updatedAt' => time()]
-            );
-            $updateData['steps'] = $currentSteps;
-        }
+		// 计算百分比
+		if ( isset( $newProgress['total'] ) && $newProgress['total'] > 0 ) {
+			$processed                 = $newProgress['processed'] ?? 0;
+			$newProgress['percentage'] = min( 100, round( ( $processed / $newProgress['total'] ) * 100, 2 ) );
+		}
 
-        return $this->updateTask($taskId, $updateData);
-    }
+		return $this->updateTask( $taskId, array( 'progress' => $newProgress ) );
+	}
+
+	/**
+	 * 更新当前步骤
+	 *
+	 * @param string $taskId 任务ID
+	 * @param string $currentStep 当前步骤ID
+	 * @param array  $stepData 步骤数据
+	 * @return bool 是否更新成功
+	 */
+	public function updateCurrentStep( string $taskId, string $currentStep, array $stepData = array() ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
+
+		// 更新当前步骤
+		$updateData = array(
+			'currentStep'   => $currentStep,
+			'stepUpdatedAt' => time(),
+		);
+
+		// 如果有步骤数据，也更新
+		if ( ! empty( $stepData ) ) {
+			$currentSteps                 = $taskData['steps'] ?? array();
+			$currentSteps[ $currentStep ] = array_merge(
+				$currentSteps[ $currentStep ] ?? array(),
+				$stepData,
+				array( 'updatedAt' => time() )
+			);
+			$updateData['steps']          = $currentSteps;
+		}
+
+		return $this->updateTask( $taskId, $updateData );
+	}
 
 
 
-    /**
-     * 更新时间信息
-     *
-     * @param string $taskId 任务ID
-     * @param array $timingUpdate 时间更新数据
-     * @return bool 是否更新成功
-     */
-    public function updateTiming(string $taskId, array $timingUpdate): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
+	/**
+	 * 更新时间信息
+	 *
+	 * @param string $taskId 任务ID
+	 * @param array  $timingUpdate 时间更新数据
+	 * @return bool 是否更新成功
+	 */
+	public function updateTiming( string $taskId, array $timingUpdate ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
 
-        $currentTiming = $taskData['timing'] ?? [];
-        $newTiming = array_merge($currentTiming, $timingUpdate);
+		$currentTiming = $taskData['timing'] ?? array();
+		$newTiming     = array_merge( $currentTiming, $timingUpdate );
 
-        // 计算已用时间
-        if (isset($newTiming['startTime'])) {
-            $newTiming['elapsedTime'] = (time() - $newTiming['startTime']) * 1000; // 转换为毫秒
-        }
+		// 计算已用时间
+		if ( isset( $newTiming['startTime'] ) ) {
+			$newTiming['elapsedTime'] = ( time() - $newTiming['startTime'] ) * 1000; // 转换为毫秒
+		}
 
-        return $this->updateTask($taskId, ['timing' => $newTiming]);
-    }
-    
-    /**
-     * 获取任务进度
-     * 
-     * @param string $taskId 任务ID
-     * @return array 进度信息
-     */
-    public function getProgress(string $taskId): array {
-        $taskData = $this->getTaskData($taskId);
-        
-        if ($taskData === null) {
-            return [
-                'status' => 'not_found',
-                'error' => '任务不存在',
-                'progress' => [
-                    'total' => 0,
-                    'processed' => 0,
-                    'percentage' => 0
-                ]
-            ];
-        }
-        
-        return [
-            'id' => $taskId,
-            'status' => $taskData['status'] ?? 'unknown',
-            'operation' => $taskData['operation'] ?? 'unknown',
-            'progress' => $taskData['progress'] ?? [],
-            'currentStep' => $taskData['currentStep'] ?? 'validate',
-            'steps' => $taskData['steps'] ?? [],
-            'timing' => $taskData['timing'] ?? [],
-            'metadata' => $taskData['metadata'] ?? [],
-            'created_at' => $taskData['created_at'] ?? 0,
-            'updated_at' => $taskData['updated_at'] ?? 0,
-            'errors' => $taskData['errors'] ?? []
-        ];
-    }
-    
-    /**
-     * 获取活跃任务列表（已废弃 - 内存存储无法枚举）
-     *
-     * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
-     * @return array 活跃任务列表
-     */
-    public function getActiveTasks(): array {
-        // 内存存储模式下无法枚举所有transient，返回空数组
-        return [];
-    }
-    
-    /**
-     * 删除任务
-     *
-     * @param string $taskId 任务ID
-     * @return bool 是否删除成功
-     */
-    public function deleteTask(string $taskId): bool {
-        $cacheKey = self::CACHE_PREFIX . $taskId;
-        return delete_transient($cacheKey);
-    }
-    
-    /**
-     * 清理过期任务（已废弃 - 内存存储自动过期）
-     *
-     * @deprecated 2.0.0 使用内存存储时自动过期，无需手动清理
-     * @param int $maxAge 最大保留时间（秒），默认7天
-     * @return int 清理的任务数量
-     */
-    public function cleanupExpiredTasks(int $maxAge = 604800): int {
-        // 内存存储模式下，transient会自动过期，无需手动清理
-        return 0;
-    }
-    
-    /**
-     * 添加错误信息
-     * 
-     * @param string $taskId 任务ID
-     * @param string $error 错误信息
-     * @return bool 是否添加成功
-     */
-    public function addError(string $taskId, string $error): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
-        
-        $errors = $taskData['errors'] ?? [];
-        $errors[] = [
-            'message' => $error,
-            'timestamp' => time()
-        ];
-        
-        // 限制错误数量，避免文件过大
-        if (count($errors) > 50) {
-            $errors = array_slice($errors, -50);
-        }
-        
-        return $this->updateTask($taskId, ['errors' => $errors]);
-    }
-    
-    /**
-     * 更新任务元数据
-     * 
-     * @param string $taskId 任务ID
-     * @param array $metadata 元数据
-     * @return bool 是否更新成功
-     */
-    public function updateMetadata(string $taskId, array $metadata): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
-        
-        $currentMetadata = $taskData['metadata'] ?? [];
-        $newMetadata = array_merge($currentMetadata, $metadata);
-        
-        return $this->updateTask($taskId, ['metadata' => $newMetadata]);
-    }
-    
-    /**
-     * 获取任务数据
-     *
-     * @param string $taskId 任务ID
-     * @return array|null 任务数据，如果不存在返回null
-     */
-    public function getTask(string $taskId): ?array {
-        return $this->getTaskData($taskId);
-    }
+		return $this->updateTask( $taskId, array( 'timing' => $newTiming ) );
+	}
 
-    /**
-     * 获取失败的任务列表（已废弃 - 内存存储无法枚举）
-     *
-     * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
-     * @return array 失败任务列表
-     */
-    public function getFailedTasks(): array {
-        // 内存存储模式下无法枚举所有transient，返回空数组
-        // 在实际应用中，应该维护一个失败任务的索引
-        return [];
-    }
+	/**
+	 * 获取任务进度
+	 *
+	 * @param string $taskId 任务ID
+	 * @return array 进度信息
+	 */
+	public function getProgress( string $taskId ): array {
+		$taskData = $this->getTaskData( $taskId );
 
-    /**
-     * 增加重试计数
-     *
-     * @param string $taskId 任务ID
-     * @return bool 是否更新成功
-     */
-    public function incrementRetryCount(string $taskId): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
+		if ( $taskData === null ) {
+			return array(
+				'status'   => 'not_found',
+				'error'    => '任务不存在',
+				'progress' => array(
+					'total'      => 0,
+					'processed'  => 0,
+					'percentage' => 0,
+				),
+			);
+		}
 
-        $metadata = $taskData['metadata'] ?? [];
-        $metadata['retry_count'] = ($metadata['retry_count'] ?? 0) + 1;
-        $metadata['last_retry_at'] = time();
+		return array(
+			'id'          => $taskId,
+			'status'      => $taskData['status'] ?? 'unknown',
+			'operation'   => $taskData['operation'] ?? 'unknown',
+			'progress'    => $taskData['progress'] ?? array(),
+			'currentStep' => $taskData['currentStep'] ?? 'validate',
+			'steps'       => $taskData['steps'] ?? array(),
+			'timing'      => $taskData['timing'] ?? array(),
+			'metadata'    => $taskData['metadata'] ?? array(),
+			'created_at'  => $taskData['created_at'] ?? 0,
+			'updated_at'  => $taskData['updated_at'] ?? 0,
+			'errors'      => $taskData['errors'] ?? array(),
+		);
+	}
 
-        return $this->updateTask($taskId, ['metadata' => $metadata]);
-    }
+	/**
+	 * 获取活跃任务列表（已废弃 - 内存存储无法枚举）
+	 *
+	 * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
+	 * @return array 活跃任务列表
+	 */
+	public function getActiveTasks(): array {
+		// 内存存储模式下无法枚举所有transient，返回空数组
+		return array();
+	}
 
-    /**
-     * 获取系统统计信息（已废弃 - 内存存储无法枚举）
-     *
-     * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
-     * @return array 统计信息
-     */
-    public function getStatistics(): array {
-        // 内存存储模式下无法枚举所有transient，返回基础统计信息
-        return [
-            'total_tasks' => 0,
-            'pending' => 0,
-            'running' => 0,
-            'completed' => 0,
-            'failed' => 0,
-            'cancelled' => 0,
-            'note' => '内存存储模式下无法统计活跃任务数量'
-        ];
-    }
-    
-    // 移除了文件存储相关的辅助方法
-    
-    /**
-     * 获取任务数据
-     */
-    private function getTaskData(string $taskId): ?array {
-        // 从内存缓存获取
-        $cacheKey = self::CACHE_PREFIX . $taskId;
-        $data = get_transient($cacheKey);
-        return $data !== false ? $data : null;
-    }
-    
-    /**
-     * 更新任务数据
-     */
-    private function updateTask(string $taskId, array $updates): bool {
-        $taskData = $this->getTaskData($taskId);
-        if ($taskData === null) {
-            return false;
-        }
+	/**
+	 * 删除任务
+	 *
+	 * @param string $taskId 任务ID
+	 * @return bool 是否删除成功
+	 */
+	public function deleteTask( string $taskId ): bool {
+		$cacheKey = self::CACHE_PREFIX . $taskId;
+		return delete_transient( $cacheKey );
+	}
 
-        // 合并更新数据
-        $taskData = array_merge($taskData, $updates);
-        $taskData['updated_at'] = time();
+	/**
+	 * 清理过期任务（已废弃 - 内存存储自动过期）
+	 *
+	 * @deprecated 2.0.0 使用内存存储时自动过期，无需手动清理
+	 * @param int $maxAge 最大保留时间（秒），默认7天
+	 * @return int 清理的任务数量
+	 */
+	public function cleanupExpiredTasks( int $maxAge = 604800 ): int {
+		// 内存存储模式下，transient会自动过期，无需手动清理
+		return 0;
+	}
 
-        // 使用内存存储
-        $cacheKey = self::CACHE_PREFIX . $taskId;
-        $success = set_transient($cacheKey, $taskData, self::CACHE_EXPIRATION);
+	/**
+	 * 添加错误信息
+	 *
+	 * @param string $taskId 任务ID
+	 * @param string $error 错误信息
+	 * @return bool 是否添加成功
+	 */
+	public function addError( string $taskId, string $error ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
 
-        // 触发WordPress钩子（与静态方法保持一致）
-        if ($success && isset($updates['progress'])) {
-            do_action('notion_to_wordpress_progress_update', $taskId, $taskData);
-        }
+		$errors   = $taskData['errors'] ?? array();
+		$errors[] = array(
+			'message'   => $error,
+			'timestamp' => time(),
+		);
 
-        return $success;
-    }
+		// 限制错误数量，避免文件过大
+		if ( count( $errors ) > 50 ) {
+			$errors = array_slice( $errors, -50 );
+		}
 
-    // ==================== 扩展功能（第二阶段优化） ====================
+		return $this->updateTask( $taskId, array( 'errors' => $errors ) );
+	}
 
-    /**
-     * 创建新任务（静态方法）
-     *
-     * @since 2.0.0-beta.1
-     * @param string $operation 操作类型
-     * @param int $total_items 总项目数
-     * @param array $metadata 元数据
-     * @param string|null $task_id 可选的任务ID，如果不提供则自动生成
-     * @return string 任务ID
-     */
-    public static function create_task(string $operation, int $total_items, array $metadata = [], ?string $task_id = null): string {
-        // 如果没有提供task_id，则生成一个新的
-        if (empty($task_id)) {
-            $task_id = uniqid('task_', true);
-        }
+	/**
+	 * 更新任务元数据
+	 *
+	 * @param string $taskId 任务ID
+	 * @param array  $metadata 元数据
+	 * @return bool 是否更新成功
+	 */
+	public function updateMetadata( string $taskId, array $metadata ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
 
-        $task_data = [
-            'id' => $task_id,
-            'operation' => $operation,
-            'total_items' => $total_items,
-            'completed_items' => 0,
-            'status' => 'running',
-            'start_time' => time(),
-            'current_status' => 'Initializing...',
-            'metadata' => $metadata,
-            'errors' => []
-        ];
+		$currentMetadata = $taskData['metadata'] ?? array();
+		$newMetadata     = array_merge( $currentMetadata, $metadata );
 
-        $instance = new self();
-        $instance->createTask($task_id, $task_data);
+		return $this->updateTask( $taskId, array( 'metadata' => $newMetadata ) );
+	}
 
-        return $task_id;
-    }
+	/**
+	 * 获取任务数据
+	 *
+	 * @param string $taskId 任务ID
+	 * @return array|null 任务数据，如果不存在返回null
+	 */
+	public function getTask( string $taskId ): ?array {
+		return $this->getTaskData( $taskId );
+	}
 
-    /**
-     * 更新进度（静态方法）
-     *
-     * @since 2.0.0-beta.1
-     * @param string $task_id 任务ID
-     * @param int $completed 已完成数量
-     * @param string $status 状态消息
-     * @param array $data 额外数据
-     * @return void
-     */
-    public static function update_progress(string $task_id, int $completed, string $status = '', array $data = []): void {
-        $instance = new self();
-        $current_data = $instance->getTaskData($task_id);
+	/**
+	 * 获取失败的任务列表（已废弃 - 内存存储无法枚举）
+	 *
+	 * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
+	 * @return array 失败任务列表
+	 */
+	public function getFailedTasks(): array {
+		// 内存存储模式下无法枚举所有transient，返回空数组
+		// 在实际应用中，应该维护一个失败任务的索引
+		return array();
+	}
 
-        if ($current_data === null) {
-            return;
-        }
+	/**
+	 * 增加重试计数
+	 *
+	 * @param string $taskId 任务ID
+	 * @return bool 是否更新成功
+	 */
+	public function incrementRetryCount( string $taskId ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
 
-        $progress_data = [
-            'total' => $current_data['total_items'] ?? 0,
-            'processed' => $completed,
-            'percentage' => $current_data['total_items'] > 0 ? round(($completed / $current_data['total_items']) * 100, 2) : 0,
-            'status' => 'processing',
-            'message' => $status ?: "Processing {$completed} of {$current_data['total_items']} items"
-        ];
+		$metadata                  = $taskData['metadata'] ?? array();
+		$metadata['retry_count']   = ( $metadata['retry_count'] ?? 0 ) + 1;
+		$metadata['last_retry_at'] = time();
 
-        $instance->updateProgress($task_id, array_merge($progress_data, $data));
+		return $this->updateTask( $taskId, array( 'metadata' => $metadata ) );
+	}
 
-        // 触发进度更新钩子
-        do_action('notion_to_wordpress_progress_update', $task_id, $progress_data);
-    }
+	/**
+	 * 获取系统统计信息（已废弃 - 内存存储无法枚举）
+	 *
+	 * @deprecated 2.0.0 内存存储模式下无法枚举所有任务
+	 * @return array 统计信息
+	 */
+	public function getStatistics(): array {
+		// 内存存储模式下无法枚举所有transient，返回基础统计信息
+		return array(
+			'total_tasks' => 0,
+			'pending'     => 0,
+			'running'     => 0,
+			'completed'   => 0,
+			'failed'      => 0,
+			'cancelled'   => 0,
+			'note'        => '内存存储模式下无法统计活跃任务数量',
+		);
+	}
 
-    /**
-     * 完成任务（静态方法）
-     *
-     * @since 2.0.0-beta.1
-     * @param string $task_id 任务ID
-     * @param array $summary 任务摘要
-     * @return void
-     */
-    public static function complete_task(string $task_id, array $summary = []): void {
-        $instance = new self();
-        $current_data = $instance->getTaskData($task_id);
+	// 移除了文件存储相关的辅助方法
 
-        if ($current_data === null) {
-            return;
-        }
+	/**
+	 * 获取任务数据
+	 */
+	private function getTaskData( string $taskId ): ?array {
+		// 从内存缓存获取
+		$cacheKey = self::CACHE_PREFIX . $taskId;
+		$data     = get_transient( $cacheKey );
+		return $data !== false ? $data : null;
+	}
 
-        $completion_data = [
-            'status' => 'completed',
-            'end_time' => time(),
-            'summary' => $summary,
-            'progress' => [
-                'total' => $current_data['total_items'] ?? 0,
-                'processed' => $current_data['total_items'] ?? 0,
-                'percentage' => 100,
-                'status' => 'completed',
-                'message' => 'Task completed successfully'
-            ]
-        ];
+	/**
+	 * 更新任务数据
+	 */
+	private function updateTask( string $taskId, array $updates ): bool {
+		$taskData = $this->getTaskData( $taskId );
+		if ( $taskData === null ) {
+			return false;
+		}
 
-        $instance->updateTask($task_id, $completion_data);
+		// 合并更新数据
+		$taskData               = array_merge( $taskData, $updates );
+		$taskData['updated_at'] = time();
 
-        // 触发完成钩子
-        do_action('notion_to_wordpress_task_completed', $task_id, $completion_data);
-    }
+		// 使用内存存储
+		$cacheKey = self::CACHE_PREFIX . $taskId;
+		$success  = set_transient( $cacheKey, $taskData, self::CACHE_EXPIRATION );
 
-    /**
-     * 获取任务状态（静态方法）
-     *
-     * @since 2.0.0-beta.1
-     * @param string $task_id 任务ID
-     * @return array 任务状态
-     */
-    public static function get_task_status(string $task_id): array {
-        $instance = new self();
-        return $instance->getTaskData($task_id) ?? [];
-    }
+		// 触发WordPress钩子（与静态方法保持一致）
+		if ( $success && isset( $updates['progress'] ) ) {
+			do_action( 'notion_to_wordpress_progress_update', $taskId, $taskData );
+		}
+
+		return $success;
+	}
+
+	// ==================== 扩展功能（第二阶段优化） ====================
+
+	/**
+	 * 创建新任务（静态方法）
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string      $operation 操作类型
+	 * @param int         $total_items 总项目数
+	 * @param array       $metadata 元数据
+	 * @param string|null $task_id 可选的任务ID，如果不提供则自动生成
+	 * @return string 任务ID
+	 */
+	public static function create_task( string $operation, int $total_items, array $metadata = array(), ?string $task_id = null ): string {
+		// 如果没有提供task_id，则生成一个新的
+		if ( empty( $task_id ) ) {
+			$task_id = uniqid( 'task_', true );
+		}
+
+		$task_data = array(
+			'id'              => $task_id,
+			'operation'       => $operation,
+			'total_items'     => $total_items,
+			'completed_items' => 0,
+			'status'          => 'running',
+			'start_time'      => time(),
+			'current_status'  => 'Initializing...',
+			'metadata'        => $metadata,
+			'errors'          => array(),
+		);
+
+		$instance = new self();
+		$instance->createTask( $task_id, $task_data );
+
+		return $task_id;
+	}
+
+	/**
+	 * 更新进度（静态方法）
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $task_id 任务ID
+	 * @param int    $completed 已完成数量
+	 * @param string $status 状态消息
+	 * @param array  $data 额外数据
+	 * @return void
+	 */
+	public static function update_progress( string $task_id, int $completed, string $status = '', array $data = array() ): void {
+		$instance     = new self();
+		$current_data = $instance->getTaskData( $task_id );
+
+		if ( $current_data === null ) {
+			return;
+		}
+
+		$progress_data = array(
+			'total'      => $current_data['total_items'] ?? 0,
+			'processed'  => $completed,
+			'percentage' => $current_data['total_items'] > 0 ? round( ( $completed / $current_data['total_items'] ) * 100, 2 ) : 0,
+			'status'     => 'processing',
+			'message'    => $status ?: "Processing {$completed} of {$current_data['total_items']} items",
+		);
+
+		$instance->updateProgress( $task_id, array_merge( $progress_data, $data ) );
+
+		// 触发进度更新钩子
+		do_action( 'notion_to_wordpress_progress_update', $task_id, $progress_data );
+	}
+
+	/**
+	 * 完成任务（静态方法）
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $task_id 任务ID
+	 * @param array  $summary 任务摘要
+	 * @return void
+	 */
+	public static function complete_task( string $task_id, array $summary = array() ): void {
+		$instance     = new self();
+		$current_data = $instance->getTaskData( $task_id );
+
+		if ( $current_data === null ) {
+			return;
+		}
+
+		$completion_data = array(
+			'status'   => 'completed',
+			'end_time' => time(),
+			'summary'  => $summary,
+			'progress' => array(
+				'total'      => $current_data['total_items'] ?? 0,
+				'processed'  => $current_data['total_items'] ?? 0,
+				'percentage' => 100,
+				'status'     => 'completed',
+				'message'    => 'Task completed successfully',
+			),
+		);
+
+		$instance->updateTask( $task_id, $completion_data );
+
+		// 触发完成钩子
+		do_action( 'notion_to_wordpress_task_completed', $task_id, $completion_data );
+	}
+
+	/**
+	 * 获取任务状态（静态方法）
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $task_id 任务ID
+	 * @return array 任务状态
+	 */
+	public static function get_task_status( string $task_id ): array {
+		$instance = new self();
+		return $instance->getTaskData( $task_id ) ?? array();
+	}
 }

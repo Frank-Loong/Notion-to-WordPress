@@ -1,124 +1,121 @@
 #!/usr/bin/env node
 
-/**
- * 构建校验工具
- * 
- * 本工具用于校验打包过程是否正确包含/排除文件，
- * 确保生成的 ZIP 包符合 WordPress 插件规范，并符合大小限制。
- * 
- * @author Frank-Loong
- * @version 2.0.0-beta.1
- */
-
+/** Verify a distributable WordPress plugin archive and release metadata. */
 const fs = require('fs');
 const path = require('path');
-const { glob } = require('glob');
-const chalk = require('chalk');
+const AdmZip = require('adm-zip');
 
-class BuildVerifier {
-    constructor() {
-        this.projectRoot = path.resolve(__dirname, '..');
-        this.buildDir = path.join(this.projectRoot, 'build');
-        
-        // ZIP 包中必须包含的文件
-        this.requiredFiles = [
-            'notion-to-wordpress/notion-to-wordpress.php',
-            'notion-to-wordpress/readme.txt',
-            'notion-to-wordpress/uninstall.php',
-        ];
-        
-        // ZIP 包中禁止包含的文件/目录
-        this.forbiddenPatterns = [
-            'node_modules/',
-            'scripts/',
-            '.git/',
-            'package.json',
-            'package-lock.json',
-            '.gitignore',
-            '.env',
-            '*.log'
-        ];
-    }
+const projectRoot = path.resolve(__dirname, '..');
+const buildDir = path.join(projectRoot, 'build');
+const pluginPrefix = 'notion-to-wordpress/';
 
-    async verify() {
-        console.log(chalk.bold('🔍 构建校验工具'));
-        
-        // 查找 ZIP 文件
-        const zipFiles = await glob('*.zip', { cwd: this.buildDir });
-        
-        if (zipFiles.length === 0) {
-            console.log(chalk.red('❌ 构建目录下未找到 ZIP 文件'));
-            return false;
-        }
-        
-        const zipFile = zipFiles[0];
-        console.log(`正在校验: ${chalk.cyan(zipFile)}`);
-        
-        // 获取文件信息
-        const zipPath = path.join(this.buildDir, zipFile);
-        const stats = fs.statSync(zipPath);
-        const sizeInMB = (stats.size / 1024 / 1024).toFixed(2);
-        
-        console.log(`文件大小: ${chalk.yellow(sizeInMB)} MB`);
-        
-        // 基本校验
-        const checks = [
-            {
-                name: '文件存在',
-                test: () => fs.existsSync(zipPath),
-                critical: true
-            },
-            {
-                name: '文件大于 1MB',
-                test: () => stats.size > 1024 * 1024,
-                critical: true
-            },
-            {
-                name: '文件小于 50MB',
-                test: () => stats.size < 50 * 1024 * 1024,
-                critical: false
-            },
-            {
-                name: '符合 WordPress 插件命名规范',
-                test: () => zipFile.match(/^notion-to-wordpress-\d+\.\d+\.\d+.*\.zip$/),
-                critical: false
-            }
-        ];
-        
-        let allCriticalPassed = true;
-        
-        console.log('\n📋 基本校验:');
-        for (const check of checks) {
-            const passed = check.test();
-            const icon = passed ? '✅' : '❌';
-            const color = passed ? chalk.green : chalk.red;
-            
-            console.log(`${icon} ${color(check.name)}`);
-            
-            if (!passed && check.critical) {
-                allCriticalPassed = false;
-            }
-        }
-        
-        if (!allCriticalPassed) {
-            console.log(chalk.red('\n❌ 关键校验未通过!'));
-            return false;
-        }
-        
-        console.log(chalk.green('\n✅ 所有校验通过!'));
-        console.log(`\n📦 包已就绪: ${chalk.green(zipPath)}`);
-        console.log('你可以在 WordPress 后台安装此 ZIP 文件。');
-        
-        return true;
-    }
+function fail(message) {
+  throw new Error(message);
 }
 
-// CLI 执行入口
-if (require.main === module) {
-    const verifier = new BuildVerifier();
-    verifier.verify().then(success => {
-        process.exit(success ? 0 : 1);
-    });
+function readVersionMetadata() {
+  const pluginFile = fs.readFileSync(
+    path.join(projectRoot, 'notion-to-wordpress.php'),
+    'utf8'
+  );
+  const readme = fs.readFileSync(path.join(projectRoot, 'readme.txt'), 'utf8');
+  const packageVersion = JSON.parse(
+    fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8')
+  ).version;
+  const header = pluginFile.match(/^\s*\*\s+Version:\s*(.+)$/m);
+  const constant = pluginFile.match(
+    /NOTION_TO_WORDPRESS_VERSION'\s*,\s*'([^']+)'/
+  );
+  const stableTag = readme.match(/^Stable tag:\s*(.+)$/im);
+  const versions = {
+    'plugin header': header?.[1].trim(),
+    'plugin constant': constant?.[1],
+    'package.json': packageVersion,
+    'readme.txt': stableTag?.[1].trim(),
+  };
+
+  if (Object.values(versions).some(version => !version)) {
+    fail(`Missing version metadata: ${JSON.stringify(versions)}`);
+  }
+  if (new Set(Object.values(versions)).size !== 1) {
+    fail(`Version metadata is inconsistent: ${JSON.stringify(versions)}`);
+  }
+  return packageVersion;
 }
 
-module.exports = BuildVerifier;
+function findArchive() {
+  if (!fs.existsSync(buildDir)) {
+    fail('Build directory does not exist. Run npm run build first.');
+  }
+  const archives = fs
+    .readdirSync(buildDir)
+    .filter(file => file.endsWith('.zip'));
+  if (archives.length !== 1) {
+    fail(`Expected exactly one ZIP archive, found ${archives.length}.`);
+  }
+  return path.join(buildDir, archives[0]);
+}
+
+function verifyArchive(archivePath, version) {
+  const archiveName = path.basename(archivePath);
+  if (archiveName !== `notion-to-wordpress-${version}.zip`) {
+    fail(`Unexpected archive name: ${archiveName}`);
+  }
+
+  const entries = new AdmZip(archivePath)
+    .getEntries()
+    .filter(entry => !entry.isDirectory)
+    .map(entry => entry.entryName);
+  const requiredFiles = [
+    'notion-to-wordpress.php',
+    'readme.txt',
+    'uninstall.php',
+    'includes/framework/Autoloader.php',
+    'assets/dist/js/admin.js',
+    'assets/dist/js/frontend.js',
+    'assets/dist/js/runtime.js',
+    'assets/dist/js/vendors.js',
+    'assets/dist/js/common.js',
+  ];
+  const requiredDirectories = ['admin/', 'assets/', 'includes/', 'languages/'];
+  const forbiddenPatterns = [
+    /^node_modules\//,
+    /^vendor\//,
+    /^scripts\//,
+    /^\.git\//,
+    /^package(-lock)?\.json$/,
+    /^\.env(?:\.|$)/,
+  ];
+
+  for (const file of requiredFiles) {
+    if (!entries.includes(`${pluginPrefix}${file}`)) {
+      fail(`Archive is missing required file: ${file}`);
+    }
+  }
+  for (const directory of requiredDirectories) {
+    if (
+      !entries.some(entry => entry.startsWith(`${pluginPrefix}${directory}`))
+    ) {
+      fail(`Archive is missing required directory: ${directory}`);
+    }
+  }
+  for (const entry of entries) {
+    if (!entry.startsWith(pluginPrefix)) {
+      fail(`Archive entry is outside plugin root: ${entry}`);
+    }
+    const relativeEntry = entry.slice(pluginPrefix.length);
+    if (forbiddenPatterns.some(pattern => pattern.test(relativeEntry))) {
+      fail(`Archive contains forbidden entry: ${entry}`);
+    }
+  }
+}
+
+try {
+  const version = readVersionMetadata();
+  const archivePath = findArchive();
+  verifyArchive(archivePath, version);
+  console.log(`Build verification passed: ${path.basename(archivePath)}`);
+} catch (error) {
+  console.error(`Build verification failed: ${error.message}`);
+  process.exitCode = 1;
+}

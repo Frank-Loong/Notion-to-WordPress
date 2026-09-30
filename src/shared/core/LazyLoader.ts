@@ -31,7 +31,7 @@ export class LazyLoader {
     threshold: 0.1,
     rootMargin: '50px',
     timeout: 10000,
-    retries: 3
+    retries: 3,
   };
 
   constructor(options: LazyLoadOptions = {}) {
@@ -44,12 +44,14 @@ export class LazyLoader {
    */
   private setupIntersectionObserver(): void {
     if (!window.IntersectionObserver) {
-      console.warn('IntersectionObserver not supported, falling back to immediate loading');
+      console.warn(
+        'IntersectionObserver not supported, falling back to immediate loading'
+      );
       return;
     }
 
     this.intersectionObserver = new IntersectionObserver(
-      (entries) => {
+      entries => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             const moduleId = entry.target.getAttribute('data-lazy-module');
@@ -62,7 +64,7 @@ export class LazyLoader {
       },
       {
         threshold: this.defaultOptions.threshold,
-        rootMargin: this.defaultOptions.rootMargin
+        rootMargin: this.defaultOptions.rootMargin,
       }
     );
   }
@@ -81,7 +83,7 @@ export class LazyLoader {
       loader,
       loaded: false,
       loading: false,
-      retryCount: 0
+      retryCount: 0,
     });
 
     console.log(`Lazy module registered: ${id}`);
@@ -130,7 +132,7 @@ export class LazyLoader {
     }
 
     module.loading = true;
-    
+
     const loadingPromise = this.performLoad(module);
     this.loadingPromises.set(id, loadingPromise);
 
@@ -139,20 +141,24 @@ export class LazyLoader {
       module.loaded = true;
       module.loading = false;
       module.error = undefined;
-      
+
       // 发送加载完成事件
       eventBus.emit('lazy:loaded', { moduleId: id, result });
-      
+
       console.log(`Lazy module loaded: ${id}`);
       return result;
     } catch (error) {
       module.loading = false;
       module.error = error as Error;
       module.retryCount++;
-      
+
       // 发送加载失败事件
-      eventBus.emit('lazy:error', { moduleId: id, error, retryCount: module.retryCount });
-      
+      eventBus.emit('lazy:error', {
+        moduleId: id,
+        error,
+        retryCount: module.retryCount,
+      });
+
       console.error(`Failed to load lazy module ${id}:`, error);
       throw error;
     } finally {
@@ -169,7 +175,8 @@ export class LazyLoader {
         reject(new Error(`Module ${module.id} load timeout`));
       }, this.defaultOptions.timeout);
 
-      module.loader()
+      module
+        .loader()
         .then(result => {
           clearTimeout(timeout);
           resolve(result);
@@ -213,10 +220,12 @@ export class LazyLoader {
    * 批量预加载模块
    */
   async preloadModules(ids: string[]): Promise<any[]> {
-    const promises = ids.map(id => this.loadModule(id).catch(error => {
-      console.error(`Preload failed for module ${id}:`, error);
-      return null;
-    }));
+    const promises = ids.map(id =>
+      this.loadModule(id).catch(error => {
+        console.error(`Preload failed for module ${id}:`, error);
+        return null;
+      })
+    );
 
     return Promise.all(promises);
   }
@@ -271,7 +280,7 @@ export class LazyLoader {
 
     this.modules.clear();
     this.loadingPromises.clear();
-    
+
     console.log('LazyLoader cleaned up');
   }
 
@@ -285,12 +294,12 @@ export class LazyLoader {
     failed: number;
   } {
     const modules = Array.from(this.modules.values());
-    
+
     return {
       total: modules.length,
       loaded: modules.filter(m => m.loaded).length,
       loading: modules.filter(m => m.loading).length,
-      failed: modules.filter(m => m.error).length
+      failed: modules.filter(m => m.error).length,
     };
   }
 }

@@ -68,16 +68,6 @@ const releaseConfig = {
                 ]
             },
             {
-                path: 'includes/class-notion-to-wordpress.php',
-                patterns: [
-                    {
-                        // 类版本属性
-                        regex: /(\$this->version\s*=\s*')([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(';)/,
-                        replacement: '$1{VERSION}$3'
-                    }
-                ]
-            },
-            {
                 path: 'package.json',
                 patterns: [
                     {
@@ -230,7 +220,7 @@ if (!defined('ABSPATH')) {
 
         // 文件描述映射（可选，用于自动生成描述）
         descriptions: {
-            'includes/class-notion-to-wordpress.php': '核心插件类',
+            'includes/framework/Main.php': '核心插件类',
             'includes/class-notion-api.php': 'Notion API 接口类',
             'includes/class-notion-pages.php': 'Notion 页面处理类',
             'includes/class-notion-to-wordpress-helper.php': '插件辅助工具类',

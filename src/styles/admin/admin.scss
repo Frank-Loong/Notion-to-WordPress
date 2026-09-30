@@ -2,7 +2,7 @@
  * 管理界面主样式
  */
 
-@import '../shared/variables';
+@import "../shared/variables";
 
 // 基础样式重置
 .notion-wp-admin {
@@ -17,7 +17,7 @@
 
   // 清除浮动
   &::after {
-    content: '';
+    content: "";
     display: table;
     clear: both;
   }
@@ -61,7 +61,7 @@
     font-size: 14px;
 
     &::before {
-      content: 'N';
+      content: "N";
     }
   }
 
@@ -378,8 +378,8 @@
 }
 
 // 导入功能样式
-@import 'sync-progress';
-@import 'database-view';
-@import 'log-viewer';
-@import 'settings';
-@import 'error-display';
+@import "sync-progress";
+@import "database-view";
+@import "log-viewer";
+@import "settings";
+@import "error-display";

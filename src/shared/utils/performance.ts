@@ -14,7 +14,7 @@ export class PerformanceMonitor {
    */
   mark(name: string): void {
     this.marks.set(name, performance.now());
-    
+
     // 如果支持Performance API，也使用原生标记
     if (performance.mark) {
       performance.mark(name);
@@ -27,15 +27,15 @@ export class PerformanceMonitor {
   measure(name: string, startMark?: string, endMark?: string): number {
     const endTime = endMark ? this.marks.get(endMark) : performance.now();
     const startTime = startMark ? this.marks.get(startMark) : 0;
-    
+
     if (startTime === undefined || endTime === undefined) {
       console.warn(`Performance mark not found: ${startMark || endMark}`);
       return 0;
     }
-    
+
     const duration = endTime - startTime;
     this.measures.set(name, duration);
-    
+
     // 如果支持Performance API，也使用原生测量
     if (performance.measure && startMark && endMark) {
       try {
@@ -44,7 +44,7 @@ export class PerformanceMonitor {
         console.warn('Performance measure failed:', error);
       }
     }
-    
+
     return duration;
   }
 
@@ -92,7 +92,7 @@ export class PerformanceMonitor {
    */
   getEntries(type?: string): PerformanceEntry[] {
     if (!performance.getEntries) return [];
-    
+
     const entries = performance.getEntries();
     return type ? entries.filter(entry => entry.entryType === type) : entries;
   }
@@ -102,20 +102,24 @@ export class PerformanceMonitor {
  * 函数执行时间测量装饰器
  */
 export function measureTime(name?: string) {
-  return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
     const originalMethod = descriptor.value;
     const measureName = name || `${target.constructor.name}.${propertyKey}`;
-    
-    descriptor.value = function(...args: any[]) {
+
+    descriptor.value = function (...args: any[]) {
       const startTime = performance.now();
       const result = originalMethod.apply(this, args);
       const endTime = performance.now();
-      
+
       console.log(`${measureName} executed in ${endTime - startTime}ms`);
-      
+
       return result;
     };
-    
+
     return descriptor;
   };
 }
@@ -124,20 +128,24 @@ export function measureTime(name?: string) {
  * 异步函数执行时间测量装饰器
  */
 export function measureAsyncTime(name?: string) {
-  return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
     const originalMethod = descriptor.value;
     const measureName = name || `${target.constructor.name}.${propertyKey}`;
-    
-    descriptor.value = async function(...args: any[]) {
+
+    descriptor.value = async function (...args: any[]) {
       const startTime = performance.now();
       const result = await originalMethod.apply(this, args);
       const endTime = performance.now();
-      
+
       console.log(`${measureName} executed in ${endTime - startTime}ms`);
-      
+
       return result;
     };
-    
+
     return descriptor;
   };
 }
@@ -165,7 +173,7 @@ export class MemoryMonitor {
       console.log(`${label}:`, {
         used: `${(memInfo.usedJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
         total: `${(memInfo.totalJSHeapSize / 1024 / 1024).toFixed(2)} MB`,
-        limit: `${(memInfo.jsHeapSizeLimit / 1024 / 1024).toFixed(2)} MB`
+        limit: `${(memInfo.jsHeapSizeLimit / 1024 / 1024).toFixed(2)} MB`,
       });
     }
   }
@@ -176,25 +184,27 @@ export class MemoryMonitor {
   startMemoryLeakDetection(interval = 5000): () => void {
     let previousUsed = 0;
     let increasingCount = 0;
-    
+
     const intervalId = setInterval(() => {
       const memInfo = this.getMemoryInfo();
       if (memInfo) {
         const currentUsed = memInfo.usedJSHeapSize;
-        
+
         if (currentUsed > previousUsed) {
           increasingCount++;
           if (increasingCount > 5) {
-            console.warn('Potential memory leak detected - memory usage continuously increasing');
+            console.warn(
+              'Potential memory leak detected - memory usage continuously increasing'
+            );
           }
         } else {
           increasingCount = 0;
         }
-        
+
         previousUsed = currentUsed;
       }
     }, interval);
-    
+
     return () => clearInterval(intervalId);
   }
 }
@@ -208,14 +218,18 @@ export class ResourceMonitor {
    */
   getResourceTimings(): PerformanceResourceTiming[] {
     if (!performance.getEntriesByType) return [];
-    return performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    return performance.getEntriesByType(
+      'resource'
+    ) as PerformanceResourceTiming[];
   }
 
   /**
    * 获取慢加载资源
    */
   getSlowResources(threshold = 1000): PerformanceResourceTiming[] {
-    return this.getResourceTimings().filter(resource => resource.duration > threshold);
+    return this.getResourceTimings().filter(
+      resource => resource.duration > threshold
+    );
   }
 
   /**
@@ -231,12 +245,13 @@ export class ResourceMonitor {
     const slowResources = this.getSlowResources();
     const failedResources = resources.filter(r => r.transferSize === 0);
     const totalDuration = resources.reduce((sum, r) => sum + r.duration, 0);
-    
+
     return {
       total: resources.length,
       slow: slowResources.length,
       failed: failedResources.length,
-      averageDuration: resources.length > 0 ? totalDuration / resources.length : 0
+      averageDuration:
+        resources.length > 0 ? totalDuration / resources.length : 0,
     };
   }
 }
@@ -256,7 +271,7 @@ export class FPSMonitor {
    */
   start(): void {
     if (this.isRunning) return;
-    
+
     this.isRunning = true;
     this.lastTime = performance.now();
     this.frameCount = 0;
@@ -286,19 +301,21 @@ export class FPSMonitor {
 
   private tick = (): void => {
     if (!this.isRunning) return;
-    
+
     const currentTime = performance.now();
     this.frameCount++;
-    
+
     if (currentTime - this.lastTime >= 1000) {
-      this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastTime));
+      this.fps = Math.round(
+        (this.frameCount * 1000) / (currentTime - this.lastTime)
+      );
       this.frameCount = 0;
       this.lastTime = currentTime;
-      
+
       // 通知回调
       this.callbacks.forEach(callback => callback(this.fps));
     }
-    
+
     requestAnimationFrame(this.tick);
   };
 }
@@ -312,30 +329,33 @@ export const fpsMonitor = new FPSMonitor();
 /**
  * 简单的性能测试函数
  */
-export function benchmark(fn: () => void, iterations = 1000): {
+export function benchmark(
+  fn: () => void,
+  iterations = 1000
+): {
   totalTime: number;
   averageTime: number;
   minTime: number;
   maxTime: number;
 } {
   const times: number[] = [];
-  
+
   for (let i = 0; i < iterations; i++) {
     const start = performance.now();
     fn();
     const end = performance.now();
     times.push(end - start);
   }
-  
+
   const totalTime = times.reduce((sum, time) => sum + time, 0);
   const averageTime = totalTime / iterations;
   const minTime = Math.min(...times);
   const maxTime = Math.max(...times);
-  
+
   return {
     totalTime,
     averageTime,
     minTime,
-    maxTime
+    maxTime,
   };
 }

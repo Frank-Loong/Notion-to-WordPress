@@ -47,7 +47,7 @@ export class QueueManager {
 
     this.isMonitoring = true;
     this.checkQueueStatus();
-    
+
     this.statusCheckTimer = setInterval(() => {
       this.checkQueueStatus();
     }, this.checkInterval);
@@ -62,7 +62,7 @@ export class QueueManager {
     if (!this.isMonitoring) return;
 
     this.isMonitoring = false;
-    
+
     if (this.statusCheckTimer) {
       clearInterval(this.statusCheckTimer);
       this.statusCheckTimer = null;
@@ -97,7 +97,7 @@ export class QueueManager {
     try {
       const response = await post('notion_to_wordpress_get_queue_jobs', {
         limit,
-        offset
+        offset,
       });
 
       if (response.data.success) {
@@ -122,21 +122,21 @@ export class QueueManager {
       if (response.data.success) {
         showInfo('队列处理已暂停');
         this.checkQueueStatus(); // 立即更新状态
-        
+
         return {
           success: true,
-          message: '队列处理已暂停'
+          message: '队列处理已暂停',
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '暂停队列失败'
+          message: response.data.message || '暂停队列失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '暂停队列请求失败'
+        message: (error as Error).message || '暂停队列请求失败',
       };
     }
   }
@@ -151,21 +151,21 @@ export class QueueManager {
       if (response.data.success) {
         showInfo('队列处理已恢复');
         this.checkQueueStatus(); // 立即更新状态
-        
+
         return {
           success: true,
-          message: '队列处理已恢复'
+          message: '队列处理已恢复',
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '恢复队列失败'
+          message: response.data.message || '恢复队列失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '恢复队列请求失败'
+        message: (error as Error).message || '恢复队列请求失败',
       };
     }
   }
@@ -173,38 +173,40 @@ export class QueueManager {
   /**
    * 清理队列
    */
-  async cleanupQueue(options: {
-    removeCompleted?: boolean;
-    removeFailed?: boolean;
-    olderThan?: number; // 小时
-  } = {}): Promise<QueueOperationResult> {
+  async cleanupQueue(
+    options: {
+      removeCompleted?: boolean;
+      removeFailed?: boolean;
+      olderThan?: number; // 小时
+    } = {}
+  ): Promise<QueueOperationResult> {
     try {
       const response = await post('notion_to_wordpress_cleanup_queue', {
         remove_completed: options.removeCompleted || false,
         remove_failed: options.removeFailed || false,
-        older_than: options.olderThan || 24
+        older_than: options.olderThan || 24,
       });
 
       if (response.data.success) {
         const message = `队列清理完成，清理了 ${response.data.data.cleaned_count} 个任务`;
         showSuccess(message);
         this.checkQueueStatus(); // 立即更新状态
-        
+
         return {
           success: true,
           message,
-          data: response.data.data
+          data: response.data.data,
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '清理队列失败'
+          message: response.data.message || '清理队列失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '清理队列请求失败'
+        message: (error as Error).message || '清理队列请求失败',
       };
     }
   }
@@ -215,29 +217,29 @@ export class QueueManager {
   async retryFailedJobs(jobIds?: string[]): Promise<QueueOperationResult> {
     try {
       const response = await post('notion_to_wordpress_retry_failed_jobs', {
-        job_ids: jobIds
+        job_ids: jobIds,
       });
 
       if (response.data.success) {
         const message = `已重试 ${response.data.data.retried_count} 个失败任务`;
         showSuccess(message);
         this.checkQueueStatus(); // 立即更新状态
-        
+
         return {
           success: true,
           message,
-          data: response.data.data
+          data: response.data.data,
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '重试失败任务失败'
+          message: response.data.message || '重试失败任务失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '重试失败任务请求失败'
+        message: (error as Error).message || '重试失败任务请求失败',
       };
     }
   }
@@ -249,35 +251,35 @@ export class QueueManager {
     if (!jobIds.length) {
       return {
         success: false,
-        message: '没有指定要删除的任务'
+        message: '没有指定要删除的任务',
       };
     }
 
     try {
       const response = await post('notion_to_wordpress_delete_queue_jobs', {
-        job_ids: jobIds
+        job_ids: jobIds,
       });
 
       if (response.data.success) {
         const message = `已删除 ${response.data.data.deleted_count} 个任务`;
         showSuccess(message);
         this.checkQueueStatus(); // 立即更新状态
-        
+
         return {
           success: true,
           message,
-          data: response.data.data
+          data: response.data.data,
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '删除任务失败'
+          message: response.data.message || '删除任务失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '删除任务请求失败'
+        message: (error as Error).message || '删除任务请求失败',
       };
     }
   }
@@ -318,7 +320,7 @@ export class QueueManager {
       if (status) {
         // 更新应用状态
         appStateManager.updateQueueStatus(status);
-        
+
         // 发送队列状态更新事件
         eventBus.emit('queue:status:update', status);
       }
@@ -396,7 +398,7 @@ export class QueueManager {
    */
   setCheckInterval(interval: number): void {
     this.checkInterval = Math.max(1000, interval); // 最小1秒
-    
+
     if (this.isMonitoring) {
       this.restartMonitoring();
     }

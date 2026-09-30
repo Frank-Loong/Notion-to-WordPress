@@ -75,7 +75,11 @@ export interface StateAction {
 }
 
 // 状态监听器类型
-export type StateListener<T = any> = (state: T, prevState: T, action: StateAction) => void;
+export type StateListener<T = any> = (
+  state: T,
+  prevState: T,
+  action: StateAction
+) => void;
 
 /**
  * 状态管理器基类
@@ -83,11 +87,16 @@ export type StateListener<T = any> = (state: T, prevState: T, action: StateActio
 export class StateManager<T = any> {
   private state: T;
   private listeners: Set<StateListener<T>> = new Set();
-  private middleware: Array<(action: StateAction, state: T) => StateAction | null> = [];
+  private middleware: Array<
+    (action: StateAction, state: T) => StateAction | null
+  > = [];
   private storageKey?: string;
   private autoSave: boolean = false;
 
-  constructor(initialState: T, options: { storageKey?: string; autoSave?: boolean } = {}) {
+  constructor(
+    initialState: T,
+    options: { storageKey?: string; autoSave?: boolean } = {}
+  ) {
     this.state = initialState;
     this.storageKey = options.storageKey;
     this.autoSave = options.autoSave || false;
@@ -130,7 +139,7 @@ export class StateManager<T = any> {
     eventBus.emit('state:change', {
       state: this.state,
       prevState,
-      action: action || { type: 'SET_STATE' }
+      action: action || { type: 'SET_STATE' },
     });
   }
 
@@ -160,7 +169,7 @@ export class StateManager<T = any> {
    */
   subscribe(listener: StateListener<T>): () => void {
     this.listeners.add(listener);
-    
+
     return () => {
       this.listeners.delete(listener);
     };
@@ -178,7 +187,7 @@ export class StateManager<T = any> {
    */
   saveState(): void {
     if (!this.storageKey) return;
-    
+
     try {
       localStorage.set(this.storageKey, this.state, { ttl: 3600000 }); // 1小时TTL
     } catch (error) {
@@ -238,7 +247,7 @@ export class AppStateManager extends StateManager<AppState> {
         sync_type: '',
         sync_id: '',
         errors: [],
-        warnings: []
+        warnings: [],
       },
       queue: {
         total_jobs: 0,
@@ -248,23 +257,23 @@ export class AppStateManager extends StateManager<AppState> {
         failed_jobs: 0,
         queue_size: 0,
         is_processing: false,
-        last_processed: ''
+        last_processed: '',
       },
       ui: {
         activeTab: 'sync',
         loading: false,
-        notifications: []
+        notifications: [],
       },
       config: {
         auto_refresh: true,
         refresh_interval: 5000,
-        page_visible: true
-      }
+        page_visible: true,
+      },
     };
 
     super(initialState, {
       storageKey: 'notion_wp_app_state',
-      autoSave: true
+      autoSave: true,
     });
 
     this.setupActionHandlers();
@@ -277,80 +286,104 @@ export class AppStateManager extends StateManager<AppState> {
   private setupActionHandlers(): void {
     // 同步相关动作
     eventBus.on('action:START_SYNC', (_event, action) => {
-      this.setState({
-        sync: {
-          ...this.getState().sync,
-          status: 'running',
-          start_time: Date.now(),
-          sync_type: action.payload.syncType,
-          sync_id: action.payload.syncId,
-          progress: 0,
-          errors: [],
-          warnings: []
-        }
-      }, action);
+      this.setState(
+        {
+          sync: {
+            ...this.getState().sync,
+            status: 'running',
+            start_time: Date.now(),
+            sync_type: action.payload.syncType,
+            sync_id: action.payload.syncId,
+            progress: 0,
+            errors: [],
+            warnings: [],
+          },
+        },
+        action
+      );
     });
 
     eventBus.on('action:UPDATE_SYNC_PROGRESS', (_event, action) => {
-      this.setState({
-        sync: {
-          ...this.getState().sync,
-          progress: action.payload.progress,
-          total: action.payload.total,
-          current_item: action.payload.currentItem || ''
-        }
-      }, action);
+      this.setState(
+        {
+          sync: {
+            ...this.getState().sync,
+            progress: action.payload.progress,
+            total: action.payload.total,
+            current_item: action.payload.currentItem || '',
+          },
+        },
+        action
+      );
     });
 
     eventBus.on('action:COMPLETE_SYNC', (_event, action) => {
-      this.setState({
-        sync: {
-          ...this.getState().sync,
-          status: 'completed',
-          progress: this.getState().sync.total
-        }
-      }, action);
+      this.setState(
+        {
+          sync: {
+            ...this.getState().sync,
+            status: 'completed',
+            progress: this.getState().sync.total,
+          },
+        },
+        action
+      );
     });
 
     eventBus.on('action:ERROR_SYNC', (_event, action) => {
       const currentState = this.getState();
-      this.setState({
-        sync: {
-          ...currentState.sync,
-          status: 'error',
-          errors: [...currentState.sync.errors, action.payload.error]
-        }
-      }, action);
+      this.setState(
+        {
+          sync: {
+            ...currentState.sync,
+            status: 'error',
+            errors: [...currentState.sync.errors, action.payload.error],
+          },
+        },
+        action
+      );
     });
 
     // 队列相关动作
     eventBus.on('action:UPDATE_QUEUE_STATUS', (_event, action) => {
-      this.setState({
-        queue: {
-          ...this.getState().queue,
-          ...action.payload
-        }
-      }, action);
+      this.setState(
+        {
+          queue: {
+            ...this.getState().queue,
+            ...action.payload,
+          },
+        },
+        action
+      );
     });
 
     // UI相关动作
     eventBus.on('action:SET_ACTIVE_TAB', (_event, action) => {
-      this.setState({
-        ui: {
-          ...this.getState().ui,
-          activeTab: action.payload.tab
-        }
-      }, action);
+      this.setState(
+        {
+          ui: {
+            ...this.getState().ui,
+            activeTab: action.payload.tab,
+          },
+        },
+        action
+      );
     });
 
     eventBus.on('action:ADD_NOTIFICATION', (_event, action) => {
       const currentState = this.getState();
-      this.setState({
-        ui: {
-          ...currentState.ui,
-          notifications: [...currentState.ui.notifications, action.payload.notification]
-        }
-      }, action);
+      this.setState(
+        {
+          ui: {
+            ...currentState.ui,
+            notifications: [
+              ...currentState.ui.notifications,
+              action.payload.notification,
+            ],
+          },
+        },
+        action
+      );
     });
   }
 
@@ -362,8 +395,8 @@ export class AppStateManager extends StateManager<AppState> {
       this.setState({
         config: {
           ...this.getState().config,
-          page_visible: !document.hidden
-        }
+          page_visible: !document.hidden,
+        },
       });
     });
 
@@ -371,8 +404,8 @@ export class AppStateManager extends StateManager<AppState> {
       this.setState({
         config: {
           ...this.getState().config,
-          page_visible: true
-        }
+          page_visible: true,
+        },
       });
     });
   }
@@ -383,17 +416,21 @@ export class AppStateManager extends StateManager<AppState> {
   startSync(syncType: string, syncId: string): void {
     this.dispatch({
       type: 'START_SYNC',
-      payload: { syncType, syncId }
+      payload: { syncType, syncId },
     });
   }
 
   /**
    * 便捷方法：更新同步进度
    */
-  updateSyncProgress(progress: number, total: number, currentItem?: string): void {
+  updateSyncProgress(
+    progress: number,
+    total: number,
+    currentItem?: string
+  ): void {
     this.dispatch({
       type: 'UPDATE_SYNC_PROGRESS',
-      payload: { progress, total, currentItem }
+      payload: { progress, total, currentItem },
     });
   }
 
@@ -403,7 +440,7 @@ export class AppStateManager extends StateManager<AppState> {
   completeSync(): void {
     this.dispatch({
       type: 'COMPLETE_SYNC',
-      payload: {}
+      payload: {},
     });
   }
 
@@ -413,7 +450,7 @@ export class AppStateManager extends StateManager<AppState> {
   syncError(error: SyncError): void {
     this.dispatch({
       type: 'ERROR_SYNC',
-      payload: { error }
+      payload: { error },
     });
   }
 
@@ -423,7 +460,7 @@ export class AppStateManager extends StateManager<AppState> {
   updateQueueStatus(queueData: Partial<QueueState>): void {
     this.dispatch({
       type: 'UPDATE_QUEUE_STATUS',
-      payload: queueData
+      payload: queueData,
     });
   }
 
@@ -434,12 +471,12 @@ export class AppStateManager extends StateManager<AppState> {
     const fullNotification: Notification = {
       ...notification,
       id: `notification_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.dispatch({
       type: 'ADD_NOTIFICATION',
-      payload: { notification: fullNotification }
+      payload: { notification: fullNotification },
     });
   }
 }

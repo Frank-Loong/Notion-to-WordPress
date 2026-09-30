@@ -7,33 +7,33 @@ export interface PluginConfig {
   // API配置
   notion_api_key: string;
   notion_database_id: string;
-  
+
   // 字段映射配置
   field_mapping: FieldMapping;
-  
+
   // 性能配置
   api_page_size: number;
   concurrent_requests: number;
   batch_size: number;
   log_buffer_size: number;
   enable_performance_mode: boolean;
-  
+
   // 同步配置
   auto_sync_enabled: boolean;
   sync_interval: number;
   webhook_enabled: boolean;
   webhook_secret: string;
-  
+
   // 内容配置
   default_post_status: string;
   default_post_type: string;
   enable_math_rendering: boolean;
   enable_mermaid_diagrams: boolean;
-  
+
   // 缓存配置
   enable_caching: boolean;
   cache_duration: number;
-  
+
   // 调试配置
   debug_mode: boolean;
   log_level: LogLevel;
@@ -71,7 +71,7 @@ export interface SyncStatus {
 }
 
 // 同步状态类型
-export type SyncStatusType = 
+export type SyncStatusType =
   | 'idle'
   | 'running'
   | 'paused'
@@ -170,7 +170,7 @@ export interface FormField {
 }
 
 // 表单字段类型
-export type FormFieldType = 
+export type FormFieldType =
   | 'text'
   | 'textarea'
   | 'select'

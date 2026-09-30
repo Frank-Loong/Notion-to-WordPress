@@ -33,7 +33,12 @@
         "php": ">=8.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^9.5"
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+		"doctrine/instantiator": "^1.5",
+        "phpunit/phpunit": "^9.5",
+        "phpstan/phpstan": "^1.12",
+        "php-stubs/wordpress-stubs": "^6.7",
+        "wp-coding-standards/wpcs": "^3.1"
     },
     "autoload": {
         "psr-4": {
@@ -49,16 +54,36 @@
             "admin/"
         ]
     },
-    "autoload-dev": {
-        "psr-4": {
-            "NTWP\\Tests\\": "tests/"
-        }
-    },
     "scripts": {
         "test": "phpunit",
-        "cs-check": "phpcs --standard=WordPress includes/ admin/",
+        "test:integration": "php tests/integration/wordpress-runtime.php smoke",
+        "test:integration:incremental": "php tests/integration/wordpress-runtime.php incremental",
+        "test:integration:lifecycle": "php tests/integration/wordpress-runtime.php lifecycle",
+        "test:integration:content": "php tests/integration/wordpress-runtime.php content-fixture",
+        "test:integration:media": "php tests/integration/wordpress-runtime.php media-fixture",
+        "test:integration:media-concurrency": "php tests/integration/wordpress-runtime.php media-concurrency",
+        "test:integration:attachments": "php tests/integration/wordpress-runtime.php attachment-fixture",
+        "test:integration:failure": "php tests/integration/wordpress-runtime.php failure-guard",
+        "cs-check": "phpcs --standard=phpcs.xml.dist",
         "cs-fix": "phpcbf --standard=WordPress includes/ admin/",
-        "analyze": "phpstan analyse includes/ admin/ --level=5",
+        "analyze:api": "phpstan analyse includes/api --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:contracts": "phpstan analyse includes/contracts --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:core": "phpstan analyse includes/core --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:framework": "phpstan analyse includes/framework --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:handlers": "phpstan analyse includes/handlers --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:services": "phpstan analyse includes/services --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:utils": "phpstan analyse includes/utils --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze:admin": "phpstan analyse admin --configuration=phpstan.neon.dist --no-progress --memory-limit=1G",
+        "analyze": [
+            "@analyze:api",
+            "@analyze:contracts",
+            "@analyze:core",
+            "@analyze:framework",
+            "@analyze:handlers",
+            "@analyze:services",
+            "@analyze:utils",
+            "@analyze:admin"
+        ],
         "post-install-cmd": [
             "@php -r \"if (!file_exists('vendor/autoload.php')) { echo 'Autoloader not found. Please run composer install.'; exit(1); }\""
         ],
@@ -67,12 +92,16 @@
         ]
     },
     "config": {
+		"platform": {
+			"php": "8.0.30"
+		},
         "optimize-autoloader": true,
         "classmap-authoritative": false,
         "apcu-autoloader": false,
         "sort-packages": true,
         "allow-plugins": {
-            "composer/installers": true
+            "composer/installers": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true
         }
     },
     "extra": {

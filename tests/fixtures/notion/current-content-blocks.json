@@ -1,0 +1,93 @@
+[
+  {
+    "id": "compat-heading-4",
+    "type": "heading_4",
+    "has_children": false,
+    "heading_4": {
+      "rich_text": [{ "type": "text", "plain_text": "Fourth-level heading", "href": null, "annotations": {} }],
+      "color": "default",
+      "is_toggleable": false
+    }
+  },
+  {
+    "id": "compat-link-preview",
+    "type": "link_preview",
+    "has_children": false,
+    "link_preview": { "url": "https://example.com/pull/123?a=1&b=2" }
+  },
+  {
+    "id": "compat-breadcrumb",
+    "type": "breadcrumb",
+    "has_children": false,
+    "breadcrumb": {}
+  },
+  {
+    "id": "compat-toc",
+    "type": "table_of_contents",
+    "has_children": false,
+    "table_of_contents": { "color": "default" }
+  },
+  {
+    "id": "compat-template",
+    "type": "template",
+    "has_children": true,
+    "template": {
+      "rich_text": [{ "type": "text", "plain_text": "Template label", "href": null, "annotations": {} }]
+    },
+    "children": [
+      {
+        "id": "compat-template-child",
+        "type": "paragraph",
+        "has_children": false,
+        "paragraph": { "rich_text": [{ "type": "text", "plain_text": "Template child body", "href": null, "annotations": {} }] }
+      }
+    ]
+  },
+  {
+    "id": "compat-tab",
+    "type": "tab",
+    "has_children": true,
+    "tab": {
+      "rich_text": [{ "type": "text", "plain_text": "Tab title", "href": null, "annotations": {} }]
+    },
+    "children": [
+      {
+        "id": "compat-tab-child",
+        "type": "paragraph",
+        "has_children": false,
+        "paragraph": { "rich_text": [{ "type": "text", "plain_text": "Tab child body", "href": null, "annotations": {} }] }
+      }
+    ]
+  },
+  {
+    "id": "compat-meeting-notes",
+    "type": "meeting_notes",
+    "has_children": true,
+    "meeting_notes": {
+      "title": [{ "type": "text", "plain_text": "Team sync", "href": null, "annotations": {} }],
+      "status": "notes_ready"
+    },
+    "children": [
+      {
+        "id": "compat-meeting-child",
+        "type": "paragraph",
+        "has_children": false,
+        "paragraph": { "rich_text": [{ "type": "text", "plain_text": "Meeting summary body", "href": null, "annotations": {} }] }
+      }
+    ]
+  },
+  {
+    "id": "compat-transcription",
+    "type": "transcription",
+    "has_children": false,
+    "transcription": {
+      "rich_text": [{ "type": "text", "plain_text": "Legacy transcript", "href": null, "annotations": {} }]
+    }
+  },
+  {
+    "id": "compat-unsupported",
+    "type": "unsupported",
+    "has_children": false,
+    "unsupported": { "block_type": "button\" onclick=\"alert(1)" }
+  }
+]

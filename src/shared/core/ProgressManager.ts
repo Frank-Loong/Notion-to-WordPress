@@ -57,7 +57,7 @@ export class ProgressManager {
       closable: false,
       position: 'top',
       theme: 'default',
-      ...options
+      ...options,
     };
 
     this.startTime = Date.now();
@@ -88,8 +88,9 @@ export class ProgressManager {
   update(data: ProgressData): void {
     if (!this.isVisible || !this.container) return;
 
-    const percentage = data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
-    
+    const percentage =
+      data.total > 0 ? Math.round((data.progress / data.total) * 100) : 0;
+
     // 更新进度条
     if (this.progressBar) {
       this.progressBar.style.width = `${percentage}%`;
@@ -109,7 +110,11 @@ export class ProgressManager {
     }
 
     // 更新当前项目
-    if (this.currentItemText && this.options.showCurrentItem && data.currentItem) {
+    if (
+      this.currentItemText &&
+      this.options.showCurrentItem &&
+      data.currentItem
+    ) {
       this.currentItemText.textContent = `正在处理: ${data.currentItem}`;
     }
 
@@ -130,12 +135,21 @@ export class ProgressManager {
   /**
    * 设置进度条状态
    */
-  setStatus(status: 'running' | 'completed' | 'error' | 'paused', message?: string): void {
+  setStatus(
+    status: 'running' | 'completed' | 'error' | 'paused',
+    message?: string
+  ): void {
     if (!this.container) return;
 
     // 移除所有状态类
-    removeClass(this.container, 'progress-running', 'progress-completed', 'progress-error', 'progress-paused');
-    
+    removeClass(
+      this.container,
+      'progress-running',
+      'progress-completed',
+      'progress-error',
+      'progress-paused'
+    );
+
     // 添加新状态类
     addClass(this.container, `progress-${status}`);
 
@@ -146,9 +160,12 @@ export class ProgressManager {
 
     // 如果完成或错误，延迟隐藏
     if (status === 'completed' || status === 'error') {
-      setTimeout(() => {
-        this.hide();
-      }, status === 'completed' ? 2000 : 5000);
+      setTimeout(
+        () => {
+          this.hide();
+        },
+        status === 'completed' ? 2000 : 5000
+      );
     }
 
     eventBus.emit('progress:status', { status, message });
@@ -174,7 +191,7 @@ export class ProgressManager {
       role: 'progressbar',
       'aria-valuemin': '0',
       'aria-valuemax': '100',
-      'aria-valuenow': '0'
+      'aria-valuenow': '0',
     });
 
     // 创建内容区域
@@ -182,16 +199,22 @@ export class ProgressManager {
 
     // 标题
     if (this.options.title) {
-      const title = createElement('div', { class: 'progress-title' }, this.options.title);
+      const title = createElement(
+        'div',
+        { class: 'progress-title' },
+        this.options.title
+      );
       content.appendChild(title);
     }
 
     // 进度条容器
-    const progressContainer = createElement('div', { class: 'progress-bar-container' });
-    
+    const progressContainer = createElement('div', {
+      class: 'progress-bar-container',
+    });
+
     // 进度条背景
     const progressTrack = createElement('div', { class: 'progress-track' });
-    
+
     // 进度条
     this.progressBar = createElement('div', { class: 'progress-bar' });
     progressTrack.appendChild(this.progressBar);
@@ -199,7 +222,11 @@ export class ProgressManager {
 
     // 进度文本
     if (this.options.showPercentage) {
-      this.progressText = createElement('div', { class: 'progress-text' }, '0%');
+      this.progressText = createElement(
+        'div',
+        { class: 'progress-text' },
+        '0%'
+      );
       progressContainer.appendChild(this.progressText);
     }
 
@@ -207,7 +234,9 @@ export class ProgressManager {
 
     // 当前项目文本
     if (this.options.showCurrentItem) {
-      this.currentItemText = createElement('div', { class: 'progress-current-item' });
+      this.currentItemText = createElement('div', {
+        class: 'progress-current-item',
+      });
       content.appendChild(this.currentItemText);
     }
 
@@ -219,16 +248,20 @@ export class ProgressManager {
 
     // 关闭按钮
     if (this.options.closable) {
-      this.closeButton = createElement('button', { 
-        class: 'progress-close',
-        type: 'button',
-        'aria-label': '关闭'
-      }, '×');
-      
+      this.closeButton = createElement(
+        'button',
+        {
+          class: 'progress-close',
+          type: 'button',
+          'aria-label': '关闭',
+        },
+        '×'
+      );
+
       this.closeButton.addEventListener('click', () => {
         this.hide();
       });
-      
+
       content.appendChild(this.closeButton);
     }
 
@@ -244,10 +277,10 @@ export class ProgressManager {
 
     // 添加显示动画
     addClass(this.container, 'progress-show');
-    
+
     // 触发重排以确保动画生效
-    this.container.offsetHeight;
-    
+    this.container.getBoundingClientRect();
+
     addClass(this.container, 'progress-visible');
   }
 
@@ -258,7 +291,7 @@ export class ProgressManager {
     if (!this.container) return;
 
     removeClass(this.container, 'progress-visible');
-    
+
     setTimeout(() => {
       this.removeContainer();
     }, 300); // 等待动画完成
@@ -271,7 +304,7 @@ export class ProgressManager {
     if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
     }
-    
+
     this.container = null;
     this.progressBar = null;
     this.progressText = null;
@@ -288,12 +321,12 @@ export class ProgressManager {
 
     const now = Date.now();
     const elapsed = now - this.startTime;
-    
+
     if (elapsed < 1000) return 0; // 至少等待1秒
 
     const rate = current / elapsed; // 每毫秒处理的项目数
     const remaining = total - current;
-    
+
     return remaining / rate;
   }
 
@@ -304,13 +337,13 @@ export class ProgressManager {
     const now = Date.now();
 
     // 只保留最近10秒的数据
-    this.progressHistory = this.progressHistory.filter(entry =>
-      now - entry.timestamp < 10000
+    this.progressHistory = this.progressHistory.filter(
+      entry => now - entry.timestamp < 10000
     );
 
     this.progressHistory.push({
       progress,
-      timestamp: now
+      timestamp: now,
     });
   }
 
@@ -341,12 +374,15 @@ export class ProgressManager {
       const prevSyncState = prevState.sync;
 
       // 同步开始时显示进度条
-      if (syncState.status === 'running' && prevSyncState.status !== 'running') {
+      if (
+        syncState.status === 'running' &&
+        prevSyncState.status !== 'running'
+      ) {
         this.show({
           title: `${syncState.sync_type}进行中`,
           showPercentage: true,
           showETA: true,
-          showCurrentItem: true
+          showCurrentItem: true,
         });
       }
 
@@ -355,12 +391,15 @@ export class ProgressManager {
         this.update({
           progress: syncState.progress,
           total: syncState.total,
-          currentItem: syncState.current_item
+          currentItem: syncState.current_item,
         });
       }
 
       // 同步完成时设置状态
-      if (syncState.status === 'completed' && prevSyncState.status === 'running') {
+      if (
+        syncState.status === 'completed' &&
+        prevSyncState.status === 'running'
+      ) {
         this.setStatus('completed', '同步完成');
       }
 
@@ -376,7 +415,7 @@ export class ProgressManager {
     });
 
     // 监听键盘事件
-    document.addEventListener('keydown', (event) => {
+    document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && this.isVisible && this.options.closable) {
         this.hide();
       }

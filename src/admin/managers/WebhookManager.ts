@@ -1,6 +1,6 @@
 /**
  * Webhook管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有admin-interactions.js的webhook功能完全迁移，包括：
  * - Webhook配置管理
  * - 令牌生成和验证
@@ -11,7 +11,11 @@
 import { emit, on } from '../../shared/core/EventBus';
 import { post } from '../../shared/utils/ajax';
 import { showSuccess, showError, showInfo } from '../../shared/utils/toast';
-import { WebhookValidator, WebhookConfig, WebhookValidationResult } from '../utils/WebhookValidator';
+import {
+  WebhookValidator,
+  WebhookConfig,
+  WebhookValidationResult,
+} from '../utils/WebhookValidator';
 import { WebhookTester, WebhookTestResult } from '../utils/WebhookTester';
 
 export interface WebhookManagerOptions {
@@ -34,7 +38,7 @@ export interface WebhookStatus {
  */
 export class WebhookManager {
   private static instance: WebhookManager | null = null;
-  
+
   private options!: Required<WebhookManagerOptions>;
   private status!: WebhookStatus;
   private refreshTimer: NodeJS.Timeout | null = null;
@@ -55,23 +59,23 @@ export class WebhookManager {
     if (WebhookManager.instance) {
       return WebhookManager.instance;
     }
-    
+
     WebhookManager.instance = this;
-    
+
     this.options = {
       autoValidate: true,
       autoTest: false,
       refreshInterval: 30000, // 30秒
-      ...options
+      ...options,
     };
-    
+
     this.status = {
       enabled: false,
       configured: false,
       tested: false,
-      issues: []
+      issues: [],
     };
-    
+
     this.init();
   }
 
@@ -92,11 +96,11 @@ export class WebhookManager {
     this.bindElements();
     this.setupEventListeners();
     this.loadCurrentConfig();
-    
+
     if (this.options.refreshInterval > 0) {
       this.startStatusRefresh();
     }
-    
+
     console.log('✅ Webhook管理器已初始化');
     emit('webhook:manager:initialized');
   }
@@ -106,16 +110,30 @@ export class WebhookManager {
    */
   private bindElements(): void {
     this.elements = {
-      enabledCheckbox: document.getElementById('webhook_enabled') as HTMLInputElement,
+      enabledCheckbox: document.getElementById(
+        'webhook_enabled'
+      ) as HTMLInputElement,
       tokenInput: document.getElementById('webhook_token') as HTMLInputElement,
       urlInput: document.getElementById('webhook_url') as HTMLInputElement,
-      verificationTokenInput: document.getElementById('verification_token') as HTMLInputElement,
-      generateTokenButton: document.getElementById('generate-webhook-token') as HTMLButtonElement,
-      testWebhookButton: document.getElementById('test-webhook') as HTMLButtonElement,
-      refreshTokenButton: document.getElementById('refresh-verification-token') as HTMLButtonElement,
-      copyUrlButton: document.querySelector('.copy-webhook-url') as HTMLButtonElement,
+      verificationTokenInput: document.getElementById(
+        'verification_token'
+      ) as HTMLInputElement,
+      generateTokenButton: document.getElementById(
+        'generate-webhook-token'
+      ) as HTMLButtonElement,
+      testWebhookButton: document.getElementById(
+        'test-webhook'
+      ) as HTMLButtonElement,
+      refreshTokenButton: document.getElementById(
+        'refresh-verification-token'
+      ) as HTMLButtonElement,
+      copyUrlButton: document.querySelector(
+        '.copy-webhook-url'
+      ) as HTMLButtonElement,
       statusIndicator: document.getElementById('webhook-status') as HTMLElement,
-      settingsContainer: document.getElementById('webhook-settings') as HTMLElement
+      settingsContainer: document.getElementById(
+        'webhook-settings'
+      ) as HTMLElement,
     };
   }
 
@@ -125,7 +143,7 @@ export class WebhookManager {
   private setupEventListeners(): void {
     // Webhook启用/禁用
     if (this.elements.enabledCheckbox) {
-      this.elements.enabledCheckbox.addEventListener('change', (e) => {
+      this.elements.enabledCheckbox.addEventListener('change', e => {
         const enabled = (e.target as HTMLInputElement).checked;
         this.handleWebhookToggle(enabled);
       });
@@ -180,14 +198,14 @@ export class WebhookManager {
   private async loadCurrentConfig(): Promise<void> {
     try {
       const response = await post('notion_to_wordpress_get_webhook_config', {});
-      
+
       if (response && response.data) {
         const config = response.data;
         this.updateStatus({
           enabled: config.enabled || false,
-          configured: !!(config.token && config.url)
+          configured: !!(config.token && config.url),
         });
-        
+
         this.updateUI(config);
       }
     } catch (error) {
@@ -201,7 +219,7 @@ export class WebhookManager {
    */
   private handleWebhookToggle(enabled: boolean): void {
     this.updateStatus({ enabled });
-    
+
     // 显示/隐藏设置区域
     if (this.elements.settingsContainer) {
       if (enabled) {
@@ -212,12 +230,12 @@ export class WebhookManager {
         this.elements.settingsContainer.style.display = 'none';
       }
     }
-    
+
     // 如果启用且未配置，自动生成令牌
     if (enabled && !this.status.configured) {
       this.generateNewToken();
     }
-    
+
     emit('webhook:toggled', { enabled });
   }
 
@@ -226,19 +244,19 @@ export class WebhookManager {
    */
   private generateNewToken(): void {
     const newToken = WebhookValidator.generateSecureToken(32);
-    
+
     if (this.elements.tokenInput) {
       this.elements.tokenInput.value = newToken;
     }
-    
+
     // 更新URL
     this.updateWebhookUrl(newToken);
-    
+
     // 验证新令牌
     if (this.options.autoValidate) {
       this.validateCurrentConfig();
     }
-    
+
     showSuccess('已生成新的Webhook令牌');
     emit('webhook:token:generated', { token: newToken });
   }
@@ -249,7 +267,7 @@ export class WebhookManager {
   private updateWebhookUrl(token: string): void {
     const baseUrl = (window as any).location.origin;
     const webhookUrl = WebhookValidator.buildWebhookUrl(baseUrl, token);
-    
+
     if (this.elements.urlInput) {
       this.elements.urlInput.value = webhookUrl;
     }
@@ -260,60 +278,60 @@ export class WebhookManager {
    */
   private async testWebhook(): Promise<void> {
     const config = this.getCurrentConfig();
-    
+
     if (!config.enabled) {
       showError('请先启用Webhook功能');
       return;
     }
-    
+
     if (!config.token || !config.url) {
       showError('请先配置Webhook令牌和URL');
       return;
     }
-    
+
     // 显示测试状态
     if (this.elements.testWebhookButton) {
       this.elements.testWebhookButton.disabled = true;
       this.elements.testWebhookButton.textContent = '测试中...';
     }
-    
+
     try {
       showInfo('正在测试Webhook连接...');
-      
+
       const result = await WebhookTester.testWebhook({
         url: config.url,
         token: config.token,
-        testType: 'full'
+        testType: 'full',
       });
-      
+
       this.updateStatus({
         tested: true,
         lastTest: new Date(),
-        lastTestResult: result
+        lastTestResult: result,
       });
-      
+
       if (result.success) {
-        showSuccess(`Webhook测试成功！响应时间: ${result.details?.responseTime}ms`);
+        showSuccess(
+          `Webhook测试成功！响应时间: ${result.details?.responseTime}ms`
+        );
       } else {
         showError(`Webhook测试失败: ${result.message}`);
-        
+
         if (result.suggestions && result.suggestions.length > 0) {
           showInfo('建议: ' + result.suggestions.join(', '));
         }
       }
-      
+
       emit('webhook:tested', { result });
-      
     } catch (error) {
       console.error('Webhook测试失败:', error);
       showError('Webhook测试执行失败');
-      
+
       this.updateStatus({
         tested: true,
         lastTest: new Date(),
-        issues: ['测试执行失败: ' + (error as Error).message]
+        issues: ['测试执行失败: ' + (error as Error).message],
       });
-      
     } finally {
       // 恢复按钮状态
       if (this.elements.testWebhookButton) {
@@ -330,25 +348,29 @@ export class WebhookManager {
     if (this.elements.refreshTokenButton) {
       this.elements.refreshTokenButton.disabled = true;
     }
-    
+
     try {
-      const response = await post('notion_to_wordpress_refresh_verification_token', {});
-      
+      const response = await post(
+        'notion_to_wordpress_refresh_verification_token',
+        {}
+      );
+
       if (response && response.data?.verification_token) {
         if (this.elements.verificationTokenInput) {
-          this.elements.verificationTokenInput.value = response.data.verification_token;
+          this.elements.verificationTokenInput.value =
+            response.data.verification_token;
         }
-        
+
         showSuccess('验证令牌已刷新');
-        emit('webhook:verification:refreshed', { token: response.data.verification_token });
+        emit('webhook:verification:refreshed', {
+          token: response.data.verification_token,
+        });
       } else {
         showError('刷新验证令牌失败');
       }
-      
     } catch (error) {
       console.error('刷新验证令牌失败:', error);
       showError('刷新验证令牌失败');
-      
     } finally {
       if (this.elements.refreshTokenButton) {
         this.elements.refreshTokenButton.disabled = false;
@@ -361,17 +383,17 @@ export class WebhookManager {
    */
   private async copyWebhookUrl(): Promise<void> {
     const url = this.elements.urlInput?.value;
-    
+
     if (!url) {
       showError('没有可复制的URL');
       return;
     }
-    
+
     try {
       await navigator.clipboard.writeText(url);
       showSuccess('Webhook URL已复制到剪贴板');
       emit('webhook:url:copied', { url });
-    } catch (error) {
+    } catch {
       // 降级到传统方法
       const textArea = document.createElement('textarea');
       textArea.value = url;
@@ -379,7 +401,7 @@ export class WebhookManager {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      
+
       showSuccess('Webhook URL已复制到剪贴板');
     }
   }
@@ -389,20 +411,20 @@ export class WebhookManager {
    */
   private validateCurrentConfig(): void {
     const config = this.getCurrentConfig();
-    
+
     if (!config.enabled) {
       return;
     }
-    
+
     const result = WebhookValidator.validateWebhookConfig(config);
-    
+
     this.updateStatus({
       configured: result.isValid,
-      issues: result.errors
+      issues: result.errors,
     });
-    
+
     this.updateValidationUI(result);
-    
+
     emit('webhook:validated', { result });
   }
 
@@ -414,7 +436,7 @@ export class WebhookManager {
       enabled: this.elements.enabledCheckbox?.checked || false,
       token: this.elements.tokenInput?.value || '',
       url: this.elements.urlInput?.value || '',
-      verificationToken: this.elements.verificationTokenInput?.value || ''
+      verificationToken: this.elements.verificationTokenInput?.value || '',
     };
   }
 
@@ -434,19 +456,20 @@ export class WebhookManager {
     if (this.elements.enabledCheckbox) {
       this.elements.enabledCheckbox.checked = config.enabled || false;
     }
-    
+
     if (this.elements.tokenInput) {
       this.elements.tokenInput.value = config.token || '';
     }
-    
+
     if (this.elements.urlInput) {
       this.elements.urlInput.value = config.url || '';
     }
-    
+
     if (this.elements.verificationTokenInput) {
-      this.elements.verificationTokenInput.value = config.verificationToken || '';
+      this.elements.verificationTokenInput.value =
+        config.verificationToken || '';
     }
-    
+
     // 显示/隐藏设置区域
     if (this.elements.settingsContainer) {
       if (config.enabled) {
@@ -462,12 +485,12 @@ export class WebhookManager {
    */
   private updateStatusUI(): void {
     if (!this.elements.statusIndicator) return;
-    
+
     const { enabled, configured, tested, issues } = this.status;
-    
+
     let statusClass = 'status-disabled';
     let statusText = '未启用';
-    
+
     if (enabled) {
       if (issues.length > 0) {
         statusClass = 'status-error';
@@ -483,7 +506,7 @@ export class WebhookManager {
         statusText = '未配置';
       }
     }
-    
+
     this.elements.statusIndicator.className = `webhook-status ${statusClass}`;
     this.elements.statusIndicator.textContent = statusText;
   }
@@ -494,11 +517,11 @@ export class WebhookManager {
   private updateValidationUI(result: WebhookValidationResult): void {
     // 这里可以添加具体的验证UI更新逻辑
     // 比如显示错误信息、警告等
-    
+
     if (result.errors.length > 0) {
       console.warn('Webhook配置错误:', result.errors);
     }
-    
+
     if (result.warnings.length > 0) {
       console.warn('Webhook配置警告:', result.warnings);
     }
@@ -509,11 +532,11 @@ export class WebhookManager {
    */
   private handleSettingsSave(): void {
     const config = this.getCurrentConfig();
-    
+
     if (config.enabled && this.options.autoValidate) {
       this.validateCurrentConfig();
     }
-    
+
     emit('webhook:settings:saved', { config });
   }
 
@@ -564,10 +587,10 @@ export class WebhookManager {
    */
   destroy(): void {
     this.stopStatusRefresh();
-    
+
     // 清理事件监听器
     // 这里可以添加具体的清理逻辑
-    
+
     WebhookManager.instance = null;
     emit('webhook:manager:destroyed');
     console.log('🗑️ Webhook管理器已销毁');

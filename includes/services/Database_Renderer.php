@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace NTWP\Services;
 
+use Exception;
+
 /**
  * Notion 子数据库渲染器类
  *
@@ -998,6 +1000,8 @@ class Database_Renderer {
         );
 
         $database_data = [];
+        $db_info_time = 0.0;
+        $db_records_time = 0.0;
 
         try {
             // 批量获取数据库信息
@@ -1056,7 +1060,7 @@ class Database_Renderer {
             );
 
             // 详细性能统计
-            $api_time = ($db_info_time ?? 0) + ($db_records_time ?? 0);
+            $api_time = $db_info_time + $db_records_time;
             $processing_time = $execution_time - $api_time;
 
             \NTWP\Core\Logger::debug_log(
@@ -1084,197 +1088,6 @@ class Database_Renderer {
         }
 
         return $database_data;
-    }
-
-    // ==================== 增强的辅助方法 ====================
-
-    /**
-     * 提取关键属性（用于画廊和看板视图）
-     *
-     * @since 2.0.0-beta.1
-     * @param array $properties 记录属性
-     * @param array $database_info 数据库信息
-     * @param int $max_count 最大属性数量，默认3个
-     * @return array 关键属性数组
-     */
-    private static function extract_key_properties(array $properties, array $database_info, int $max_count = 3): array {
-        $key_props = [];
-        $db_properties = $database_info['properties'] ?? [];
-
-        // 优先显示的属性类型
-        $priority_types = ['select', 'status', 'date', 'number', 'checkbox', 'files', 'url', 'email', 'phone_number', 'multi_select', 'people'];
-
-        foreach ($priority_types as $type) {
-            foreach ($db_properties as $prop_name => $prop_config) {
-                if (($prop_config['type'] ?? '') === $type && isset($properties[$prop_name])) {
-                    $value = self::format_property_for_preview($properties[$prop_name], $type);
-                    if (!empty($value) && count($key_props) < $max_count) {
-                        $key_props[$prop_name] = $value;
-                    }
-                }
-            }
-        }
-
-        return $key_props;
-    }
-
-    /**
-     * 格式化属性值用于预览显示（增强版）
-     *
-     * @since 2.0.0-beta.1
-     * @param array $property 属性数据
-     * @param string $type 属性类型
-     * @return string 格式化后的值
-     */
-    private static function format_property_for_preview(array $property, string $type): string {
-        switch ($type) {
-            case 'select':
-            case 'status':
-                return $property[$type]['name'] ?? '';
-
-            case 'date':
-                $date_value = $property['date']['start'] ?? '';
-                if (!empty($date_value)) {
-                    return date('Y-m-d', strtotime($date_value));
-                }
-                return '';
-
-            case 'number':
-                return (string) ($property['number'] ?? '');
-
-            case 'checkbox':
-                return $property['checkbox'] ? '是' : '否';
-
-            case 'rich_text':
-                if (!empty($property['rich_text'])) {
-                    $text = \NTWP\Core\Text_Processor::extract_rich_text_complete($property['rich_text']);
-                    // 移除HTML标签以获取纯文本长度
-                    $plain_text = strip_tags($text);
-                    return mb_strlen($plain_text) > 50 ? mb_substr($plain_text, 0, 50) . '...' : $text;
-                }
-                return '';
-
-            case 'files':
-                return self::render_record_files($property);
-
-            case 'url':
-                $url = $property['url'] ?? '';
-                if (!empty($url)) {
-                    $display_url = mb_strlen($url) > 50 ? mb_substr($url, 0, 47) . '...' : $url;
-                    return '<a href="' . esc_url($url) . '" target="_blank" rel="noopener noreferrer" title="' . esc_attr($url) . '">' . esc_html($display_url) . '</a>';
-                }
-                return '';
-
-            case 'email':
-                $email = $property['email'] ?? '';
-                if (!empty($email)) {
-                    return '<a href="mailto:' . esc_attr($email) . '">' . esc_html($email) . '</a>';
-                }
-                return '';
-
-            case 'phone_number':
-                $phone = $property['phone_number'] ?? '';
-                if (!empty($phone)) {
-                    return '<a href="tel:' . esc_attr($phone) . '">' . esc_html($phone) . '</a>';
-                }
-                return '';
-
-            case 'multi_select':
-                if (!empty($property['multi_select'])) {
-                    $options = array_map(function($option) {
-                        return $option['name'] ?? '';
-                    }, $property['multi_select']);
-                    return implode(', ', array_filter($options));
-                }
-                return '';
-
-            case 'people':
-                if (!empty($property['people'])) {
-                    $names = array_map(function($person) {
-                        return $person['name'] ?? '';
-                    }, $property['people']);
-                    return implode(', ', array_filter($names));
-                }
-                return '';
-
-            default:
-                return '';
-        }
-    }
-
-
-
-    /**
-     * 渲染记录文件
-     *
-     * @since 2.0.0-beta.1
-     * @param array $property 文件属性
-     * @return string HTML内容
-     */
-    private static function render_record_files(array $property): string {
-        if (empty($property['files'])) {
-            return '';
-        }
-
-        $files = $property['files'];
-        if (count($files) === 1) {
-            $file = $files[0];
-            $name = $file['name'] ?? '文件';
-            return esc_html($name);
-        } else {
-            return count($files) . ' 个文件';
-        }
-    }
-
-    /**
-     * 渲染数据库记录的封面图片
-     *
-     * @since 2.0.0-beta.1
-     * @param array $record 记录数据
-     * @return string HTML内容
-     */
-    private static function render_record_cover(array $record): string {
-        $cover = $record['cover'] ?? null;
-        if (empty($cover)) {
-            return '';
-        }
-
-        $cover_url = '';
-        if (isset($cover['external']['url'])) {
-            $cover_url = $cover['external']['url'];
-        } elseif (isset($cover['file']['url'])) {
-            $cover_url = $cover['file']['url'];
-        }
-
-        if (!empty($cover_url)) {
-            return '<div class="notion-record-cover"><img src="' . esc_url($cover_url) . '" alt="封面" loading="lazy"></div>';
-        }
-
-        return '';
-    }
-
-    /**
-     * 渲染记录图标
-     *
-     * @since 2.0.0-beta.1
-     * @param array $record 记录数据
-     * @return string HTML内容
-     */
-    private static function render_record_icon(array $record): string {
-        $icon = $record['icon'] ?? null;
-        if (empty($icon)) {
-            return '';
-        }
-
-        if (isset($icon['emoji'])) {
-            return '<span class="notion-icon">' . $icon['emoji'] . '</span>';
-        }
-
-        if (isset($icon['external']['url'])) {
-            return '<img src="' . esc_url($icon['external']['url']) . '" alt="图标" class="notion-icon-img">';
-        }
-
-        return '';
     }
 
     // ==================== 数据库属性处理方法 ====================

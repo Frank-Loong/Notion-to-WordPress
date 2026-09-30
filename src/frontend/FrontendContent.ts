@@ -1,6 +1,6 @@
 /**
  * 前端内容渲染系统 - 现代化TypeScript版本
- * 
+ *
  * 完全替代原有的前端内容处理JavaScript文件，包括：
  * - 所有前端组件的统一初始化和管理
  * - 全局事件处理和协调
@@ -10,10 +10,19 @@
 
 import { emit, on } from '../shared/core/EventBus';
 import { ready } from '../shared/utils/dom';
-import { AnchorNavigation, anchorNavigation } from './components/AnchorNavigation';
+import {
+  AnchorNavigation,
+  anchorNavigation,
+} from './components/AnchorNavigation';
 import { LazyLoader, lazyLoader } from './components/LazyLoader';
-import { ProgressiveLoader, progressiveLoader } from './components/ProgressiveLoader';
-import { ResourceOptimizer, resourceOptimizer } from './components/ResourceOptimizer';
+import {
+  ProgressiveLoader,
+  progressiveLoader,
+} from './components/ProgressiveLoader';
+import {
+  ResourceOptimizer,
+  resourceOptimizer,
+} from './components/ResourceOptimizer';
 
 export interface FrontendContentConfig {
   enableAnchorNavigation?: boolean;
@@ -41,18 +50,18 @@ export class FrontendContent {
     if (FrontendContent.instance) {
       return FrontendContent.instance;
     }
-    
+
     FrontendContent.instance = this;
-    
+
     this.config = {
       enableAnchorNavigation: true,
       enableLazyLoading: true,
       enableProgressiveLoading: true,
       enableResourceOptimization: true,
       enablePerformanceMonitoring: true,
-      ...config
+      ...config,
     };
-    
+
     // 初始化组件实例
     this.anchorNavigation = anchorNavigation;
     this.lazyLoader = lazyLoader;
@@ -87,12 +96,11 @@ export class FrontendContent {
       this.setupPerformanceMonitoring();
       this.setupCompatibilityLayer();
       this.applyConfiguration();
-      
+
       this.initialized = true;
-      
+
       emit('frontend:content:initialized');
       console.log('✅ [前端内容] 初始化完成');
-      
     } catch (error) {
       console.error('❌ [前端内容] 初始化失败:', error);
       throw error;
@@ -119,34 +127,35 @@ export class FrontendContent {
 
     // DOM变化监听（用于动态内容）
     if ('MutationObserver' in window) {
-      const observer = new MutationObserver((mutations) => {
+      const observer = new MutationObserver(mutations => {
         let hasNewContent = false;
-        
+
         mutations.forEach(mutation => {
           if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
             mutation.addedNodes.forEach(node => {
               if (node.nodeType === Node.ELEMENT_NODE) {
                 const element = node as HTMLElement;
-                if (element.querySelector && (
-                  element.querySelector('img[data-src]') ||
-                  element.querySelector('[id^="notion-block-"]') ||
-                  element.querySelector('.notion-progressive-loading')
-                )) {
+                if (
+                  element.querySelector &&
+                  (element.querySelector('img[data-src]') ||
+                    element.querySelector('[id^="notion-block-"]') ||
+                    element.querySelector('.notion-progressive-loading'))
+                ) {
                   hasNewContent = true;
                 }
               }
             });
           }
         });
-        
+
         if (hasNewContent) {
           this.handleDynamicContent();
         }
       });
-      
+
       observer.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
       });
     }
 
@@ -210,13 +219,13 @@ export class FrontendContent {
   private setupCompatibilityLayer(): void {
     // 为了向后兼容，在全局对象上暴露一些功能
     const globalNotionWp = (window as any).notionToWp || {};
-    
+
     // 暴露组件实例
     globalNotionWp.frontend = {
       anchorNavigation: this.anchorNavigation,
       lazyLoader: this.lazyLoader,
       progressiveLoader: this.progressiveLoader,
-      resourceOptimizer: this.resourceOptimizer
+      resourceOptimizer: this.resourceOptimizer,
     };
 
     // 暴露主实例
@@ -265,13 +274,13 @@ export class FrontendContent {
    */
   private handleDynamicContent(): void {
     console.log('🔄 [动态内容] 检测到新内容，刷新组件...');
-    
+
     // 刷新懒加载
     this.lazyLoader.refresh();
-    
+
     // 更新锚点导航
     this.anchorNavigation.updateHeaderOffset();
-    
+
     emit('frontend:dynamic:content:detected');
   }
 
@@ -281,14 +290,18 @@ export class FrontendContent {
   private reportPagePerformance(): void {
     if (!('performance' in window)) return;
 
-    const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+    const navigation = performance.getEntriesByType(
+      'navigation'
+    )[0] as PerformanceNavigationTiming;
     if (!navigation) return;
 
     const metrics = {
-      domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+      domContentLoaded:
+        navigation.domContentLoadedEventEnd -
+        navigation.domContentLoadedEventStart,
       loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
       firstPaint: 0,
-      firstContentfulPaint: 0
+      firstContentfulPaint: 0,
     };
 
     // 获取绘制指标
@@ -310,7 +323,7 @@ export class FrontendContent {
    */
   private trackComponentPerformance(component: string, data: any): void {
     const timestamp = Date.now();
-    
+
     console.log(`📊 [组件性能] ${component}:`, data);
     emit('frontend:component:performance', { component, data, timestamp });
   }
@@ -376,9 +389,9 @@ export class FrontendContent {
         anchorNavigation: true, // AnchorNavigation 总是活跃的
         lazyLoader: this.lazyLoader.isObserverSupported(),
         progressiveLoader: true, // ProgressiveLoader 总是活跃的
-        resourceOptimizer: true // ResourceOptimizer 总是活跃的
+        resourceOptimizer: true, // ResourceOptimizer 总是活跃的
       },
-      config: this.config
+      config: this.config,
     };
   }
 
@@ -395,10 +408,10 @@ export class FrontendContent {
       this.lazyLoader.destroy();
       this.progressiveLoader.destroy();
       this.resourceOptimizer.destroy();
-      
+
       this.initialized = false;
       FrontendContent.instance = null;
-      
+
       emit('frontend:content:destroyed');
       console.log('✅ [前端内容] 清理完成');
     } catch (error) {

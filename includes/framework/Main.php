@@ -3,9 +3,12 @@ declare(strict_types=1);
 
 namespace NTWP\Framework;
 
+use Exception;
+
 // PSR-4重构完成，直接使用完整的命名空间类名
 
 /**
+
  * 插件核心类
  *
  * 负责初始化插件，加载依赖项，定义国际化，以及注册后台和前台的钩子。
@@ -19,8 +22,8 @@ namespace NTWP\Framework;
  */
 
 // 如果直接访问此文件，则退出
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 class Main {
@@ -75,7 +78,7 @@ class Main {
 	 *
 	 * @since    1.0.6
 	 * @access   protected
-	 * @var      \\NTWP\Admin\Admin $admin    后台区域处理器实例。
+	 * @var      \Notion_To_WordPress_Admin $admin    后台区域处理器实例。
 	 */
 	protected $admin;
 
@@ -144,7 +147,7 @@ class Main {
 	 */
 	private function load_dependencies() {
 		// Core层 - 基础设施服务（已迁移到PSR-4自动加载）
-								
+
 		// Core层 - 基础设施服务（已迁移到PSR-4自动加载）
 		// Framework层 - 框架管理服务（已迁移到PSR-4自动加载）
 		// Services层 - 业务逻辑服务（已迁移到PSR-4自动加载）
@@ -171,12 +174,15 @@ class Main {
 		\NTWP\Core\Logger::init();
 
 		// 初始化现代异步处理系统
-		if (class_exists('NTWP\\Core\\Modern_Async_Engine')) {
+		if ( class_exists( 'NTWP\\Core\\Modern_Async_Engine' ) ) {
 			\NTWP\Core\Modern_Async_Engine::init();
 		}
 
 		// 获取选项
-		$options       = get_option( 'notion_to_wordpress_options', array() );
+		$options = get_option( 'notion_to_wordpress_options', array() );
+		$options = \NTWP\Services\Database_Config::migrate_sync_state( $options );
+		update_option( 'notion_to_wordpress_options', $options );
+		\NTWP\Services\Database_Config::migrate_legacy_post_sources( $options );
 		$api_key       = $options['notion_api_key'] ?? '';
 		$database_id   = $options['notion_database_id'] ?? '';
 		$field_mapping = $options['field_mapping'] ?? array();
@@ -263,12 +269,10 @@ class Main {
 		// SSE进度流AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_sse_progress', $this->admin, 'handle_sse_progress' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
-		
+
 		// 数据库索引优化相关AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_database_indexes_request', $this->admin, 'handle_database_indexes_request' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_analyze_query_performance', $this->admin, 'handle_analyze_query_performance' );
-
-
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -283,15 +287,15 @@ class Main {
 		// 注：notion_to_wordpress_cron_update 对应的 update_post_from_notion_cron 方法在
 		// Import_Coordinator 中并未实现（且全库无调度点），为避免钩子触发时调用不存在的方法导致
 		// 致命错误，此处不再注册该钩子。清理逻辑（uninstall.php）保留以清除历史遗留调度。
-		$this->loader->add_action('notion_to_wordpress_log_cleanup', '\NTWP\Core\Logger', 'run_log_cleanup');
+		$this->loader->add_action( 'notion_to_wordpress_log_cleanup', '\NTWP\Core\Logger', 'run_log_cleanup' );
 
 		// 队列系统集成
-		if (class_exists('NTWP\\Core\\Queue_Manager')) {
+		if ( class_exists( 'NTWP\\Core\\Queue_Manager' ) ) {
 			\NTWP\Core\Queue_Manager::init();
 		}
 
 		// 异步处理器集成
-		if (class_exists('NTWP\\Core\\Async_Processor')) {
+		if ( class_exists( 'NTWP\\Core\\Async_Processor' ) ) {
 			\NTWP\Core\Async_Processor::init();
 		}
 	}
@@ -334,7 +338,7 @@ class Main {
 	 * @access   private
 	 */
 	private function define_webhook_hooks() {
-		add_action('rest_api_init', [$this->webhook, 'register_routes']);
+		add_action( 'rest_api_init', array( $this->webhook, 'register_routes' ) );
 	}
 
 	/**
@@ -373,9 +377,12 @@ class Main {
 	 * @since 1.0.5
 	 */
 	public function cron_import_pages() {
+
 		// 获取选项
 		$options = get_option( 'notion_to_wordpress_options', array() );
-
+		$options = \NTWP\Services\Database_Config::migrate_sync_state( $options );
+		update_option( 'notion_to_wordpress_options', $options );
+		\NTWP\Services\Database_Config::migrate_legacy_post_sources( $options );
 		// P1-01 多数据库：统一从配置中读取需要同步的数据库列表（含主库与附加库）
 		$databases = \NTWP\Services\Database_Config::get_configured_databases( $options );
 
@@ -390,14 +397,8 @@ class Main {
 
 		$completed = $this->_core_import_process( $databases, $options, $incremental, $check_deletions );
 
-		// 断点续传：仅在全部数据库均完整完成时才推进 last_sync_time。
-		// 若任何数据库因超时/资源限制中断（interrupted），不更新 last_sync_time，
-		// 确保下次增量同步能重新覆盖本次未处理的存量页面，而非漏掉它们。
-		if ( $completed ) {
-			$options['last_sync_time'] = current_time( 'mysql' );
-			update_option( 'notion_to_wordpress_options', $options );
-		} else {
-			\NTWP\Core\Logger::info_log( '本次定时同步因超时中断，last_sync_time 未推进，下次同步将从剩余页面继续', 'Cron Sync' );
+		if ( ! $completed ) {
+			\NTWP\Core\Logger::info_log( '至少一个数据库未完整完成；仅已完成数据库的独立游标已推进。', 'Cron Sync' );
 		}
 	}
 
@@ -405,19 +406,19 @@ class Main {
 	 * 核心导入逻辑，可由cron或手动调用。
 	 *
 	 * @since 1.1.0
-	 * @param array  $databases    需要同步的数据库列表（P1-01 多数据库）
-	 * @param array  $options 插件设置选项
-	 * @param bool   $incremental 是否启用增量同步
-	 * @param bool   $check_deletions 是否检查删除
+	 * @param array $databases    需要同步的数据库列表（P1-01 多数据库）
+	 * @param array $options 插件设置选项
+	 * @param bool  $incremental 是否启用增量同步
+	 * @param bool  $check_deletions 是否检查删除
 	 * @return bool 是否全部完整完成（false 表示任一数据库因超时/异常中断，仍有页面未处理）
 	 */
 	private function _core_import_process( array $databases, array $options, bool $incremental = true, bool $check_deletions = true ): bool {
 		$all_completed = true;
 
 		foreach ( $databases as $db ) {
-			$database_id    = $db['id'];
-			$field_mapping  = $db['field_mapping'] ?? ( $options['field_mapping'] ?? [] );
-			$coordinator    = new \NTWP\Handlers\Import_Coordinator( $this->notion_api, $database_id, $field_mapping );
+			$database_id   = $db['id'];
+			$field_mapping = $db['field_mapping'] ?? ( $options['field_mapping'] ?? array() );
+			$coordinator   = new \NTWP\Handlers\Import_Coordinator( $this->notion_api, $database_id, $field_mapping );
 
 			try {
 				// 使用统一的import_pages方法，支持增量同步和删除检测
@@ -430,7 +431,8 @@ class Main {
 				}
 
 				\NTWP\Core\Logger::info_log(
-					sprintf( '定时同步完成(库 %s) - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d%s',
+					sprintf(
+						'定时同步完成(库 %s) - 总计: %d, 导入: %d, 更新: %d, 删除: %d, 失败: %d%s',
 						$database_id,
 						$result['total'] ?? 0,
 						$result['imported'] ?? 0,
@@ -443,7 +445,7 @@ class Main {
 				);
 
 				// 断点续传：任一数据库中断则整体视为未完整完成
-				if ( ! empty( $result['interrupted'] ) ) {
+				if ( ! empty( $result['interrupted'] ) || ! empty( $result['failed'] ) || ! empty( $result['errors'] ) ) {
 					$all_completed = false;
 				}
 			} catch ( Exception $e ) {
@@ -467,11 +469,11 @@ class Main {
 	public static function activate() {
 		// 设置默认选项
 		$default_options = array(
-			'notion_api_key'      => '',
-			'notion_database_id'  => '',
-			'sync_schedule'       => 'manual',
-			'delete_on_uninstall' => 0,
-			'field_mapping'       => array(
+			'notion_api_key'         => '',
+			'notion_database_id'     => '',
+			'sync_schedule'          => 'manual',
+			'delete_on_uninstall'    => 0,
+			'field_mapping'          => array(
 				'title'          => 'Title,标题',
 				'status'         => 'Status,状态',
 				'post_type'      => 'Type,类型',
@@ -482,10 +484,10 @@ class Main {
 				'tags'           => 'Tags,标签,Tag',
 
 			),
-			'custom_field_mappings' => array(),
-			'debug_level'         => \NTWP\Core\Logger::DEBUG_LEVEL_ERROR,
+			'custom_field_mappings'  => array(),
+			'debug_level'            => \NTWP\Core\Logger::DEBUG_LEVEL_ERROR,
 			// 默认启用数学和图表支持，确保渲染正常
-			'enable_math_support' => 1,
+			'enable_math_support'    => 1,
 			'enable_mermaid_support' => 1,
 		);
 
@@ -538,12 +540,12 @@ class Main {
 	 */
 	public function enqueue_frontend_scripts() {
 		// 获取插件选项
-		$options = get_option('notion_to_wordpress_options', []);
+		$options = get_option( 'notion_to_wordpress_options', array() );
 
 		// 基础样式（总是加载）
 		wp_enqueue_style(
 			$this->plugin_name . '-custom',
-			\NTWP\Utils\Helper::plugin_url('assets/css/custom-styles.css'),
+			\NTWP\Utils\Helper::plugin_url( 'assets/css/custom-styles.css' ),
 			array(),
 			$this->version
 		);
@@ -551,16 +553,16 @@ class Main {
 		// 宽松加载策略：在前端页面总是加载LaTeX样式，确保摘要页面也能正常显示
 		wp_enqueue_style(
 			$this->plugin_name . '-latex',
-			\NTWP\Utils\Helper::plugin_url('assets/css/latex-styles.css'),
+			\NTWP\Utils\Helper::plugin_url( 'assets/css/latex-styles.css' ),
 			array(),
 			$this->version
 		);
 
 		// 条件加载：仅在有数据库内容时加载数据库样式
-		if ($this->has_notion_database_content()) {
+		if ( $this->has_notion_database_content() ) {
 			wp_enqueue_style(
 				$this->plugin_name . '-database',
-				\NTWP\Utils\Helper::plugin_url('assets/css/notion-database.css'),
+				\NTWP\Utils\Helper::plugin_url( 'assets/css/notion-database.css' ),
 				array(),
 				$this->version
 			);
@@ -568,168 +570,174 @@ class Main {
 
 		// ---------------- 宽松加载：公式和图表相关（KaTeX & Mermaid） ----------------
 		// 在前端页面总是加载KaTeX和Mermaid资源，确保首页摘要等场景也能正常渲染
-		if (true) { // 总是加载，确保兼容性
+		if ( apply_filters( 'notion_to_wordpress_load_math_assets', true ) ) {
 			// 获取CDN配置
-			$cdn_config = $this->get_cdn_config();
-			$cdn_enabled = $cdn_config['enabled'] ?? false;
+			$cdn_config   = $this->get_cdn_config();
+			$cdn_enabled  = $cdn_config['enabled'] ?? false;
 			$cdn_base_url = $cdn_config['baseUrl'] ?? 'https://cdn.jsdelivr.net';
 
 			// 如果CDN未启用，使用本地资源
-			if (!$cdn_enabled) {
-			// 使用本地KaTeX资源
-			wp_enqueue_style(
-				'katex',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.css'),
-				array(),
-				$this->version
-			);
-		} else {
-			// 使用CDN资源
-			wp_enqueue_style(
-				'katex',
-				$cdn_base_url . '/npm/katex@0.16.22/dist/katex.min.css',
-				array(),
-				'0.16.22'
-			);
-			
-			// 本地兜底样式
-			wp_enqueue_style(
-				'katex-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.css'),
-				array(),
-				$this->version
-			);
-		}
+			if ( ! $cdn_enabled ) {
+				// 使用本地KaTeX资源
+				wp_enqueue_style(
+					'katex',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/katex.min.css' ),
+					array(),
+					$this->version
+				);
+			} else {
+				// 使用CDN资源
+				wp_enqueue_style(
+					'katex',
+					$cdn_base_url . '/npm/katex@0.16.22/dist/katex.min.css',
+					array(),
+					'0.16.22'
+				);
 
-		if (!$cdn_enabled) {
-			// 使用本地JavaScript资源
-			wp_register_script(
-				'katex',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.js'),
-				array(),
-				$this->version,
-				true
-			);
-			
-			wp_register_script(
-				'katex-mhchem',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
-				array( 'katex' ),
-				$this->version,
-				true
-			);
-			
-			wp_register_script(
-				'katex-auto-render',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
-				array( 'katex' ),
-				$this->version,
-				true
-			);
-			
-			wp_enqueue_script(
-				'mermaid',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js'),
-				array(),
-				$this->version,
-				true
-			);
-		} else {
-			// 使用CDN JavaScript资源
-			wp_register_script(
-				'katex',
-				$cdn_base_url . '/npm/katex@0.16.22/dist/katex.min.js',
-				array(),
-				'0.16.22',
-				true
-			);
+				// 本地兜底样式
+				wp_enqueue_style(
+					'katex-fallback',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/katex.min.css' ),
+					array(),
+					$this->version
+				);
+			}
 
-			// 本地兜底脚本
-			wp_register_script(
-				'katex-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.js'),
-				array(),
-				$this->version,
-				true
-			);
+			if ( ! $cdn_enabled ) {
+				// 使用本地JavaScript资源
+				wp_register_script(
+					'katex',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/katex.min.js' ),
+					array(),
+					$this->version,
+					true
+				);
 
-			// mhchem 扩展（化学公式）依赖 KaTeX
-			wp_register_script(
-				'katex-mhchem',
-				$cdn_base_url . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
-				array( 'katex' ),
-				'0.16.22',
-				true
-			);
+				wp_register_script(
+					'katex-mhchem',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/mhchem.min.js' ),
+					array( 'katex' ),
+					$this->version,
+					true
+				);
 
-			// mhchem 本地兜底
-			wp_register_script(
-				'katex-mhchem-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/mhchem.min.js'),
-				array( 'katex-fallback' ),
-				$this->version,
-				true
-			);
+				wp_register_script(
+					'katex-auto-render',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/auto-render.min.js' ),
+					array( 'katex' ),
+					$this->version,
+					true
+				);
 
-			// KaTeX auto-render 扩展，依赖 KaTeX
-			wp_register_script(
-				'katex-auto-render',
-				$cdn_base_url . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
-				array( 'katex' ),
-				'0.16.22',
-				true
-			);
+				wp_enqueue_script(
+					'mermaid',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/mermaid/mermaid.min.js' ),
+					array(),
+					$this->version,
+					true
+				);
+			} else {
+				// 使用CDN JavaScript资源
+				wp_register_script(
+					'katex',
+					$cdn_base_url . '/npm/katex@0.16.22/dist/katex.min.js',
+					array(),
+					'0.16.22',
+					true
+				);
 
-			// auto-render 本地兜底
-			wp_register_script(
-				'katex-auto-render-fallback',
-				\NTWP\Utils\Helper::plugin_url('assets/vendor/katex/auto-render.min.js'),
-				array( 'katex-fallback' ),
-				$this->version,
-				true
-			);
-			
-			// Mermaid - CDN优先，本地兜底
-			wp_enqueue_script(
-				'mermaid',
-				$cdn_base_url . '/npm/mermaid@11/dist/mermaid.min.js',
-				array(),
-				'11.7.0',
-				true
-			);
+				// 本地兜底脚本
+				wp_register_script(
+					'katex-fallback',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/katex.min.js' ),
+					array(),
+					$this->version,
+					true
+				);
 
-			// 添加CDN兜底逻辑
-			wp_add_inline_script( 'katex', "
+				// mhchem 扩展（化学公式）依赖 KaTeX
+				wp_register_script(
+					'katex-mhchem',
+					$cdn_base_url . '/npm/katex@0.16.22/dist/contrib/mhchem.min.js',
+					array( 'katex' ),
+					'0.16.22',
+					true
+				);
+
+				// mhchem 本地兜底
+				wp_register_script(
+					'katex-mhchem-fallback',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/mhchem.min.js' ),
+					array( 'katex-fallback' ),
+					$this->version,
+					true
+				);
+
+				// KaTeX auto-render 扩展，依赖 KaTeX
+				wp_register_script(
+					'katex-auto-render',
+					$cdn_base_url . '/npm/katex@0.16.22/dist/contrib/auto-render.min.js',
+					array( 'katex' ),
+					'0.16.22',
+					true
+				);
+
+				// auto-render 本地兜底
+				wp_register_script(
+					'katex-auto-render-fallback',
+					\NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/auto-render.min.js' ),
+					array( 'katex-fallback' ),
+					$this->version,
+					true
+				);
+
+				// Mermaid - CDN优先，本地兜底
+				wp_enqueue_script(
+					'mermaid',
+					$cdn_base_url . '/npm/mermaid@11/dist/mermaid.min.js',
+					array(),
+					'11.7.0',
+					true
+				);
+
+				// 添加CDN兜底逻辑
+				wp_add_inline_script(
+					'katex',
+					"
 				// KaTeX CDN兜底逻辑
 				if (typeof katex === 'undefined') {
 					console.log('KaTeX CDN failed, loading fallback...');
 					var script = document.createElement('script');
-					script.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/katex/katex.min.js') . "';
+					script.src = '" . \NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/katex.min.js' ) . "';
 					script.onload = function() {
 						// 加载mhchem兜底
 						var mhchemScript = document.createElement('script');
-						mhchemScript.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/katex/mhchem.min.js') . "';
+						mhchemScript.src = '" . \NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/mhchem.min.js' ) . "';
 						document.head.appendChild(mhchemScript);
 
 						// 加载auto-render兜底
 						var autoRenderScript = document.createElement('script');
-						autoRenderScript.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/katex/auto-render.min.js') . "';
+						autoRenderScript.src = '" . \NTWP\Utils\Helper::plugin_url( 'assets/vendor/katex/auto-render.min.js' ) . "';
 						document.head.appendChild(autoRenderScript);
 					};
 					document.head.appendChild(script);
 				}
-			" );
-			
-			// Mermaid CDN兜底逻辑
-			wp_add_inline_script( 'mermaid', "
+			"
+				);
+
+				// Mermaid CDN兜底逻辑
+				wp_add_inline_script(
+					'mermaid',
+					"
 				if (typeof mermaid === 'undefined') {
 					console.log('Mermaid CDN failed, loading fallback...');
 					var script = document.createElement('script');
-					script.src = '" . \NTWP\Utils\Helper::plugin_url('assets/vendor/mermaid/mermaid.min.js') . "';
+					script.src = '" . \NTWP\Utils\Helper::plugin_url( 'assets/vendor/mermaid/mermaid.min.js' ) . "';
 					document.head.appendChild(script);
 				}
-			" );
-		}
+			"
+				);
+			}
 
 			// 按顺序入队 KaTeX 相关脚本
 			wp_enqueue_script( 'katex' );
@@ -739,8 +747,8 @@ class Main {
 			// 加载现代化TypeScript构建的数学渲染器
 			wp_enqueue_script(
 				$this->plugin_name . '-katex-mermaid',
-				\NTWP\Utils\Helper::plugin_url('assets/dist/js/katex-mermaid.js'),
-				array('jquery', 'katex', 'katex-mhchem', 'katex-auto-render'),
+				\NTWP\Utils\Helper::plugin_url( 'assets/dist/js/katex-mermaid.js' ),
+				array( 'jquery', 'katex', 'katex-mhchem', 'katex-auto-render' ),
 				$this->version,
 				true
 			);
@@ -750,7 +758,7 @@ class Main {
 		// 运行时文件（必须首先加载）
 		wp_enqueue_script(
 			$this->plugin_name . '-frontend-runtime',
-			\NTWP\Utils\Helper::plugin_url('assets/dist/js/runtime.js'),
+			\NTWP\Utils\Helper::plugin_url( 'assets/dist/js/runtime.js' ),
 			array(),
 			$this->version,
 			true
@@ -759,8 +767,8 @@ class Main {
 		// 第三方库文件
 		wp_enqueue_script(
 			$this->plugin_name . '-frontend-vendors',
-			\NTWP\Utils\Helper::plugin_url('assets/dist/js/vendors.js'),
-			array($this->plugin_name . '-frontend-runtime'),
+			\NTWP\Utils\Helper::plugin_url( 'assets/dist/js/vendors.js' ),
+			array( $this->plugin_name . '-frontend-runtime' ),
 			$this->version,
 			true
 		);
@@ -768,8 +776,8 @@ class Main {
 		// 公共模块文件
 		wp_enqueue_script(
 			$this->plugin_name . '-frontend-common',
-			\NTWP\Utils\Helper::plugin_url('assets/dist/js/common.js'),
-			array($this->plugin_name . '-frontend-vendors'),
+			\NTWP\Utils\Helper::plugin_url( 'assets/dist/js/common.js' ),
+			array( $this->plugin_name . '-frontend-vendors' ),
 			$this->version,
 			true
 		);
@@ -777,8 +785,8 @@ class Main {
 		// 前端主文件（现代化TypeScript版本）
 		wp_enqueue_script(
 			$this->plugin_name . '-frontend',
-			\NTWP\Utils\Helper::plugin_url('assets/dist/js/frontend.js'),
-			array('jquery', $this->plugin_name . '-frontend-common'),
+			\NTWP\Utils\Helper::plugin_url( 'assets/dist/js/frontend.js' ),
+			array( 'jquery', $this->plugin_name . '-frontend-common' ),
 			$this->version,
 			true
 		);
@@ -802,28 +810,28 @@ class Main {
 		// 检查当前页面是否包含Notion数据库内容
 		global $post;
 
-		if (!$post) {
+		if ( ! $post ) {
 			return false;
 		}
 
 		// 检查文章内容中是否包含数据库相关的CSS类或标记
-		$content = $post->post_content;
-		$database_indicators = [
+		$content             = $post->post_content;
+		$database_indicators = array(
 			'notion-database',
 			'notion-table',
 			'notion-collection',
-			'data-notion-type="database"'
-		];
+			'data-notion-type="database"',
+		);
 
-		foreach ($database_indicators as $indicator) {
-			if (strpos($content, $indicator) !== false) {
+		foreach ( $database_indicators as $indicator ) {
+			if ( strpos( $content, $indicator ) !== false ) {
 				return true;
 			}
 		}
 
 		// 检查是否有Notion数据库相关的meta数据
-		$has_database_meta = get_post_meta($post->ID, '_notion_has_database', true);
-		if ($has_database_meta) {
+		$has_database_meta = get_post_meta( $post->ID, '_notion_has_database', true );
+		if ( $has_database_meta ) {
 			return true;
 		}
 
@@ -842,7 +850,7 @@ class Main {
 		if ( ! isset( $schedules['weekly'] ) ) {
 			$schedules['weekly'] = array(
 				'interval' => 7 * DAY_IN_SECONDS,
-				'display'  => __( '每周一次', 'notion-to-wordpress' ),
+				'display'  => did_action( 'init' ) ? __( '每周一次', 'notion-to-wordpress' ) : '每周一次',
 			);
 		}
 
@@ -850,7 +858,7 @@ class Main {
 		if ( ! isset( $schedules['biweekly'] ) ) {
 			$schedules['biweekly'] = array(
 				'interval' => 14 * DAY_IN_SECONDS,
-				'display'  => __( '每两周一次', 'notion-to-wordpress' ),
+				'display'  => did_action( 'init' ) ? __( '每两周一次', 'notion-to-wordpress' ) : '每两周一次',
 			);
 		}
 
@@ -858,7 +866,7 @@ class Main {
 		if ( ! isset( $schedules['monthly'] ) ) {
 			$schedules['monthly'] = array(
 				'interval' => 30 * DAY_IN_SECONDS,
-				'display'  => __( '每月一次', 'notion-to-wordpress' ),
+				'display'  => did_action( 'init' ) ? __( '每月一次', 'notion-to-wordpress' ) : '每月一次',
 			);
 		}
 
@@ -893,15 +901,19 @@ class Main {
 			// 匹配块级公式 div 标签，但排除包含占位符的div
 			'/<div[^>]*class="[^"]*notion-equation-block[^"]*"[^>]*>(?!.*NOTION_FORMULA_PLACEHOLDER).*?<\/div>/s',
 			// 兼容旧版本的行内公式匹配
-			'/<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>/s'
+			'/<span[^>]*class="[^"]*notion-equation[^"]*"[^>]*>.*?<\/span>/s',
 		);
 
 		foreach ( $patterns as $pattern ) {
-			$content = preg_replace_callback( $pattern, function( $matches ) use ( &$formula_placeholders ) {
-				$placeholder = '<!--NOTION_FORMULA_PLACEHOLDER_' . count( $formula_placeholders ) . '-->';
-				$formula_placeholders[ $placeholder ] = $matches[0];
-				return $placeholder;
-			}, $content );
+			$content = preg_replace_callback(
+				$pattern,
+				function ( $matches ) use ( &$formula_placeholders ) {
+					$placeholder                          = '<!--NOTION_FORMULA_PLACEHOLDER_' . count( $formula_placeholders ) . '-->';
+					$formula_placeholders[ $placeholder ] = $matches[0];
+					return $placeholder;
+				},
+				$content
+			);
 		}
 
 		// 将占位符数组存储到全局变量中，以便后续恢复
@@ -947,54 +959,54 @@ class Main {
 	 * @return array CDN配置数组
 	 */
 	private function get_cdn_config(): array {
-		$options = get_option('notion_to_wordpress_options', []);
+		$options = get_option( 'notion_to_wordpress_options', array() );
 
 		// 基础CDN配置
-		$cdn_config = [
-			'enabled' => false,
-			'baseUrl' => '',
+		$cdn_config = array(
+			'enabled'         => false,
+			'baseUrl'         => '',
 			'fallbackEnabled' => true,
-			'timeout' => 5000,
-			'providers' => [
+			'timeout'         => 5000,
+			'providers'       => array(
 				'jsdelivr' => 'https://cdn.jsdelivr.net',
-				'unpkg' => 'https://unpkg.com',
-				'cdnjs' => 'https://cdnjs.cloudflare.com'
-			]
-		];
+				'unpkg'    => 'https://unpkg.com',
+				'cdnjs'    => 'https://cdnjs.cloudflare.com',
+			),
+		);
 
 		// 检查是否启用CDN
 		$enable_cdn = $options['enable_cdn'] ?? false;
-		if ($enable_cdn) {
-			$cdn_provider = $options['cdn_provider'] ?? 'jsdelivr';
+		if ( $enable_cdn ) {
+			$cdn_provider   = $options['cdn_provider'] ?? 'jsdelivr';
 			$custom_cdn_url = $options['custom_cdn_url'] ?? '';
 
 			$cdn_config['enabled'] = true;
 
-			if ($cdn_provider === 'custom' && !empty($custom_cdn_url)) {
-				$cdn_config['baseUrl'] = rtrim($custom_cdn_url, '/');
-			} elseif (isset($cdn_config['providers'][$cdn_provider])) {
-				$cdn_config['baseUrl'] = $cdn_config['providers'][$cdn_provider];
+			if ( $cdn_provider === 'custom' && ! empty( $custom_cdn_url ) ) {
+				$cdn_config['baseUrl'] = rtrim( $custom_cdn_url, '/' );
+			} elseif ( isset( $cdn_config['providers'][ $cdn_provider ] ) ) {
+				$cdn_config['baseUrl'] = $cdn_config['providers'][ $cdn_provider ];
 			}
 		}
 
 		// 性能优化配置
-		$cdn_config['optimization'] = [
-			'compression' => [
+		$cdn_config['optimization'] = array(
+			'compression' => array(
 				'enabled' => $options['enable_asset_compression'] ?? true,
-				'level' => $options['compression_level'] ?? 'auto'
-			],
-			'lazyLoading' => [
-				'enhanced' => $options['enhanced_lazy_loading'] ?? true,
-				'preloadThreshold' => $options['preload_threshold'] ?? 2
-			],
-			'performance' => [
-				'monitoring' => $options['performance_monitoring'] ?? true,
-				'reportInterval' => $options['performance_report_interval'] ?? 30000
-			]
-		];
+				'level'   => $options['compression_level'] ?? 'auto',
+			),
+			'lazyLoading' => array(
+				'enhanced'         => $options['enhanced_lazy_loading'] ?? true,
+				'preloadThreshold' => $options['preload_threshold'] ?? 2,
+			),
+			'performance' => array(
+				'monitoring'     => $options['performance_monitoring'] ?? true,
+				'reportInterval' => $options['performance_report_interval'] ?? 30000,
+			),
+		);
 
 		// 应用过滤器，允许主题或其他插件修改配置
-		return apply_filters('notion_cdn_config', $cdn_config);
+		return apply_filters( 'notion_cdn_config', $cdn_config );
 	}
 
 	/**
@@ -1004,19 +1016,19 @@ class Main {
 	 * @return array 统计信息
 	 */
 	public static function get_resource_optimization_stats(): array {
-		$stats = [
-			'cdn_enabled' => false,
-			'compression_enabled' => false,
-			'lazy_loading_enhanced' => false,
+		$stats = array(
+			'cdn_enabled'            => false,
+			'compression_enabled'    => false,
+			'lazy_loading_enhanced'  => false,
 			'performance_monitoring' => false,
-			'last_optimization_time' => null
-		];
+			'last_optimization_time' => null,
+		);
 
-		$options = get_option('notion_to_wordpress_options', []);
+		$options = get_option( 'notion_to_wordpress_options', array() );
 
-		$stats['cdn_enabled'] = $options['enable_cdn'] ?? false;
-		$stats['compression_enabled'] = $options['enable_asset_compression'] ?? true;
-		$stats['lazy_loading_enhanced'] = $options['enhanced_lazy_loading'] ?? true;
+		$stats['cdn_enabled']            = $options['enable_cdn'] ?? false;
+		$stats['compression_enabled']    = $options['enable_asset_compression'] ?? true;
+		$stats['lazy_loading_enhanced']  = $options['enhanced_lazy_loading'] ?? true;
 		$stats['performance_monitoring'] = $options['performance_monitoring'] ?? true;
 		$stats['last_optimization_time'] = $options['last_optimization_time'] ?? null;
 

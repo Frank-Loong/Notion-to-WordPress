@@ -8,7 +8,13 @@ export interface ToastOptions {
   type?: ToastType;
   duration?: number;
   closable?: boolean;
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'top-center' | 'bottom-center';
+  position?:
+    | 'top-right'
+    | 'top-left'
+    | 'bottom-right'
+    | 'bottom-left'
+    | 'top-center'
+    | 'bottom-center';
   className?: string;
   onClick?: () => void;
   onClose?: () => void;
@@ -34,7 +40,9 @@ export class ToastManager {
   private position: ToastOptions['position'] = 'top-right';
   private maxToasts = 5;
 
-  constructor(options: { position?: ToastOptions['position']; maxToasts?: number } = {}) {
+  constructor(
+    options: { position?: ToastOptions['position']; maxToasts?: number } = {}
+  ) {
     this.position = options.position || 'top-right';
     this.maxToasts = options.maxToasts || 5;
     this.createContainer();
@@ -52,7 +60,7 @@ export class ToastManager {
       duration: options.duration ?? 4000,
       closable: options.closable ?? true,
       element: this.createElement(id, message, options),
-      options
+      options,
     };
 
     // 如果超过最大数量，移除最旧的
@@ -95,13 +103,13 @@ export class ToastManager {
 
     // 添加退出动画
     toast.element.classList.add('toast-exit');
-    
+
     setTimeout(() => {
       if (toast.element.parentNode) {
         toast.element.parentNode.removeChild(toast.element);
       }
       this.toasts.delete(id);
-      
+
       // 调用关闭回调
       if (toast.options.onClose) {
         toast.options.onClose();
@@ -129,7 +137,11 @@ export class ToastManager {
    * 错误消息
    */
   error(message: string, options: Omit<ToastOptions, 'type'> = {}): string {
-    return this.show(message, { ...options, type: 'error', duration: options.duration ?? 6000 });
+    return this.show(message, {
+      ...options,
+      type: 'error',
+      duration: options.duration ?? 6000,
+    });
   }
 
   /**
@@ -182,7 +194,11 @@ export class ToastManager {
       'bottom-right': { bottom: '20px', right: '20px' },
       'bottom-left': { bottom: '20px', left: '20px' },
       'top-center': { top: '20px', left: '50%', transform: 'translateX(-50%)' },
-      'bottom-center': { bottom: '20px', left: '50%', transform: 'translateX(-50%)' }
+      'bottom-center': {
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+      },
     };
 
     const pos = positions[this.position || 'top-right'];
@@ -190,18 +206,24 @@ export class ToastManager {
       position: 'fixed',
       zIndex: '10000',
       pointerEvents: 'none',
-      ...pos
+      ...pos,
     });
   }
 
-  private createElement(id: string, message: string, options: ToastOptions): HTMLElement {
+  private createElement(
+    id: string,
+    message: string,
+    options: ToastOptions
+  ): HTMLElement {
     const toast = document.createElement('div');
     toast.className = `toast toast-${options.type || 'info'} ${options.className || ''}`;
     toast.setAttribute('data-toast-id', id);
 
     const icon = this.getIcon(options.type || 'info');
-    const closeButton = options.closable !== false ? 
-      '<button class="toast-close" type="button">&times;</button>' : '';
+    const closeButton =
+      options.closable !== false
+        ? '<button class="toast-close" type="button">&times;</button>'
+        : '';
 
     toast.innerHTML = `
       <div class="toast-content">
@@ -247,7 +269,7 @@ export class ToastManager {
       success: '✓',
       error: '✕',
       warning: '⚠',
-      info: 'ℹ'
+      info: 'ℹ',
     };
     return icons[type] || icons.info;
   }
@@ -393,22 +415,38 @@ export class ToastManager {
 export const toast = new ToastManager();
 
 // 便捷函数
-export function showToast(message: string, type: ToastType = 'info', options: ToastOptions = {}): string {
+export function showToast(
+  message: string,
+  type: ToastType = 'info',
+  options: ToastOptions = {}
+): string {
   return toast.show(message, { ...options, type });
 }
 
-export function showSuccess(message: string, options: Omit<ToastOptions, 'type'> = {}): string {
+export function showSuccess(
+  message: string,
+  options: Omit<ToastOptions, 'type'> = {}
+): string {
   return toast.success(message, options);
 }
 
-export function showError(message: string, options: Omit<ToastOptions, 'type'> = {}): string {
+export function showError(
+  message: string,
+  options: Omit<ToastOptions, 'type'> = {}
+): string {
   return toast.error(message, options);
 }
 
-export function showWarning(message: string, options: Omit<ToastOptions, 'type'> = {}): string {
+export function showWarning(
+  message: string,
+  options: Omit<ToastOptions, 'type'> = {}
+): string {
   return toast.warning(message, options);
 }
 
-export function showInfo(message: string, options: Omit<ToastOptions, 'type'> = {}): string {
+export function showInfo(
+  message: string,
+  options: Omit<ToastOptions, 'type'> = {}
+): string {
   return toast.info(message, options);
 }

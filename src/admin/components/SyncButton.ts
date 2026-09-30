@@ -30,12 +30,16 @@ export class SyncButton extends BaseComponent {
   protected onInit(): void {
     if (this.element) {
       this.originalText = this.element.textContent || '';
-      
+
       // 设置按钮属性
       this.element.setAttribute('data-sync-type', this.syncOptions.syncType);
-      
+
       // 添加CSS类
-      addClass(this.element, 'sync-button', `sync-button-${this.syncOptions.syncType}`);
+      addClass(
+        this.element,
+        'sync-button',
+        `sync-button-${this.syncOptions.syncType}`
+      );
     }
   }
 
@@ -134,7 +138,7 @@ export class SyncButton extends BaseComponent {
       syncType,
       incremental: true,
       checkDeletions: this.syncOptions.checkDeletions || true,
-      batchSize: 10
+      batchSize: 10,
     });
 
     if (result.success) {
@@ -152,7 +156,7 @@ export class SyncButton extends BaseComponent {
       syncType,
       incremental: false,
       checkDeletions: this.syncOptions.checkDeletions || true,
-      batchSize: 10
+      batchSize: 10,
     });
 
     if (result.success) {
@@ -177,8 +181,8 @@ export class SyncButton extends BaseComponent {
         action: 'notion_to_wordpress_test_connection',
         nonce: (window as any).notionToWp?.nonce || '',
         api_key: this.getConfigValue('notion_to_wordpress_api_key'),
-        database_id: this.getConfigValue('notion_to_wordpress_database_id')
-      })
+        database_id: this.getConfigValue('notion_to_wordpress_database_id'),
+      }),
     });
 
     const result = await response.json();
@@ -199,7 +203,7 @@ export class SyncButton extends BaseComponent {
 
     if (!apiKey || !databaseId) {
       showError('请先配置API密钥和数据库ID');
-      
+
       // 高亮空字段
       if (!apiKey) {
         this.highlightField('notion_to_wordpress_api_key');
@@ -207,7 +211,7 @@ export class SyncButton extends BaseComponent {
       if (!databaseId) {
         this.highlightField('notion_to_wordpress_database_id');
       }
-      
+
       return false;
     }
 
@@ -229,7 +233,10 @@ export class SyncButton extends BaseComponent {
     const field = document.querySelector(`#${fieldName}`) as HTMLElement;
     if (field) {
       addClass(field, 'error');
-      if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+      if (
+        field instanceof HTMLInputElement ||
+        field instanceof HTMLTextAreaElement
+      ) {
         field.focus();
       }
 
@@ -246,7 +253,7 @@ export class SyncButton extends BaseComponent {
     const typeNames = {
       smart: '智能同步',
       full: '完全同步',
-      test: '测试连接'
+      test: '测试连接',
     };
 
     return typeNames[this.syncOptions.syncType] || '同步';
@@ -261,7 +268,7 @@ export class SyncButton extends BaseComponent {
     if (loading) {
       this.element.setAttribute('disabled', 'true');
       addClass(this.element, 'loading');
-      
+
       const spinner = '<span class="spinner is-active"></span> ';
       const syncType = this.getSyncTypeName();
       this.element.innerHTML = `${spinner}${syncType}中...`;
@@ -305,7 +312,14 @@ export class SyncButton extends BaseComponent {
     if (!this.element) return;
 
     // 移除所有状态类
-    removeClass(this.element, 'status-idle', 'status-running', 'status-completed', 'status-error', 'status-paused');
+    removeClass(
+      this.element,
+      'status-idle',
+      'status-running',
+      'status-completed',
+      'status-error',
+      'status-paused'
+    );
 
     // 添加当前状态类
     addClass(this.element, `status-${status}`);

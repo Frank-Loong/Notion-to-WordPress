@@ -17,7 +17,7 @@ export {
   upload,
   batch,
   retry as retryAjax,
-  handleWpAjaxResponse
+  handleWpAjaxResponse,
 } from './ajax';
 
 // 验证工具

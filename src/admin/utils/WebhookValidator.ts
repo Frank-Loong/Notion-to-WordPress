@@ -1,6 +1,6 @@
 /**
  * Webhook验证器 - 现代化TypeScript版本
- * 
+ *
  * 从原有PHP Security类的webhook验证功能迁移，包括：
  * - Webhook URL验证
  * - Token格式验证
@@ -42,7 +42,7 @@ export class WebhookValidator {
       isValid: false,
       errors: [],
       warnings: [],
-      suggestions: []
+      suggestions: [],
     };
 
     // 检查是否为空
@@ -56,13 +56,17 @@ export class WebhookValidator {
 
     // 检查长度
     if (trimmedToken.length < this.TOKEN_MIN_LENGTH) {
-      result.errors.push(`Webhook令牌长度不能少于${this.TOKEN_MIN_LENGTH}个字符`);
+      result.errors.push(
+        `Webhook令牌长度不能少于${this.TOKEN_MIN_LENGTH}个字符`
+      );
       result.suggestions.push('建议使用32位或更长的随机字符串');
       return result;
     }
 
     if (trimmedToken.length > this.TOKEN_MAX_LENGTH) {
-      result.errors.push(`Webhook令牌长度不能超过${this.TOKEN_MAX_LENGTH}个字符`);
+      result.errors.push(
+        `Webhook令牌长度不能超过${this.TOKEN_MAX_LENGTH}个字符`
+      );
       return result;
     }
 
@@ -98,7 +102,7 @@ export class WebhookValidator {
       isValid: false,
       errors: [],
       warnings: [],
-      suggestions: []
+      suggestions: [],
     };
 
     // 检查是否为空
@@ -151,7 +155,6 @@ export class WebhookValidator {
 
       result.isValid = true;
       return result;
-
     } catch (error) {
       result.errors.push('URL解析失败：' + (error as Error).message);
       return result;
@@ -166,7 +169,7 @@ export class WebhookValidator {
       isValid: true,
       errors: [],
       warnings: [],
-      suggestions: []
+      suggestions: [],
     };
 
     // 如果未启用，跳过验证
@@ -210,14 +213,15 @@ export class WebhookValidator {
    * 生成安全的Webhook令牌
    */
   static generateSecureToken(length: number = 32): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+    const chars =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
     let result = '';
-    
+
     // 使用crypto API生成随机数（如果可用）
     if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
       const array = new Uint8Array(length);
       crypto.getRandomValues(array);
-      
+
       for (let i = 0; i < length; i++) {
         result += chars[array[i] % chars.length];
       }
@@ -227,7 +231,7 @@ export class WebhookValidator {
         result += chars[Math.floor(Math.random() * chars.length)];
       }
     }
-    
+
     return result;
   }
 
@@ -237,7 +241,7 @@ export class WebhookValidator {
   static buildWebhookUrl(baseUrl: string, token: string): string {
     // 移除末尾的斜杠
     const cleanBaseUrl = baseUrl.replace(/\/$/, '');
-    
+
     // 构建完整URL
     return `${cleanBaseUrl}/wp-json/notion-to-wordpress/v1/webhook/${token}`;
   }
@@ -249,15 +253,15 @@ export class WebhookValidator {
     try {
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/');
-      
+
       // 查找webhook路径后的令牌
       const webhookIndex = pathParts.indexOf('webhook');
       if (webhookIndex !== -1 && webhookIndex < pathParts.length - 1) {
         return pathParts[webhookIndex + 1];
       }
-      
+
       return null;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -282,8 +286,10 @@ export class WebhookValidator {
     const hasNumber = /[0-9]/.test(token);
     const hasSpecial = /[_-]/.test(token);
 
-    const complexity = [hasLower, hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
-    
+    const complexity = [hasLower, hasUpper, hasNumber, hasSpecial].filter(
+      Boolean
+    ).length;
+
     return complexity < 2;
   }
 
@@ -301,13 +307,13 @@ export class WebhookValidator {
       '123456',
       'abcdef',
       'test',
-      'demo'
+      'demo',
     ];
 
     const lowerToken = token.toLowerCase();
-    
-    return commonWeakTokens.some(weak => 
-      lowerToken.includes(weak) || weak.includes(lowerToken)
+
+    return commonWeakTokens.some(
+      weak => lowerToken.includes(weak) || weak.includes(lowerToken)
     );
   }
 
@@ -322,7 +328,7 @@ export class WebhookValidator {
       /^10\./,
       /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
       /^::1$/,
-      /^fe80:/i
+      /^fe80:/i,
     ];
 
     return localPatterns.some(pattern => pattern.test(hostname));
@@ -341,11 +347,13 @@ export class WebhookValidator {
       'block.deleted',
       'database.created',
       'database.updated',
-      'database.deleted'
+      'database.deleted',
     ];
 
-    return validEventTypes.includes(eventType) || 
-           /^(page|block|database)\.(created|updated|deleted)$/.test(eventType);
+    return (
+      validEventTypes.includes(eventType) ||
+      /^(page|block|database)\.(created|updated|deleted)$/.test(eventType)
+    );
   }
 
   /**
@@ -359,7 +367,7 @@ export class WebhookValidator {
       '根据需要配置删除检测',
       '监控Webhook日志以及时发现问题',
       '设置适当的超时和重试机制',
-      '使用强密码生成器创建令牌'
+      '使用强密码生成器创建令牌',
     ];
   }
 
@@ -374,7 +382,7 @@ export class WebhookValidator {
       '监控异常的Webhook请求',
       '限制Webhook的访问频率',
       '使用HTTPS防止中间人攻击',
-      '验证请求来源的合法性'
+      '验证请求来源的合法性',
     ];
   }
 }

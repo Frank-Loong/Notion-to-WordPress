@@ -1,6 +1,6 @@
 /**
  * 渐进式加载器 - 现代化TypeScript版本
- * 
+ *
  * 从原有lazy-loading.js的渐进式加载功能完全迁移，包括：
  * - 数据库视图的渐进式加载
  * - 加载状态管理
@@ -52,24 +52,26 @@ export class ProgressiveLoader {
     if (ProgressiveLoader.instance) {
       return ProgressiveLoader.instance;
     }
-    
+
     ProgressiveLoader.instance = this;
-    
+
     this.config = {
       loadingDelay: 500,
       retryAttempts: 3,
       retryDelay: 1000,
       batchSize: 10,
-      ...config
+      ...config,
     };
-    
+
     this.init();
   }
 
   /**
    * 获取单例实例
    */
-  static getInstance(config?: Partial<ProgressiveLoadConfig>): ProgressiveLoader {
+  static getInstance(
+    config?: Partial<ProgressiveLoadConfig>
+  ): ProgressiveLoader {
     if (!ProgressiveLoader.instance) {
       ProgressiveLoader.instance = new ProgressiveLoader(config);
     }
@@ -98,8 +100,10 @@ export class ProgressiveLoader {
    */
   private handleLoadMoreClick(event: Event): void {
     const target = event.target as HTMLElement;
-    const button = target.closest('.notion-load-more-button') as HTMLButtonElement;
-    
+    const button = target.closest(
+      '.notion-load-more-button'
+    ) as HTMLButtonElement;
+
     if (button) {
       event.preventDefault();
       this.loadMore(button);
@@ -110,14 +114,16 @@ export class ProgressiveLoader {
    * 加载更多内容
    */
   async loadMore(button: HTMLButtonElement): Promise<void> {
-    const container = button.closest('.notion-progressive-loading') as HTMLElement;
+    const container = button.closest(
+      '.notion-progressive-loading'
+    ) as HTMLElement;
     if (!container) {
       console.error('📄 [渐进式加载] 未找到容器元素');
       return;
     }
 
     const containerId = container.id || this.generateContainerId();
-    
+
     // 防止重复加载
     if (this.loadingStates.get(containerId)) {
       return;
@@ -128,30 +134,29 @@ export class ProgressiveLoader {
       this.loadingStates.set(containerId, true);
 
       const data = await this.fetchMoreData(container);
-      
+
       if (data && data.records.length > 0) {
         await this.renderRecords(container, data.records);
-        
+
         // 如果没有更多数据，隐藏按钮
         if (!data.hasMore) {
           this.hideLoadMoreButton(button);
         }
-        
+
         // 刷新懒加载
         lazyLoader.refresh();
-        
-        emit('progressive:load:success', { 
-          containerId, 
+
+        emit('progressive:load:success', {
+          containerId,
           recordCount: data.records.length,
-          hasMore: data.hasMore 
+          hasMore: data.hasMore,
         });
-        
+
         console.log(`📄 [渐进式加载] 加载完成，记录数: ${data.records.length}`);
       } else {
         this.hideLoadMoreButton(button);
         console.log('📄 [渐进式加载] 没有更多数据');
       }
-      
     } catch (error) {
       this.handleLoadError(button, error as Error);
       emit('progressive:load:error', { containerId, error });
@@ -164,19 +169,23 @@ export class ProgressiveLoader {
   /**
    * 获取更多数据
    */
-  private async fetchMoreData(container: HTMLElement): Promise<ProgressiveLoadData | null> {
+  private async fetchMoreData(
+    container: HTMLElement
+  ): Promise<ProgressiveLoadData | null> {
     const recordsData = container.dataset.records;
-    
+
     if (recordsData) {
       // 从数据属性中解析数据（静态数据）
       try {
         const data = JSON.parse(atob(recordsData));
-        
+
         // 模拟API延迟
-        await new Promise(resolve => setTimeout(resolve, this.config.loadingDelay));
-        
+        await new Promise(resolve =>
+          setTimeout(resolve, this.config.loadingDelay)
+        );
+
         return data;
-      } catch (error) {
+      } catch {
         throw new Error('数据解析失败');
       }
     } else {
@@ -185,10 +194,10 @@ export class ProgressiveLoader {
       if (!endpoint) {
         throw new Error('未配置数据端点');
       }
-      
+
       const params = this.getLoadParams(container);
       const response = await post(endpoint, params);
-      
+
       if (response.data.success) {
         return response.data.data;
       } else {
@@ -202,9 +211,9 @@ export class ProgressiveLoader {
    */
   private getLoadParams(container: HTMLElement): Record<string, any> {
     const params: Record<string, any> = {
-      batch_size: this.config.batchSize
+      batch_size: this.config.batchSize,
     };
-    
+
     // 从数据属性中获取参数
     Object.keys(container.dataset).forEach(key => {
       if (key.startsWith('param')) {
@@ -212,34 +221,39 @@ export class ProgressiveLoader {
         params[paramName] = container.dataset[key];
       }
     });
-    
+
     return params;
   }
 
   /**
    * 渲染记录
    */
-  private async renderRecords(container: HTMLElement, records: DatabaseRecord[]): Promise<void> {
-    const contentContainer = container.querySelector('.notion-progressive-content') as HTMLElement;
+  private async renderRecords(
+    container: HTMLElement,
+    records: DatabaseRecord[]
+  ): Promise<void> {
+    const contentContainer = container.querySelector(
+      '.notion-progressive-content'
+    ) as HTMLElement;
     if (!contentContainer) {
       throw new Error('未找到内容容器');
     }
 
     const html = records.map(record => this.renderRecord(record)).join('');
-    
+
     // 使用淡入动画添加内容
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = html;
     tempDiv.style.opacity = '0';
     tempDiv.style.transition = 'opacity 0.3s ease-in-out';
-    
+
     contentContainer.appendChild(tempDiv);
-    
+
     // 触发淡入动画
     setTimeout(() => {
       tempDiv.style.opacity = '1';
     }, 10);
-    
+
     // 动画完成后移除包装div
     setTimeout(() => {
       while (tempDiv.firstChild) {
@@ -255,7 +269,7 @@ export class ProgressiveLoader {
   private renderRecord(record: DatabaseRecord): string {
     const title = this.extractTitle(record.properties);
     const id = record.id.substring(0, 8);
-    
+
     return `
       <div class="notion-database-record" data-record-id="${record.id}">
         <div class="notion-record-title">${this.escapeHtml(title)}</div>
@@ -278,7 +292,11 @@ export class ProgressiveLoader {
    */
   private extractTitle(properties: Record<string, any>): string {
     for (const property of Object.values(properties)) {
-      if (property.type === 'title' && property.title && property.title.length > 0) {
+      if (
+        property.type === 'title' &&
+        property.title &&
+        property.title.length > 0
+      ) {
         return property.title[0].plain_text || '无标题';
       }
     }
@@ -289,10 +307,16 @@ export class ProgressiveLoader {
    * 设置加载状态
    */
   private setLoadingState(button: HTMLButtonElement, loading: boolean): void {
-    const loadingText = button.querySelector('.notion-loading-text') as HTMLElement;
-    const loadingSpinner = button.querySelector('.notion-loading-spinner') as HTMLElement;
-    const buttonText = button.querySelector('.notion-button-text') as HTMLElement;
-    
+    const loadingText = button.querySelector(
+      '.notion-loading-text'
+    ) as HTMLElement;
+    const loadingSpinner = button.querySelector(
+      '.notion-loading-spinner'
+    ) as HTMLElement;
+    const buttonText = button.querySelector(
+      '.notion-button-text'
+    ) as HTMLElement;
+
     if (loading) {
       button.disabled = true;
       if (buttonText) buttonText.style.display = 'none';
@@ -310,15 +334,17 @@ export class ProgressiveLoader {
    * 处理加载错误
    */
   private handleLoadError(button: HTMLButtonElement, error: Error): void {
-    const loadingText = button.querySelector('.notion-loading-text') as HTMLElement;
-    
+    const loadingText = button.querySelector(
+      '.notion-loading-text'
+    ) as HTMLElement;
+
     if (loadingText) {
       loadingText.textContent = '加载失败，请重试';
       loadingText.style.display = 'inline';
     }
-    
+
     console.error('📄 [渐进式加载] 加载失败:', error);
-    
+
     // 3秒后恢复按钮状态
     setTimeout(() => {
       if (loadingText) {
@@ -336,7 +362,7 @@ export class ProgressiveLoader {
     if (buttonContainer) {
       buttonContainer.style.transition = 'opacity 0.3s ease-out';
       buttonContainer.style.opacity = '0';
-      
+
       setTimeout(() => {
         buttonContainer.style.display = 'none';
       }, 300);
@@ -368,7 +394,7 @@ export class ProgressiveLoader {
       return date.toLocaleDateString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
-        day: '2-digit'
+        day: '2-digit',
       });
     } catch {
       return dateString;
@@ -410,10 +436,10 @@ export class ProgressiveLoader {
    */
   destroy(): void {
     document.removeEventListener('click', this.handleLoadMoreClick);
-    
+
     this.loadingStates.clear();
     this.loadedData.clear();
-    
+
     ProgressiveLoader.instance = null;
     emit('progressive:loader:destroyed');
     console.log('📄 [渐进式加载] 已销毁');
@@ -422,11 +448,5 @@ export class ProgressiveLoader {
 
 // 导出单例实例
 export const progressiveLoader = ProgressiveLoader.getInstance();
-
-// 自动初始化
-import { ready } from '../../shared/utils/dom';
-ready(() => {
-  progressiveLoader;
-});
 
 export default ProgressiveLoader;

@@ -48,35 +48,17 @@ if ( ! defined( 'NOTION_PERFORMANCE_MODE' ) ) {
 }
 
 /**
- * Composer自动加载器
- *
- * 加载Composer生成的自动加载器，支持PSR-4命名空间和classmap
- * 这是现代PHP项目的标准做法，替代手动require_once
+ * 插件运行时自动加载器。发布包不会包含 Composer 的 vendor/ 目录，因此类加载必须
+ * 由插件自身提供。
  */
-$autoloader_path = plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
-if ( file_exists( $autoloader_path ) ) {
-    require_once $autoloader_path;
-
-    // 只在插件激活后第一次加载时记录自动加载器状态
-    if ( get_option('notion_to_wordpress_show_autoloader_log', false) ) {
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( 'Notion-to-WordPress: Composer autoloader loaded successfully' );
-        }
-        // 删除标记，避免重复显示
-        delete_option('notion_to_wordpress_show_autoloader_log');
-    }
-} else {
-    // 如果autoloader不存在，记录错误但不阻止插件运行（向后兼容）
-    if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-        error_log( 'Notion-to-WordPress: Composer autoloader not found, falling back to manual loading' );
-    }
-}
+require_once plugin_dir_path( __FILE__ ) . 'includes/framework/Autoloader.php';
+\NTWP\Framework\Autoloader::register( plugin_dir_path( __FILE__ ) );
 
 
 
 /**
  * 插件激活时运行的代码
- * 此操作的文档位于 includes/class-notion-to-wordpress.php
+ * 此操作由 includes/framework/Main.php 实现。
  *
  * 支持 WordPress Multisite：网络激活时为每个子站初始化默认选项与 cron。
  */
@@ -89,13 +71,11 @@ function activate_notion_to_wordpress() {
 		$sites = get_sites( array( 'number' => 0 ) );
 		foreach ( $sites as $site ) {
 			switch_to_blog( (int) $site->blog_id );
-			update_option( 'notion_to_wordpress_show_autoloader_log', true );
 			NTWP\Framework\Main::activate();
 			restore_current_blog();
 		}
 	} else {
 		// 单站点激活
-		update_option( 'notion_to_wordpress_show_autoloader_log', true );
 		NTWP\Framework\Main::activate();
 	}
 }
@@ -114,7 +94,7 @@ function init_modern_async_system() {
 
 /**
  * 插件停用时运行的代码
- * 此操作的文档位于 includes/class-notion-to-wordpress.php
+ * 此操作由 includes/framework/Main.php 实现。
  *
  * 支持 WordPress Multisite：网络停用时清理每个子站的 cron。
  */
@@ -153,4 +133,4 @@ function run_notion_to_wordpress() {
 	$plugin->run();
 }
 
-run_notion_to_wordpress(); 
+run_notion_to_wordpress();

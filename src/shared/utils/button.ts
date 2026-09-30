@@ -18,15 +18,19 @@ export class ButtonManager {
   /**
    * 设置按钮加载状态
    */
-  setLoading(button: HTMLElement, loading = true, loadingText = '处理中...'): void {
+  setLoading(
+    button: HTMLElement,
+    loading = true,
+    loadingText = '处理中...'
+  ): void {
     let state = this.buttons.get(button);
-    
+
     if (!state) {
       state = {
         loading: false,
         disabled: button.hasAttribute('disabled'),
         originalText: this.getButtonText(button),
-        loadingText
+        loadingText,
       };
       this.buttons.set(button, state);
     }
@@ -39,12 +43,12 @@ export class ButtonManager {
       if (!state.originalText) {
         state.originalText = this.getButtonText(button);
       }
-      
+
       // 设置加载状态
       button.setAttribute('disabled', 'true');
       button.classList.add('loading');
       this.setButtonText(button, loadingText);
-      
+
       // 添加加载动画
       this.addLoadingSpinner(button);
     } else {
@@ -54,7 +58,7 @@ export class ButtonManager {
       }
       button.classList.remove('loading');
       this.setButtonText(button, state.originalText);
-      
+
       // 移除加载动画
       this.removeLoadingSpinner(button);
     }
@@ -65,13 +69,13 @@ export class ButtonManager {
    */
   setDisabled(button: HTMLElement, disabled = true): void {
     let state = this.buttons.get(button);
-    
+
     if (!state) {
       state = {
         loading: false,
         disabled: button.hasAttribute('disabled'),
         originalText: this.getButtonText(button),
-        loadingText: '处理中...'
+        loadingText: '处理中...',
       };
       this.buttons.set(button, state);
     }
@@ -100,7 +104,7 @@ export class ButtonManager {
     button.classList.remove('loading', 'disabled');
     this.setButtonText(button, state.originalText);
     this.removeLoadingSpinner(button);
-    
+
     this.buttons.delete(button);
   }
 
@@ -130,7 +134,11 @@ export class ButtonManager {
   /**
    * 批量设置按钮状态
    */
-  setBatchLoading(buttons: HTMLElement[], loading = true, loadingText = '处理中...'): void {
+  setBatchLoading(
+    buttons: HTMLElement[],
+    loading = true,
+    loadingText = '处理中...'
+  ): void {
     buttons.forEach(button => this.setLoading(button, loading, loadingText));
   }
 
@@ -179,7 +187,7 @@ export class ButtonManager {
         </circle>
       </svg>
     `;
-    
+
     // 添加样式
     spinner.style.cssText = `
       display: inline-block;
@@ -225,7 +233,7 @@ export class ProgressButtonManager extends ButtonManager {
    */
   setProgress(button: HTMLElement, progress: number, text?: string): void {
     this.setLoading(button, true, text || `${Math.round(progress)}%`);
-    
+
     let progressBar = this.progressBars.get(button);
     if (!progressBar) {
       progressBar = this.createProgressBar(button);
@@ -243,7 +251,7 @@ export class ProgressButtonManager extends ButtonManager {
    */
   reset(button: HTMLElement): void {
     super.reset(button);
-    
+
     const progressBar = this.progressBars.get(button);
     if (progressBar) {
       progressBar.remove();
@@ -298,7 +306,11 @@ export const buttonManager = new ButtonManager();
 export const progressButtonManager = new ProgressButtonManager();
 
 // 便捷函数
-export function setButtonLoading(button: HTMLElement, loading = true, text = '处理中...'): void {
+export function setButtonLoading(
+  button: HTMLElement,
+  loading = true,
+  text = '处理中...'
+): void {
   buttonManager.setLoading(button, loading, text);
 }
 
@@ -310,6 +322,10 @@ export function resetButton(button: HTMLElement): void {
   buttonManager.reset(button);
 }
 
-export function setButtonProgress(button: HTMLElement, progress: number, text?: string): void {
+export function setButtonProgress(
+  button: HTMLElement,
+  progress: number,
+  text?: string
+): void {
   progressButtonManager.setProgress(button, progress, text);
 }

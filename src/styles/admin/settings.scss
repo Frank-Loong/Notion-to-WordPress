@@ -15,13 +15,13 @@
   --settings-border-radius: 6px;
   --settings-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --settings-transition: all 0.2s ease;
-  
+
   // 状态颜色
   --settings-success-color: #28a745;
   --settings-error-color: #dc3545;
   --settings-warning-color: #ffc107;
   --settings-info-color: #17a2b8;
-  
+
   // 状态背景色
   --settings-success-bg: #d4edda;
   --settings-error-bg: #f8d7da;
@@ -127,7 +127,7 @@
           transition: var(--settings-transition);
 
           &::after {
-            content: '';
+            content: "";
             position: absolute;
             left: 6px;
             top: 2px;
@@ -337,7 +337,8 @@
 
 // 动画
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

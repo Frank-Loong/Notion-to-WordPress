@@ -29,60 +29,61 @@
   border-radius: var(--progress-border-radius);
   box-shadow: var(--progress-shadow);
   border: 1px solid #ddd;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
   // 位置变体
   &.position-top {
     top: 20px;
   }
-  
+
   &.position-center {
     top: 50%;
     transform: translate(-50%, -50%);
   }
-  
+
   &.position-bottom {
     bottom: 20px;
   }
-  
+
   // 主题变体
   &.theme-minimal {
     border: none;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-    
+
     .sync-progress-header {
       padding: 12px 16px;
       border-bottom: 1px solid #eee;
     }
-    
+
     .sync-progress-body {
       padding: 12px 16px;
     }
   }
-  
+
   &.theme-detailed {
     .sync-progress-body {
       padding: 20px;
     }
-    
+
     .progress-info {
       margin-top: 16px;
     }
   }
-  
+
   // 状态样式
   &.status-running {
     border-left: 4px solid var(--progress-primary-color);
   }
-  
+
   &.status-completed {
     border-left: 4px solid var(--progress-success-color);
   }
-  
+
   &.status-failed {
     border-left: 4px solid var(--progress-error-color);
   }
-  
+
   &.status-cancelled {
     border-left: 4px solid var(--progress-warning-color);
   }
@@ -115,15 +116,15 @@
 .sync-progress-icon {
   font-size: 16px;
   animation: spin 2s linear infinite;
-  
+
   .status-completed & {
     animation: none;
   }
-  
+
   .status-failed & {
     animation: none;
   }
-  
+
   .status-cancelled & {
     animation: none;
   }
@@ -143,7 +144,7 @@
   justify-content: center;
   border-radius: 50%;
   transition: background-color var(--progress-animation-duration);
-  
+
   &:hover {
     background-color: #eee;
   }
@@ -179,9 +180,9 @@
   border-radius: 4px;
   transition: width 0.3s ease-out;
   position: relative;
-  
+
   &.progress-active::after {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -195,11 +196,11 @@
     );
     animation: progress-shine 1.5s infinite;
   }
-  
+
   .status-completed & {
     background: var(--progress-success-color);
   }
-  
+
   .status-failed & {
     background: var(--progress-error-color);
   }
@@ -226,11 +227,11 @@
   color: var(--progress-primary-color);
   min-width: 40px;
   text-align: right;
-  
+
   .status-completed & {
     color: var(--progress-success-color);
   }
-  
+
   .status-failed & {
     color: var(--progress-error-color);
   }
@@ -287,7 +288,7 @@
     min-width: auto;
     max-width: none;
     transform: none;
-    
+
     &.position-center {
       top: 50%;
       left: 10px;
@@ -295,19 +296,19 @@
       transform: translateY(-50%);
     }
   }
-  
+
   .sync-progress-header,
   .sync-progress-body {
     padding-left: 16px;
     padding-right: 16px;
   }
-  
+
   .progress-bar-container {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
-  
+
   .progress-percentage {
     text-align: center;
     min-width: auto;
@@ -321,24 +322,24 @@
     border-color: #3c434a;
     color: #f0f0f1;
   }
-  
+
   .sync-progress-header {
     background: #23282d;
     border-bottom-color: #3c434a;
   }
-  
+
   .sync-progress-title,
   .progress-status {
     color: #f0f0f1;
   }
-  
+
   .progress-bar {
     background: #3c434a;
   }
-  
+
   .sync-progress-close {
     color: #a7aaad;
-    
+
     &:hover {
       background-color: #3c434a;
     }
@@ -350,11 +351,11 @@
   .notion-sync-progress-container {
     border: 2px solid #000;
   }
-  
+
   .progress-fill {
     background: #000;
   }
-  
+
   .progress-percentage {
     color: #000;
   }

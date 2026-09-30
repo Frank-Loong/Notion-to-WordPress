@@ -1,6 +1,6 @@
 /**
  * 同步进度UI管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有sync-progress-manager.js的UI功能完全迁移，包括：
  * - 进度条UI创建和管理
  * - 动画效果和状态显示
@@ -37,7 +37,7 @@ export interface ProgressUIData {
  */
 export class SyncProgressUI {
   private static instance: SyncProgressUI | null = null;
-  
+
   private container: HTMLElement | null = null;
   private progressFill: HTMLElement | null = null;
   private statusText: HTMLElement | null = null;
@@ -56,9 +56,9 @@ export class SyncProgressUI {
     if (SyncProgressUI.instance) {
       return SyncProgressUI.instance;
     }
-    
+
     SyncProgressUI.instance = this;
-    
+
     this.options = {
       title: '同步进度',
       syncType: '同步',
@@ -70,7 +70,7 @@ export class SyncProgressUI {
       closable: false,
       autoHide: true,
       autoHideDelay: 2000,
-      ...options
+      ...options,
     };
   }
 
@@ -101,13 +101,13 @@ export class SyncProgressUI {
 
     // 创建或更新UI
     this.createOrUpdateUI();
-    
+
     // 显示容器
     this.showContainer();
-    
+
     this.isVisible = true;
     emit('progress:ui:shown', { taskId, options: this.options });
-    
+
     console.log('📊 [进度UI] 已显示');
   }
 
@@ -118,7 +118,8 @@ export class SyncProgressUI {
     if (!this.isVisible || !this.container) return;
 
     // 添加淡出动画
-    this.container.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+    this.container.style.transition =
+      'opacity 0.3s ease-out, transform 0.3s ease-out';
     this.container.style.opacity = '0';
     this.container.style.transform = 'translateY(-10px)';
 
@@ -132,7 +133,7 @@ export class SyncProgressUI {
 
     this.isVisible = false;
     this.currentTaskId = null;
-    
+
     emit('progress:ui:hidden');
     console.log('📊 [进度UI] 已隐藏');
   }
@@ -170,14 +171,17 @@ export class SyncProgressUI {
 
     // 更新进度条动画
     this.updateProgressAnimation(data.percentage);
-    
+
     emit('progress:ui:updated', { data, taskId: this.currentTaskId });
   }
 
   /**
    * 设置状态
    */
-  setStatus(status: 'running' | 'completed' | 'failed' | 'cancelled', message?: string): void {
+  setStatus(
+    status: 'running' | 'completed' | 'failed' | 'cancelled',
+    message?: string
+  ): void {
     if (!this.isVisible || !this.container) return;
 
     // 更新图标
@@ -186,7 +190,7 @@ export class SyncProgressUI {
         running: '🔄',
         completed: '✅',
         failed: '❌',
-        cancelled: '⏹️'
+        cancelled: '⏹️',
       };
       this.iconElement.textContent = icons[status];
     }
@@ -197,7 +201,10 @@ export class SyncProgressUI {
     }
 
     // 更新容器样式
-    this.container.className = this.container.className.replace(/status-\w+/g, '');
+    this.container.className = this.container.className.replace(
+      /status-\w+/g,
+      ''
+    );
     this.container.classList.add(`status-${status}`);
 
     // 完成状态的特殊处理
@@ -211,13 +218,20 @@ export class SyncProgressUI {
     }
 
     // 自动隐藏
-    if (this.options.autoHide && (status === 'completed' || status === 'failed' || status === 'cancelled')) {
+    if (
+      this.options.autoHide &&
+      (status === 'completed' || status === 'failed' || status === 'cancelled')
+    ) {
       this.hideTimer = setTimeout(() => {
         this.hide();
       }, this.options.autoHideDelay);
     }
 
-    emit('progress:ui:status:changed', { status, message, taskId: this.currentTaskId });
+    emit('progress:ui:status:changed', {
+      status,
+      message,
+      taskId: this.currentTaskId,
+    });
   }
 
   /**
@@ -225,14 +239,16 @@ export class SyncProgressUI {
    */
   private createOrUpdateUI(): void {
     // 移除现有容器
-    const existingContainer = document.querySelector('.notion-sync-progress-container');
+    const existingContainer = document.querySelector(
+      '.notion-sync-progress-container'
+    );
     if (existingContainer) {
       existingContainer.remove();
     }
 
     // 创建新容器
     this.container = this.createElement();
-    
+
     // 查找插入位置
     const insertTarget = this.findInsertTarget();
     if (insertTarget) {
@@ -283,7 +299,9 @@ export class SyncProgressUI {
 
     // 绑定关闭按钮事件
     if (this.options.closable) {
-      const closeButton = container.querySelector('.sync-progress-close') as HTMLButtonElement;
+      const closeButton = container.querySelector(
+        '.sync-progress-close'
+      ) as HTMLButtonElement;
       if (closeButton) {
         closeButton.addEventListener('click', () => {
           this.hide();
@@ -303,7 +321,7 @@ export class SyncProgressUI {
       '.notion-wp-sync-actions',
       '.notion-wp-admin .wrap',
       '.wrap',
-      'body'
+      'body',
     ];
 
     for (const selector of selectors) {
@@ -326,7 +344,9 @@ export class SyncProgressUI {
     this.statusText = this.container.querySelector('.progress-status');
     this.percentageText = this.container.querySelector('.progress-percentage');
     this.etaText = this.container.querySelector('.progress-eta');
-    this.currentItemText = this.container.querySelector('.progress-current-item');
+    this.currentItemText = this.container.querySelector(
+      '.progress-current-item'
+    );
     this.iconElement = this.container.querySelector('.sync-progress-icon');
   }
 
@@ -344,7 +364,8 @@ export class SyncProgressUI {
     // 触发动画
     setTimeout(() => {
       if (this.container) {
-        this.container.style.transition = 'opacity 0.3s ease-out, transform 0.3s ease-out';
+        this.container.style.transition =
+          'opacity 0.3s ease-out, transform 0.3s ease-out';
         this.container.style.opacity = '1';
         this.container.style.transform = 'translateY(0)';
       }
@@ -370,10 +391,10 @@ export class SyncProgressUI {
    */
   private formatETA(eta: number): string {
     if (eta <= 0) return '';
-    
+
     const minutes = Math.floor(eta / 60);
     const seconds = Math.floor(eta % 60);
-    
+
     if (minutes > 0) {
       return `预计剩余: ${minutes}分${seconds}秒`;
     } else {
@@ -427,12 +448,12 @@ export class SyncProgressUI {
    */
   destroy(): void {
     this.hide();
-    
+
     if (this.hideTimer) {
       clearTimeout(this.hideTimer);
       this.hideTimer = null;
     }
-    
+
     SyncProgressUI.instance = null;
     emit('progress:ui:destroyed');
     console.log('📊 [进度UI] 已销毁');

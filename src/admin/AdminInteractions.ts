@@ -1,6 +1,6 @@
 /**
  * 管理界面交互系统 - 现代化TypeScript版本
- * 
+ *
  * 完全替代原有的admin-interactions.js，包括：
  * - 所有管理器的统一初始化和管理
  * - 全局事件处理和协调
@@ -10,7 +10,10 @@
 
 import { emit, on } from '../shared/core/EventBus';
 import { AdminUtils } from './utils/AdminUtils';
-import { SyncStatusManager, syncStatusManager } from './managers/SyncStatusManager';
+import {
+  SyncStatusManager,
+  syncStatusManager,
+} from './managers/SyncStatusManager';
 import { FormManager, formManager } from './managers/FormManager';
 import { StatsManager, statsManager } from './managers/StatsManager';
 import { showError, showInfo } from '../shared/utils/toast';
@@ -48,7 +51,7 @@ export class AdminInteractions {
       autoRefreshInterval: 30000,
       enableFormValidation: true,
       enableSyncStatusMonitoring: true,
-      ...config
+      ...config,
     };
 
     // 初始化管理器实例
@@ -84,12 +87,12 @@ export class AdminInteractions {
       this.setupErrorHandling();
       this.setupCompatibilityLayer();
       this.applyConfiguration();
-      
+
       this.initialized = true;
-      
+
       emit('admin:interactions:initialized');
       console.log('✅ [管理界面交互] 初始化完成');
-      
+
       // 显示初始化成功提示（仅在开发模式）
       if (process.env.NODE_ENV === 'development') {
         showInfo('管理界面交互系统已启动');
@@ -120,12 +123,12 @@ export class AdminInteractions {
     });
 
     // 全局键盘快捷键
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener('keydown', e => {
       this.handleGlobalKeyboard(e);
     });
 
     // 全局点击事件委托
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', e => {
       this.handleGlobalClick(e);
     });
 
@@ -159,20 +162,22 @@ export class AdminInteractions {
    */
   private setupErrorHandling(): void {
     // 全局错误捕获
-    window.addEventListener('error', (e) => {
+    window.addEventListener('error', e => {
       console.error('🚨 [全局错误]:', e.error);
-      
+
       // 只对我们的代码显示错误提示
-      if (e.filename?.includes('notion-to-wordpress') || 
-          e.error?.stack?.includes('notion-to-wordpress')) {
+      if (
+        e.filename?.includes('notion-to-wordpress') ||
+        e.error?.stack?.includes('notion-to-wordpress')
+      ) {
         showError('发生了一个错误，请刷新页面重试');
       }
     });
 
     // Promise 拒绝处理
-    window.addEventListener('unhandledrejection', (e) => {
+    window.addEventListener('unhandledrejection', e => {
       console.error('🚨 [未处理的Promise拒绝]:', e.reason);
-      
+
       // 防止默认的控制台错误
       e.preventDefault();
     });
@@ -186,7 +191,7 @@ export class AdminInteractions {
   private setupCompatibilityLayer(): void {
     // 为了向后兼容，在全局对象上暴露一些功能
     const globalNotionWp = (window as any).notionToWp || {};
-    
+
     // 暴露工具函数
     globalNotionWp.utils = {
       debounce: AdminUtils.debounce,
@@ -195,14 +200,14 @@ export class AdminInteractions {
       updateProgress: AdminUtils.updateProgress,
       hideProgress: AdminUtils.hideProgress,
       validateInput: AdminUtils.validateInput,
-      formatDateTime: AdminUtils.formatDateTime
+      formatDateTime: AdminUtils.formatDateTime,
     };
 
     // 暴露管理器实例
     globalNotionWp.managers = {
       syncStatus: this.syncStatusManager,
       form: this.formManager,
-      stats: this.statsManager
+      stats: this.statsManager,
     };
 
     // 暴露主实例
@@ -219,9 +224,11 @@ export class AdminInteractions {
   private applyConfiguration(): void {
     if (this.config.enableAutoRefresh) {
       this.statsManager.toggleAutoRefresh(true);
-      
+
       if (this.config.autoRefreshInterval) {
-        this.statsManager.setAutoRefreshInterval(this.config.autoRefreshInterval);
+        this.statsManager.setAutoRefreshInterval(
+          this.config.autoRefreshInterval
+        );
       }
     }
 
@@ -238,7 +245,9 @@ export class AdminInteractions {
   private handleGlobalKeyboard(e: KeyboardEvent): void {
     // Ctrl/Cmd + S 保存设置
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-      const settingsForm = document.getElementById('notion-to-wordpress-settings-form') as HTMLFormElement;
+      const settingsForm = document.getElementById(
+        'notion-to-wordpress-settings-form'
+      ) as HTMLFormElement;
       if (settingsForm) {
         e.preventDefault();
         settingsForm.dispatchEvent(new Event('submit'));
@@ -260,7 +269,7 @@ export class AdminInteractions {
    */
   private handleGlobalClick(e: Event): void {
     const target = e.target as HTMLElement;
-    
+
     // 处理带有特殊数据属性的元素
     if (target.dataset.notionAction) {
       e.preventDefault();
@@ -276,15 +285,15 @@ export class AdminInteractions {
       case 'refresh-stats':
         this.statsManager.fetchStats();
         break;
-        
+
       case 'check-sync-status':
         this.syncStatusManager.checkSyncStatus();
         break;
-        
+
       case 'clear-sync-status':
         this.syncStatusManager.clearSyncStatus();
         break;
-        
+
       default:
         console.warn('🤷 [数据动作] 未知动作:', action);
     }
@@ -345,9 +354,9 @@ export class AdminInteractions {
       managersActive: {
         syncStatus: this.syncStatusManager.hasActivSync(),
         form: true, // FormManager 总是活跃的
-        stats: this.statsManager.isAutoRefreshActive()
+        stats: this.statsManager.isAutoRefreshActive(),
       },
-      config: this.config
+      config: this.config,
     };
   }
 
@@ -363,10 +372,10 @@ export class AdminInteractions {
       this.syncStatusManager.destroy();
       this.formManager.destroy();
       this.statsManager.destroy();
-      
+
       this.initialized = false;
       AdminInteractions.instance = null;
-      
+
       emit('admin:interactions:destroyed');
       console.log('✅ [管理界面交互] 清理完成');
     } catch (error) {

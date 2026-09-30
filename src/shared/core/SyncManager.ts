@@ -44,7 +44,7 @@ export class SyncManager {
     if (this.isRunning()) {
       return {
         success: false,
-        message: '已有同步任务在运行中'
+        message: '已有同步任务在运行中',
       };
     }
 
@@ -61,13 +61,13 @@ export class SyncManager {
         sync_id: syncId,
         incremental: options.incremental || false,
         check_deletions: options.checkDeletions || false,
-        batch_size: options.batchSize || 10
+        batch_size: options.batchSize || 10,
       });
 
       if (response.data.success) {
         // 开始状态监控
         this.startStatusMonitoring();
-        
+
         // 尝试建立SSE连接
         this.setupSSEConnection(syncId);
 
@@ -76,20 +76,22 @@ export class SyncManager {
         return {
           success: true,
           message: '同步已开始',
-          data: response.data.data
+          data: response.data.data,
         };
       } else {
-        this.handleSyncError(new Error(response.data.message || '同步启动失败'));
+        this.handleSyncError(
+          new Error(response.data.message || '同步启动失败')
+        );
         return {
           success: false,
-          message: response.data.message || '同步启动失败'
+          message: response.data.message || '同步启动失败',
         };
       }
     } catch (error) {
       this.handleSyncError(error as Error);
       return {
         success: false,
-        message: (error as Error).message || '同步请求失败'
+        message: (error as Error).message || '同步请求失败',
       };
     }
   }
@@ -101,33 +103,33 @@ export class SyncManager {
     if (!this.currentSyncId) {
       return {
         success: false,
-        message: '没有正在运行的同步任务'
+        message: '没有正在运行的同步任务',
       };
     }
 
     try {
       const response = await post('notion_to_wordpress_stop_sync', {
-        sync_id: this.currentSyncId
+        sync_id: this.currentSyncId,
       });
 
       if (response.data.success) {
         this.cleanup();
         showInfo('同步已停止');
-        
+
         return {
           success: true,
-          message: '同步已停止'
+          message: '同步已停止',
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '停止同步失败'
+          message: response.data.message || '停止同步失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '停止同步请求失败'
+        message: (error as Error).message || '停止同步请求失败',
       };
     }
   }
@@ -139,39 +141,39 @@ export class SyncManager {
     if (!this.currentSyncId) {
       return {
         success: false,
-        message: '没有正在运行的同步任务'
+        message: '没有正在运行的同步任务',
       };
     }
 
     try {
       const response = await post('notion_to_wordpress_pause_sync', {
-        sync_id: this.currentSyncId
+        sync_id: this.currentSyncId,
       });
 
       if (response.data.success) {
         appStateManager.setState({
           sync: {
             ...appStateManager.getState().sync,
-            status: 'paused'
-          }
+            status: 'paused',
+          },
         });
 
         showInfo('同步已暂停');
-        
+
         return {
           success: true,
-          message: '同步已暂停'
+          message: '同步已暂停',
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '暂停同步失败'
+          message: response.data.message || '暂停同步失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '暂停同步请求失败'
+        message: (error as Error).message || '暂停同步请求失败',
       };
     }
   }
@@ -183,39 +185,39 @@ export class SyncManager {
     if (!this.currentSyncId) {
       return {
         success: false,
-        message: '没有暂停的同步任务'
+        message: '没有暂停的同步任务',
       };
     }
 
     try {
       const response = await post('notion_to_wordpress_resume_sync', {
-        sync_id: this.currentSyncId
+        sync_id: this.currentSyncId,
       });
 
       if (response.data.success) {
         appStateManager.setState({
           sync: {
             ...appStateManager.getState().sync,
-            status: 'running'
-          }
+            status: 'running',
+          },
         });
 
         showInfo('同步已恢复');
-        
+
         return {
           success: true,
-          message: '同步已恢复'
+          message: '同步已恢复',
         };
       } else {
         return {
           success: false,
-          message: response.data.message || '恢复同步失败'
+          message: response.data.message || '恢复同步失败',
         };
       }
     } catch (error) {
       return {
         success: false,
-        message: (error as Error).message || '恢复同步请求失败'
+        message: (error as Error).message || '恢复同步请求失败',
       };
     }
   }
@@ -230,7 +232,7 @@ export class SyncManager {
 
     try {
       const response = await post('notion_to_wordpress_get_sync_status', {
-        sync_id: this.currentSyncId
+        sync_id: this.currentSyncId,
       });
 
       if (response.data.success) {
@@ -271,7 +273,10 @@ export class SyncManager {
 
       // 同步完成或错误时清理
       if (syncState.status === 'completed' || syncState.status === 'error') {
-        if (prevSyncState.status === 'running' || prevSyncState.status === 'paused') {
+        if (
+          prevSyncState.status === 'running' ||
+          prevSyncState.status === 'paused'
+        ) {
           setTimeout(() => {
             this.cleanup();
           }, 2000); // 2秒后清理
@@ -314,7 +319,7 @@ export class SyncManager {
    */
   private startStatusMonitoring(): void {
     this.stopStatusMonitoring();
-    
+
     this.statusCheckTimer = setInterval(() => {
       this.checkSyncStatus();
     }, this.checkInterval);
@@ -366,7 +371,7 @@ export class SyncManager {
       } else {
         this.handleStatusCheckError();
       }
-    } catch (error) {
+    } catch {
       this.handleStatusCheckError();
     }
   }
@@ -376,7 +381,7 @@ export class SyncManager {
    */
   private handleStatusCheckError(): void {
     this.retryCount++;
-    
+
     if (this.retryCount >= this.maxRetries) {
       console.error('状态检查失败次数过多，停止监控');
       this.stopStatusMonitoring();
@@ -397,7 +402,7 @@ export class SyncManager {
       const sseUrl = `${window.ajaxurl}?action=notion_to_wordpress_sync_sse&sync_id=${syncId}&nonce=${window.notionToWp?.nonce}`;
       this.sseConnection = new EventSource(sseUrl);
 
-      this.sseConnection.onmessage = (event) => {
+      this.sseConnection.onmessage = event => {
         try {
           const data = JSON.parse(event.data);
           this.handleSSEMessage(data);
@@ -406,7 +411,7 @@ export class SyncManager {
         }
       };
 
-      this.sseConnection.onerror = (error) => {
+      this.sseConnection.onerror = error => {
         console.error('SSE连接错误:', error);
         this.closeSSEConnection();
       };
@@ -423,7 +428,11 @@ export class SyncManager {
   private handleSSEMessage(data: any): void {
     switch (data.type) {
       case 'progress':
-        appStateManager.updateSyncProgress(data.progress, data.total, data.current_item);
+        appStateManager.updateSyncProgress(
+          data.progress,
+          data.total,
+          data.current_item
+        );
         break;
       case 'complete':
         this.handleSyncComplete();
@@ -464,12 +473,15 @@ export class SyncManager {
       id: `error_${Date.now()}`,
       message: error.message,
       code: 'SYNC_ERROR',
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     appStateManager.syncError(syncError);
     showError(`同步失败: ${error.message}`);
-    eventBus.emit('sync:error', { error: syncError, syncId: this.currentSyncId });
+    eventBus.emit('sync:error', {
+      error: syncError,
+      syncId: this.currentSyncId,
+    });
   }
 
   /**
@@ -480,10 +492,10 @@ export class SyncManager {
     this.closeSSEConnection();
     this.currentSyncId = null;
     this.retryCount = 0;
-    
+
     // 清理存储的状态
     appStateManager.clearStoredState();
-    
+
     console.log('同步管理器已清理');
   }
 

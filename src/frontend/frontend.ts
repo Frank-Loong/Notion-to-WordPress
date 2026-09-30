@@ -76,19 +76,19 @@ class FrontendApp {
   private initLazyLoading(): void {
     if ('IntersectionObserver' in window) {
       const lazyImages = document.querySelectorAll('img[data-src]');
-      
+
       if (lazyImages.length > 0) {
-        const imageObserver = new IntersectionObserver((entries) => {
+        const imageObserver = new IntersectionObserver(entries => {
           entries.forEach(entry => {
             if (entry.isIntersecting) {
               const img = entry.target as HTMLImageElement;
               const src = img.getAttribute('data-src');
-              
+
               if (src) {
                 img.src = src;
                 img.removeAttribute('data-src');
                 imageObserver.unobserve(img);
-                
+
                 emit('frontend:image:loaded', { img, src });
               }
             }
@@ -106,10 +106,10 @@ class FrontendApp {
    */
   private initMathRendering(): void {
     const mathElements = document.querySelectorAll('.notion-equation');
-    
+
     if (mathElements.length > 0) {
       console.log(`Found ${mathElements.length} math equations`);
-      
+
       // 动态加载KaTeX（如果需要）
       this.loadMathRenderer().then(() => {
         mathElements.forEach(element => {
@@ -124,7 +124,7 @@ class FrontendApp {
    */
   private async loadMathRenderer(): Promise<void> {
     // 这里将动态加载KaTeX或其他数学渲染库
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       // 模拟异步加载
       setTimeout(resolve, 100);
     });
@@ -165,7 +165,7 @@ class FrontendApp {
       scrollTimeout = setTimeout(() => {
         emit('frontend:scroll', {
           scrollY: window.scrollY,
-          scrollX: window.scrollX
+          scrollX: window.scrollX,
         });
       }, 100);
     });
@@ -174,7 +174,7 @@ class FrontendApp {
     window.addEventListener('resize', () => {
       emit('frontend:resize', {
         width: window.innerWidth,
-        height: window.innerHeight
+        height: window.innerHeight,
       });
     });
   }

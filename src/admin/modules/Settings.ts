@@ -64,7 +64,11 @@ export class SettingsModule extends BaseComponent {
     // 绑定测试连接按钮事件
     const testButton = this.$('#test-connection');
     if (testButton) {
-      this.addEventListener(testButton, 'click', this.handleTestConnection.bind(this));
+      this.addEventListener(
+        testButton,
+        'click',
+        this.handleTestConnection.bind(this)
+      );
     }
   }
 
@@ -83,7 +87,7 @@ export class SettingsModule extends BaseComponent {
         validateOnInput: true,
         validateOnBlur: true,
         autoSave: true,
-        autoSaveDelay: 3000
+        autoSaveDelay: 3000,
       });
 
       // 监听表单事件
@@ -98,7 +102,7 @@ export class SettingsModule extends BaseComponent {
   private async loadSettings(): Promise<void> {
     try {
       const response = await post('notion_to_wordpress_get_settings', {});
-      
+
       if (response.data.success) {
         this.settings = response.data.data;
         this.populateForm();
@@ -172,7 +176,7 @@ export class SettingsModule extends BaseComponent {
    */
   private async handleAutoSave(_event: any, data: any): Promise<void> {
     const formData = this.extractFormData(data.formData);
-    
+
     try {
       await this.saveSettings(formData, true);
       console.log('Settings auto-saved');
@@ -192,12 +196,16 @@ export class SettingsModule extends BaseComponent {
     return {
       api_key: this.formComponent.getFieldValue('api_key'),
       database_id: this.formComponent.getFieldValue('database_id'),
-      sync_interval: parseInt(this.formComponent.getFieldValue('sync_interval')) || 60,
+      sync_interval:
+        parseInt(this.formComponent.getFieldValue('sync_interval')) || 60,
       auto_sync: this.formComponent.getFieldValue('auto_sync') === 'true',
-      delete_protection: this.formComponent.getFieldValue('delete_protection') === 'true',
-      image_optimization: this.formComponent.getFieldValue('image_optimization') === 'true',
-      cache_enabled: this.formComponent.getFieldValue('cache_enabled') === 'true',
-      debug_mode: this.formComponent.getFieldValue('debug_mode') === 'true'
+      delete_protection:
+        this.formComponent.getFieldValue('delete_protection') === 'true',
+      image_optimization:
+        this.formComponent.getFieldValue('image_optimization') === 'true',
+      cache_enabled:
+        this.formComponent.getFieldValue('cache_enabled') === 'true',
+      debug_mode: this.formComponent.getFieldValue('debug_mode') === 'true',
     };
   }
 
@@ -206,32 +214,38 @@ export class SettingsModule extends BaseComponent {
    */
   private extractFormData(formData: FormData): SettingsData {
     return {
-      api_key: formData.get('api_key') as string || '',
-      database_id: formData.get('database_id') as string || '',
+      api_key: (formData.get('api_key') as string) || '',
+      database_id: (formData.get('database_id') as string) || '',
       sync_interval: parseInt(formData.get('sync_interval') as string) || 60,
       auto_sync: formData.get('auto_sync') === 'true',
       delete_protection: formData.get('delete_protection') === 'true',
       image_optimization: formData.get('image_optimization') === 'true',
       cache_enabled: formData.get('cache_enabled') === 'true',
-      debug_mode: formData.get('debug_mode') === 'true'
+      debug_mode: formData.get('debug_mode') === 'true',
     };
   }
 
   /**
    * 保存设置
    */
-  private async saveSettings(settings: SettingsData, silent = false): Promise<void> {
+  private async saveSettings(
+    settings: SettingsData,
+    silent = false
+  ): Promise<void> {
     try {
-      const response = await post('notion_to_wordpress_save_settings', settings);
-      
+      const response = await post(
+        'notion_to_wordpress_save_settings',
+        settings
+      );
+
       if (response.data.success) {
         this.settings = settings;
         this.updateSettingsDisplay();
-        
+
         if (!silent) {
           showSuccess('设置保存成功');
         }
-        
+
         // 发送设置更新事件
         this.emit('settings:updated', { settings });
       } else {
@@ -258,7 +272,7 @@ export class SettingsModule extends BaseComponent {
 
     try {
       const response = await post('notion_to_wordpress_reset_settings', {});
-      
+
       if (response.data.success) {
         this.settings = response.data.data;
         this.populateForm();
@@ -286,14 +300,14 @@ export class SettingsModule extends BaseComponent {
 
     const button = event.target as HTMLButtonElement;
     const originalText = button.textContent;
-    
+
     button.disabled = true;
     button.textContent = '测试中...';
 
     try {
       const response = await post('notion_to_wordpress_test_connection', {
         api_key: this.settings.api_key,
-        database_id: this.settings.database_id
+        database_id: this.settings.database_id,
       });
 
       if (response.data.success) {
@@ -320,12 +334,15 @@ export class SettingsModule extends BaseComponent {
   /**
    * 更新特定设置
    */
-  public async updateSetting(key: keyof SettingsData, value: any): Promise<void> {
+  public async updateSetting(
+    key: keyof SettingsData,
+    value: any
+  ): Promise<void> {
     if (!this.settings) return;
 
     const updatedSettings = {
       ...this.settings,
-      [key]: value
+      [key]: value,
     };
 
     await this.saveSettings(updatedSettings);
@@ -333,9 +350,11 @@ export class SettingsModule extends BaseComponent {
 }
 
 // 导出模块创建函数
-export default function createSettingsModule(element?: HTMLElement): SettingsModule {
+export default function createSettingsModule(
+  element?: HTMLElement
+): SettingsModule {
   return new SettingsModule({
     element,
-    selector: element ? undefined : '#settings-container'
+    selector: element ? undefined : '#settings-container',
   });
 }

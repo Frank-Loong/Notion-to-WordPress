@@ -15,19 +15,19 @@
   --error-border-radius: 6px;
   --error-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --error-transition: all 0.2s ease;
-  
+
   // 严重性颜色
   --error-critical-color: #dc3545;
   --error-high-color: #fd7e14;
   --error-medium-color: #ffc107;
   --error-low-color: #6c757d;
-  
+
   // 严重性背景色
   --error-critical-bg: #f8d7da;
   --error-high-bg: #fff3cd;
   --error-medium-bg: #fff3cd;
   --error-low-bg: #f8f9fa;
-  
+
   // 类型颜色
   --error-auth-color: #dc3545;
   --error-network-color: #17a2b8;
@@ -378,7 +378,7 @@
       padding: 8px;
       margin: 4px 0 0 0;
       overflow-x: auto;
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-family: "Consolas", "Monaco", "Courier New", monospace;
       white-space: pre-wrap;
       word-break: break-word;
     }

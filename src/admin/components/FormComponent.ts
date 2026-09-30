@@ -48,7 +48,7 @@ export class FormComponent extends BaseComponent {
       submitOnEnter: false,
       autoSave: false,
       autoSaveDelay: 2000,
-      ...options
+      ...options,
     };
 
     this.throttledValidate = throttle(this.validateField.bind(this), 300);
@@ -87,11 +87,15 @@ export class FormComponent extends BaseComponent {
     // 绑定字段事件
     this.fields.forEach((field, _name) => {
       if (this.formOptions.validateOnInput) {
-        this.addEventListener(field.element, 'input', () => this.throttledValidate(field));
+        this.addEventListener(field.element, 'input', () =>
+          this.throttledValidate(field)
+        );
       }
 
       if (this.formOptions.validateOnBlur) {
-        this.addEventListener(field.element, 'blur', () => this.validateField(field));
+        this.addEventListener(field.element, 'blur', () =>
+          this.validateField(field)
+        );
       }
 
       if (this.formOptions.submitOnEnter) {
@@ -105,7 +109,9 @@ export class FormComponent extends BaseComponent {
       }
 
       if (this.formOptions.autoSave) {
-        this.addEventListener(field.element, 'input', () => this.scheduleAutoSave());
+        this.addEventListener(field.element, 'input', () =>
+          this.scheduleAutoSave()
+        );
       }
     });
   }
@@ -121,20 +127,23 @@ export class FormComponent extends BaseComponent {
     if (!this.element) return;
 
     const inputs = this.element.querySelectorAll('input, select, textarea');
-    
+
     inputs.forEach(input => {
-      const element = input as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+      const element = input as
+        | HTMLInputElement
+        | HTMLSelectElement
+        | HTMLTextAreaElement;
       const name = element.name || element.id;
-      
+
       if (name) {
         const rules = this.parseValidationRules(element);
-        
+
         this.fields.set(name, {
           name,
           element,
           rules,
           isValid: true,
-          errorMessage: ''
+          errorMessage: '',
         });
       }
     });
@@ -145,12 +154,12 @@ export class FormComponent extends BaseComponent {
    */
   private parseValidationRules(element: HTMLElement): ValidationRule[] {
     const rules: ValidationRule[] = [];
-    
+
     // 从data属性解析规则
     const validationAttr = element.getAttribute('data-validation');
     if (validationAttr) {
       const ruleTypes = validationAttr.split('|');
-      
+
       ruleTypes.forEach(ruleType => {
         switch (ruleType) {
           case 'required':
@@ -195,19 +204,25 @@ export class FormComponent extends BaseComponent {
    * 创建验证反馈元素
    */
   private createValidationFeedback(field: FormField): void {
-    const container = field.element.closest('.form-field') || field.element.parentElement;
+    const container =
+      field.element.closest('.form-field') || field.element.parentElement;
     if (!container) return;
 
     // 检查是否已存在反馈元素
-    let feedback = container.querySelector('.validation-feedback') as HTMLElement;
-    
+    let feedback = container.querySelector(
+      '.validation-feedback'
+    ) as HTMLElement;
+
     if (!feedback) {
       feedback = document.createElement('div');
       feedback.className = 'validation-feedback';
       container.appendChild(feedback);
     }
 
-    field.element.setAttribute('data-feedback-id', feedback.id || `feedback-${field.name}`);
+    field.element.setAttribute(
+      'data-feedback-id',
+      feedback.id || `feedback-${field.name}`
+    );
   }
 
   /**
@@ -220,10 +235,11 @@ export class FormComponent extends BaseComponent {
 
     for (const rule of field.rules) {
       const result = this.applyValidationRule(value, rule);
-      
+
       if (result !== true) {
         isValid = false;
-        errorMessage = typeof result === 'string' ? result : rule.message || '验证失败';
+        errorMessage =
+          typeof result === 'string' ? result : rule.message || '验证失败';
         break;
       }
     }
@@ -232,21 +248,31 @@ export class FormComponent extends BaseComponent {
     field.errorMessage = errorMessage;
 
     this.updateFieldValidationState(field);
-    
+
     return isValid;
   }
 
   /**
    * 应用验证规则
    */
-  private applyValidationRule(value: string, rule: ValidationRule): boolean | string {
+  private applyValidationRule(
+    value: string,
+    rule: ValidationRule
+  ): boolean | string {
     switch (rule.type) {
       case 'required':
         return value.trim().length > 0 || rule.message || '此字段为必填项';
       case 'email':
-        return !value || isValidEmail(value) || rule.message || '请输入有效的邮箱地址';
+        return (
+          !value ||
+          isValidEmail(value) ||
+          rule.message ||
+          '请输入有效的邮箱地址'
+        );
       case 'url':
-        return !value || isValidUrl(value) || rule.message || '请输入有效的URL地址';
+        return (
+          !value || isValidUrl(value) || rule.message || '请输入有效的URL地址'
+        );
       case 'custom':
         return rule.validator ? rule.validator(value) : true;
       default:
@@ -259,15 +285,17 @@ export class FormComponent extends BaseComponent {
    */
   private updateFieldValidationState(field: FormField): void {
     const { element, isValid, errorMessage } = field;
-    
+
     // 更新字段样式
     removeClass(element, 'valid', 'invalid');
     addClass(element, isValid ? 'valid' : 'invalid');
 
     // 更新反馈信息
     const container = element.closest('.form-field') || element.parentElement;
-    const feedback = container?.querySelector('.validation-feedback') as HTMLElement;
-    
+    const feedback = container?.querySelector(
+      '.validation-feedback'
+    ) as HTMLElement;
+
     if (feedback) {
       feedback.textContent = errorMessage;
       removeClass(feedback, 'success', 'error');
@@ -335,7 +363,7 @@ export class FormComponent extends BaseComponent {
    */
   private async submit(): Promise<void> {
     const formData = this.getFormData();
-    
+
     // 发送提交事件
     this.emit('form:submit', { formData, component: this });
 
@@ -355,7 +383,7 @@ export class FormComponent extends BaseComponent {
 
     const response = await fetch(action, {
       method,
-      body: formData
+      body: formData,
     });
 
     const result = await response.json();
@@ -376,7 +404,7 @@ export class FormComponent extends BaseComponent {
 
     this.fields.forEach(field => {
       const { name, element } = field;
-      
+
       if (element instanceof HTMLInputElement) {
         if (element.type === 'checkbox' || element.type === 'radio') {
           if (element.checked) {
@@ -403,25 +431,28 @@ export class FormComponent extends BaseComponent {
    * 设置提交按钮状态
    */
   private setSubmitButtonState(loading: boolean): void {
-    const submitButton = this.$('button[type="submit"], input[type="submit"]') as HTMLButtonElement;
-    
+    const submitButton = this.$(
+      'button[type="submit"], input[type="submit"]'
+    ) as HTMLButtonElement;
+
     if (submitButton) {
       if (loading) {
         submitButton.disabled = true;
         addClass(submitButton, 'loading');
-        
+
         const originalText = submitButton.textContent || submitButton.value;
         submitButton.setAttribute('data-original-text', originalText);
-        
+
         if (submitButton.tagName === 'BUTTON') {
-          submitButton.innerHTML = '<span class="spinner is-active"></span> 保存中...';
+          submitButton.innerHTML =
+            '<span class="spinner is-active"></span> 保存中...';
         } else {
           submitButton.value = '保存中...';
         }
       } else {
         submitButton.disabled = false;
         removeClass(submitButton, 'loading');
-        
+
         const originalText = submitButton.getAttribute('data-original-text');
         if (originalText) {
           if (submitButton.tagName === 'BUTTON') {
@@ -439,7 +470,7 @@ export class FormComponent extends BaseComponent {
    */
   private scheduleAutoSave(): void {
     this.clearAutoSaveTimer();
-    
+
     this.autoSaveTimer = setTimeout(() => {
       this.autoSave();
     }, this.formOptions.autoSaveDelay);

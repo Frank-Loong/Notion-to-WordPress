@@ -1,6 +1,6 @@
 /**
  * 数据库记录管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有admin-interactions.js的数据库管理功能完全迁移，包括：
  * - 数据库记录的获取和显示
  * - 分页和搜索功能
@@ -83,7 +83,7 @@ export interface DatabaseState {
  */
 export class DatabaseRecordManager {
   private static instance: DatabaseRecordManager | null = null;
-  
+
   private options!: Required<DatabaseRecordManagerOptions>;
   private databases = new Map<string, DatabaseState>();
   private refreshTimers = new Map<string, NodeJS.Timeout>();
@@ -93,9 +93,9 @@ export class DatabaseRecordManager {
     if (DatabaseRecordManager.instance) {
       return DatabaseRecordManager.instance;
     }
-    
+
     DatabaseRecordManager.instance = this;
-    
+
     this.options = {
       pageSize: 20,
       enableSearch: true,
@@ -103,16 +103,18 @@ export class DatabaseRecordManager {
       enableSort: true,
       autoRefresh: false,
       refreshInterval: 30000, // 30秒
-      ...options
+      ...options,
     };
-    
+
     this.init();
   }
 
   /**
    * 获取单例实例
    */
-  static getInstance(options?: DatabaseRecordManagerOptions): DatabaseRecordManager {
+  static getInstance(
+    options?: DatabaseRecordManagerOptions
+  ): DatabaseRecordManager {
     if (!DatabaseRecordManager.instance) {
       DatabaseRecordManager.instance = new DatabaseRecordManager(options);
     }
@@ -124,7 +126,7 @@ export class DatabaseRecordManager {
    */
   private init(): void {
     this.setupEventListeners();
-    
+
     console.log('📊 [数据库记录管理器] 已初始化');
     emit('database:record:manager:initialized');
   }
@@ -152,26 +154,29 @@ export class DatabaseRecordManager {
    * 获取数据库记录
    */
   async getDatabaseRecords(
-    databaseId: string, 
+    databaseId: string,
     query: Partial<DatabaseQuery> = {}
   ): Promise<DatabaseRecord[]> {
     const finalQuery: DatabaseQuery = {
       database_id: databaseId,
       page_size: this.options.pageSize,
-      ...query
+      ...query,
     };
 
     this.currentQuery.set(databaseId, finalQuery);
-    
+
     // 更新状态为加载中
     this.updateDatabaseState(databaseId, { loading: true, error: undefined });
 
     try {
-      const response = await post('notion_to_wordpress_get_database_records', finalQuery);
-      
+      const response = await post(
+        'notion_to_wordpress_get_database_records',
+        finalQuery
+      );
+
       if (response && response.data) {
         const { records, has_more, next_cursor, total_count } = response.data;
-        
+
         // 更新状态
         this.updateDatabaseState(databaseId, {
           loading: false,
@@ -179,13 +184,13 @@ export class DatabaseRecordManager {
           totalCount: total_count || 0,
           hasMore: has_more || false,
           nextCursor: next_cursor,
-          error: undefined
+          error: undefined,
         });
 
-        emit('database:records:loaded', { 
-          databaseId, 
-          records: records || [], 
-          totalCount: total_count || 0 
+        emit('database:records:loaded', {
+          databaseId,
+          records: records || [],
+          totalCount: total_count || 0,
         });
 
         return records || [];
@@ -194,10 +199,10 @@ export class DatabaseRecordManager {
       }
     } catch (error) {
       console.error('获取数据库记录失败:', error);
-      
+
       this.updateDatabaseState(databaseId, {
         loading: false,
-        error: (error as Error).message
+        error: (error as Error).message,
       });
 
       emit('database:records:error', { databaseId, error });
@@ -211,7 +216,7 @@ export class DatabaseRecordManager {
   async loadMoreRecords(databaseId: string): Promise<DatabaseRecord[]> {
     const state = this.databases.get(databaseId);
     const query = this.currentQuery.get(databaseId);
-    
+
     if (!state || !query || !state.hasMore || state.loading) {
       return [];
     }
@@ -219,27 +224,30 @@ export class DatabaseRecordManager {
     try {
       const moreQuery = {
         ...query,
-        start_cursor: state.nextCursor
+        start_cursor: state.nextCursor,
       };
 
-      const response = await post('notion_to_wordpress_get_database_records', moreQuery);
-      
+      const response = await post(
+        'notion_to_wordpress_get_database_records',
+        moreQuery
+      );
+
       if (response && response.data) {
         const { records, has_more, next_cursor } = response.data;
-        
+
         // 合并记录
         const allRecords = [...state.records, ...(records || [])];
-        
+
         this.updateDatabaseState(databaseId, {
           records: allRecords,
           hasMore: has_more || false,
-          nextCursor: next_cursor
+          nextCursor: next_cursor,
         });
 
-        emit('database:records:more:loaded', { 
-          databaseId, 
-          newRecords: records || [], 
-          allRecords 
+        emit('database:records:more:loaded', {
+          databaseId,
+          newRecords: records || [],
+          allRecords,
         });
 
         return records || [];
@@ -257,8 +265,8 @@ export class DatabaseRecordManager {
    * 搜索记录
    */
   async searchRecords(
-    databaseId: string, 
-    searchTerm: string, 
+    databaseId: string,
+    searchTerm: string,
     searchProperty?: string
   ): Promise<DatabaseRecord[]> {
     if (!this.options.enableSearch) {
@@ -269,11 +277,11 @@ export class DatabaseRecordManager {
     const filter: DatabaseFilter = {
       property: searchProperty || 'title',
       condition: 'contains',
-      value: searchTerm
+      value: searchTerm,
     };
 
     return this.getDatabaseRecords(databaseId, {
-      filter: [filter]
+      filter: [filter],
     });
   }
 
@@ -281,7 +289,7 @@ export class DatabaseRecordManager {
    * 过滤记录
    */
   async filterRecords(
-    databaseId: string, 
+    databaseId: string,
     filters: DatabaseFilter[]
   ): Promise<DatabaseRecord[]> {
     if (!this.options.enableFilter) {
@@ -290,7 +298,7 @@ export class DatabaseRecordManager {
     }
 
     return this.getDatabaseRecords(databaseId, {
-      filter: filters
+      filter: filters,
     });
   }
 
@@ -298,7 +306,7 @@ export class DatabaseRecordManager {
    * 排序记录
    */
   async sortRecords(
-    databaseId: string, 
+    databaseId: string,
     sorts: DatabaseSort[]
   ): Promise<DatabaseRecord[]> {
     if (!this.options.enableSort) {
@@ -307,7 +315,7 @@ export class DatabaseRecordManager {
     }
 
     return this.getDatabaseRecords(databaseId, {
-      sorts: sorts
+      sorts: sorts,
     });
   }
 
@@ -316,14 +324,14 @@ export class DatabaseRecordManager {
    */
   async refreshDatabase(databaseId: string): Promise<void> {
     const query = this.currentQuery.get(databaseId);
-    
+
     if (query) {
       // 重置分页
       const refreshQuery = {
         ...query,
-        start_cursor: undefined
+        start_cursor: undefined,
       };
-      
+
       await this.getDatabaseRecords(databaseId, refreshQuery);
       showInfo('数据库记录已刷新');
     }
@@ -333,7 +341,7 @@ export class DatabaseRecordManager {
    * 刷新所有数据库
    */
   async refreshAllDatabases(): Promise<void> {
-    const promises = Array.from(this.databases.keys()).map(databaseId => 
+    const promises = Array.from(this.databases.keys()).map(databaseId =>
       this.refreshDatabase(databaseId).catch(error => {
         console.error(`刷新数据库 ${databaseId} 失败:`, error);
       })
@@ -359,13 +367,16 @@ export class DatabaseRecordManager {
   /**
    * 更新数据库状态
    */
-  private updateDatabaseState(databaseId: string, updates: Partial<DatabaseState>): void {
+  private updateDatabaseState(
+    databaseId: string,
+    updates: Partial<DatabaseState>
+  ): void {
     const currentState = this.databases.get(databaseId) || {
       loading: false,
       records: [],
       totalCount: 0,
       currentPage: 1,
-      hasMore: false
+      hasMore: false,
     };
 
     const newState = { ...currentState, ...updates };
@@ -410,7 +421,7 @@ export class DatabaseRecordManager {
    * 停止所有自动刷新
    */
   stopAllAutoRefresh(): void {
-    this.refreshTimers.forEach((timer) => {
+    this.refreshTimers.forEach(timer => {
       clearInterval(timer);
     });
     this.refreshTimers.clear();
@@ -423,7 +434,7 @@ export class DatabaseRecordManager {
     this.databases.delete(databaseId);
     this.currentQuery.delete(databaseId);
     this.stopAutoRefresh(databaseId);
-    
+
     emit('database:state:cleared', { databaseId });
   }
 
@@ -434,7 +445,7 @@ export class DatabaseRecordManager {
     this.databases.clear();
     this.currentQuery.clear();
     this.stopAllAutoRefresh();
-    
+
     emit('database:all:states:cleared');
   }
 
@@ -459,11 +470,11 @@ export class DatabaseRecordManager {
   destroy(): void {
     this.stopAllAutoRefresh();
     this.clearAllStates();
-    
+
     // 清理事件监听器
     document.removeEventListener('visibilitychange', this.refreshAllDatabases);
     window.removeEventListener('focus', this.refreshAllDatabases);
-    
+
     DatabaseRecordManager.instance = null;
     emit('database:record:manager:destroyed');
     console.log('📊 [数据库记录管理器] 已销毁');

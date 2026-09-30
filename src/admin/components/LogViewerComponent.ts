@@ -1,6 +1,6 @@
 /**
  * 日志查看器组件 - 现代化TypeScript版本
- * 
+ *
  * 提供日志查看的完整用户界面，包括：
  * - 日志文件选择
  * - 实时日志显示
@@ -28,14 +28,14 @@ export interface LogViewerComponentOptions extends ComponentOptions {
  */
 export class LogViewerComponent extends BaseComponent {
   protected options!: LogViewerComponentOptions;
-  
+
   protected defaultOptions: LogViewerComponentOptions = {
     viewMode: 'structured',
     enableAutoRefresh: true,
     enableExport: true,
     enableClear: true,
     maxDisplayEntries: 500,
-    refreshInterval: 10000
+    refreshInterval: 10000,
   };
 
   private elements: {
@@ -71,9 +71,9 @@ export class LogViewerComponent extends BaseComponent {
         enableExport: true,
         enableClear: true,
         maxDisplayEntries: 500,
-        refreshInterval: 10000
+        refreshInterval: 10000,
       },
-      ...options
+      ...options,
     };
     super(finalOptions);
     this.options = finalOptions;
@@ -87,7 +87,7 @@ export class LogViewerComponent extends BaseComponent {
     this.createUI();
     this.setupLogManagerIntegration();
     this.loadInitialData();
-    
+
     console.log('📋 [日志查看器组件] 已初始化');
   }
 
@@ -173,31 +173,43 @@ export class LogViewerComponent extends BaseComponent {
         </div>
         
         <div class="toolbar-right">
-          ${this.options.enableAutoRefresh ? `
+          ${
+            this.options.enableAutoRefresh
+              ? `
             <label class="auto-refresh-toggle">
               <input type="checkbox" class="auto-refresh-checkbox">
               <span>自动刷新</span>
             </label>
-          ` : ''}
+          `
+              : ''
+          }
           
           <button class="refresh-button" type="button">
             <span class="icon">🔄</span>
             刷新
           </button>
           
-          ${this.options.enableExport ? `
+          ${
+            this.options.enableExport
+              ? `
             <button class="export-button" type="button">
               <span class="icon">📥</span>
               导出
             </button>
-          ` : ''}
+          `
+              : ''
+          }
           
-          ${this.options.enableClear ? `
+          ${
+            this.options.enableClear
+              ? `
             <button class="clear-button" type="button">
               <span class="icon">🗑️</span>
               清除
             </button>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
       </div>
       
@@ -259,22 +271,50 @@ export class LogViewerComponent extends BaseComponent {
     this.elements = {
       container: this.element,
       toolbar: this.element.querySelector('.log-viewer-toolbar') as HTMLElement,
-      fileSelector: this.element.querySelector('.log-file-selector') as HTMLSelectElement,
-      viewModeToggle: this.element.querySelector('.view-mode-toggle') as HTMLSelectElement,
-      searchInput: this.element.querySelector('.log-search-input') as HTMLInputElement,
-      levelFilter: this.element.querySelector('.log-level-filter') as HTMLSelectElement,
-      sourceFilter: this.element.querySelector('.log-source-filter') as HTMLSelectElement,
-      dateFromInput: this.element.querySelector('.log-date-from') as HTMLInputElement,
-      dateToInput: this.element.querySelector('.log-date-to') as HTMLInputElement,
-      autoRefreshToggle: this.element.querySelector('.auto-refresh-checkbox') as HTMLInputElement,
-      refreshButton: this.element.querySelector('.refresh-button') as HTMLButtonElement,
-      clearButton: this.element.querySelector('.clear-button') as HTMLButtonElement,
-      exportButton: this.element.querySelector('.export-button') as HTMLButtonElement,
-      logContainer: this.element.querySelector('.log-content-container') as HTMLElement,
-      rawViewer: this.element.querySelector('.log-raw-content') as HTMLTextAreaElement,
-      structuredViewer: this.element.querySelector('.log-structured-viewer') as HTMLElement,
+      fileSelector: this.element.querySelector(
+        '.log-file-selector'
+      ) as HTMLSelectElement,
+      viewModeToggle: this.element.querySelector(
+        '.view-mode-toggle'
+      ) as HTMLSelectElement,
+      searchInput: this.element.querySelector(
+        '.log-search-input'
+      ) as HTMLInputElement,
+      levelFilter: this.element.querySelector(
+        '.log-level-filter'
+      ) as HTMLSelectElement,
+      sourceFilter: this.element.querySelector(
+        '.log-source-filter'
+      ) as HTMLSelectElement,
+      dateFromInput: this.element.querySelector(
+        '.log-date-from'
+      ) as HTMLInputElement,
+      dateToInput: this.element.querySelector(
+        '.log-date-to'
+      ) as HTMLInputElement,
+      autoRefreshToggle: this.element.querySelector(
+        '.auto-refresh-checkbox'
+      ) as HTMLInputElement,
+      refreshButton: this.element.querySelector(
+        '.refresh-button'
+      ) as HTMLButtonElement,
+      clearButton: this.element.querySelector(
+        '.clear-button'
+      ) as HTMLButtonElement,
+      exportButton: this.element.querySelector(
+        '.export-button'
+      ) as HTMLButtonElement,
+      logContainer: this.element.querySelector(
+        '.log-content-container'
+      ) as HTMLElement,
+      rawViewer: this.element.querySelector(
+        '.log-raw-content'
+      ) as HTMLTextAreaElement,
+      structuredViewer: this.element.querySelector(
+        '.log-structured-viewer'
+      ) as HTMLElement,
       statsContainer: this.element.querySelector('.log-stats') as HTMLElement,
-      statusIndicator: this.element.querySelector('.log-status') as HTMLElement
+      statusIndicator: this.element.querySelector('.log-status') as HTMLElement,
     };
 
     // 设置默认视图模式
@@ -289,7 +329,7 @@ export class LogViewerComponent extends BaseComponent {
   private setupEventListeners(): void {
     // 文件选择
     if (this.elements.fileSelector) {
-      this.elements.fileSelector.addEventListener('change', (e) => {
+      this.elements.fileSelector.addEventListener('change', e => {
         const target = e.target as HTMLSelectElement;
         this.handleFileChange(target.value);
       });
@@ -297,7 +337,7 @@ export class LogViewerComponent extends BaseComponent {
 
     // 视图模式切换
     if (this.elements.viewModeToggle) {
-      this.elements.viewModeToggle.addEventListener('change', (e) => {
+      this.elements.viewModeToggle.addEventListener('change', e => {
         const target = e.target as HTMLSelectElement;
         this.changeViewMode(target.value as 'structured' | 'raw');
       });
@@ -319,7 +359,7 @@ export class LogViewerComponent extends BaseComponent {
       this.elements.levelFilter,
       this.elements.sourceFilter,
       this.elements.dateFromInput,
-      this.elements.dateToInput
+      this.elements.dateToInput,
     ].forEach(element => {
       if (element) {
         element.addEventListener('change', () => {
@@ -330,7 +370,7 @@ export class LogViewerComponent extends BaseComponent {
 
     // 自动刷新
     if (this.elements.autoRefreshToggle) {
-      this.elements.autoRefreshToggle.addEventListener('change', (e) => {
+      this.elements.autoRefreshToggle.addEventListener('change', e => {
         const target = e.target as HTMLInputElement;
         this.handleAutoRefreshToggle(target.checked);
       });
@@ -396,7 +436,7 @@ export class LogViewerComponent extends BaseComponent {
       // 加载日志文件列表
       const files = await logManager.loadLogFiles();
       this.updateFileSelector(files);
-      
+
       // 如果有文件，加载第一个
       if (files.length > 0) {
         this.handleFileChange(files[0]);
@@ -414,7 +454,8 @@ export class LogViewerComponent extends BaseComponent {
     if (!this.elements.fileSelector) return;
 
     // 清空现有选项
-    this.elements.fileSelector.innerHTML = '<option value="">选择日志文件...</option>';
+    this.elements.fileSelector.innerHTML =
+      '<option value="">选择日志文件...</option>';
 
     // 添加文件选项
     files.forEach(file => {
@@ -487,7 +528,7 @@ export class LogViewerComponent extends BaseComponent {
       dateFrom: this.elements.dateFromInput?.value || undefined,
       dateTo: this.elements.dateToInput?.value || undefined,
       search: this.elements.searchInput?.value || undefined,
-      file: this.elements.fileSelector?.value || undefined
+      file: this.elements.fileSelector?.value || undefined,
     };
 
     // 移除空值
@@ -540,7 +581,7 @@ export class LogViewerComponent extends BaseComponent {
    * 显示导出对话框
    */
   private async showExportDialog(): Promise<'txt' | 'json' | 'csv' | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const dialog = document.createElement('div');
       dialog.className = 'export-dialog-overlay';
       dialog.innerHTML = `
@@ -569,11 +610,17 @@ export class LogViewerComponent extends BaseComponent {
 
       document.body.appendChild(dialog);
 
-      const confirmBtn = dialog.querySelector('.export-confirm') as HTMLButtonElement;
-      const cancelBtn = dialog.querySelector('.export-cancel') as HTMLButtonElement;
+      const confirmBtn = dialog.querySelector(
+        '.export-confirm'
+      ) as HTMLButtonElement;
+      const cancelBtn = dialog.querySelector(
+        '.export-cancel'
+      ) as HTMLButtonElement;
 
       confirmBtn.addEventListener('click', () => {
-        const selectedFormat = dialog.querySelector('input[name="export-format"]:checked') as HTMLInputElement;
+        const selectedFormat = dialog.querySelector(
+          'input[name="export-format"]:checked'
+        ) as HTMLInputElement;
         document.body.removeChild(dialog);
         resolve(selectedFormat.value as 'txt' | 'json' | 'csv');
       });
@@ -583,7 +630,7 @@ export class LogViewerComponent extends BaseComponent {
         resolve(null);
       });
 
-      dialog.addEventListener('click', (e) => {
+      dialog.addEventListener('click', e => {
         if (e.target === dialog) {
           document.body.removeChild(dialog);
           resolve(null);
@@ -608,11 +655,11 @@ export class LogViewerComponent extends BaseComponent {
    */
   private handleLogsLoaded(logs: LogEntry[], filtered: LogEntry[]): void {
     this.currentLogs = filtered;
-    
+
     if (this.currentViewMode === 'structured') {
       this.renderStructuredLogs(filtered);
     }
-    
+
     this.updateStats();
     this.updateSourceFilter(logs);
   }
@@ -639,7 +686,9 @@ export class LogViewerComponent extends BaseComponent {
    * 渲染结构化日志
    */
   private renderStructuredLogs(logs: LogEntry[]): void {
-    const container = this.elements.structuredViewer?.querySelector('.log-entries-container');
+    const container = this.elements.structuredViewer?.querySelector(
+      '.log-entries-container'
+    );
     if (!container) return;
 
     if (logs.length === 0) {
@@ -654,7 +703,7 @@ export class LogViewerComponent extends BaseComponent {
 
     // 限制显示数量
     const displayLogs = logs.slice(0, this.options.maxDisplayEntries);
-    
+
     const logsHtml = displayLogs.map(log => this.renderLogEntry(log)).join('');
     container.innerHTML = `<div class="log-entries">${logsHtml}</div>`;
 
@@ -672,8 +721,9 @@ export class LogViewerComponent extends BaseComponent {
   private renderLogEntry(log: LogEntry): string {
     const timeAgo = formatTimeDiff(Date.now() - log.timestamp);
     const timestamp = new Date(log.timestamp).toLocaleString();
-    const contextHtml = log.context ? 
-      `<div class="log-context"><pre>${JSON.stringify(log.context, null, 2)}</pre></div>` : '';
+    const contextHtml = log.context
+      ? `<div class="log-context"><pre>${JSON.stringify(log.context, null, 2)}</pre></div>`
+      : '';
 
     return `
       <div class="log-entry log-${log.level}" data-log-id="${log.id}">
@@ -704,7 +754,7 @@ export class LogViewerComponent extends BaseComponent {
    */
   private updateStats(): void {
     const stats = logManager.getStats();
-    
+
     if (this.elements.statsContainer) {
       const updateStat = (selector: string, value: number) => {
         const element = this.elements.statsContainer!.querySelector(selector);
@@ -728,20 +778,20 @@ export class LogViewerComponent extends BaseComponent {
     if (!this.elements.sourceFilter) return;
 
     const sources = [...new Set(logs.map(log => log.source))];
-    
+
     // 保存当前选择
     const currentValue = this.elements.sourceFilter.value;
-    
+
     // 清空并重新填充
     this.elements.sourceFilter.innerHTML = '<option value="">所有来源</option>';
-    
+
     sources.forEach(source => {
       const option = document.createElement('option');
       option.value = source;
       option.textContent = source;
       this.elements.sourceFilter!.appendChild(option);
     });
-    
+
     // 恢复选择
     if (currentValue && sources.includes(currentValue)) {
       this.elements.sourceFilter.value = currentValue;
@@ -752,12 +802,15 @@ export class LogViewerComponent extends BaseComponent {
    * 设置加载状态
    */
   private setLoading(loading: boolean): void {
-
     // 更新状态指示器
     if (this.elements.statusIndicator) {
-      const loadingIndicator = this.elements.statusIndicator.querySelector('.loading-indicator') as HTMLElement;
-      const statusText = this.elements.statusIndicator.querySelector('.status-text') as HTMLElement;
-      
+      const loadingIndicator = this.elements.statusIndicator.querySelector(
+        '.loading-indicator'
+      ) as HTMLElement;
+      const statusText = this.elements.statusIndicator.querySelector(
+        '.status-text'
+      ) as HTMLElement;
+
       if (loadingIndicator && statusText) {
         if (loading) {
           loadingIndicator.style.display = 'inline';
@@ -770,7 +823,11 @@ export class LogViewerComponent extends BaseComponent {
     }
 
     // 禁用/启用按钮
-    [this.elements.refreshButton, this.elements.clearButton, this.elements.exportButton].forEach(button => {
+    [
+      this.elements.refreshButton,
+      this.elements.clearButton,
+      this.elements.exportButton,
+    ].forEach(button => {
       if (button) {
         button.disabled = loading;
       }
@@ -782,7 +839,9 @@ export class LogViewerComponent extends BaseComponent {
    */
   private clearDisplay(): void {
     // 清除结构化视图
-    const structuredContainer = this.elements.structuredViewer?.querySelector('.log-entries-container');
+    const structuredContainer = this.elements.structuredViewer?.querySelector(
+      '.log-entries-container'
+    );
     if (structuredContainer) {
       structuredContainer.innerHTML = `
         <div class="empty-placeholder">
@@ -802,7 +861,9 @@ export class LogViewerComponent extends BaseComponent {
    * 显示错误
    */
   private showError(message: string): void {
-    const container = this.elements.structuredViewer?.querySelector('.log-entries-container');
+    const container = this.elements.structuredViewer?.querySelector(
+      '.log-entries-container'
+    );
     if (container) {
       container.innerHTML = `
         <div class="error-placeholder">
@@ -833,7 +894,7 @@ export class LogViewerComponent extends BaseComponent {
   destroy(): void {
     // 停止自动刷新
     logManager.stopAutoRefresh();
-    
+
     super.destroy();
     console.log('🗑️ 日志查看器组件已销毁');
   }

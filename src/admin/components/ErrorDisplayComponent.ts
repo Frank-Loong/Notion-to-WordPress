@@ -1,6 +1,6 @@
 /**
  * 错误显示组件 - 现代化TypeScript版本
- * 
+ *
  * 提供错误信息的可视化显示，包括：
  * - 错误列表和详情
  * - 错误统计和分析
@@ -9,7 +9,12 @@
  */
 
 import { BaseComponent, ComponentOptions } from './BaseComponent';
-import { errorManager, ErrorInfo, ErrorType, ErrorSeverity } from '../managers/ErrorManager';
+import {
+  errorManager,
+  ErrorInfo,
+  ErrorType,
+  ErrorSeverity,
+} from '../managers/ErrorManager';
 import { on } from '../../shared/core/EventBus';
 import { showSuccess, showError } from '../../shared/utils/toast';
 import { formatTimeDiff } from '../../shared/utils/common';
@@ -28,14 +33,14 @@ export interface ErrorDisplayComponentOptions extends ComponentOptions {
  */
 export class ErrorDisplayComponent extends BaseComponent {
   protected options!: ErrorDisplayComponentOptions;
-  
+
   protected defaultOptions: ErrorDisplayComponentOptions = {
     showResolved: false,
     maxDisplayErrors: 50,
     enableExport: true,
     enableRetry: true,
     autoRefresh: true,
-    refreshInterval: 30000
+    refreshInterval: 30000,
   };
 
   private elements: {
@@ -65,9 +70,9 @@ export class ErrorDisplayComponent extends BaseComponent {
         enableExport: true,
         enableRetry: true,
         autoRefresh: true,
-        refreshInterval: 30000
+        refreshInterval: 30000,
       },
-      ...options
+      ...options,
     };
     super(finalOptions);
     this.options = finalOptions;
@@ -80,7 +85,7 @@ export class ErrorDisplayComponent extends BaseComponent {
     this.createUI();
     this.setupErrorManagerIntegration();
     this.loadInitialData();
-    
+
     console.log('🚨 [错误显示组件] 已初始化');
   }
 
@@ -196,12 +201,16 @@ export class ErrorDisplayComponent extends BaseComponent {
             刷新
           </button>
           
-          ${this.options.enableExport ? `
+          ${
+            this.options.enableExport
+              ? `
             <button class="export-button" type="button">
               <span class="icon">📥</span>
               导出
             </button>
-          ` : ''}
+          `
+              : ''
+          }
           
           <button class="clear-button" type="button">
             <span class="icon">🗑️</span>
@@ -234,18 +243,33 @@ export class ErrorDisplayComponent extends BaseComponent {
       toolbar: this.element.querySelector('.error-toolbar') as HTMLElement,
       statsContainer: this.element.querySelector('.error-stats') as HTMLElement,
       errorList: this.element.querySelector('.error-list') as HTMLElement,
-      filterSelect: this.element.querySelector('.error-filter-select') as HTMLSelectElement,
-      severitySelect: this.element.querySelector('.error-severity-select') as HTMLSelectElement,
-      showResolvedToggle: this.element.querySelector('.show-resolved-checkbox') as HTMLInputElement,
-      refreshButton: this.element.querySelector('.refresh-button') as HTMLButtonElement,
-      clearButton: this.element.querySelector('.clear-button') as HTMLButtonElement,
-      exportButton: this.element.querySelector('.export-button') as HTMLButtonElement,
-      statusIndicator: this.element.querySelector('.status-indicator') as HTMLElement
+      filterSelect: this.element.querySelector(
+        '.error-filter-select'
+      ) as HTMLSelectElement,
+      severitySelect: this.element.querySelector(
+        '.error-severity-select'
+      ) as HTMLSelectElement,
+      showResolvedToggle: this.element.querySelector(
+        '.show-resolved-checkbox'
+      ) as HTMLInputElement,
+      refreshButton: this.element.querySelector(
+        '.refresh-button'
+      ) as HTMLButtonElement,
+      clearButton: this.element.querySelector(
+        '.clear-button'
+      ) as HTMLButtonElement,
+      exportButton: this.element.querySelector(
+        '.export-button'
+      ) as HTMLButtonElement,
+      statusIndicator: this.element.querySelector(
+        '.status-indicator'
+      ) as HTMLElement,
     };
 
     // 设置默认值
     if (this.elements.showResolvedToggle) {
-      this.elements.showResolvedToggle.checked = this.options.showResolved || false;
+      this.elements.showResolvedToggle.checked =
+        this.options.showResolved || false;
     }
   }
 
@@ -339,12 +363,16 @@ export class ErrorDisplayComponent extends BaseComponent {
 
     // 类型过滤
     if (this.currentFilter.type) {
-      filtered = filtered.filter(error => error.type === this.currentFilter.type);
+      filtered = filtered.filter(
+        error => error.type === this.currentFilter.type
+      );
     }
 
     // 严重性过滤
     if (this.currentFilter.severity) {
-      filtered = filtered.filter(error => error.severity === this.currentFilter.severity);
+      filtered = filtered.filter(
+        error => error.severity === this.currentFilter.severity
+      );
     }
 
     // 已解决状态过滤
@@ -361,11 +389,13 @@ export class ErrorDisplayComponent extends BaseComponent {
    */
   private handleFilterChange(): void {
     this.currentFilter = {
-      type: this.elements.filterSelect?.value as ErrorType || undefined,
-      severity: this.elements.severitySelect?.value as ErrorSeverity || undefined
+      type: (this.elements.filterSelect?.value as ErrorType) || undefined,
+      severity:
+        (this.elements.severitySelect?.value as ErrorSeverity) || undefined,
     };
 
-    this.options.showResolved = this.elements.showResolvedToggle?.checked || false;
+    this.options.showResolved =
+      this.elements.showResolvedToggle?.checked || false;
 
     this.applyFilters();
     this.renderErrorList();
@@ -387,7 +417,9 @@ export class ErrorDisplayComponent extends BaseComponent {
       return;
     }
 
-    const errorsHtml = this.filteredErrors.map(error => this.renderErrorItem(error)).join('');
+    const errorsHtml = this.filteredErrors
+      .map(error => this.renderErrorItem(error))
+      .join('');
     this.elements.errorList.innerHTML = errorsHtml;
   }
 
@@ -411,33 +443,49 @@ export class ErrorDisplayComponent extends BaseComponent {
         
         <div class="error-message">${this.escapeHtml(error.message)}</div>
         
-        ${error.context && Object.keys(error.context).length > 0 ? `
+        ${
+          error.context && Object.keys(error.context).length > 0
+            ? `
           <div class="error-context">
             <strong>上下文:</strong>
             <pre>${this.escapeHtml(JSON.stringify(error.context, null, 2))}</pre>
           </div>
-        ` : ''}
+        `
+            : ''
+        }
         
-        ${error.retryCount && error.retryCount > 0 ? `
+        ${
+          error.retryCount && error.retryCount > 0
+            ? `
           <div class="error-retry-info">
             <span class="retry-count">重试次数: ${error.retryCount}</span>
           </div>
-        ` : ''}
+        `
+            : ''
+        }
         
         <div class="error-actions">
-          ${!error.resolved ? `
+          ${
+            !error.resolved
+              ? `
             <button class="resolve-button" data-error-id="${error.id}">
               <span class="icon">✅</span>
               标记为已解决
             </button>
-          ` : ''}
+          `
+              : ''
+          }
           
-          ${this.options.enableRetry && this.canRetry(error) ? `
+          ${
+            this.options.enableRetry && this.canRetry(error)
+              ? `
             <button class="retry-button" data-error-id="${error.id}">
               <span class="icon">🔄</span>
               重试
             </button>
-          ` : ''}
+          `
+              : ''
+          }
           
           <button class="details-button" data-error-id="${error.id}">
             <span class="icon">📋</span>
@@ -453,16 +501,16 @@ export class ErrorDisplayComponent extends BaseComponent {
    */
   private getTypeDisplayName(type: ErrorType): string {
     const typeNames: Record<ErrorType, string> = {
-      'AUTH_ERROR': '认证错误',
-      'NETWORK_ERROR': '网络错误',
-      'SERVER_ERROR': '服务器错误',
-      'VALIDATION_ERROR': '验证错误',
-      'RATE_LIMIT_ERROR': '速率限制',
-      'DATA_ERROR': '数据错误',
-      'FILTER_ERROR': '过滤器错误',
-      'CLIENT_ERROR': '客户端错误',
-      'PERMISSION_ERROR': '权限错误',
-      'UNKNOWN_ERROR': '未知错误'
+      AUTH_ERROR: '认证错误',
+      NETWORK_ERROR: '网络错误',
+      SERVER_ERROR: '服务器错误',
+      VALIDATION_ERROR: '验证错误',
+      RATE_LIMIT_ERROR: '速率限制',
+      DATA_ERROR: '数据错误',
+      FILTER_ERROR: '过滤器错误',
+      CLIENT_ERROR: '客户端错误',
+      PERMISSION_ERROR: '权限错误',
+      UNKNOWN_ERROR: '未知错误',
     };
     return typeNames[type] || type;
   }
@@ -472,10 +520,10 @@ export class ErrorDisplayComponent extends BaseComponent {
    */
   private getSeverityDisplayName(severity: ErrorSeverity): string {
     const severityNames: Record<ErrorSeverity, string> = {
-      'critical': '严重',
-      'high': '高级',
-      'medium': '中等',
-      'low': '低级'
+      critical: '严重',
+      high: '高级',
+      medium: '中等',
+      low: '低级',
     };
     return severityNames[severity] || severity;
   }
@@ -484,7 +532,11 @@ export class ErrorDisplayComponent extends BaseComponent {
    * 判断是否可以重试
    */
   private canRetry(error: ErrorInfo): boolean {
-    const retryableTypes: ErrorType[] = ['NETWORK_ERROR', 'SERVER_ERROR', 'RATE_LIMIT_ERROR'];
+    const retryableTypes: ErrorType[] = [
+      'NETWORK_ERROR',
+      'SERVER_ERROR',
+      'RATE_LIMIT_ERROR',
+    ];
     return retryableTypes.includes(error.type) && !error.resolved;
   }
 
@@ -523,10 +575,12 @@ export class ErrorDisplayComponent extends BaseComponent {
    */
   private handleNewError(errorInfo: ErrorInfo): void {
     this.refreshErrorList();
-    
+
     // 如果是严重错误，显示通知
     if (errorInfo.severity === 'critical' || errorInfo.severity === 'high') {
-      showError(`发生${this.getSeverityDisplayName(errorInfo.severity)}错误: ${errorInfo.message}`);
+      showError(
+        `发生${this.getSeverityDisplayName(errorInfo.severity)}错误: ${errorInfo.message}`
+      );
     }
   }
 
@@ -578,7 +632,10 @@ export class ErrorDisplayComponent extends BaseComponent {
    */
   private handleExport(): void {
     try {
-      const errors = this.filteredErrors.length > 0 ? this.filteredErrors : this.currentErrors;
+      const errors =
+        this.filteredErrors.length > 0
+          ? this.filteredErrors
+          : this.currentErrors;
       const exportData = {
         exported_at: new Date().toISOString(),
         total_errors: errors.length,
@@ -590,15 +647,15 @@ export class ErrorDisplayComponent extends BaseComponent {
           context: error.context,
           timestamp: error.timestamp,
           resolved: error.resolved,
-          retryCount: error.retryCount
-        }))
+          retryCount: error.retryCount,
+        })),
       };
 
       const content = JSON.stringify(exportData, null, 2);
       const filename = `error-report-${new Date().toISOString().split('T')[0]}.json`;
-      
+
       this.downloadFile(content, filename, 'application/json');
-      
+
       showSuccess(`已导出 ${errors.length} 条错误记录`);
     } catch (error) {
       showError(`导出失败: ${(error as Error).message}`);
@@ -608,19 +665,23 @@ export class ErrorDisplayComponent extends BaseComponent {
   /**
    * 下载文件
    */
-  private downloadFile(content: string, filename: string, mimeType: string): void {
+  private downloadFile(
+    content: string,
+    filename: string,
+    mimeType: string
+  ): void {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
-    
+
     const link = document.createElement('a');
     link.href = url;
     link.download = filename;
     link.style.display = 'none';
-    
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     URL.revokeObjectURL(url);
   }
 
@@ -630,7 +691,7 @@ export class ErrorDisplayComponent extends BaseComponent {
   private updateStatusIndicator(message: string): void {
     if (this.elements.statusIndicator) {
       this.elements.statusIndicator.textContent = message;
-      
+
       setTimeout(() => {
         if (this.elements.statusIndicator) {
           this.elements.statusIndicator.textContent = '就绪';

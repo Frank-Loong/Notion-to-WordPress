@@ -1,6 +1,6 @@
 /**
  * 数据库视图组件 - 现代化TypeScript版本
- * 
+ *
  * 提供数据库视图的完整用户界面，包括：
  * - 视图类型切换
  * - 搜索和过滤
@@ -9,8 +9,16 @@
  */
 
 import { BaseComponent, ComponentOptions } from './BaseComponent';
-import { databaseRecordManager, DatabaseRecord, DatabaseInfo } from '../managers/DatabaseRecordManager';
-import { databaseViewRenderer, ViewType, RenderOptions } from '../utils/DatabaseViewRenderer';
+import {
+  databaseRecordManager,
+  DatabaseRecord,
+  DatabaseInfo,
+} from '../managers/DatabaseRecordManager';
+import {
+  databaseViewRenderer,
+  ViewType,
+  RenderOptions,
+} from '../utils/DatabaseViewRenderer';
 import { on, emit } from '../../shared/core/EventBus';
 import { showError, showInfo } from '../../shared/utils/toast';
 
@@ -30,7 +38,7 @@ export interface DatabaseViewComponentOptions extends ComponentOptions {
  */
 export class DatabaseViewComponent extends BaseComponent {
   protected options!: DatabaseViewComponentOptions;
-  
+
   protected defaultOptions: DatabaseViewComponentOptions = {
     databaseId: '',
     defaultViewType: 'table',
@@ -39,7 +47,7 @@ export class DatabaseViewComponent extends BaseComponent {
     enableSort: true,
     enablePagination: true,
     pageSize: 20,
-    autoRefresh: false
+    autoRefresh: false,
   };
 
   private elements: {
@@ -71,9 +79,9 @@ export class DatabaseViewComponent extends BaseComponent {
         enableSort: true,
         enablePagination: true,
         pageSize: 20,
-        autoRefresh: false
+        autoRefresh: false,
       },
-      ...options
+      ...options,
     };
     super(finalOptions);
     this.options = finalOptions;
@@ -87,7 +95,7 @@ export class DatabaseViewComponent extends BaseComponent {
     this.createUI();
     this.setupDatabaseManagerIntegration();
     this.loadInitialData();
-    
+
     console.log('📊 [数据库视图组件] 已初始化');
   }
 
@@ -152,23 +160,35 @@ export class DatabaseViewComponent extends BaseComponent {
             <option value="timeline">时间线视图</option>
           </select>
           
-          ${this.options.enableSearch ? `
+          ${
+            this.options.enableSearch
+              ? `
             <input type="text" class="search-input" placeholder="搜索记录...">
-          ` : ''}
+          `
+              : ''
+          }
           
-          ${this.options.enableFilter ? `
+          ${
+            this.options.enableFilter
+              ? `
             <button class="filter-button" type="button">
               <span class="icon">🔍</span>
               过滤
             </button>
-          ` : ''}
+          `
+              : ''
+          }
           
-          ${this.options.enableSort ? `
+          ${
+            this.options.enableSort
+              ? `
             <button class="sort-button" type="button">
               <span class="icon">↕️</span>
               排序
             </button>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
         
         <div class="toolbar-right">
@@ -202,13 +222,17 @@ export class DatabaseViewComponent extends BaseComponent {
         </div>
       </div>
       
-      ${this.options.enablePagination ? `
+      ${
+        this.options.enablePagination
+          ? `
         <div class="database-pagination">
           <button class="load-more-button" type="button" style="display: none;">
             加载更多
           </button>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     `;
 
     this.bindElements();
@@ -223,15 +247,31 @@ export class DatabaseViewComponent extends BaseComponent {
     this.elements = {
       container: this.element,
       toolbar: this.element.querySelector('.database-toolbar') as HTMLElement,
-      viewTypeSelector: this.element.querySelector('.view-type-selector') as HTMLSelectElement,
-      searchInput: this.element.querySelector('.search-input') as HTMLInputElement,
-      filterButton: this.element.querySelector('.filter-button') as HTMLButtonElement,
-      sortButton: this.element.querySelector('.sort-button') as HTMLButtonElement,
-      refreshButton: this.element.querySelector('.refresh-button') as HTMLButtonElement,
-      viewContainer: this.element.querySelector('.database-view-container') as HTMLElement,
-      loadMoreButton: this.element.querySelector('.load-more-button') as HTMLButtonElement,
-      statusIndicator: this.element.querySelector('.status-indicator') as HTMLElement,
-      recordCount: this.element.querySelector('.record-count') as HTMLElement
+      viewTypeSelector: this.element.querySelector(
+        '.view-type-selector'
+      ) as HTMLSelectElement,
+      searchInput: this.element.querySelector(
+        '.search-input'
+      ) as HTMLInputElement,
+      filterButton: this.element.querySelector(
+        '.filter-button'
+      ) as HTMLButtonElement,
+      sortButton: this.element.querySelector(
+        '.sort-button'
+      ) as HTMLButtonElement,
+      refreshButton: this.element.querySelector(
+        '.refresh-button'
+      ) as HTMLButtonElement,
+      viewContainer: this.element.querySelector(
+        '.database-view-container'
+      ) as HTMLElement,
+      loadMoreButton: this.element.querySelector(
+        '.load-more-button'
+      ) as HTMLButtonElement,
+      statusIndicator: this.element.querySelector(
+        '.status-indicator'
+      ) as HTMLElement,
+      recordCount: this.element.querySelector('.record-count') as HTMLElement,
     };
 
     // 设置默认视图类型
@@ -246,7 +286,7 @@ export class DatabaseViewComponent extends BaseComponent {
   private setupEventListeners(): void {
     // 视图类型切换
     if (this.elements.viewTypeSelector) {
-      this.elements.viewTypeSelector.addEventListener('change', (e) => {
+      this.elements.viewTypeSelector.addEventListener('change', e => {
         const target = e.target as HTMLSelectElement;
         this.changeViewType(target.value as ViewType);
       });
@@ -255,7 +295,7 @@ export class DatabaseViewComponent extends BaseComponent {
     // 搜索
     if (this.elements.searchInput) {
       let searchTimeout: NodeJS.Timeout;
-      this.elements.searchInput.addEventListener('input', (e) => {
+      this.elements.searchInput.addEventListener('input', e => {
         const target = e.target as HTMLInputElement;
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
@@ -293,7 +333,9 @@ export class DatabaseViewComponent extends BaseComponent {
     }
 
     // 重试
-    const retryButton = this.element?.querySelector('.retry-button') as HTMLButtonElement;
+    const retryButton = this.element?.querySelector(
+      '.retry-button'
+    ) as HTMLButtonElement;
     if (retryButton) {
       retryButton.addEventListener('click', () => {
         this.loadInitialData();
@@ -345,17 +387,16 @@ export class DatabaseViewComponent extends BaseComponent {
     try {
       // 首先获取数据库信息
       await this.loadDatabaseInfo();
-      
+
       // 然后获取记录
       await databaseRecordManager.getDatabaseRecords(this.options.databaseId, {
-        page_size: this.options.pageSize
+        page_size: this.options.pageSize,
       });
 
       // 启动自动刷新
       if (this.options.autoRefresh) {
         databaseRecordManager.startAutoRefresh(this.options.databaseId);
       }
-
     } catch (error) {
       console.error('加载初始数据失败:', error);
       this.handleLoadError(error as Error);
@@ -373,7 +414,7 @@ export class DatabaseViewComponent extends BaseComponent {
       title: '数据库',
       properties: {},
       created_time: new Date().toISOString(),
-      last_edited_time: new Date().toISOString()
+      last_edited_time: new Date().toISOString(),
     };
   }
 
@@ -383,10 +424,10 @@ export class DatabaseViewComponent extends BaseComponent {
   private changeViewType(viewType: ViewType): void {
     this.currentViewType = viewType;
     this.renderCurrentView();
-    
-    emit('database:view:type:changed', { 
-      databaseId: this.options.databaseId, 
-      viewType 
+
+    emit('database:view:type:changed', {
+      databaseId: this.options.databaseId,
+      viewType,
     });
   }
 
@@ -493,7 +534,7 @@ export class DatabaseViewComponent extends BaseComponent {
    */
   private handleStateChanged(state: any): void {
     this.updateLoadMoreButton();
-    
+
     if (state.loading !== this.isLoading) {
       this.setLoading(state.loading);
     }
@@ -521,7 +562,7 @@ export class DatabaseViewComponent extends BaseComponent {
     const renderOptions: RenderOptions = {
       viewType: this.currentViewType,
       enableInteraction: true,
-      responsive: true
+      responsive: true,
     };
 
     databaseViewRenderer.renderDatabase(
@@ -559,7 +600,9 @@ export class DatabaseViewComponent extends BaseComponent {
   private setLoadMoreLoading(loading: boolean): void {
     if (this.elements.loadMoreButton) {
       this.elements.loadMoreButton.disabled = loading;
-      this.elements.loadMoreButton.textContent = loading ? '加载中...' : '加载更多';
+      this.elements.loadMoreButton.textContent = loading
+        ? '加载中...'
+        : '加载更多';
     }
   }
 
@@ -568,13 +611,17 @@ export class DatabaseViewComponent extends BaseComponent {
    */
   private showLoading(): void {
     this.hideAllPlaceholders();
-    const loadingPlaceholder = this.element?.querySelector('.loading-placeholder') as HTMLElement;
+    const loadingPlaceholder = this.element?.querySelector(
+      '.loading-placeholder'
+    ) as HTMLElement;
     if (loadingPlaceholder) {
       loadingPlaceholder.style.display = 'flex';
     }
 
     // 显示加载指示器
-    const spinner = this.elements.statusIndicator?.querySelector('.loading-spinner') as HTMLElement;
+    const spinner = this.elements.statusIndicator?.querySelector(
+      '.loading-spinner'
+    ) as HTMLElement;
     if (spinner) {
       spinner.style.display = 'inline';
     }
@@ -584,13 +631,17 @@ export class DatabaseViewComponent extends BaseComponent {
    * 隐藏加载状态
    */
   private hideLoading(): void {
-    const loadingPlaceholder = this.element?.querySelector('.loading-placeholder') as HTMLElement;
+    const loadingPlaceholder = this.element?.querySelector(
+      '.loading-placeholder'
+    ) as HTMLElement;
     if (loadingPlaceholder) {
       loadingPlaceholder.style.display = 'none';
     }
 
     // 隐藏加载指示器
-    const spinner = this.elements.statusIndicator?.querySelector('.loading-spinner') as HTMLElement;
+    const spinner = this.elements.statusIndicator?.querySelector(
+      '.loading-spinner'
+    ) as HTMLElement;
     if (spinner) {
       spinner.style.display = 'none';
     }
@@ -601,7 +652,9 @@ export class DatabaseViewComponent extends BaseComponent {
    */
   private showEmpty(): void {
     this.hideAllPlaceholders();
-    const emptyPlaceholder = this.element?.querySelector('.empty-placeholder') as HTMLElement;
+    const emptyPlaceholder = this.element?.querySelector(
+      '.empty-placeholder'
+    ) as HTMLElement;
     if (emptyPlaceholder) {
       emptyPlaceholder.style.display = 'flex';
     }
@@ -612,9 +665,13 @@ export class DatabaseViewComponent extends BaseComponent {
    */
   private showError(message: string): void {
     this.hideAllPlaceholders();
-    const errorPlaceholder = this.element?.querySelector('.error-placeholder') as HTMLElement;
+    const errorPlaceholder = this.element?.querySelector(
+      '.error-placeholder'
+    ) as HTMLElement;
     if (errorPlaceholder) {
-      const errorMessage = errorPlaceholder.querySelector('.error-message') as HTMLElement;
+      const errorMessage = errorPlaceholder.querySelector(
+        '.error-message'
+      ) as HTMLElement;
       if (errorMessage) {
         errorMessage.textContent = message;
       }
@@ -626,7 +683,9 @@ export class DatabaseViewComponent extends BaseComponent {
    * 隐藏所有占位符
    */
   private hideAllPlaceholders(): void {
-    const placeholders = this.element?.querySelectorAll('.loading-placeholder, .empty-placeholder, .error-placeholder');
+    const placeholders = this.element?.querySelectorAll(
+      '.loading-placeholder, .empty-placeholder, .error-placeholder'
+    );
     placeholders?.forEach(placeholder => {
       (placeholder as HTMLElement).style.display = 'none';
     });
@@ -647,8 +706,10 @@ export class DatabaseViewComponent extends BaseComponent {
   private updateLoadMoreButton(): void {
     if (!this.elements.loadMoreButton) return;
 
-    const state = databaseRecordManager.getDatabaseState(this.options.databaseId);
-    
+    const state = databaseRecordManager.getDatabaseState(
+      this.options.databaseId
+    );
+
     if (state && state.hasMore && !state.loading) {
       this.elements.loadMoreButton.style.display = 'block';
     } else {
@@ -683,10 +744,10 @@ export class DatabaseViewComponent extends BaseComponent {
   destroy(): void {
     // 停止自动刷新
     databaseRecordManager.stopAutoRefresh(this.options.databaseId);
-    
+
     // 清理状态
     databaseRecordManager.clearDatabaseState(this.options.databaseId);
-    
+
     super.destroy();
     console.log('🗑️ 数据库视图组件已销毁');
   }

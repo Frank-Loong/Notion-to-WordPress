@@ -37,19 +37,23 @@ export class StatusDisplay extends BaseComponent {
     this.statusOptions = {
       refreshInterval: 5000,
       autoRefresh: true,
-      ...options
+      ...options,
     };
   }
 
   protected onInit(): void {
     if (this.element) {
-      addClass(this.element, 'status-display', `status-display-${this.statusOptions.type}`);
+      addClass(
+        this.element,
+        'status-display',
+        `status-display-${this.statusOptions.type}`
+      );
     }
   }
 
   protected onMount(): void {
     this.render();
-    
+
     if (this.statusOptions.autoRefresh) {
       this.startAutoRefresh();
     }
@@ -71,7 +75,11 @@ export class StatusDisplay extends BaseComponent {
     // 绑定刷新按钮事件
     const refreshButton = this.$('.status-refresh-button');
     if (refreshButton) {
-      this.addEventListener(refreshButton, 'click', this.handleRefresh.bind(this));
+      this.addEventListener(
+        refreshButton,
+        'click',
+        this.handleRefresh.bind(this)
+      );
     }
   }
 
@@ -130,10 +138,17 @@ export class StatusDisplay extends BaseComponent {
     if (!indicator || !this.statusData) return;
 
     const status = this.statusData.status;
-    
+
     // 移除所有状态类
-    removeClass(indicator, 'status-idle', 'status-running', 'status-paused', 'status-completed', 'status-error');
-    
+    removeClass(
+      indicator,
+      'status-idle',
+      'status-running',
+      'status-paused',
+      'status-completed',
+      'status-error'
+    );
+
     // 添加当前状态类
     addClass(indicator, `status-${status}`);
 
@@ -197,8 +212,14 @@ export class StatusDisplay extends BaseComponent {
   private updateQueueDetails(): void {
     if (!this.statusData) return;
 
-    const stats = ['total_jobs', 'pending_jobs', 'processing_jobs', 'completed_jobs', 'failed_jobs'];
-    
+    const stats = [
+      'total_jobs',
+      'pending_jobs',
+      'processing_jobs',
+      'completed_jobs',
+      'failed_jobs',
+    ];
+
     stats.forEach(stat => {
       const element = this.$(`.${stat.replace('_', '-')}`);
       if (element && this.statusData![stat] !== undefined) {
@@ -223,14 +244,16 @@ export class StatusDisplay extends BaseComponent {
   private updateProgress(): void {
     const progressBar = this.$('.progress-bar');
     const progressText = this.$('.progress-text');
-    
+
     if (!progressBar || !this.statusData) return;
 
     const { progress = 0, total = 0 } = this.statusData;
     const percentage = total > 0 ? Math.round((progress / total) * 100) : 0;
 
     // 更新进度条
-    const progressFill = progressBar.querySelector('.progress-fill') as HTMLElement;
+    const progressFill = progressBar.querySelector(
+      '.progress-fill'
+    ) as HTMLElement;
     if (progressFill) {
       progressFill.style.width = `${percentage}%`;
     }
@@ -257,11 +280,13 @@ export class StatusDisplay extends BaseComponent {
 
     if (this.statusData.start_time) {
       const elapsed = Date.now() - this.statusData.start_time;
-      
+
       if (startTime) {
-        startTime.textContent = new Date(this.statusData.start_time).toLocaleTimeString();
+        startTime.textContent = new Date(
+          this.statusData.start_time
+        ).toLocaleTimeString();
       }
-      
+
       if (elapsedTime) {
         elapsedTime.textContent = formatTimeDiff(elapsed);
       }
@@ -269,7 +294,8 @@ export class StatusDisplay extends BaseComponent {
 
     if (estimatedTime && this.statusData.estimated_completion) {
       const remaining = this.statusData.estimated_completion - Date.now();
-      estimatedTime.textContent = remaining > 0 ? formatTimeDiff(remaining) : '即将完成';
+      estimatedTime.textContent =
+        remaining > 0 ? formatTimeDiff(remaining) : '即将完成';
     }
   }
 
@@ -283,7 +309,7 @@ export class StatusDisplay extends BaseComponent {
       paused: '已暂停',
       completed: '已完成',
       error: '错误',
-      cancelled: '已取消'
+      cancelled: '已取消',
     };
 
     return statusTexts[status] || status;
@@ -299,10 +325,12 @@ export class StatusDisplay extends BaseComponent {
       paused: '<span class="dashicons dashicons-controls-pause"></span>',
       completed: '<span class="dashicons dashicons-yes-alt"></span>',
       error: '<span class="dashicons dashicons-warning"></span>',
-      cancelled: '<span class="dashicons dashicons-dismiss"></span>'
+      cancelled: '<span class="dashicons dashicons-dismiss"></span>',
     };
 
-    return statusIcons[status] || '<span class="dashicons dashicons-info"></span>';
+    return (
+      statusIcons[status] || '<span class="dashicons dashicons-info"></span>'
+    );
   }
 
   /**
@@ -310,10 +338,10 @@ export class StatusDisplay extends BaseComponent {
    */
   private async handleRefresh(event: Event): Promise<void> {
     event.preventDefault();
-    
+
     const button = event.target as HTMLElement;
     const originalText = button.textContent;
-    
+
     // 设置加载状态
     button.setAttribute('disabled', 'true');
     button.innerHTML = '<span class="spinner is-active"></span> 刷新中...';
@@ -380,12 +408,12 @@ export class StatusDisplay extends BaseComponent {
       },
       body: new URLSearchParams({
         action: 'notion_to_wordpress_get_async_status',
-        nonce: (window as any).notionToWp?.nonce || ''
-      })
+        nonce: (window as any).notionToWp?.nonce || '',
+      }),
     });
 
     const result = await response.json();
-    
+
     if (result.success) {
       this.statusData = result.data.status;
       this.render();
@@ -437,7 +465,7 @@ export class StatusDisplay extends BaseComponent {
    */
   public setAutoRefresh(enabled: boolean): void {
     this.statusOptions.autoRefresh = enabled;
-    
+
     if (enabled) {
       this.startAutoRefresh();
     } else {

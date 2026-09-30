@@ -1,6 +1,6 @@
 /**
  * 统计管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有admin-interactions.js的统计功能完全迁移，包括：
  * - 统计数据获取和显示
  * - 单页面刷新功能
@@ -58,7 +58,7 @@ export class StatsManager {
   private init(): void {
     this.setupEventHandlers();
     this.fetchStats(); // 初始加载
-    
+
     console.log('📊 [统计管理器] 已初始化');
   }
 
@@ -67,9 +67,9 @@ export class StatsManager {
    */
   private setupEventHandlers(): void {
     // 单页面刷新按钮
-    document.addEventListener('click', (e) => {
+    document.addEventListener('click', e => {
       const target = e.target as HTMLElement;
-      
+
       if (target.classList.contains('refresh-single')) {
         e.preventDefault();
         this.handleRefreshSingle(target);
@@ -79,14 +79,16 @@ export class StatsManager {
     // 统计刷新按钮
     const refreshStatsButton = document.getElementById('refresh-stats');
     if (refreshStatsButton) {
-      refreshStatsButton.addEventListener('click', (e) => {
+      refreshStatsButton.addEventListener('click', e => {
         e.preventDefault();
         this.fetchStats();
       });
     }
 
     // 自动刷新开关
-    const autoRefreshToggle = document.getElementById('auto-refresh-stats') as HTMLInputElement;
+    const autoRefreshToggle = document.getElementById(
+      'auto-refresh-stats'
+    ) as HTMLInputElement;
     if (autoRefreshToggle) {
       autoRefreshToggle.addEventListener('change', () => {
         this.toggleAutoRefresh(autoRefreshToggle.checked);
@@ -98,8 +100,10 @@ export class StatsManager {
    * 获取统计信息
    */
   async fetchStats(): Promise<void> {
-    const statCards = document.querySelectorAll('.notion-stats-grid .stat-card h3, .notion-stats-grid .stat-card span');
-    
+    const statCards = document.querySelectorAll(
+      '.notion-stats-grid .stat-card h3, .notion-stats-grid .stat-card span'
+    );
+
     // 显示加载状态
     statCards.forEach(card => card.classList.add('loading'));
 
@@ -134,15 +138,21 @@ export class StatsManager {
     }
 
     // 更新发布数量
-    const publishedCountElement = document.querySelector('.stat-published-count');
+    const publishedCountElement = document.querySelector(
+      '.stat-published-count'
+    );
     if (publishedCountElement) {
-      publishedCountElement.textContent = (stats.published_count || 0).toString();
+      publishedCountElement.textContent = (
+        stats.published_count || 0
+      ).toString();
     }
 
     // 更新最后更新时间
     const lastUpdateElement = document.querySelector('.stat-last-update');
     if (lastUpdateElement) {
-      lastUpdateElement.innerHTML = AdminUtils.formatDateTime(stats.last_update);
+      lastUpdateElement.innerHTML = AdminUtils.formatDateTime(
+        stats.last_update
+      );
     }
 
     // 更新下次运行时间
@@ -160,7 +170,7 @@ export class StatsManager {
    */
   private async handleRefreshSingle(element: HTMLElement): Promise<void> {
     const pageId = element.dataset.pageId;
-    
+
     if (!pageId || typeof pageId !== 'string' || pageId.trim() === '') {
       showError('无效的页面ID');
       return;
@@ -180,9 +190,9 @@ export class StatsManager {
    */
   async refreshSinglePage(options: RefreshSingleOptions): Promise<void> {
     const { pageId, showOverlay = false, timeout = 60000 } = options;
-    
+
     let overlay: HTMLElement | null = null;
-    
+
     if (showOverlay) {
       overlay = this.showLoadingOverlay();
     }
@@ -192,24 +202,24 @@ export class StatsManager {
 
       if (response.success) {
         showSuccess('页面刷新成功');
-        
+
         // 刷新统计信息
         await this.fetchStats();
-        
+
         emit('stats:single:refreshed', { pageId, response });
       } else {
         throw new Error(response.data?.message || '刷新失败');
       }
     } catch (error) {
       console.error('❌ [单页刷新] 失败:', error);
-      
+
       let errorMessage = '页面刷新失败';
       if ((error as Error).message.includes('timeout')) {
         errorMessage = '刷新超时，请稍后重试';
       } else if ((error as Error).message) {
         errorMessage += `: ${(error as Error).message}`;
       }
-      
+
       showError(errorMessage);
       emit('stats:single:error', { pageId, error });
     } finally {
@@ -222,34 +232,37 @@ export class StatsManager {
   /**
    * 执行单页面刷新请求
    */
-  private async performSingleRefresh(pageId: string, timeout: number): Promise<any> {
+  private async performSingleRefresh(
+    pageId: string,
+    timeout: number
+  ): Promise<any> {
     const notionToWp = (window as any).notionToWp;
-    
+
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-      
+
       xhr.open('POST', notionToWp.ajax_url);
       xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
       xhr.timeout = timeout;
-      
+
       xhr.onload = () => {
         try {
           const response = JSON.parse(xhr.responseText);
           resolve(response);
-        } catch (error) {
+        } catch {
           reject(new Error('响应解析失败'));
         }
       };
-      
+
       xhr.onerror = () => reject(new Error('网络错误'));
       xhr.ontimeout = () => reject(new Error('请求超时'));
-      
+
       const params = new URLSearchParams({
         action: 'notion_to_wordpress_refresh_single',
         nonce: notionToWp.nonce,
-        page_id: pageId
+        page_id: pageId,
       });
-      
+
       xhr.send(params.toString());
     });
   }
@@ -266,7 +279,7 @@ export class StatsManager {
         <p>正在刷新页面...</p>
       </div>
     `;
-    
+
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -279,14 +292,14 @@ export class StatsManager {
       justify-content: center;
       z-index: 9999;
     `;
-    
+
     document.body.appendChild(overlay);
-    
+
     // 淡入动画
     setTimeout(() => {
       overlay.style.opacity = '1';
     }, 10);
-    
+
     return overlay;
   }
 
@@ -295,7 +308,7 @@ export class StatsManager {
    */
   private hideLoadingOverlay(overlay: HTMLElement): void {
     overlay.style.opacity = '0';
-    
+
     setTimeout(() => {
       if (overlay.parentNode) {
         overlay.parentNode.removeChild(overlay);
@@ -308,7 +321,7 @@ export class StatsManager {
    */
   toggleAutoRefresh(enabled: boolean): void {
     this.isAutoRefreshEnabled = enabled;
-    
+
     if (enabled) {
       this.startAutoRefresh();
       showInfo('已启用统计自动刷新');
@@ -316,7 +329,7 @@ export class StatsManager {
       this.stopAutoRefresh();
       showInfo('已禁用统计自动刷新');
     }
-    
+
     emit('stats:auto-refresh:toggled', enabled);
   }
 
@@ -327,13 +340,13 @@ export class StatsManager {
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer);
     }
-    
+
     this.refreshTimer = setInterval(() => {
       if (this.isAutoRefreshEnabled && !document.hidden) {
         this.fetchStats();
       }
     }, this.autoRefreshInterval);
-    
+
     console.log('📊 [自动刷新] 已启动');
   }
 
@@ -345,7 +358,7 @@ export class StatsManager {
       clearInterval(this.refreshTimer);
       this.refreshTimer = null;
     }
-    
+
     console.log('📊 [自动刷新] 已停止');
   }
 
@@ -354,11 +367,11 @@ export class StatsManager {
    */
   setAutoRefreshInterval(interval: number): void {
     this.autoRefreshInterval = interval;
-    
+
     if (this.isAutoRefreshEnabled) {
       this.startAutoRefresh(); // 重启以应用新间隔
     }
-    
+
     emit('stats:auto-refresh:interval:changed', interval);
   }
 
@@ -366,20 +379,24 @@ export class StatsManager {
    * 获取当前统计数据
    */
   getCurrentStats(): StatsData | null {
-    const importedCount = document.querySelector('.stat-imported-count')?.textContent;
-    const publishedCount = document.querySelector('.stat-published-count')?.textContent;
+    const importedCount = document.querySelector(
+      '.stat-imported-count'
+    )?.textContent;
+    const publishedCount = document.querySelector(
+      '.stat-published-count'
+    )?.textContent;
     const lastUpdate = document.querySelector('.stat-last-update')?.textContent;
     const nextRun = document.querySelector('.stat-next-run')?.textContent;
-    
+
     if (!importedCount || !publishedCount) {
       return null;
     }
-    
+
     return {
       imported_count: parseInt(importedCount) || 0,
       published_count: parseInt(publishedCount) || 0,
       last_update: lastUpdate || null,
-      next_run: nextRun || null
+      next_run: nextRun || null,
     };
   }
 

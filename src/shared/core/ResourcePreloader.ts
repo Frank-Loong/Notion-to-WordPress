@@ -31,10 +31,10 @@ export class ResourcePreloader {
   constructor() {
     this.preloadSupported = this.checkPreloadSupport();
     this.prefetchSupported = this.checkPrefetchSupport();
-    
+
     console.log('ResourcePreloader initialized:', {
       preloadSupported: this.preloadSupported,
-      prefetchSupported: this.prefetchSupported
+      prefetchSupported: this.prefetchSupported,
     });
   }
 
@@ -43,7 +43,9 @@ export class ResourcePreloader {
    */
   private checkPreloadSupport(): boolean {
     const link = document.createElement('link');
-    return link.relList && link.relList.supports && link.relList.supports('preload');
+    return (
+      link.relList && link.relList.supports && link.relList.supports('preload')
+    );
   }
 
   /**
@@ -51,7 +53,9 @@ export class ResourcePreloader {
    */
   private checkPrefetchSupport(): boolean {
     const link = document.createElement('link');
-    return link.relList && link.relList.supports && link.relList.supports('prefetch');
+    return (
+      link.relList && link.relList.supports && link.relList.supports('prefetch')
+    );
   }
 
   /**
@@ -65,7 +69,7 @@ export class ResourcePreloader {
       return {
         url,
         success: true,
-        loadTime: 0
+        loadTime: 0,
       };
     }
 
@@ -80,11 +84,11 @@ export class ResourcePreloader {
 
     try {
       const result = await loadPromise;
-      
+
       if (result.success) {
         this.loadedResources.add(url);
       }
-      
+
       eventBus.emit('resource:preloaded', result);
       return result;
     } finally {
@@ -95,13 +99,19 @@ export class ResourcePreloader {
   /**
    * 执行预加载
    */
-  private async performPreload(resource: PreloadResource, startTime: number): Promise<PreloadResult> {
+  private async performPreload(
+    resource: PreloadResource,
+    startTime: number
+  ): Promise<PreloadResult> {
     const { url, type } = resource;
 
     try {
       let result: PreloadResult;
 
-      if (this.preloadSupported && (type === 'script' || type === 'style' || type === 'font')) {
+      if (
+        this.preloadSupported &&
+        (type === 'script' || type === 'style' || type === 'font')
+      ) {
         result = await this.preloadWithLink(resource, startTime);
       } else {
         result = await this.preloadWithFetch(resource, startTime);
@@ -114,7 +124,7 @@ export class ResourcePreloader {
         url,
         success: false,
         loadTime,
-        error: error as Error
+        error: error as Error,
       };
     }
   }
@@ -122,12 +132,16 @@ export class ResourcePreloader {
   /**
    * 使用link标签预加载
    */
-  private preloadWithLink(resource: PreloadResource, startTime: number): Promise<PreloadResult> {
+  private preloadWithLink(
+    resource: PreloadResource,
+    startTime: number
+  ): Promise<PreloadResult> {
     const { url, type, priority, crossorigin, integrity } = resource;
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const link = document.createElement('link');
-      link.rel = priority === 'low' && this.prefetchSupported ? 'prefetch' : 'preload';
+      link.rel =
+        priority === 'low' && this.prefetchSupported ? 'prefetch' : 'preload';
       link.href = url;
 
       // 设置as属性
@@ -153,18 +167,18 @@ export class ResourcePreloader {
         resolve({
           url,
           success: true,
-          loadTime
+          loadTime,
         });
         document.head.removeChild(link);
       };
 
-      link.onerror = (_error) => {
+      link.onerror = _error => {
         const loadTime = performance.now() - startTime;
         resolve({
           url,
           success: false,
           loadTime,
-          error: new Error(`Failed to preload ${url}`)
+          error: new Error(`Failed to preload ${url}`),
         });
         document.head.removeChild(link);
       };
@@ -176,14 +190,18 @@ export class ResourcePreloader {
   /**
    * 使用fetch预加载
    */
-  private async preloadWithFetch(resource: PreloadResource, startTime: number): Promise<PreloadResult> {
+  private async preloadWithFetch(
+    resource: PreloadResource,
+    startTime: number
+  ): Promise<PreloadResult> {
     const { url, crossorigin, integrity } = resource;
 
     try {
       const fetchOptions: RequestInit = {};
 
       if (crossorigin) {
-        fetchOptions.mode = crossorigin === 'anonymous' ? 'cors' : 'same-origin';
+        fetchOptions.mode =
+          crossorigin === 'anonymous' ? 'cors' : 'same-origin';
       }
 
       if (integrity) {
@@ -191,7 +209,7 @@ export class ResourcePreloader {
       }
 
       const response = await fetch(url, fetchOptions);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
@@ -203,7 +221,7 @@ export class ResourcePreloader {
       return {
         url,
         success: true,
-        loadTime
+        loadTime,
       };
     } catch (error) {
       const loadTime = performance.now() - startTime;
@@ -211,7 +229,7 @@ export class ResourcePreloader {
         url,
         success: false,
         loadTime,
-        error: error as Error
+        error: error as Error,
       };
     }
   }
@@ -220,12 +238,12 @@ export class ResourcePreloader {
    * 批量预加载资源
    */
   async preloadBatch(resources: PreloadResource[]): Promise<PreloadResult[]> {
-    const promises = resources.map(resource => 
+    const promises = resources.map(resource =>
       this.preload(resource).catch(error => ({
         url: resource.url,
         success: false,
         loadTime: 0,
-        error: error as Error
+        error: error as Error,
       }))
     );
 
@@ -235,45 +253,57 @@ export class ResourcePreloader {
   /**
    * 预加载脚本
    */
-  async preloadScript(url: string, options: Partial<PreloadResource> = {}): Promise<PreloadResult> {
+  async preloadScript(
+    url: string,
+    options: Partial<PreloadResource> = {}
+  ): Promise<PreloadResult> {
     return this.preload({
       url,
       type: 'script',
-      ...options
+      ...options,
     });
   }
 
   /**
    * 预加载样式
    */
-  async preloadStyle(url: string, options: Partial<PreloadResource> = {}): Promise<PreloadResult> {
+  async preloadStyle(
+    url: string,
+    options: Partial<PreloadResource> = {}
+  ): Promise<PreloadResult> {
     return this.preload({
       url,
       type: 'style',
-      ...options
+      ...options,
     });
   }
 
   /**
    * 预加载图片
    */
-  async preloadImage(url: string, options: Partial<PreloadResource> = {}): Promise<PreloadResult> {
+  async preloadImage(
+    url: string,
+    options: Partial<PreloadResource> = {}
+  ): Promise<PreloadResult> {
     return this.preload({
       url,
       type: 'image',
-      ...options
+      ...options,
     });
   }
 
   /**
    * 预加载字体
    */
-  async preloadFont(url: string, options: Partial<PreloadResource> = {}): Promise<PreloadResult> {
+  async preloadFont(
+    url: string,
+    options: Partial<PreloadResource> = {}
+  ): Promise<PreloadResult> {
     return this.preload({
       url,
       type: 'font',
       crossorigin: 'anonymous',
-      ...options
+      ...options,
     });
   }
 
@@ -289,13 +319,16 @@ export class ResourcePreloader {
 
     if (connection) {
       const effectiveType = connection.effectiveType;
-      
+
       if (effectiveType === 'slow-2g' || effectiveType === '2g') {
         // 慢速网络只预加载高优先级资源
         filteredResources = resources.filter(r => r.priority === 'high');
       } else if (effectiveType === '3g') {
         // 3G网络预加载前50%的资源
-        filteredResources = resources.slice(0, Math.ceil(resources.length * 0.5));
+        filteredResources = resources.slice(
+          0,
+          Math.ceil(resources.length * 0.5)
+        );
       }
     }
 
@@ -327,14 +360,14 @@ export class ResourcePreloader {
       {
         url: '/wp-content/plugins/Notion-to-WordPress/assets/dist/css/admin.css',
         type: 'style',
-        priority: 'high'
+        priority: 'high',
       },
       // 关键字体
       {
         url: '/wp-includes/css/dashicons.css',
         type: 'style',
-        priority: 'high'
-      }
+        priority: 'high',
+      },
     ];
 
     try {
@@ -370,7 +403,7 @@ export class ResourcePreloader {
     return {
       loaded: this.loadedResources.size,
       loading: this.loadingResources.size,
-      total: this.loadedResources.size + this.loadingResources.size
+      total: this.loadedResources.size + this.loadingResources.size,
     };
   }
 

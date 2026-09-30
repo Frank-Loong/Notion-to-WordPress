@@ -1,6 +1,6 @@
 /**
  * 设置组件 - 现代化TypeScript版本
- * 
+ *
  * 提供设置管理的完整用户界面，包括：
  * - 设置表单和验证
  * - 自动保存和手动保存
@@ -25,12 +25,12 @@ export interface SettingsComponentOptions extends ComponentOptions {
  */
 export class SettingsComponent extends BaseComponent {
   protected options!: SettingsComponentOptions;
-  
+
   protected defaultOptions: SettingsComponentOptions = {
     enableAutoSave: true,
     enableImportExport: true,
     enableConnectionTest: true,
-    showAdvancedSettings: false
+    showAdvancedSettings: false,
   };
 
   private elements: {
@@ -57,9 +57,9 @@ export class SettingsComponent extends BaseComponent {
         enableAutoSave: true,
         enableImportExport: true,
         enableConnectionTest: true,
-        showAdvancedSettings: false
+        showAdvancedSettings: false,
       },
-      ...options
+      ...options,
     };
     super(finalOptions);
     this.options = finalOptions;
@@ -72,7 +72,7 @@ export class SettingsComponent extends BaseComponent {
     this.createUI();
     this.setupSettingsManagerIntegration();
     this.loadInitialSettings();
-    
+
     console.log('⚙️ [设置组件] 已初始化');
   }
 
@@ -155,14 +155,18 @@ export class SettingsComponent extends BaseComponent {
             <div class="field-error" style="display: none;"></div>
           </div>
           
-          ${this.options.enableConnectionTest ? `
+          ${
+            this.options.enableConnectionTest
+              ? `
             <div class="form-group">
               <button type="button" class="test-connection-button">
                 <span class="icon">🔗</span>
                 测试连接
               </button>
             </div>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
         
         <!-- 同步配置 -->
@@ -339,7 +343,9 @@ export class SettingsComponent extends BaseComponent {
             </button>
           </div>
           
-          ${this.options.enableImportExport ? `
+          ${
+            this.options.enableImportExport
+              ? `
             <div class="actions-right">
               <button type="button" class="export-button">
                 <span class="icon">📤</span>
@@ -353,7 +359,9 @@ export class SettingsComponent extends BaseComponent {
               
               <input type="file" class="import-file" accept=".json" style="display: none;">
             </div>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
       </form>
     `;
@@ -370,16 +378,36 @@ export class SettingsComponent extends BaseComponent {
     this.elements = {
       container: this.element,
       form: this.element.querySelector('.settings-form') as HTMLFormElement,
-      saveButton: this.element.querySelector('.save-button') as HTMLButtonElement,
-      resetButton: this.element.querySelector('.reset-button') as HTMLButtonElement,
-      testButton: this.element.querySelector('.test-connection-button') as HTMLButtonElement,
-      exportButton: this.element.querySelector('.export-button') as HTMLButtonElement,
-      importButton: this.element.querySelector('.import-button') as HTMLButtonElement,
-      importFile: this.element.querySelector('.import-file') as HTMLInputElement,
-      advancedToggle: this.element.querySelector('.advanced-toggle') as HTMLButtonElement,
-      advancedSection: this.element.querySelector('.advanced-content') as HTMLElement,
-      statusIndicator: this.element.querySelector('.status-indicator') as HTMLElement,
-      unsavedIndicator: this.element.querySelector('.unsaved-indicator') as HTMLElement
+      saveButton: this.element.querySelector(
+        '.save-button'
+      ) as HTMLButtonElement,
+      resetButton: this.element.querySelector(
+        '.reset-button'
+      ) as HTMLButtonElement,
+      testButton: this.element.querySelector(
+        '.test-connection-button'
+      ) as HTMLButtonElement,
+      exportButton: this.element.querySelector(
+        '.export-button'
+      ) as HTMLButtonElement,
+      importButton: this.element.querySelector(
+        '.import-button'
+      ) as HTMLButtonElement,
+      importFile: this.element.querySelector(
+        '.import-file'
+      ) as HTMLInputElement,
+      advancedToggle: this.element.querySelector(
+        '.advanced-toggle'
+      ) as HTMLButtonElement,
+      advancedSection: this.element.querySelector(
+        '.advanced-content'
+      ) as HTMLElement,
+      statusIndicator: this.element.querySelector(
+        '.status-indicator'
+      ) as HTMLElement,
+      unsavedIndicator: this.element.querySelector(
+        '.unsaved-indicator'
+      ) as HTMLElement,
     };
 
     // 收集所有表单字段
@@ -392,7 +420,9 @@ export class SettingsComponent extends BaseComponent {
   private collectFormFields(): void {
     if (!this.elements.form) return;
 
-    const fields = this.elements.form.querySelectorAll('input, select, textarea');
+    const fields = this.elements.form.querySelectorAll(
+      'input, select, textarea'
+    );
     fields.forEach(field => {
       const element = field as HTMLElement;
       const name = element.getAttribute('name');
@@ -408,7 +438,7 @@ export class SettingsComponent extends BaseComponent {
   private setupEventListeners(): void {
     // 表单提交
     if (this.elements.form) {
-      this.elements.form.addEventListener('submit', (e) => {
+      this.elements.form.addEventListener('submit', e => {
         e.preventDefault();
         this.handleSave();
       });
@@ -444,7 +474,7 @@ export class SettingsComponent extends BaseComponent {
 
     // 导入文件
     if (this.elements.importFile) {
-      this.elements.importFile.addEventListener('change', (e) => {
+      this.elements.importFile.addEventListener('change', e => {
         const target = e.target as HTMLInputElement;
         if (target.files && target.files[0]) {
           this.handleImport(target.files[0]);
@@ -486,40 +516,54 @@ export class SettingsComponent extends BaseComponent {
    */
   private setupConditionalDisplay(): void {
     // Webhook密钥显示/隐藏
-    const webhookEnabled = this.fieldElements.get('webhook_enabled') as HTMLInputElement;
-    const webhookSecretGroup = this.element?.querySelector('.webhook-secret-group') as HTMLElement;
-    
+    const webhookEnabled = this.fieldElements.get(
+      'webhook_enabled'
+    ) as HTMLInputElement;
+    const webhookSecretGroup = this.element?.querySelector(
+      '.webhook-secret-group'
+    ) as HTMLElement;
+
     if (webhookEnabled && webhookSecretGroup) {
       const toggleWebhookSecret = () => {
-        webhookSecretGroup.style.display = webhookEnabled.checked ? 'block' : 'none';
+        webhookSecretGroup.style.display = webhookEnabled.checked
+          ? 'block'
+          : 'none';
       };
-      
+
       webhookEnabled.addEventListener('change', toggleWebhookSecret);
       toggleWebhookSecret(); // 初始状态
     }
 
     // 缓存时长显示/隐藏
-    const cacheEnabled = this.fieldElements.get('enable_caching') as HTMLInputElement;
-    const cacheDurationGroup = this.element?.querySelector('.cache-duration-group') as HTMLElement;
-    
+    const cacheEnabled = this.fieldElements.get(
+      'enable_caching'
+    ) as HTMLInputElement;
+    const cacheDurationGroup = this.element?.querySelector(
+      '.cache-duration-group'
+    ) as HTMLElement;
+
     if (cacheEnabled && cacheDurationGroup) {
       const toggleCacheDuration = () => {
-        cacheDurationGroup.style.display = cacheEnabled.checked ? 'block' : 'none';
+        cacheDurationGroup.style.display = cacheEnabled.checked
+          ? 'block'
+          : 'none';
       };
-      
+
       cacheEnabled.addEventListener('change', toggleCacheDuration);
       toggleCacheDuration(); // 初始状态
     }
 
     // 调试级别显示/隐藏
     const debugMode = this.fieldElements.get('debug_mode') as HTMLInputElement;
-    const debugLevelGroup = this.element?.querySelector('.debug-level-group') as HTMLElement;
-    
+    const debugLevelGroup = this.element?.querySelector(
+      '.debug-level-group'
+    ) as HTMLElement;
+
     if (debugMode && debugLevelGroup) {
       const toggleDebugLevel = () => {
         debugLevelGroup.style.display = debugMode.checked ? 'block' : 'none';
       };
-      
+
       debugMode.addEventListener('change', toggleDebugLevel);
       toggleDebugLevel(); // 初始状态
     }
@@ -637,8 +681,6 @@ export class SettingsComponent extends BaseComponent {
     }
   }
 
-
-
   /**
    * 处理保存
    */
@@ -706,14 +748,14 @@ export class SettingsComponent extends BaseComponent {
     if (!this.elements.advancedSection || !this.elements.advancedToggle) return;
 
     const isVisible = this.elements.advancedSection.style.display !== 'none';
-    
+
     this.elements.advancedSection.style.display = isVisible ? 'none' : 'block';
-    
+
     const icon = this.elements.advancedToggle.querySelector('.icon');
     if (icon) {
       icon.textContent = isVisible ? '▼' : '▲';
     }
-    
+
     const text = this.elements.advancedToggle.childNodes[1];
     if (text) {
       text.textContent = isVisible ? '显示高级设置' : '隐藏高级设置';
@@ -764,7 +806,9 @@ export class SettingsComponent extends BaseComponent {
     const element = this.fieldElements.get(field);
     if (!element) return;
 
-    const errorElement = element.parentElement?.querySelector('.field-error') as HTMLElement;
+    const errorElement = element.parentElement?.querySelector(
+      '.field-error'
+    ) as HTMLElement;
     if (errorElement) {
       errorElement.textContent = message;
       errorElement.style.display = 'block';
@@ -780,7 +824,9 @@ export class SettingsComponent extends BaseComponent {
     const element = this.fieldElements.get(field);
     if (!element) return;
 
-    const errorElement = element.parentElement?.querySelector('.field-error') as HTMLElement;
+    const errorElement = element.parentElement?.querySelector(
+      '.field-error'
+    ) as HTMLElement;
     if (errorElement) {
       errorElement.style.display = 'none';
     }
@@ -802,12 +848,16 @@ export class SettingsComponent extends BaseComponent {
    */
   private setLoading(loading: boolean): void {
     if (this.elements.statusIndicator) {
-      this.elements.statusIndicator.textContent = loading ? '加载中...' : '就绪';
+      this.elements.statusIndicator.textContent = loading
+        ? '加载中...'
+        : '就绪';
     }
 
     // 禁用/启用表单
     if (this.elements.form) {
-      const formElements = this.elements.form.querySelectorAll('input, select, textarea, button');
+      const formElements = this.elements.form.querySelectorAll(
+        'input, select, textarea, button'
+      );
       formElements.forEach(element => {
         (element as HTMLElement).style.pointerEvents = loading ? 'none' : '';
         (element as HTMLElement).style.opacity = loading ? '0.6' : '';
@@ -834,7 +884,9 @@ export class SettingsComponent extends BaseComponent {
    */
   private updateUnsavedIndicator(hasChanges: boolean): void {
     if (this.elements.unsavedIndicator) {
-      this.elements.unsavedIndicator.style.display = hasChanges ? 'inline-flex' : 'none';
+      this.elements.unsavedIndicator.style.display = hasChanges
+        ? 'inline-flex'
+        : 'none';
     }
   }
 

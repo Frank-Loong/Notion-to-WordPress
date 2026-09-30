@@ -15,13 +15,13 @@
   --log-border-radius: 6px;
   --log-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   --log-transition: all 0.2s ease;
-  
+
   // 日志级别颜色
   --log-debug-color: #6c757d;
   --log-info-color: #17a2b8;
   --log-warning-color: #ffc107;
   --log-error-color: #dc3545;
-  
+
   // 日志级别背景色
   --log-debug-bg: #f8f9fa;
   --log-info-bg: #d1ecf1;
@@ -356,7 +356,7 @@
 
         pre {
           margin: 0;
-          font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+          font-family: "Consolas", "Monaco", "Courier New", monospace;
           white-space: pre-wrap;
           word-break: break-word;
         }
@@ -385,7 +385,7 @@
     border: none;
     outline: none;
     resize: none;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family: "Consolas", "Monaco", "Courier New", monospace;
     font-size: 13px;
     line-height: 1.4;
     background: #f8f9fa;
@@ -601,7 +601,7 @@
     --log-border-color: #3c434a;
     --log-secondary-color: #23282d;
     --log-hover-color: #3c434a;
-    
+
     --log-debug-bg: #3c434a;
     --log-info-bg: #1e3a4a;
     --log-warning-bg: #4a3c1e;

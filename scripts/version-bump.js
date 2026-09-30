@@ -38,21 +38,6 @@ class VersionBumper {
                 ]
             },
             {
-                path: 'includes/class-notion-to-wordpress.php',
-                patterns: [
-                    {
-                        // 文件头部的 @version 注释
-                        regex: /(\* @version\s+)([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)/,
-                        replacement: '$1{VERSION}'
-                    },
-                    {
-                        // 构造函数中的硬编码版本号
-                        regex: /(\$this->version\s*=\s*')([0-9]+\.[0-9]+\.[0-9]+(?:-[a-zA-Z0-9.-]+)?)(';)/,
-                        replacement: '$1{VERSION}$3'
-                    }
-                ]
-            },
-            {
                 path: 'release.config.js',
                 patterns: [
                     {

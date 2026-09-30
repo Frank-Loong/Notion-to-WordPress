@@ -1,6 +1,6 @@
 /**
  * 资源优化器 - 现代化TypeScript版本
- * 
+ *
  * 从原有resource-optimizer.js完全迁移，包括：
  * - CDN集成和回退
  * - 预测性加载
@@ -9,7 +9,6 @@
  */
 
 import { emit } from '../../shared/core/EventBus';
-import { ready } from '../../shared/utils/dom';
 
 export interface OptimizerConfig {
   cdn: {
@@ -80,44 +79,44 @@ export class ResourceOptimizer {
     if (ResourceOptimizer.instance) {
       return ResourceOptimizer.instance;
     }
-    
+
     ResourceOptimizer.instance = this;
-    
+
     this.config = {
       cdn: {
         enabled: false,
         baseUrl: '',
         fallbackEnabled: true,
-        timeout: 5000
+        timeout: 5000,
       },
       lazyLoading: {
         enhanced: true,
         preloadThreshold: 2,
         retryAttempts: 3,
-        retryDelay: 1000
+        retryDelay: 1000,
       },
       performance: {
         enabled: true,
         reportInterval: 30000,
-        metricsEndpoint: ''
+        metricsEndpoint: '',
       },
       predictiveLoading: {
         enabled: true,
         hoverDelay: 100,
         scrollThreshold: 0.8,
         maxPredictions: 5,
-        confidenceThreshold: 0.7
+        confidenceThreshold: 0.7,
       },
       smartCache: {
         enabled: true,
         maxCacheSize: 50 * 1024 * 1024, // 50MB
         ttl: 24 * 60 * 60 * 1000, // 24小时
         compressionEnabled: true,
-        versionCheck: true
+        versionCheck: true,
       },
-      ...config
+      ...config,
     };
-    
+
     this.metrics = {
       loadTimes: [],
       errors: [],
@@ -125,16 +124,16 @@ export class ResourceOptimizer {
       totalRequests: 0,
       predictiveHits: 0,
       predictiveAttempts: 0,
-      cacheSize: 0
+      cacheSize: 0,
     };
-    
+
     this.userBehavior = {
       scrollSpeed: 0,
       hoverTargets: [],
       clickPatterns: [],
-      lastActivity: Date.now()
+      lastActivity: Date.now(),
     };
-    
+
     this.init();
   }
 
@@ -156,7 +155,7 @@ export class ResourceOptimizer {
     this.setupPredictiveLoading();
     this.setupPerformanceMonitoring();
     this.setupSmartCache();
-    
+
     console.log('⚡ [资源优化器] 已初始化');
     emit('resource:optimizer:initialized');
   }
@@ -167,23 +166,23 @@ export class ResourceOptimizer {
   private setupUserBehaviorTracking(): void {
     let lastScrollY = window.scrollY;
     let scrollStartTime = Date.now();
-    
+
     // 滚动行为追踪
     const handleScroll = this.throttle(() => {
       const currentScrollY = window.scrollY;
       const currentTime = Date.now();
       const distance = Math.abs(currentScrollY - lastScrollY);
       const time = currentTime - scrollStartTime;
-      
+
       if (time > 0) {
         this.userBehavior.scrollSpeed = distance / time;
       }
-      
+
       lastScrollY = currentScrollY;
       scrollStartTime = currentTime;
       this.userBehavior.lastActivity = currentTime;
     }, 100);
-    
+
     // 鼠标悬停追踪
     const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -196,7 +195,7 @@ export class ResourceOptimizer {
       }
       this.userBehavior.lastActivity = Date.now();
     };
-    
+
     // 点击模式追踪
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -212,7 +211,7 @@ export class ResourceOptimizer {
       }
       this.userBehavior.lastActivity = Date.now();
     };
-    
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     document.addEventListener('mouseover', handleMouseOver, { passive: true });
     document.addEventListener('click', handleClick, { passive: true });
@@ -223,20 +222,23 @@ export class ResourceOptimizer {
    */
   private setupPredictiveLoading(): void {
     if (!this.config.predictiveLoading.enabled) return;
-    
+
     // 创建Intersection Observer用于预测性加载
-    this.intersectionObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const element = entry.target as HTMLElement;
-          this.analyzePredictiveOpportunity(element);
-        }
-      });
-    }, {
-      rootMargin: '100px',
-      threshold: 0.1
-    });
-    
+    this.intersectionObserver = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const element = entry.target as HTMLElement;
+            this.analyzePredictiveOpportunity(element);
+          }
+        });
+      },
+      {
+        rootMargin: '100px',
+        threshold: 0.1,
+      }
+    );
+
     // 观察所有链接
     document.querySelectorAll('a[href]').forEach(link => {
       this.intersectionObserver!.observe(link);
@@ -248,13 +250,13 @@ export class ResourceOptimizer {
    */
   private analyzePredictiveOpportunity(element: HTMLElement): void {
     if (element.tagName !== 'A') return;
-    
+
     const href = (element as HTMLAnchorElement).href;
     if (!href || this.predictiveQueue.has(href)) return;
-    
+
     // 计算预测置信度
     const confidence = this.calculatePredictionConfidence(href);
-    
+
     if (confidence >= this.config.predictiveLoading.confidenceThreshold) {
       this.predictResource(href);
     }
@@ -265,27 +267,30 @@ export class ResourceOptimizer {
    */
   private calculatePredictionConfidence(href: string): number {
     let confidence = 0;
-    
+
     // 基于悬停历史
     if (this.userBehavior.hoverTargets.includes(href)) {
       confidence += 0.3;
     }
-    
+
     // 基于点击模式
-    const clickCount = this.userBehavior.clickPatterns.filter(pattern => pattern === href).length;
+    const clickCount = this.userBehavior.clickPatterns.filter(
+      pattern => pattern === href
+    ).length;
     confidence += Math.min(clickCount * 0.2, 0.4);
-    
+
     // 基于滚动速度（慢速滚动表示用户在仔细阅读）
     if (this.userBehavior.scrollSpeed < 1) {
       confidence += 0.2;
     }
-    
+
     // 基于活跃度
     const timeSinceLastActivity = Date.now() - this.userBehavior.lastActivity;
-    if (timeSinceLastActivity < 5000) { // 5秒内有活动
+    if (timeSinceLastActivity < 5000) {
+      // 5秒内有活动
       confidence += 0.1;
     }
-    
+
     return Math.min(confidence, 1);
   }
 
@@ -293,13 +298,15 @@ export class ResourceOptimizer {
    * 预测性资源加载
    */
   private predictResource(href: string): void {
-    if (this.predictiveQueue.size >= this.config.predictiveLoading.maxPredictions) {
+    if (
+      this.predictiveQueue.size >= this.config.predictiveLoading.maxPredictions
+    ) {
       return;
     }
-    
+
     this.predictiveQueue.add(href);
     this.metrics.predictiveAttempts++;
-    
+
     // 延迟预加载以避免影响当前页面性能
     setTimeout(() => {
       this.preloadResource(href);
@@ -315,10 +322,9 @@ export class ResourceOptimizer {
       link.rel = 'prefetch';
       link.href = href;
       document.head.appendChild(link);
-      
+
       this.metrics.predictiveHits++;
       emit('resource:predicted', { href, success: true });
-      
     } catch (error) {
       console.warn('⚡ [预测性加载] 失败:', href, error);
       emit('resource:predicted', { href, success: false, error });
@@ -330,10 +336,10 @@ export class ResourceOptimizer {
    */
   private setupPerformanceMonitoring(): void {
     if (!this.config.performance.enabled) return;
-    
+
     // 监控资源加载时间
     if ('PerformanceObserver' in window) {
-      const observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver(list => {
         list.getEntries().forEach(entry => {
           if (entry.entryType === 'resource') {
             this.metrics.loadTimes.push(entry.duration);
@@ -341,10 +347,10 @@ export class ResourceOptimizer {
           }
         });
       });
-      
+
       observer.observe({ entryTypes: ['resource'] });
     }
-    
+
     // 定期报告性能指标
     if (this.config.performance.reportInterval > 0) {
       this.performanceTimer = setInterval(() => {
@@ -358,10 +364,10 @@ export class ResourceOptimizer {
    */
   private reportPerformanceMetrics(): void {
     const metrics = this.getPerformanceMetrics();
-    
+
     console.log('⚡ [性能指标]', metrics);
     emit('resource:performance:report', metrics);
-    
+
     // 如果配置了端点，发送到服务器
     if (this.config.performance.metricsEndpoint) {
       this.sendMetricsToServer(metrics);
@@ -376,9 +382,9 @@ export class ResourceOptimizer {
       await fetch(this.config.performance.metricsEndpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify(metrics)
+        body: JSON.stringify(metrics),
       });
     } catch (error) {
       console.warn('⚡ [性能指标] 发送失败:', error);
@@ -390,10 +396,10 @@ export class ResourceOptimizer {
    */
   private setupSmartCache(): void {
     if (!this.config.smartCache.enabled) return;
-    
+
     // 从localStorage恢复缓存
     this.loadCacheFromStorage();
-    
+
     // 定期清理过期缓存
     setInterval(() => {
       this.cleanExpiredCache();
@@ -422,14 +428,14 @@ export class ResourceOptimizer {
   private cleanExpiredCache(): void {
     const now = Date.now();
     let cleaned = 0;
-    
+
     for (const [key, value] of this.resourceCache.entries()) {
       if (value.expires && value.expires < now) {
         this.resourceCache.delete(key);
         cleaned++;
       }
     }
-    
+
     if (cleaned > 0) {
       this.saveCacheToStorage();
       console.log(`⚡ [智能缓存] 清理过期项: ${cleaned}`);
@@ -444,9 +450,9 @@ export class ResourceOptimizer {
       const data = {
         entries: Array.from(this.resourceCache.entries()),
         size: this.metrics.cacheSize,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       };
-      
+
       localStorage.setItem('notion-resource-cache', JSON.stringify(data));
     } catch (error) {
       console.warn('⚡ [智能缓存] 保存失败:', error);
@@ -461,7 +467,7 @@ export class ResourceOptimizer {
     limit: number
   ): (...args: Parameters<T>) => void {
     let inThrottle = false;
-    
+
     return (...args: Parameters<T>) => {
       if (!inThrottle) {
         func.apply(this, args);
@@ -476,28 +482,32 @@ export class ResourceOptimizer {
   /**
    * 获取性能指标
    */
-  getPerformanceMetrics(): PerformanceMetrics & { 
+  getPerformanceMetrics(): PerformanceMetrics & {
     averageLoadTime: number;
     cacheHitRate: number;
     predictiveHitRate: number;
   } {
-    const averageLoadTime = this.metrics.loadTimes.length > 0 
-      ? this.metrics.loadTimes.reduce((a, b) => a + b, 0) / this.metrics.loadTimes.length 
-      : 0;
-    
-    const cacheHitRate = this.metrics.totalRequests > 0 
-      ? this.metrics.cacheHits / this.metrics.totalRequests 
-      : 0;
-    
-    const predictiveHitRate = this.metrics.predictiveAttempts > 0 
-      ? this.metrics.predictiveHits / this.metrics.predictiveAttempts 
-      : 0;
-    
+    const averageLoadTime =
+      this.metrics.loadTimes.length > 0
+        ? this.metrics.loadTimes.reduce((a, b) => a + b, 0) /
+          this.metrics.loadTimes.length
+        : 0;
+
+    const cacheHitRate =
+      this.metrics.totalRequests > 0
+        ? this.metrics.cacheHits / this.metrics.totalRequests
+        : 0;
+
+    const predictiveHitRate =
+      this.metrics.predictiveAttempts > 0
+        ? this.metrics.predictiveHits / this.metrics.predictiveAttempts
+        : 0;
+
     return {
       ...this.metrics,
       averageLoadTime,
       cacheHitRate,
-      predictiveHitRate
+      predictiveHitRate,
     };
   }
 
@@ -524,16 +534,16 @@ export class ResourceOptimizer {
       this.intersectionObserver.disconnect();
       this.intersectionObserver = null;
     }
-    
+
     if (this.performanceTimer) {
       clearInterval(this.performanceTimer);
       this.performanceTimer = null;
     }
-    
+
     this.saveCacheToStorage();
     this.resourceCache.clear();
     this.predictiveQueue.clear();
-    
+
     ResourceOptimizer.instance = null;
     emit('resource:optimizer:destroyed');
     console.log('⚡ [资源优化器] 已销毁');
@@ -542,10 +552,5 @@ export class ResourceOptimizer {
 
 // 导出单例实例
 export const resourceOptimizer = ResourceOptimizer.getInstance();
-
-// 自动初始化
-ready(() => {
-  resourceOptimizer;
-});
 
 export default ResourceOptimizer;

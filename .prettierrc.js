@@ -3,7 +3,6 @@ module.exports = {
   semi: true,                    // 使用分号
   trailingComma: 'es5',         // 尾随逗号
   singleQuote: true,            // 使用单引号
-  doubleQuote: false,           // 不使用双引号
   
   // 缩进配置
   tabWidth: 2,                  // 缩进宽度

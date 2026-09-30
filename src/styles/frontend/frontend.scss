@@ -2,12 +2,12 @@
  * 前端样式
  */
 
-@import '../shared/variables';
+@import "../shared/variables";
 
 // Notion块基础样式
 .notion-block {
   margin-bottom: $spacing-4;
-  
+
   &:last-child {
     margin-bottom: 0;
   }
@@ -45,7 +45,7 @@
 // 列表块
 .notion-list {
   padding-left: $spacing-6;
-  
+
   &-item {
     margin-bottom: $spacing-2;
     line-height: $line-height-relaxed;
@@ -69,13 +69,13 @@
       gap: $spacing-2;
 
       &::before {
-        content: '☐';
+        content: "☐";
         flex-shrink: 0;
         margin-top: 2px;
       }
 
       &.checked::before {
-        content: '☑';
+        content: "☑";
         color: $success-color;
       }
     }
@@ -342,7 +342,7 @@
 
     .toggle-icon {
       transition: transform $transition-fast;
-      
+
       &.expanded {
         transform: rotate(90deg);
       }

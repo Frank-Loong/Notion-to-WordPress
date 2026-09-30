@@ -1,6 +1,6 @@
 /**
  * 懒加载系统 - 现代化TypeScript版本
- * 
+ *
  * 从原有lazy-loading.js完全迁移，包括：
  * - Intersection Observer API图片懒加载
  * - 渐进式内容加载
@@ -9,7 +9,6 @@
  */
 
 import { emit } from '../../shared/core/EventBus';
-import { ready } from '../../shared/utils/dom';
 
 export interface LazyLoadConfig {
   rootMargin: string;
@@ -52,9 +51,9 @@ export class LazyLoader {
     if (LazyLoader.instance) {
       return LazyLoader.instance;
     }
-    
+
     LazyLoader.instance = this;
-    
+
     this.config = {
       rootMargin: '50px 0px',
       threshold: 0.1,
@@ -64,9 +63,9 @@ export class LazyLoader {
       observedClass: 'notion-lazy-observed',
       retryAttempts: 3,
       retryDelay: 1000,
-      ...config
+      ...config,
     };
-    
+
     this.supportsIntersectionObserver = 'IntersectionObserver' in window;
     this.init();
   }
@@ -91,42 +90,51 @@ export class LazyLoader {
     } else {
       this.fallbackLoad();
     }
-    
-    console.log(`🖼️ [懒加载] 已初始化 (${this.supportsIntersectionObserver ? 'Observer模式' : '降级模式'})`);
-    emit('lazy:loader:initialized', { observerSupported: this.supportsIntersectionObserver });
+
+    console.log(
+      `🖼️ [懒加载] 已初始化 (${this.supportsIntersectionObserver ? 'Observer模式' : '降级模式'})`
+    );
+    emit('lazy:loader:initialized', {
+      observerSupported: this.supportsIntersectionObserver,
+    });
   }
 
   /**
    * 创建Intersection Observer
    */
   private createObserver(): void {
-    this.observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const img = entry.target as LazyImageElement;
-          this.loadImage(img);
-          this.observer!.unobserve(img);
-        }
-      });
-    }, {
-      rootMargin: this.config.rootMargin,
-      threshold: this.config.threshold
-    });
+    this.observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            const img = entry.target as LazyImageElement;
+            this.loadImage(img);
+            this.observer!.unobserve(img);
+          }
+        });
+      },
+      {
+        rootMargin: this.config.rootMargin,
+        threshold: this.config.threshold,
+      }
+    );
   }
 
   /**
    * 观察所有懒加载图片
    */
   private observeImages(): void {
-    const lazyImages = document.querySelectorAll('img[data-src]:not(.notion-lazy-observed)');
-    
+    const lazyImages = document.querySelectorAll(
+      'img[data-src]:not(.notion-lazy-observed)'
+    );
+
     lazyImages.forEach(img => {
       if (img instanceof HTMLImageElement) {
         img.classList.add(this.config.observedClass);
         this.observer!.observe(img);
       }
     });
-    
+
     if (lazyImages.length > 0) {
       console.log(`🖼️ [懒加载] 观察图片数量: ${lazyImages.length}`);
     }
@@ -145,24 +153,25 @@ export class LazyLoader {
 
     try {
       await this.preloadImage(src);
-      
+
       // 加载成功
       img.src = src;
       img.classList.remove(this.config.loadingClass);
       img.classList.add(this.config.loadedClass);
-      
+
       this.loadedImages.add(src);
-      
+
       // 清理数据属性
       delete img.dataset.src;
-      
+
       // 触发自定义事件
-      img.dispatchEvent(new CustomEvent('lazyLoaded', {
-        detail: { src, element: img }
-      }));
-      
+      img.dispatchEvent(
+        new CustomEvent('lazyLoaded', {
+          detail: { src, element: img },
+        })
+      );
+
       emit('lazy:image:loaded', { src, element: img });
-      
     } catch (error) {
       await this.handleImageError(img, error as Error);
     }
@@ -174,10 +183,10 @@ export class LazyLoader {
   private preloadImage(src: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const imageLoader = new Image();
-      
+
       imageLoader.onload = () => resolve();
       imageLoader.onerror = () => reject(new Error(`图片加载失败: ${src}`));
-      
+
       imageLoader.src = src;
     });
   }
@@ -185,39 +194,49 @@ export class LazyLoader {
   /**
    * 处理图片加载错误
    */
-  private async handleImageError(img: LazyImageElement, error: Error): Promise<void> {
+  private async handleImageError(
+    img: LazyImageElement,
+    error: Error
+  ): Promise<void> {
     const src = img._lazyOriginalSrc || img.dataset.src || '';
     const retryCount = img._lazyRetryCount || 0;
-    
+
     if (retryCount < this.config.retryAttempts) {
       // 重试加载
       img._lazyRetryCount = retryCount + 1;
-      
-      console.warn(`🖼️ [懒加载] 重试加载图片 (${retryCount + 1}/${this.config.retryAttempts}): ${src}`);
-      
-      setTimeout(() => {
-        this.loadImage(img);
-      }, this.config.retryDelay * (retryCount + 1));
-      
+
+      console.warn(
+        `🖼️ [懒加载] 重试加载图片 (${retryCount + 1}/${this.config.retryAttempts}): ${src}`
+      );
+
+      setTimeout(
+        () => {
+          this.loadImage(img);
+        },
+        this.config.retryDelay * (retryCount + 1)
+      );
+
       return;
     }
-    
+
     // 重试次数用完，显示错误状态
     img.classList.remove(this.config.loadingClass);
     img.classList.add(this.config.errorClass);
-    
+
     this.errorImages.add(src);
-    
+
     // 设置错误占位符
     this.setErrorPlaceholder(img);
-    
+
     // 触发自定义事件
-    img.dispatchEvent(new CustomEvent('lazyError', {
-      detail: { src, error, element: img, retryCount }
-    }));
-    
+    img.dispatchEvent(
+      new CustomEvent('lazyError', {
+        detail: { src, error, element: img, retryCount },
+      })
+    );
+
     emit('lazy:image:error', { src, error, element: img, retryCount });
-    
+
     console.error(`🖼️ [懒加载] 图片加载失败: ${src}`, error);
   }
 
@@ -225,7 +244,8 @@ export class LazyLoader {
    * 设置错误占位符
    */
   private setErrorPlaceholder(img: HTMLImageElement): void {
-    const placeholder = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD48L3N2Zz4=';
+    const placeholder =
+      'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD48L3N2Zz4=';
     img.src = placeholder;
   }
 
@@ -234,13 +254,13 @@ export class LazyLoader {
    */
   private fallbackLoad(): void {
     const lazyImages = document.querySelectorAll('img[data-src]');
-    
+
     lazyImages.forEach(img => {
       if (img instanceof HTMLImageElement) {
         this.loadImage(img);
       }
     });
-    
+
     console.log(`🖼️ [懒加载] 降级模式加载图片数量: ${lazyImages.length}`);
   }
 
@@ -249,7 +269,7 @@ export class LazyLoader {
    */
   refresh(): void {
     if (!this.supportsIntersectionObserver) return;
-    
+
     this.observeImages();
     emit('lazy:loader:refreshed');
   }
@@ -260,7 +280,7 @@ export class LazyLoader {
   async preloadImages(urls: string[]): Promise<void> {
     if (!Array.isArray(urls)) return;
 
-    const promises = urls.map(async (url) => {
+    const promises = urls.map(async url => {
       try {
         await this.preloadImage(url);
         console.log(`🖼️ [预加载] ${url} 完成`);
@@ -287,15 +307,19 @@ export class LazyLoader {
    */
   getStats(): LazyLoadStats {
     const totalImages = document.querySelectorAll('img[data-src]').length;
-    const loadedImages = document.querySelectorAll(`.${this.config.loadedClass}`).length;
-    const errorImages = document.querySelectorAll(`.${this.config.errorClass}`).length;
-    
+    const loadedImages = document.querySelectorAll(
+      `.${this.config.loadedClass}`
+    ).length;
+    const errorImages = document.querySelectorAll(
+      `.${this.config.errorClass}`
+    ).length;
+
     return {
       totalImages,
       loadedImages,
       errorImages,
       observerSupported: this.supportsIntersectionObserver,
-      retryAttempts: this.retryQueue.size
+      retryAttempts: this.retryQueue.size,
     };
   }
 
@@ -311,14 +335,14 @@ export class LazyLoader {
    */
   updateConfig(newConfig: Partial<LazyLoadConfig>): void {
     this.config = { ...this.config, ...newConfig };
-    
+
     // 如果Observer相关配置改变，重新创建Observer
     if (this.observer && (newConfig.rootMargin || newConfig.threshold)) {
       this.observer.disconnect();
       this.createObserver();
       this.observeImages();
     }
-    
+
     emit('lazy:config:updated', this.config);
   }
 
@@ -344,11 +368,11 @@ export class LazyLoader {
       this.observer.disconnect();
       this.observer = null;
     }
-    
+
     this.loadedImages.clear();
     this.errorImages.clear();
     this.retryQueue.clear();
-    
+
     LazyLoader.instance = null;
     emit('lazy:loader:destroyed');
     console.log('🖼️ [懒加载] 已销毁');
@@ -357,10 +381,5 @@ export class LazyLoader {
 
 // 导出单例实例
 export const lazyLoader = LazyLoader.getInstance();
-
-// 自动初始化
-ready(() => {
-  lazyLoader;
-});
 
 export default LazyLoader;

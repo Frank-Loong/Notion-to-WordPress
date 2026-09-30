@@ -26,20 +26,24 @@ export abstract class BaseComponent {
   protected element: HTMLElement | null = null;
   protected options: ComponentOptions;
   protected state: ComponentState;
-  protected eventListeners: Array<{ element: HTMLElement | Window | Document; event: string; handler: EventListener }> = [];
+  protected eventListeners: Array<{
+    element: HTMLElement | Window | Document;
+    event: string;
+    handler: EventListener;
+  }> = [];
   protected stateUnsubscribe: (() => void) | null = null;
 
   constructor(options: ComponentOptions = {}) {
     this.options = {
       autoInit: true,
       destroyOnUnmount: true,
-      ...options
+      ...options,
     };
 
     this.state = {
       mounted: false,
       initialized: false,
-      destroyed: false
+      destroyed: false,
     };
 
     if (this.options.autoInit) {
@@ -199,7 +203,10 @@ export abstract class BaseComponent {
     element.removeEventListener(event, handler);
 
     const index = this.eventListeners.findIndex(
-      listener => listener.element === element && listener.event === event && listener.handler === handler
+      listener =>
+        listener.element === element &&
+        listener.event === event &&
+        listener.handler === handler
     );
 
     if (index > -1) {
@@ -263,16 +270,20 @@ export abstract class BaseComponent {
    * 查找所有子元素
    */
   protected $$(selector: string): NodeListOf<HTMLElement> {
-    return this.element ? this.element.querySelectorAll(selector) : document.querySelectorAll('');
+    return this.element
+      ? this.element.querySelectorAll(selector)
+      : document.querySelectorAll('');
   }
 
   /**
    * 设置状态监听器
    */
   protected setupStateListeners(): void {
-    this.stateUnsubscribe = appStateManager.subscribe((state, prevState, action) => {
-      this.onStateChange(state, prevState, action);
-    });
+    this.stateUnsubscribe = appStateManager.subscribe(
+      (state, prevState, action) => {
+        this.onStateChange(state, prevState, action);
+      }
+    );
   }
 
   /**
@@ -310,5 +321,9 @@ export abstract class BaseComponent {
   protected abstract onDestroy(): void;
   protected abstract onRender(): void;
   protected abstract bindEvents(): void;
-  protected abstract onStateChange(state: any, prevState: any, action: any): void;
+  protected abstract onStateChange(
+    state: any,
+    prevState: any,
+    action: any
+  ): void;
 }

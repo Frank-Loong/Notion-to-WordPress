@@ -65,4 +65,31 @@ class DatabaseConfigTest extends \PHPUnit\Framework\TestCase {
         $this->assertSame( 'Docs', $dbs[2]['name'] );
         $this->assertCount( 3, $dbs );
     }
+
+    public function test_migrates_legacy_cursor_only_to_primary_database(): void {
+        $options = Database_Config::migrate_sync_state( [
+            'notion_database_id' => 'primary',
+            'notion_databases'   => [ [ 'id' => 'secondary' ] ],
+            'last_sync_time'     => '2026-08-24 10:00:00',
+        ] );
+
+        $this->assertSame( '2026-08-24 10:00:00', Database_Config::get_last_sync_time( $options, 'primary' ) );
+        $this->assertSame( '', Database_Config::get_last_sync_time( $options, 'secondary' ) );
+    }
+
+    public function test_updates_only_the_completed_database_cursor(): void {
+        $GLOBALS['__wp_options']['notion_to_wordpress_options'] = [
+            'notion_database_id'  => 'primary',
+            'database_sync_state' => [
+                'primary'   => [ 'last_sync_time' => 'old-primary' ],
+                'secondary' => [ 'last_sync_time' => 'old-secondary' ],
+            ],
+        ];
+
+        Database_Config::mark_database_sync_completed( 'primary', 'new-primary' );
+        $state = $GLOBALS['__wp_options']['notion_to_wordpress_options']['database_sync_state'];
+
+        $this->assertSame( 'new-primary', $state['primary']['last_sync_time'] );
+        $this->assertSame( 'old-secondary', $state['secondary']['last_sync_time'] );
+    }
 }

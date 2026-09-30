@@ -43,7 +43,10 @@ export class SyncProgress {
     this.updateProgress(0, '开始同步...');
   }
 
-  private onSyncProgress(_event: any, data: { progress: number; message: string }): void {
+  private onSyncProgress(
+    _event: any,
+    data: { progress: number; message: string }
+  ): void {
     this.updateProgress(data.progress, data.message);
   }
 

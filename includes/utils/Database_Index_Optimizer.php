@@ -18,8 +18,8 @@ namespace NTWP\Utils;
  */
 
 // 防止直接访问
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
@@ -31,443 +31,473 @@ if (!defined('ABSPATH')) {
  */
 class Database_Index_Optimizer {
 
-    /**
-     * 索引配置定义
-     *
-     * @since 2.0.0-beta.1
-     * @var array
-     */
-    private static $index_definitions = [
-        'notion_page_id_optimized' => [
-            'table' => 'postmeta',
-            'type' => 'composite',
-            'columns' => ['meta_key', 'meta_value(100)', 'post_id'],
-            'where' => "meta_key = '_notion_page_id'",
-            'description' => '优化Notion页面ID查询性能',
-            'priority' => 'high'
-        ],
-        'notion_sync_time' => [
-            'table' => 'postmeta',
-            'type' => 'composite',
-            'columns' => ['meta_key', 'meta_value(50)', 'post_id'],
-            'where' => "meta_key = '_notion_sync_time'",
-            'description' => '优化同步时间查询性能',
-            'priority' => 'high'
-        ],
-        'notion_meta_composite' => [
-            'table' => 'postmeta',
-            'type' => 'composite',
-            'columns' => ['meta_key', 'post_id', 'meta_value(191)'],
-            'where' => "meta_key IN ('_notion_page_id', '_notion_sync_time', '_notion_last_edited_time')",
-            'description' => '优化批量元数据查询性能',
-            'priority' => 'medium'
-        ],
-        'posts_notion_sync' => [
-            'table' => 'posts',
-            'type' => 'composite',
-            'columns' => ['post_type', 'post_status', 'ID', 'post_modified'],
-            'where' => "post_type = 'post'",
-            'description' => '优化文章状态和同步查询性能',
-            'priority' => 'medium'
-        ],
-        'notion_last_edited_time' => [
-            'table' => 'postmeta',
-            'type' => 'composite',
-            'columns' => ['meta_key', 'meta_value(50)', 'post_id'],
-            'where' => "meta_key = '_notion_last_edited_time'",
-            'description' => '优化最后编辑时间查询性能',
-            'priority' => 'high'
-        ]
-    ];
+	/**
+	 * 索引配置定义
+	 *
+	 * @since 2.0.0-beta.1
+	 * @var array
+	 */
+	private static $index_definitions = array(
+		'notion_page_id_optimized' => array(
+			'table'       => 'postmeta',
+			'type'        => 'composite',
+			'columns'     => array( 'meta_key', 'meta_value(100)', 'post_id' ),
+			'where'       => "meta_key = '_notion_page_id'",
+			'description' => '优化Notion页面ID查询性能',
+			'priority'    => 'high',
+		),
+		'notion_sync_time'         => array(
+			'table'       => 'postmeta',
+			'type'        => 'composite',
+			'columns'     => array( 'meta_key', 'meta_value(50)', 'post_id' ),
+			'where'       => "meta_key = '_notion_sync_time'",
+			'description' => '优化同步时间查询性能',
+			'priority'    => 'high',
+		),
+		'notion_meta_composite'    => array(
+			'table'       => 'postmeta',
+			'type'        => 'composite',
+			'columns'     => array( 'meta_key', 'post_id', 'meta_value(191)' ),
+			'where'       => "meta_key IN ('_notion_page_id', '_notion_sync_time', '_notion_last_edited_time')",
+			'description' => '优化批量元数据查询性能',
+			'priority'    => 'medium',
+		),
+		'posts_notion_sync'        => array(
+			'table'       => 'posts',
+			'type'        => 'composite',
+			'columns'     => array( 'post_type', 'post_status', 'ID', 'post_modified' ),
+			'where'       => "post_type = 'post'",
+			'description' => '优化文章状态和同步查询性能',
+			'priority'    => 'medium',
+		),
+		'notion_last_edited_time'  => array(
+			'table'       => 'postmeta',
+			'type'        => 'composite',
+			'columns'     => array( 'meta_key', 'meta_value(50)', 'post_id' ),
+			'where'       => "meta_key = '_notion_last_edited_time'",
+			'description' => '优化最后编辑时间查询性能',
+			'priority'    => 'high',
+		),
+	);
 
-    /**
-     * 创建所有优化索引
-     *
-     * @since 2.0.0-beta.1
-     * @return array 创建结果统计
-     */
-    public static function create_all_indexes(): array {
-        global $wpdb;
-        
-        $results = [
-            'created' => 0,
-            'skipped' => 0,
-            'failed' => 0,
-            'details' => []
-        ];
+	/**
+	 * 创建所有优化索引
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return array 创建结果统计
+	 */
+	public static function create_all_indexes(): array {
+		global $wpdb;
 
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::info_log(
-                '开始创建数据库索引优化',
-                'Database Index Optimizer'
-            );
-        }
+		$results = array(
+			'created' => 0,
+			'skipped' => 0,
+			'failed'  => 0,
+			'details' => array(),
+		);
 
-        foreach (self::$index_definitions as $index_name => $config) {
-            $result = self::create_index($index_name, $config);
-            
-            $results['details'][$index_name] = $result;
-            
-            if ($result['success']) {
-                if ($result['created']) {
-                    $results['created']++;
-                } else {
-                    $results['skipped']++;
-                }
-            } else {
-                $results['failed']++;
-            }
-        }
+		if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+			\NTWP\Core\Logger::info_log(
+				'开始创建数据库索引优化',
+				'Database Index Optimizer'
+			);
+		}
 
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::info_log(
-                sprintf(
-                    '数据库索引优化完成: 创建%d个, 跳过%d个, 失败%d个',
-                    $results['created'],
-                    $results['skipped'],
-                    $results['failed']
-                ),
-                'Database Index Optimizer'
-            );
-        }
+		foreach ( self::$index_definitions as $index_name => $config ) {
+			$result = self::create_index( $index_name, $config );
 
-        return $results;
-    }
+			$results['details'][ $index_name ] = $result;
 
-    /**
-     * 创建单个索引
-     *
-     * @since 2.0.0-beta.1
-     * @param string $index_name 索引名称
-     * @param array $config 索引配置
-     * @return array 创建结果
-     */
-    private static function create_index(string $index_name, array $config): array {
-        global $wpdb;
+			if ( $result['success'] ) {
+				if ( $result['created'] ) {
+					++$results['created'];
+				} else {
+					++$results['skipped'];
+				}
+			} else {
+				++$results['failed'];
+			}
+		}
 
-        $table_name = $wpdb->prefix . $config['table'];
-        $full_index_name = 'idx_ntwp_' . $index_name;
+		if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+			\NTWP\Core\Logger::info_log(
+				sprintf(
+					'数据库索引优化完成: 创建%d个, 跳过%d个, 失败%d个',
+					$results['created'],
+					$results['skipped'],
+					$results['failed']
+				),
+				'Database Index Optimizer'
+			);
+		}
 
-        // 检查索引是否已存在
-        if (self::index_exists($table_name, $full_index_name)) {
-            return [
-                'success' => true,
-                'created' => false,
-                'message' => '索引已存在',
-                'index_name' => $full_index_name
-            ];
-        }
+		return $results;
+	}
 
-        // 构建创建索引的SQL语句
-        $columns_str = implode(', ', $config['columns']);
-        
-        $sql = "CREATE INDEX `{$full_index_name}` ON `{$table_name}` ({$columns_str})";
-        
-        // 如果有WHERE条件，添加到SQL中（注意：MySQL 8.0+ 支持函数索引和条件索引）
-        if (!empty($config['where']) && self::supports_partial_indexes()) {
-            $sql .= " WHERE {$config['where']}";
-        }
+	/**
+	 * 创建单个索引
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $index_name 索引名称
+	 * @param array  $config 索引配置
+	 * @return array 创建结果
+	 */
+	private static function create_index( string $index_name, array $config ): array {
+		global $wpdb;
 
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::debug_log(
-                "创建索引SQL: {$sql}",
-                'Database Index Optimizer'
-            );
-        }
+		$table_name      = $wpdb->prefix . $config['table'];
+		$full_index_name = 'idx_ntwp_' . $index_name;
 
-        // 执行创建索引
-        $result = $wpdb->query($sql);
+		// 检查索引是否已存在
+		if ( self::index_exists( $table_name, $full_index_name ) ) {
+			return array(
+				'success'    => true,
+				'created'    => false,
+				'message'    => '索引已存在',
+				'index_name' => $full_index_name,
+			);
+		}
 
-        if ($result === false) {
-            $error_message = $wpdb->last_error ?: '未知错误';
-            
-            if (class_exists('\\NTWP\\Core\\Logger')) {
-                \NTWP\Core\Logger::error_log(
-                    "创建索引失败: {$full_index_name}, 错误: {$error_message}",
-                    'Database Index Optimizer'
-                );
-            }
+		// 构建创建索引的SQL语句
+		$columns_str = implode( ', ', $config['columns'] );
 
-            return [
-                'success' => false,
-                'created' => false,
-                'message' => $error_message,
-                'index_name' => $full_index_name
-            ];
-        }
+		$sql = "CREATE INDEX `{$full_index_name}` ON `{$table_name}` ({$columns_str})";
 
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::info_log(
-                "成功创建索引: {$full_index_name} ({$config['description']})",
-                'Database Index Optimizer'
-            );
-        }
+		// 如果有WHERE条件，添加到SQL中（注意：MySQL 8.0+ 支持函数索引和条件索引）
+		if ( ! empty( $config['where'] ) && self::supports_partial_indexes() ) {
+			$sql .= " WHERE {$config['where']}";
+		}
 
-        return [
-            'success' => true,
-            'created' => true,
-            'message' => '索引创建成功',
-            'index_name' => $full_index_name
-        ];
-    }
+		if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+			\NTWP\Core\Logger::debug_log(
+				"创建索引SQL: {$sql}",
+				'Database Index Optimizer'
+			);
+		}
 
-    /**
-     * 检查索引是否存在
-     *
-     * @since 2.0.0-beta.1
-     * @param string $table_name 表名
-     * @param string $index_name 索引名
-     * @return bool 索引是否存在
-     */
-    private static function index_exists(string $table_name, string $index_name): bool {
-        global $wpdb;
+		// 执行创建索引
+		$result = $wpdb->query( $sql );
 
-        $sql = "SHOW INDEX FROM `{$table_name}` WHERE Key_name = %s";
-        $result = $wpdb->get_row($wpdb->prepare($sql, $index_name));
+		if ( $result === false ) {
+			$error_message = $wpdb->last_error ?: '未知错误';
 
-        return !empty($result);
-    }
+			if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+				\NTWP\Core\Logger::error_log(
+					"创建索引失败: {$full_index_name}, 错误: {$error_message}",
+					'Database Index Optimizer'
+				);
+			}
 
-    /**
-     * 检查数据库是否支持条件索引
-     *
-     * @since 2.0.0-beta.1
-     * @return bool 是否支持条件索引
-     */
-    private static function supports_partial_indexes(): bool {
-        global $wpdb;
+			return array(
+				'success'    => false,
+				'created'    => false,
+				'message'    => $error_message,
+				'index_name' => $full_index_name,
+			);
+		}
 
-        // 获取MySQL版本
-        $version = $wpdb->get_var("SELECT VERSION()");
-        
-        // MySQL 8.0+ 支持函数索引，但条件索引支持有限
-        // 为了兼容性，暂时不使用WHERE条件
-        return false;
-    }
+		if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+			\NTWP\Core\Logger::info_log(
+				"成功创建索引: {$full_index_name} ({$config['description']})",
+				'Database Index Optimizer'
+			);
+		}
 
-    /**
-     * 获取所有Notion相关索引的状态
-     *
-     * @since 2.0.0-beta.1
-     * @return array 索引状态信息
-     */
-    public static function get_indexes_status(): array {
-        global $wpdb;
+		return array(
+			'success'    => true,
+			'created'    => true,
+			'message'    => '索引创建成功',
+			'index_name' => $full_index_name,
+		);
+	}
 
-        $status = [
-            'total_defined' => count(self::$index_definitions),
-            'existing' => 0,
-            'missing' => 0,
-            'details' => []
-        ];
+	/**
+	 * 检查索引是否存在
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $table_name 表名
+	 * @param string $index_name 索引名
+	 * @return bool 索引是否存在
+	 */
+	private static function index_exists( string $table_name, string $index_name ): bool {
+		global $wpdb;
 
-        foreach (self::$index_definitions as $index_name => $config) {
-            $table_name = $wpdb->prefix . $config['table'];
-            $full_index_name = 'idx_ntwp_' . $index_name;
-            
-            $exists = self::index_exists($table_name, $full_index_name);
-            
-            if ($exists) {
-                $status['existing']++;
-                $index_info = self::get_index_info($table_name, $full_index_name);
-            } else {
-                $status['missing']++;
-                $index_info = null;
-            }
+		$sql    = "SHOW INDEX FROM `{$table_name}` WHERE Key_name = %s";
+		$result = $wpdb->get_row( $wpdb->prepare( $sql, $index_name ) );
 
-            $status['details'][$index_name] = [
-                'exists' => $exists,
-                'table' => $config['table'],
-                'description' => $config['description'],
-                'priority' => $config['priority'],
-                'full_name' => $full_index_name,
-                'info' => $index_info
-            ];
-        }
+		return ! empty( $result );
+	}
 
-        return $status;
-    }
+	/**
+	 * 检查数据库是否支持条件索引
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return bool 是否支持条件索引
+	 */
+	private static function supports_partial_indexes(): bool {
+		global $wpdb;
 
-    /**
-     * 获取指定索引的详细信息
-     *
-     * @since 2.0.0-beta.1
-     * @param string $table_name 表名
-     * @param string $index_name 索引名
-     * @return array|null 索引信息
-     */
-    private static function get_index_info(string $table_name, string $index_name): ?array {
-        global $wpdb;
+		// 获取MySQL版本
+		$version = $wpdb->get_var( 'SELECT VERSION()' );
 
-        $sql = "SHOW INDEX FROM `{$table_name}` WHERE Key_name = %s";
-        $results = $wpdb->get_results($wpdb->prepare($sql, $index_name));
+		// MySQL 8.0+ 支持函数索引，但条件索引支持有限
+		// 为了兼容性，暂时不使用WHERE条件
+		return false;
+	}
 
-        if (empty($results)) {
-            return null;
-        }
+	/**
+	 * 获取所有Notion相关索引的状态
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return array 索引状态信息
+	 */
+	public static function get_indexes_status(): array {
+		global $wpdb;
 
-        $columns = [];
-        foreach ($results as $row) {
-            $columns[] = [
-                'column' => $row->Column_name,
-                'seq' => $row->Seq_in_index,
-                'collation' => $row->Collation,
-                'cardinality' => $row->Cardinality,
-                'sub_part' => $row->Sub_part
-            ];
-        }
+		$status = array(
+			'total_defined' => count( self::$index_definitions ),
+			'existing'      => 0,
+			'missing'       => 0,
+			'details'       => array(),
+		);
 
-        return [
-            'type' => $results[0]->Index_type,
-            'unique' => $results[0]->Non_unique == 0,
-            'columns' => $columns,
-            'comment' => $results[0]->Index_comment ?? ''
-        ];
-    }
+		foreach ( self::$index_definitions as $index_name => $config ) {
+			$table_name      = $wpdb->prefix . $config['table'];
+			$full_index_name = 'idx_ntwp_' . $index_name;
 
-    /**
-     * 删除指定的索引
-     *
-     * @since 2.0.0-beta.1
-     * @param string $index_name 索引名称
-     * @return array 删除结果
-     */
-    public static function drop_index(string $index_name): array {
-        global $wpdb;
+			$exists = self::index_exists( $table_name, $full_index_name );
 
-        if (!isset(self::$index_definitions[$index_name])) {
-            return [
-                'success' => false,
-                'message' => '未知的索引名称'
-            ];
-        }
+			if ( $exists ) {
+				++$status['existing'];
+				$index_info = self::get_index_info( $table_name, $full_index_name );
+			} else {
+				++$status['missing'];
+				$index_info = null;
+			}
 
-        $config = self::$index_definitions[$index_name];
-        $table_name = $wpdb->prefix . $config['table'];
-        $full_index_name = 'idx_ntwp_' . $index_name;
+			$status['details'][ $index_name ] = array(
+				'exists'      => $exists,
+				'table'       => $config['table'],
+				'description' => $config['description'],
+				'priority'    => $config['priority'],
+				'full_name'   => $full_index_name,
+				'info'        => $index_info,
+			);
+		}
 
-        if (!self::index_exists($table_name, $full_index_name)) {
-            return [
-                'success' => true,
-                'dropped' => false,
-                'message' => '索引不存在'
-            ];
-        }
+		return $status;
+	}
 
-        $sql = "DROP INDEX `{$full_index_name}` ON `{$table_name}`";
-        $result = $wpdb->query($sql);
+	/**
+	 * 获取指定索引的详细信息
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $table_name 表名
+	 * @param string $index_name 索引名
+	 * @return array|null 索引信息
+	 */
+	private static function get_index_info( string $table_name, string $index_name ): ?array {
+		global $wpdb;
 
-        if ($result === false) {
-            $error_message = $wpdb->last_error ?: '未知错误';
-            
-            if (class_exists('\\NTWP\\Core\\Logger')) {
-                \NTWP\Core\Logger::error_log(
-                    "删除索引失败: {$full_index_name}, 错误: {$error_message}",
-                    'Database Index Optimizer'
-                );
-            }
+		$sql     = "SHOW INDEX FROM `{$table_name}` WHERE Key_name = %s";
+		$results = $wpdb->get_results( $wpdb->prepare( $sql, $index_name ) );
 
-            return [
-                'success' => false,
-                'dropped' => false,
-                'message' => $error_message
-            ];
-        }
+		if ( empty( $results ) ) {
+			return null;
+		}
 
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::info_log(
-                "成功删除索引: {$full_index_name}",
-                'Database Index Optimizer'
-            );
-        }
+		$columns = array();
+		foreach ( $results as $row ) {
+			$columns[] = array(
+				'column'      => $row->Column_name,
+				'seq'         => $row->Seq_in_index,
+				'collation'   => $row->Collation,
+				'cardinality' => $row->Cardinality,
+				'sub_part'    => $row->Sub_part,
+			);
+		}
 
-        return [
-            'success' => true,
-            'dropped' => true,
-            'message' => '索引删除成功'
-        ];
-    }
+		return array(
+			'type'    => $results[0]->Index_type,
+			'unique'  => $results[0]->Non_unique == 0,
+			'columns' => $columns,
+			'comment' => $results[0]->Index_comment ?? '',
+		);
+	}
 
-    /**
-     * 分析查询性能
-     *
-     * @since 2.0.0-beta.1
-     * @param string $sql 要分析的SQL语句
-     * @return array 性能分析结果
-     */
-    public static function analyze_query_performance(string $sql): array {
-        global $wpdb;
+	/**
+	 * 删除指定的索引
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $index_name 索引名称
+	 * @return array 删除结果
+	 */
+	public static function drop_index( string $index_name ): array {
+		global $wpdb;
 
-        // 使用EXPLAIN分析查询计划
-        $explain_sql = "EXPLAIN " . $sql;
-        $explain_results = $wpdb->get_results($explain_sql);
+		if ( ! isset( self::$index_definitions[ $index_name ] ) ) {
+			return array(
+				'success' => false,
+				'message' => '未知的索引名称',
+			);
+		}
 
-        $analysis = [
-            'query' => $sql,
-            'execution_plan' => $explain_results,
-            'recommendations' => [],
-            'performance_score' => 0
-        ];
+		$config          = self::$index_definitions[ $index_name ];
+		$table_name      = $wpdb->prefix . $config['table'];
+		$full_index_name = 'idx_ntwp_' . $index_name;
 
-        if (!empty($explain_results)) {
-            foreach ($explain_results as $row) {
-                // 分析查询性能并提供建议
-                if ($row->type === 'ALL') {
-                    $analysis['recommendations'][] = '全表扫描检测到，建议添加索引';
-                    $analysis['performance_score'] -= 20;
-                }
+		if ( ! self::index_exists( $table_name, $full_index_name ) ) {
+			return array(
+				'success' => true,
+				'dropped' => false,
+				'message' => '索引不存在',
+			);
+		}
 
-                if ($row->key === null) {
-                    $analysis['recommendations'][] = '未使用索引，查询性能可能很差';
-                    $analysis['performance_score'] -= 15;
-                }
+		$sql    = "DROP INDEX `{$full_index_name}` ON `{$table_name}`";
+		$result = $wpdb->query( $sql );
 
-                if (isset($row->rows) && $row->rows > 1000) {
-                    $analysis['recommendations'][] = '扫描行数过多 (' . $row->rows . ')，建议优化查询或添加索引';
-                    $analysis['performance_score'] -= 10;
-                }
+		if ( $result === false ) {
+			$error_message = $wpdb->last_error ?: '未知错误';
 
-                if (!empty($row->key)) {
-                    $analysis['performance_score'] += 10;
-                }
-            }
-        }
+			if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+				\NTWP\Core\Logger::error_log(
+					"删除索引失败: {$full_index_name}, 错误: {$error_message}",
+					'Database Index Optimizer'
+				);
+			}
 
-        // 基础性能分数
-        $analysis['performance_score'] = max(0, min(100, $analysis['performance_score'] + 50));
+			return array(
+				'success' => false,
+				'dropped' => false,
+				'message' => $error_message,
+			);
+		}
 
-        return $analysis;
-    }
+		if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+			\NTWP\Core\Logger::info_log(
+				"成功删除索引: {$full_index_name}",
+				'Database Index Optimizer'
+			);
+		}
 
-    /**
-     * 优化常见的Notion相关查询
-     *
-     * @since 2.0.0-beta.1
-     * @return array 优化建议
-     */
-    public static function get_query_optimization_recommendations(): array {
-        global $wpdb;
+		return array(
+			'success' => true,
+			'dropped' => true,
+			'message' => '索引删除成功',
+		);
+	}
 
-        $recommendations = [];
+	/**
+	 * 分析查询性能
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $sql 要分析的SQL语句
+	 * @return array 性能分析结果
+	 */
+	public static function analyze_query_performance( string $sql ): array {
 
-        // 分析删除检测查询性能
-        $deletion_query = "
+		global $wpdb;
+		$query = self::normalize_analysis_query( $sql );
+		// 使用EXPLAIN分析查询计划
+		// 查询文本不能作为 SQL 参数绑定；normalize_analysis_query() 只允许单条只读 SELECT。
+		$explain_sql     = 'EXPLAIN ' . $query;
+		$explain_results = $wpdb->get_results( $explain_sql );
+
+		$analysis = array(
+			'query'             => $query,
+			'execution_plan'    => $explain_results,
+			'recommendations'   => array(),
+			'performance_score' => 0,
+		);
+
+		if ( ! empty( $explain_results ) ) {
+			foreach ( $explain_results as $row ) {
+				// 分析查询性能并提供建议
+				if ( $row->type === 'ALL' ) {
+					$analysis['recommendations'][]  = '全表扫描检测到，建议添加索引';
+					$analysis['performance_score'] -= 20;
+				}
+
+				if ( $row->key === null ) {
+					$analysis['recommendations'][]  = '未使用索引，查询性能可能很差';
+					$analysis['performance_score'] -= 15;
+				}
+
+				if ( isset( $row->rows ) && $row->rows > 1000 ) {
+					$analysis['recommendations'][]  = '扫描行数过多 (' . $row->rows . ')，建议优化查询或添加索引';
+					$analysis['performance_score'] -= 10;
+				}
+
+				if ( ! empty( $row->key ) ) {
+					$analysis['performance_score'] += 10;
+				}
+			}
+		}
+
+		// 基础性能分数
+		$analysis['performance_score'] = max( 0, min( 100, $analysis['performance_score'] + 50 ) );
+		return $analysis;
+	}
+
+	/**
+	 * 验证后台性能分析工具接收的查询。
+	 *
+	 * EXPLAIN 无法对 SQL 语句本身使用预处理占位符，因此只接受单条、无注释的 SELECT，
+	 * 并拒绝可能写入文件、改变锁状态或显著消耗连接资源的语法。
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $sql 查询语句。
+	 * @return string 已规范化的查询。
+	 * @throws \InvalidArgumentException 当查询不是安全的只读查询时抛出。
+	 */
+	private static function normalize_analysis_query( string $sql ): string {
+
+		$query = trim( $sql );
+		if ( $query === '' || strlen( $query ) > 10000 ) {
+			throw new \InvalidArgumentException( 'SQL 查询不能为空且长度不能超过 10000 个字符。' );
+		}
+
+		if ( preg_match( '/\ASELECT\b/i', $query ) !== 1 ) {
+			throw new \InvalidArgumentException( '只能分析单条 SELECT 查询。' );
+		}
+
+		$unsafe_syntax = '/(?:;|--|#|\/\*|\*\/|\bINTO\b|\b(?:SLEEP|BENCHMARK|GET_LOCK|RELEASE_LOCK|LOAD_FILE)\s*\(|\bFOR\s+UPDATE\b|\bLOCK\s+IN\s+SHARE\s+MODE\b)/i';
+		if ( preg_match( $unsafe_syntax, $query ) === 1 ) {
+			throw new \InvalidArgumentException( '查询包含性能分析工具不允许的语法。' );
+		}
+
+		return $query;
+	}
+	/**
+	 * 优化常见的Notion相关查询
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return array 优化建议
+	 */
+	public static function get_query_optimization_recommendations(): array {
+		global $wpdb;
+
+		$recommendations = array();
+
+		// 分析删除检测查询性能
+		$deletion_query = "
             SELECT p.ID as post_id, pm.meta_value as notion_id
             FROM {$wpdb->posts} p
             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
             WHERE pm.meta_key = '_notion_page_id'
         ";
 
-        $deletion_analysis = self::analyze_query_performance($deletion_query);
-        $recommendations['deletion_detection'] = [
-            'query_type' => '删除检测查询',
-            'current_performance' => $deletion_analysis['performance_score'],
-            'analysis' => $deletion_analysis,
-            'suggested_indexes' => ['notion_page_id_optimized']
-        ];
+		$deletion_analysis                     = self::analyze_query_performance( $deletion_query );
+		$recommendations['deletion_detection'] = array(
+			'query_type'          => '删除检测查询',
+			'current_performance' => $deletion_analysis['performance_score'],
+			'analysis'            => $deletion_analysis,
+			'suggested_indexes'   => array( 'notion_page_id_optimized' ),
+		);
 
-        // 分析同步时间查询性能
-        $sync_time_query = "
+		// 分析同步时间查询性能
+		$sync_time_query = "
             SELECT post_id, meta_value
             FROM {$wpdb->postmeta}
             WHERE meta_key = '_notion_sync_time'
@@ -475,65 +505,65 @@ class Database_Index_Optimizer {
             LIMIT 100
         ";
 
-        $sync_analysis = self::analyze_query_performance($sync_time_query);
-        $recommendations['sync_time_query'] = [
-            'query_type' => '同步时间查询',
-            'current_performance' => $sync_analysis['performance_score'],
-            'analysis' => $sync_analysis,
-            'suggested_indexes' => ['notion_sync_time']
-        ];
+		$sync_analysis                      = self::analyze_query_performance( $sync_time_query );
+		$recommendations['sync_time_query'] = array(
+			'query_type'          => '同步时间查询',
+			'current_performance' => $sync_analysis['performance_score'],
+			'analysis'            => $sync_analysis,
+			'suggested_indexes'   => array( 'notion_sync_time' ),
+		);
 
-        return $recommendations;
-    }
+		return $recommendations;
+	}
 
-    /**
-     * 执行索引维护
-     *
-     * @since 2.0.0-beta.1
-     * @return array 维护结果
-     */
-    public static function maintain_indexes(): array {
-        global $wpdb;
+	/**
+	 * 执行索引维护
+	 *
+	 * @since 2.0.0-beta.1
+	 * @return array 维护结果
+	 */
+	public static function maintain_indexes(): array {
+		global $wpdb;
 
-        $maintenance_results = [
-            'analyzed' => 0,
-            'optimized' => 0,
-            'warnings' => []
-        ];
+		$maintenance_results = array(
+			'analyzed'  => 0,
+			'optimized' => 0,
+			'warnings'  => array(),
+		);
 
-        foreach (self::$index_definitions as $index_name => $config) {
-            $table_name = $wpdb->prefix . $config['table'];
-            $full_index_name = 'idx_ntwp_' . $index_name;
+		foreach ( self::$index_definitions as $index_name => $config ) {
+			$table_name      = $wpdb->prefix . $config['table'];
+			$full_index_name = 'idx_ntwp_' . $index_name;
 
-            if (self::index_exists($table_name, $full_index_name)) {
-                // 分析表
-                $analyze_sql = "ANALYZE TABLE `{$table_name}`";
-                $wpdb->query($analyze_sql);
-                $maintenance_results['analyzed']++;
+			if ( self::index_exists( $table_name, $full_index_name ) ) {
+				// 分析表
+				$analyze_sql = "ANALYZE TABLE `{$table_name}`";
+				$wpdb->query( $analyze_sql );
+				++$maintenance_results['analyzed'];
 
-                // 优化表（可选）
-                if ($config['priority'] === 'high') {
-                    $optimize_sql = "OPTIMIZE TABLE `{$table_name}`";
-                    $wpdb->query($optimize_sql);
-                    $maintenance_results['optimized']++;
-                }
-            } else {
-                $maintenance_results['warnings'][] = "索引 {$full_index_name} 不存在";
-            }
-        }
+				// 优化表（可选）
+				if ( $config['priority'] === 'high' ) {
+					$optimize_sql = "OPTIMIZE TABLE `{$table_name}`";
+					$wpdb->query( $optimize_sql );
+					++$maintenance_results['optimized'];
+				}
+			} else {
+				$maintenance_results['warnings'][] = "索引 {$full_index_name} 不存在";
+			}
+		}
 
-        if (class_exists('\\NTWP\\Core\\Logger')) {
-            \NTWP\Core\Logger::info_log(
-                sprintf(
-                    '索引维护完成: 分析%d个表, 优化%d个表, %d个警告',
-                    $maintenance_results['analyzed'],
-                    $maintenance_results['optimized'],
-                    count($maintenance_results['warnings'])
-                ),
-                'Database Index Optimizer'
-            );
-        }
+		if ( class_exists( '\\NTWP\\Core\\Logger' ) ) {
+			\NTWP\Core\Logger::info_log(
+				sprintf(
+					'索引维护完成: 分析%d个表, 优化%d个表, %d个警告',
+					$maintenance_results['analyzed'],
+					$maintenance_results['optimized'],
+					count( $maintenance_results['warnings'] )
+				),
+				'Database Index Optimizer'
+			);
+		}
 
-        return $maintenance_results;
-    }
+		return $maintenance_results;
+	}
 }

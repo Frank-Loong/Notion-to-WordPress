@@ -16,15 +16,28 @@ declare global {
 // WordPress核心接口
 export interface WordPressGlobal {
   hooks: {
-    addAction: (tag: string, callback: Function, priority?: number) => void;
-    addFilter: (tag: string, callback: Function, priority?: number) => void;
+    addAction: (
+      tag: string,
+      callback: (...args: any[]) => unknown,
+      priority?: number
+    ) => void;
+    addFilter: (
+      tag: string,
+      callback: (...args: any[]) => unknown,
+      priority?: number
+    ) => void;
     doAction: (tag: string, ...args: any[]) => void;
     applyFilters: (tag: string, value: any, ...args: any[]) => any;
   };
   i18n: {
     __: (text: string, domain?: string) => string;
     _e: (text: string, domain?: string) => void;
-    _n: (single: string, plural: string, number: number, domain?: string) => string;
+    _n: (
+      single: string,
+      plural: string,
+      number: number,
+      domain?: string
+    ) => string;
   };
 }
 
@@ -150,7 +163,7 @@ export type WordPressHookCallback = (...args: any[]) => any;
 export type WordPressFilterCallback<T = any> = (value: T, ...args: any[]) => T;
 
 // WordPress能力类型
-export type WordPressCapability = 
+export type WordPressCapability =
   | 'manage_options'
   | 'edit_posts'
   | 'edit_pages'
@@ -165,7 +178,7 @@ export type WordPressCapability =
   | 'delete_plugins';
 
 // WordPress文章状态类型
-export type WordPressPostStatus = 
+export type WordPressPostStatus =
   | 'publish'
   | 'draft'
   | 'pending'
@@ -175,7 +188,7 @@ export type WordPressPostStatus =
   | 'inherit';
 
 // WordPress文章类型
-export type WordPressPostType = 
+export type WordPressPostType =
   | 'post'
   | 'page'
   | 'attachment'

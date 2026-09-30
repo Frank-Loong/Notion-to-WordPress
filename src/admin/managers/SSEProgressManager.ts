@@ -1,6 +1,6 @@
 /**
  * SSE进度管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有sync-progress-manager.js的SSE功能完全迁移，包括：
  * - Server-Sent Events连接管理
  * - 实时进度更新
@@ -70,7 +70,7 @@ export class SSEProgressManager {
       reconnectAttempts: 3,
       reconnectDelay: 2000,
       timeout: 30000,
-      ...options
+      ...options,
     };
   }
 
@@ -102,9 +102,9 @@ export class SSEProgressManager {
       console.log(`🔗 [SSE进度管理器] 连接到: ${url}`);
 
       this.eventSource = new EventSource(url);
-      
+
       this.setupEventListeners();
-      
+
       // 设置连接超时
       setTimeout(() => {
         if (!this.isConnected && this.eventSource) {
@@ -112,7 +112,6 @@ export class SSEProgressManager {
           this.handleConnectionError(new Error('连接超时'));
         }
       }, this.options.timeout);
-
     } catch (error) {
       console.error('❌ [SSE进度管理器] 连接失败:', error);
       this.handleConnectionError(error as Error);
@@ -123,11 +122,12 @@ export class SSEProgressManager {
    * 构建SSE URL
    */
   private buildSSEUrl(): string {
-    const baseUrl = (window as any).notionToWp?.sse_endpoint || '/wp-admin/admin-ajax.php';
+    const baseUrl =
+      (window as any).notionToWp?.sse_endpoint || '/wp-admin/admin-ajax.php';
     const params = new URLSearchParams({
       action: 'notion_to_wordpress_sse_progress',
       task_id: this.taskId,
-      nonce: (window as any).notionToWp?.nonce || ''
+      nonce: (window as any).notionToWp?.nonce || '',
     });
 
     return `${baseUrl}?${params.toString()}`;
@@ -149,7 +149,7 @@ export class SSEProgressManager {
     };
 
     // 接收消息
-    this.eventSource.onmessage = (event) => {
+    this.eventSource.onmessage = event => {
       try {
         const data = JSON.parse(event.data);
         this.handleMessage(data);
@@ -160,13 +160,13 @@ export class SSEProgressManager {
     };
 
     // 连接错误
-    this.eventSource.onerror = (event) => {
+    this.eventSource.onerror = event => {
       console.error('❌ [SSE进度管理器] 连接错误:', event);
       this.handleConnectionError(new Error('SSE连接错误'));
     };
 
     // 自定义事件监听
-    this.eventSource.addEventListener('progress', (event) => {
+    this.eventSource.addEventListener('progress', event => {
       try {
         const data = JSON.parse((event as MessageEvent).data);
         this.handleProgressUpdate(data);
@@ -175,7 +175,7 @@ export class SSEProgressManager {
       }
     });
 
-    this.eventSource.addEventListener('complete', (event) => {
+    this.eventSource.addEventListener('complete', event => {
       try {
         const data = JSON.parse((event as MessageEvent).data);
         this.handleCompletion(data);
@@ -184,7 +184,7 @@ export class SSEProgressManager {
       }
     });
 
-    this.eventSource.addEventListener('error', (event) => {
+    this.eventSource.addEventListener('error', event => {
       try {
         const data = JSON.parse((event as MessageEvent).data);
         this.handleServerError(data);
@@ -226,11 +226,11 @@ export class SSEProgressManager {
         current: data.current || 0,
         total: data.total || 0,
         message: data.message,
-        step: data.step
+        step: data.step,
       },
       status: data.status || 'running',
       timestamp: Date.now(),
-      taskId: this.taskId
+      taskId: this.taskId,
     };
 
     this.options.onProgress(progressData);
@@ -246,12 +246,12 @@ export class SSEProgressManager {
       message: data.message || '任务完成',
       summary: data.summary,
       timestamp: Date.now(),
-      taskId: this.taskId
+      taskId: this.taskId,
     };
 
     this.options.onComplete(completionData);
     emit('sse:complete', completionData);
-    
+
     // 完成后关闭连接
     this.stop();
   }
@@ -274,10 +274,15 @@ export class SSEProgressManager {
     emit('sse:disconnected', { taskId: this.taskId, error });
 
     // 尝试重连
-    if (this.reconnectAttempts < this.options.reconnectAttempts && !this.isStopped) {
+    if (
+      this.reconnectAttempts < this.options.reconnectAttempts &&
+      !this.isStopped
+    ) {
       this.reconnectAttempts++;
-      console.log(`🔄 [SSE进度管理器] 尝试重连 (${this.reconnectAttempts}/${this.options.reconnectAttempts})`);
-      
+      console.log(
+        `🔄 [SSE进度管理器] 尝试重连 (${this.reconnectAttempts}/${this.options.reconnectAttempts})`
+      );
+
       this.reconnectTimer = setTimeout(() => {
         this.disconnect();
         this.connect();
@@ -311,7 +316,7 @@ export class SSEProgressManager {
   stop(): void {
     this.isStopped = true;
     this.disconnect();
-    
+
     console.log('🔌 [SSE进度管理器] 已停止');
     emit('sse:stopped', { taskId: this.taskId });
   }

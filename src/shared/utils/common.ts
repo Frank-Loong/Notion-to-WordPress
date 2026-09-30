@@ -34,7 +34,10 @@ export function deepClone<T>(obj: T): T {
 /**
  * 对象合并（深度合并）
  */
-export function deepMerge<T extends Record<string, any>>(target: T, ...sources: Partial<T>[]): T {
+export function deepMerge<T extends Record<string, any>>(
+  target: T,
+  ...sources: Partial<T>[]
+): T {
   if (!sources.length) return target;
   const source = sources.shift();
 
@@ -42,7 +45,10 @@ export function deepMerge<T extends Record<string, any>>(target: T, ...sources: 
     for (const key in source) {
       if (isObject(source[key])) {
         if (!target[key]) Object.assign(target, { [key]: {} });
-        deepMerge(target[key] as Record<string, any>, source[key] as Record<string, any>);
+        deepMerge(
+          target[key] as Record<string, any>,
+          source[key] as Record<string, any>
+        );
       } else {
         Object.assign(target, { [key]: source[key] });
       }
@@ -70,9 +76,9 @@ export function generateId(prefix = 'id'): string {
  * 生成UUID v4
  */
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -82,11 +88,11 @@ export function generateUUID(): string {
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
@@ -115,9 +121,12 @@ export function formatTimeDiff(milliseconds: number): string {
 /**
  * 格式化日期
  */
-export function formatDate(date: Date | string | number, format = 'YYYY-MM-DD HH:mm:ss'): string {
+export function formatDate(
+  date: Date | string | number,
+  format = 'YYYY-MM-DD HH:mm:ss'
+): string {
   const d = new Date(date);
-  
+
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -141,7 +150,7 @@ export function formatRelativeTime(date: Date | string | number): string {
   const now = new Date();
   const target = new Date(date);
   const diff = now.getTime() - target.getTime();
-  
+
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
@@ -160,7 +169,11 @@ export function formatRelativeTime(date: Date | string | number): string {
 /**
  * 截断文本
  */
-export function truncateText(text: string, maxLength: number, suffix = '...'): string {
+export function truncateText(
+  text: string,
+  maxLength: number,
+  suffix = '...'
+): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - suffix.length) + suffix;
 }
@@ -176,7 +189,9 @@ export function capitalize(str: string): string {
  * 驼峰命名转换
  */
 export function camelCase(str: string): string {
-  return str.replace(/[-_\s]+(.)?/g, (_, char) => char ? char.toUpperCase() : '');
+  return str.replace(/[-_\s]+(.)?/g, (_, char) =>
+    char ? char.toUpperCase() : ''
+  );
 }
 
 /**
@@ -230,15 +245,22 @@ export function unique<T>(array: T[]): T[] {
 /**
  * 数组分组
  */
-export function groupBy<T>(array: T[], key: keyof T | ((item: T) => string)): Record<string, T[]> {
-  return array.reduce((groups, item) => {
-    const groupKey = typeof key === 'function' ? key(item) : String(item[key]);
-    if (!groups[groupKey]) {
-      groups[groupKey] = [];
-    }
-    groups[groupKey].push(item);
-    return groups;
-  }, {} as Record<string, T[]>);
+export function groupBy<T>(
+  array: T[],
+  key: keyof T | ((item: T) => string)
+): Record<string, T[]> {
+  return array.reduce(
+    (groups, item) => {
+      const groupKey =
+        typeof key === 'function' ? key(item) : String(item[key]);
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(item);
+      return groups;
+    },
+    {} as Record<string, T[]>
+  );
 }
 
 /**
@@ -275,7 +297,12 @@ export function random(min: number, max: number): number {
  * 获取随机颜色
  */
 export function randomColor(): string {
-  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  return (
+    '#' +
+    Math.floor(Math.random() * 16777215)
+      .toString(16)
+      .padStart(6, '0')
+  );
 }
 
 /**
@@ -295,20 +322,21 @@ export async function retry<T>(
   backoff = 'linear'
 ): Promise<T> {
   let lastError: Error;
-  
+
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       return await fn();
     } catch (error) {
       lastError = error as Error;
-      
+
       if (attempt < maxAttempts) {
-        const waitTime = backoff === 'exponential' ? delay * Math.pow(2, attempt - 1) : delay;
+        const waitTime =
+          backoff === 'exponential' ? delay * Math.pow(2, attempt - 1) : delay;
         await sleep(waitTime);
       }
     }
   }
-  
+
   throw lastError!;
 }
 
@@ -321,20 +349,23 @@ export async function promiseAllLimit<T>(
 ): Promise<T[]> {
   const results: T[] = [];
   const executing: Promise<void>[] = [];
-  
+
   for (let i = 0; i < promises.length; i++) {
     const promise = promises[i]().then(result => {
       results[i] = result;
     });
-    
+
     executing.push(promise);
-    
+
     if (executing.length >= limit) {
       await Promise.race(executing);
-      executing.splice(executing.findIndex(p => p === promise), 1);
+      executing.splice(
+        executing.findIndex(p => p === promise),
+        1
+      );
     }
   }
-  
+
   await Promise.all(executing);
   return results;
 }

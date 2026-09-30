@@ -41,13 +41,13 @@ export class CodeSplitter {
     this.registerChunk({
       name: 'admin-settings',
       path: () => import('../../admin/modules/Settings'),
-      priority: 'medium'
+      priority: 'medium',
     });
 
     this.registerChunk({
       name: 'admin-logs',
       path: () => import('../../admin/modules/Logs'),
-      priority: 'low'
+      priority: 'low',
     });
 
     // 注册第三方库（如果需要的话）
@@ -75,7 +75,7 @@ export class CodeSplitter {
       path: typeof chunk.path === 'string' ? chunk.path : 'dynamic',
       priority: chunk.priority || 'medium',
       dependencies: chunk.dependencies,
-      size: chunk.size
+      size: chunk.size,
     };
 
     this.chunks.set(chunk.name, chunkInfo);
@@ -122,17 +122,17 @@ export class CodeSplitter {
 
       // 加载主模块
       const module = await lazyLoader.loadModule(name);
-      
+
       // 缓存结果
       if (options.cache !== false) {
         this.chunkCache.set(name, module);
       }
-      
+
       this.loadedChunks.add(name);
 
       const loadTime = performanceMonitor.endTimer(`chunk_load_${name}`, {
         chunk: name,
-        priority: chunk.priority
+        priority: chunk.priority,
       });
 
       console.log(`Chunk loaded: ${name} (${loadTime.toFixed(2)}ms)`);
@@ -141,7 +141,7 @@ export class CodeSplitter {
       performanceMonitor.endTimer(`chunk_load_${name}`, {
         chunk: name,
         priority: chunk.priority,
-        error: 'true'
+        error: 'true',
       });
 
       console.error(`Failed to load chunk ${name}:`, error);
@@ -153,7 +153,7 @@ export class CodeSplitter {
    * 加载依赖
    */
   private async loadDependencies(dependencies: string[]): Promise<void> {
-    const loadPromises = dependencies.map(dep => 
+    const loadPromises = dependencies.map(dep =>
       this.loadChunk(dep).catch(error => {
         console.error(`Failed to load dependency ${dep}:`, error);
         return null;
@@ -171,10 +171,13 @@ export class CodeSplitter {
 
     try {
       await resourcePreloader.preloadScript(chunk.path, {
-        priority: chunk.priority === 'high' ? 'high' : 'low'
+        priority: chunk.priority === 'high' ? 'high' : 'low',
       });
     } catch (error) {
-      console.warn(`Failed to preload chunk resources for ${chunk.name}:`, error);
+      console.warn(
+        `Failed to preload chunk resources for ${chunk.name}:`,
+        error
+      );
     }
   }
 
@@ -182,7 +185,7 @@ export class CodeSplitter {
    * 批量加载代码块
    */
   async loadChunks(names: string[], options: LoadOptions = {}): Promise<any[]> {
-    const loadPromises = names.map(name => 
+    const loadPromises = names.map(name =>
       this.loadChunk(name, options).catch(error => {
         console.error(`Failed to load chunk ${name}:`, error);
         return null;
@@ -215,13 +218,16 @@ export class CodeSplitter {
     const predictedChunks = this.predictChunksForPage(currentPage);
 
     if (predictedChunks.length > 0) {
-      console.log(`Smart preloading chunks for ${currentPage}:`, predictedChunks);
-      
+      console.log(
+        `Smart preloading chunks for ${currentPage}:`,
+        predictedChunks
+      );
+
       // 延迟预加载，避免阻塞主线程
       setTimeout(() => {
-        this.loadChunks(predictedChunks, { 
-          preload: true, 
-          cache: true 
+        this.loadChunks(predictedChunks, {
+          preload: true,
+          cache: true,
         }).catch(console.error);
       }, 1000);
     }
@@ -232,14 +238,14 @@ export class CodeSplitter {
    */
   private getCurrentPageType(): string {
     const url = window.location.href;
-    
+
     if (url.includes('wp-admin')) {
       if (url.includes('notion-to-wordpress')) {
         return 'admin-plugin';
       }
       return 'admin';
     }
-    
+
     return 'frontend';
   }
 
@@ -249,8 +255,8 @@ export class CodeSplitter {
   private predictChunksForPage(pageType: string): string[] {
     const predictions: Record<string, string[]> = {
       'admin-plugin': ['admin-settings', 'admin-logs'],
-      'admin': [],
-      'frontend': ['frontend-comments', 'frontend-search']
+      admin: [],
+      frontend: ['frontend-comments', 'frontend-search'],
     };
 
     return predictions[pageType] || [];
@@ -308,7 +314,7 @@ export class CodeSplitter {
       total: chunks.length,
       loaded: this.loadedChunks.size,
       cached: this.chunkCache.size,
-      byPriority
+      byPriority,
     };
   }
 

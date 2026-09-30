@@ -54,7 +54,7 @@ class ContentConverterTest extends \PHPUnit\Framework\TestCase {
 
         $html = $this->convert( $blocks, 'classic' );
 
-        $this->assertStringContainsString( '<p>Hello</p>', $html );
+        $this->assertStringContainsString( 'Hello</p>', $html );
         $this->assertStringNotContainsString( '<!-- wp:', $html );
     }
 
@@ -70,7 +70,7 @@ class ContentConverterTest extends \PHPUnit\Framework\TestCase {
 
         $this->assertStringContainsString( '<!-- wp:paragraph -->', $html );
         $this->assertStringContainsString( '<!-- /wp:paragraph -->', $html );
-        $this->assertStringContainsString( '<p>Hello</p>', $html );
+		$this->assertStringContainsString( '<p id="notion-block-b1" class="notion-block notion-paragraph">Hello</p>', $html );
     }
 
     /**
@@ -84,7 +84,7 @@ class ContentConverterTest extends \PHPUnit\Framework\TestCase {
         $html = $this->convert( $blocks, 'gutenberg' );
 
         $this->assertStringContainsString( '<!-- wp:heading {"level":2} -->', $html );
-        $this->assertStringContainsString( '<h2>Title</h2>', $html );
+		$this->assertStringContainsString( '<h2 id="notion-block-b2" class="notion-block notion-heading_2">Title</h2>', $html );
     }
 
     /**
@@ -101,7 +101,7 @@ class ContentConverterTest extends \PHPUnit\Framework\TestCase {
         $this->assertStringContainsString( '<!-- /wp:list -->', $html );
         $this->assertStringContainsString( '<!-- wp:list-item -->', $html );
         $this->assertStringContainsString( '<!-- /wp:list-item -->', $html );
-        $this->assertStringContainsString( '<li>Item</li>', $html );
+        $this->assertStringContainsString( 'Item</li>', $html );
     }
 
     /**
@@ -115,7 +115,99 @@ class ContentConverterTest extends \PHPUnit\Framework\TestCase {
         $html = $this->convert( $blocks, 'classic' );
 
         $this->assertStringContainsString( '<ul>', $html );
-        $this->assertStringContainsString( '<li>Item</li>', $html );
+        $this->assertStringContainsString( 'Item</li>', $html );
         $this->assertStringNotContainsString( '<!-- wp:', $html );
     }
+
+	public function test_external_file_pdf_audio_and_video_blocks_preserve_metadata(): void {
+		$blocks = [
+			[
+				'id' => 'file-1',
+				'type' => 'file',
+				'file' => [
+					'type' => 'external',
+					'external' => [ 'url' => 'https://downloads.example/manual.pdf' ],
+					'name' => 'Manual.pdf',
+					'caption' => $this->rich_text( 'File caption' ),
+				],
+			],
+			[
+				'id' => 'pdf-1',
+				'type' => 'pdf',
+				'pdf' => [
+					'type' => 'external',
+					'external' => [ 'url' => 'https://downloads.example/document.pdf' ],
+					'caption' => $this->rich_text( 'PDF caption' ),
+				],
+			],
+			[
+				'id' => 'audio-1',
+				'type' => 'audio',
+				'audio' => [
+					'type' => 'external',
+					'external' => [ 'url' => 'https://media.example/audio.mp3' ],
+					'caption' => $this->rich_text( 'Audio caption' ),
+				],
+			],
+			[
+				'id' => 'video-1',
+				'type' => 'video',
+				'video' => [
+					'type' => 'external',
+					'external' => [ 'url' => 'https://media.example/video.mp4' ],
+					'caption' => $this->rich_text( 'Video caption' ),
+				],
+			],
+		];
+
+		$html = $this->convert( $blocks, 'classic' );
+
+		$this->assertStringContainsString( 'Manual.pdf', $html );
+		$this->assertStringContainsString( 'File caption', $html );
+		$this->assertStringContainsString( 'notion-pdf-fallback', $html );
+		$this->assertStringNotContainsString( 'application/pdf', $html );
+		$this->assertStringContainsString( '<audio controls preload="metadata"', $html );
+		$this->assertStringContainsString( 'Audio caption', $html );
+		$this->assertStringContainsString( '<video controls>', $html );
+		$this->assertStringContainsString( 'Video caption', $html );
+	}
+
+	public function test_video_platform_detection_does_not_trust_suffix_confusion(): void {
+		$blocks = [
+			[
+				'id' => 'video-host-check',
+				'type' => 'video',
+				'video' => [
+					'type' => 'external',
+					'external' => [ 'url' => 'https://youtube.com.attacker.example/watch?v=dQw4w9WgXcQ' ],
+				],
+			],
+		];
+
+		$html = $this->convert( $blocks, 'classic' );
+
+		$this->assertStringContainsString( '<video controls>', $html );
+		$this->assertStringNotContainsString( 'youtube.com/embed/', $html );
+	}
+
+	public function test_embed_platform_detection_does_not_trust_suffix_confusion(): void {
+		$blocks = [
+			[
+				'id' => 'embed-host-check',
+				'type' => 'embed',
+				'embed' => [
+					'url' => 'https://youtube.com.attacker.example/watch?v=dQw4w9WgXcQ',
+				],
+			],
+		];
+
+		$html = $this->convert( $blocks, 'classic' );
+
+		$this->assertStringContainsString( 'id="notion-block-embed-host-check"', $html );
+		$this->assertStringContainsString( 'class="notion-embed notion-block notion-embed"', $html );
+		$this->assertStringContainsString( 'notion-embed-fallback', $html );
+		$this->assertStringContainsString( 'href="https://youtube.com.attacker.example/watch?v=dQw4w9WgXcQ"', $html );
+		$this->assertStringNotContainsString( '<iframe', $html );
+		$this->assertStringNotContainsString( 'youtube.com/embed/', $html );
+	}
 }

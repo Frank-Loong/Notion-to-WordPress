@@ -1,6 +1,6 @@
 /**
  * 同步状态管理器 - 现代化TypeScript版本
- * 
+ *
  * 从原有admin-interactions.js的SyncStatusManager完全迁移，包括：
  * - 同步状态持久化
  * - 页面可见性处理
@@ -40,12 +40,12 @@ export interface QueueStatusData {
  */
 export class SyncStatusManager {
   private static instance: SyncStatusManager | null = null;
-  
+
   // 配置常量
   private readonly STORAGE_KEY = 'notion_wp_sync_status';
-  private readonly CHECK_INTERVAL_VISIBLE = 5000;    // 页面可见时：5秒
-  private readonly CHECK_INTERVAL_HIDDEN = 30000;    // 页面隐藏时：30秒
-  private readonly STATUS_EXPIRE_TIME = 3600000;     // 1小时过期
+  private readonly CHECK_INTERVAL_VISIBLE = 5000; // 页面可见时：5秒
+  private readonly CHECK_INTERVAL_HIDDEN = 30000; // 页面隐藏时：30秒
+  private readonly STATUS_EXPIRE_TIME = 3600000; // 1小时过期
 
   // 内部状态
   private checkTimer: NodeJS.Timeout | null = null;
@@ -115,7 +115,7 @@ export class SyncStatusManager {
       syncType: syncData.syncType || 'unknown',
       startTime: Date.now(),
       syncId: this.generateSyncId(),
-      ...syncData
+      ...syncData,
     };
 
     this.currentSyncId = statusData.syncId;
@@ -144,7 +144,10 @@ export class SyncStatusManager {
 
     if (savedStatus) {
       try {
-        const statusData = AdminUtils.safeJsonParse<SyncStatusData>(savedStatus, {} as SyncStatusData);
+        const statusData = AdminUtils.safeJsonParse<SyncStatusData>(
+          savedStatus,
+          {} as SyncStatusData
+        );
 
         // 检查状态是否过期
         const elapsed = Date.now() - statusData.startTime;
@@ -156,7 +159,6 @@ export class SyncStatusManager {
         console.log('🔄 [状态恢复] 发现保存的同步状态:', statusData);
         this.currentSyncId = statusData.syncId;
         this.showSyncStatusRecovery(statusData);
-
       } catch (error) {
         console.error('❌ [状态恢复] 解析保存状态失败:', error);
         this.clearSyncStatus();
@@ -169,9 +171,10 @@ export class SyncStatusManager {
    */
   private showSyncStatusRecovery(statusData: SyncStatusData): void {
     const elapsed = Math.floor((Date.now() - statusData.startTime) / 1000);
-    const elapsedText = elapsed < 60 ? 
-      `${elapsed}秒` : 
-      `${Math.floor(elapsed / 60)}分${elapsed % 60}秒`;
+    const elapsedText =
+      elapsed < 60
+        ? `${elapsed}秒`
+        : `${Math.floor(elapsed / 60)}分${elapsed % 60}秒`;
 
     // 创建恢复提示元素
     const recoveryNotice = document.createElement('div');
@@ -229,15 +232,17 @@ export class SyncStatusManager {
       clearInterval(this.checkTimer);
     }
 
-    const interval = this.isPageVisible ? 
-      this.CHECK_INTERVAL_VISIBLE : 
-      this.CHECK_INTERVAL_HIDDEN;
+    const interval = this.isPageVisible
+      ? this.CHECK_INTERVAL_VISIBLE
+      : this.CHECK_INTERVAL_HIDDEN;
 
     this.checkTimer = setInterval(() => {
       this.checkSyncStatus();
     }, interval);
 
-    console.log(`⏱️ [检查间隔] 已调整为 ${interval/1000}秒 (页面${this.isPageVisible ? '可见' : '隐藏'})`);
+    console.log(
+      `⏱️ [检查间隔] 已调整为 ${interval / 1000}秒 (页面${this.isPageVisible ? '可见' : '隐藏'})`
+    );
   }
 
   /**
@@ -269,7 +274,7 @@ export class SyncStatusManager {
     }
 
     console.log('🔍 [状态检查] 正在检查同步状态...');
-    
+
     try {
       await this.refreshAsyncStatus();
       await this.refreshQueueStatus();
@@ -284,18 +289,21 @@ export class SyncStatusManager {
   private async refreshAsyncStatus(): Promise<void> {
     try {
       const response = await post('notion_to_wordpress_get_async_status', {});
-      
+
       if (response.data.success) {
         this.updateAsyncStatusDisplay(response.data.data.status);
-        
+
         // 检查同步是否完成
         if (response.data.data.status?.status === 'idle') {
           this.clearSyncStatus();
         }
-        
+
         emit('sync:async:status:updated', response.data.data.status);
       } else {
-        this.showStatusError('async', '获取异步状态失败: ' + (response.data.message || '未知错误'));
+        this.showStatusError(
+          'async',
+          '获取异步状态失败: ' + (response.data.message || '未知错误')
+        );
       }
     } catch (error) {
       console.error('❌ [异步状态] 获取失败:', error);
@@ -309,12 +317,15 @@ export class SyncStatusManager {
   private async refreshQueueStatus(): Promise<void> {
     try {
       const response = await post('notion_to_wordpress_get_queue_status', {});
-      
+
       if (response.data.success) {
         this.updateQueueStatusDisplay(response.data.data.status);
         emit('sync:queue:status:updated', response.data.data.status);
       } else {
-        this.showStatusError('queue', '获取队列状态失败: ' + (response.data.message || '未知错误'));
+        this.showStatusError(
+          'queue',
+          '获取队列状态失败: ' + (response.data.message || '未知错误')
+        );
       }
     } catch (error) {
       console.error('❌ [队列状态] 获取失败:', error);
@@ -333,10 +344,16 @@ export class SyncStatusManager {
     if (!statusDisplay) return;
 
     // 移除所有状态类
-    statusDisplay.classList.remove('status-idle', 'status-running', 'status-paused', 'status-error');
+    statusDisplay.classList.remove(
+      'status-idle',
+      'status-running',
+      'status-paused',
+      'status-error'
+    );
 
     // 确定状态
-    const status = typeof statusData === 'object' ? statusData.status : statusData;
+    const status =
+      typeof statusData === 'object' ? statusData.status : statusData;
     let statusClass = 'status-idle';
     let statusText = '空闲';
 
@@ -356,7 +373,7 @@ export class SyncStatusManager {
     }
 
     statusDisplay.classList.add(statusClass);
-    
+
     const statusValue = statusDisplay.querySelector('.status-value');
     if (statusValue) {
       statusValue.textContent = statusText;
@@ -393,9 +410,10 @@ export class SyncStatusManager {
    * 显示状态错误
    */
   private showStatusError(type: 'async' | 'queue', message: string): void {
-    const containerId = type === 'async' ? 'async-status-container' : 'queue-status-container';
+    const containerId =
+      type === 'async' ? 'async-status-container' : 'queue-status-container';
     const container = document.getElementById(containerId);
-    
+
     if (container) {
       container.innerHTML = `
         <div class="error-message" style="color: #d63638; padding: 10px; background: #fef7f7; border: 1px solid #d63638; border-radius: 4px;">
@@ -403,7 +421,7 @@ export class SyncStatusManager {
         </div>
       `;
     }
-    
+
     showError(message);
   }
 

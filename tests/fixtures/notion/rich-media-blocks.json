@@ -1,0 +1,50 @@
+[
+  {
+    "id": "rich-equation",
+    "type": "equation",
+    "has_children": false,
+    "equation": { "expression": "E = mc^2" }
+  },
+  {
+    "id": "rich-code",
+    "type": "code",
+    "has_children": false,
+    "code": {
+      "language": "javascript",
+      "rich_text": [{ "type": "text", "plain_text": "const answer = 42;\nconsole.log(answer);", "href": null, "annotations": {} }]
+    }
+  },
+  {
+    "id": "rich-mermaid",
+    "type": "code",
+    "has_children": false,
+    "code": {
+      "language": "mermaid",
+      "rich_text": [{ "type": "text", "plain_text": "flowchart LR\n  A[Notion] --> B[WordPress]", "href": null, "annotations": {} }]
+    }
+  },
+  {
+    "id": "rich-youtube",
+    "type": "embed",
+    "has_children": false,
+    "embed": { "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ", "caption": [] }
+  },
+  {
+    "id": "rich-generic-embed",
+    "type": "embed",
+    "has_children": false,
+    "embed": { "url": "https://example.com/embedded-page", "caption": [] }
+  },
+  {
+    "id": "rich-video",
+    "type": "video",
+    "has_children": false,
+    "video": { "type": "external", "external": { "url": "https://media.example.test/demo.mp4" }, "caption": [] }
+  },
+  {
+    "id": "rich-pdf",
+    "type": "pdf",
+    "has_children": false,
+    "pdf": { "type": "external", "external": { "url": "https://files.example.test/guide.pdf" }, "caption": [] }
+  }
+]

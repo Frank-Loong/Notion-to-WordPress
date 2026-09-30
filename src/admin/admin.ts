@@ -12,7 +12,7 @@ import {
   lazyLoader,
   resourcePreloader,
   performanceMonitor,
-  codeSplitter
+  codeSplitter,
 } from '../shared/core';
 import { componentManager } from './components';
 import { adminInteractions } from './AdminInteractions';
@@ -271,7 +271,12 @@ class AdminApp {
 
     // 监听数据库记录事件
     on('database:records:loaded', (_event, data) => {
-      console.log('📊 数据库记录已加载:', data.databaseId, '记录数:', data.totalCount);
+      console.log(
+        '📊 数据库记录已加载:',
+        data.databaseId,
+        '记录数:',
+        data.totalCount
+      );
     });
 
     on('database:records:error', (_event, data) => {
@@ -351,15 +356,27 @@ class AdminApp {
     });
 
     on('settings:loaded', (_event, data) => {
-      console.log('⚙️ 设置已加载:', Object.keys(data.settings).length, '个配置项');
+      console.log(
+        '⚙️ 设置已加载:',
+        Object.keys(data.settings).length,
+        '个配置项'
+      );
     });
 
     on('settings:saved', (_event, data) => {
-      console.log('⚙️ 设置已保存:', Object.keys(data.settings).length, '个配置项');
+      console.log(
+        '⚙️ 设置已保存:',
+        Object.keys(data.settings).length,
+        '个配置项'
+      );
     });
 
     on('settings:reset', (_event, data) => {
-      console.log('⚙️ 设置已重置:', Object.keys(data.settings).length, '个配置项');
+      console.log(
+        '⚙️ 设置已重置:',
+        Object.keys(data.settings).length,
+        '个配置项'
+      );
     });
 
     on('settings:changed', (_event, data) => {
@@ -367,7 +384,11 @@ class AdminApp {
     });
 
     on('settings:imported', (_event, data) => {
-      console.log('⚙️ 设置已导入:', Object.keys(data.settings).length, '个配置项');
+      console.log(
+        '⚙️ 设置已导入:',
+        Object.keys(data.settings).length,
+        '个配置项'
+      );
     });
 
     on('settings:exported', (_event, data) => {
@@ -401,7 +422,11 @@ class AdminApp {
     });
 
     on('error:handled', (_event, data) => {
-      console.log('🚨 错误已处理:', data.errorInfo.type, data.errorInfo.message);
+      console.log(
+        '🚨 错误已处理:',
+        data.errorInfo.type,
+        data.errorInfo.message
+      );
     });
 
     on('error:resolved', (_event, data) => {
@@ -409,7 +434,13 @@ class AdminApp {
     });
 
     on('error:retry', (_event, data) => {
-      console.log('🔄 错误重试:', data.errorInfo.id, '第', data.retryCount, '次');
+      console.log(
+        '🔄 错误重试:',
+        data.errorInfo.id,
+        '第',
+        data.retryCount,
+        '次'
+      );
     });
 
     on('error:admin:notify', (_event, data) => {
@@ -442,8 +473,8 @@ class AdminApp {
     appStateManager.setState({
       ui: {
         ...appStateManager.getState().ui,
-        activeTab: this.getCurrentTab()
-      }
+        activeTab: this.getCurrentTab(),
+      },
     });
 
     console.log('✅ 状态管理系统已初始化');
@@ -520,7 +551,9 @@ class AdminApp {
 
     // 更新进度显示
     if (syncState.status === 'running' && syncState.total > 0) {
-      const percentage = Math.round((syncState.progress / syncState.total) * 100);
+      const percentage = Math.round(
+        (syncState.progress / syncState.total) * 100
+      );
       const progressElement = document.querySelector('#sync-progress');
       if (progressElement) {
         progressElement.textContent = `${percentage}% (${syncState.progress}/${syncState.total})`;
@@ -537,7 +570,7 @@ class AdminApp {
       pending: document.querySelector('#queue-pending'),
       processing: document.querySelector('#queue-processing'),
       completed: document.querySelector('#queue-completed'),
-      failed: document.querySelector('#queue-failed')
+      failed: document.querySelector('#queue-failed'),
     };
 
     Object.entries(elements).forEach(([key, element]) => {
@@ -573,7 +606,7 @@ class AdminApp {
       paused: '已暂停',
       completed: '已完成',
       error: '错误',
-      cancelled: '已取消'
+      cancelled: '已取消',
     };
 
     return statusTexts[status] || status;
@@ -600,14 +633,14 @@ class AdminApp {
     window.addEventListener('resize', () => {
       emit('admin:resize', {
         width: window.innerWidth,
-        height: window.innerHeight
+        height: window.innerHeight,
       });
     });
 
     // 监听页面可见性变化
     document.addEventListener('visibilitychange', () => {
       emit('admin:visibility:change', {
-        visible: !document.hidden
+        visible: !document.hidden,
       });
     });
   }
@@ -621,7 +654,7 @@ class AdminApp {
         syncType,
         incremental: options.incremental || false,
         checkDeletions: options.checkDeletions || false,
-        batchSize: options.batchSize || 10
+        batchSize: options.batchSize || 10,
       });
 
       if (!result.success) {
@@ -682,7 +715,7 @@ class AdminApp {
       const result = await queueManager.cleanupQueue({
         removeCompleted: true,
         removeFailed: false,
-        olderThan: 24
+        olderThan: 24,
       });
 
       if (result.success) {
@@ -698,7 +731,10 @@ class AdminApp {
   /**
    * 处理标签页切换
    */
-  private handleTabChange(activeTab: string, _previousTab: string | null): void {
+  private handleTabChange(
+    activeTab: string,
+    _previousTab: string | null
+  ): void {
     performanceMonitor.startTimer(`tab_switch_${activeTab}`);
 
     // 根据活动标签执行特定逻辑
@@ -788,7 +824,8 @@ class AdminApp {
       }
 
       // 显示加载指示器
-      settingsContainer.innerHTML = '<div class="loading-indicator">加载设置中...</div>';
+      settingsContainer.innerHTML =
+        '<div class="loading-indicator">加载设置中...</div>';
 
       // 懒加载设置模块
       const settingsModule = await codeSplitter.loadChunk('admin-settings');
@@ -821,7 +858,8 @@ class AdminApp {
       }
 
       // 显示加载指示器
-      logsContainer.innerHTML = '<div class="loading-indicator">加载日志中...</div>';
+      logsContainer.innerHTML =
+        '<div class="loading-indicator">加载日志中...</div>';
 
       // 懒加载日志模块
       const logsModule = await codeSplitter.loadChunk('admin-logs');
@@ -916,11 +954,11 @@ ready(() => {
 on('admin:test:ajax', async () => {
   try {
     console.log('Testing AJAX functionality...');
-    
+
     const response = await post('notion_to_wordpress_test', {
-      test_data: 'Hello from TypeScript!'
+      test_data: 'Hello from TypeScript!',
     });
-    
+
     console.log('AJAX test successful:', response);
     emit('admin:test:ajax:success', response);
   } catch (error) {

@@ -1,6 +1,6 @@
 /**
  * 数据库视图渲染器 - 现代化TypeScript版本
- * 
+ *
  * 从原有Database_Renderer.php的前端渲染功能迁移，包括：
  * - 不同视图类型的渲染
  * - 记录格式化和显示
@@ -8,9 +8,18 @@
  * - 交互功能
  */
 
-import { DatabaseRecord, DatabaseInfo } from '../managers/DatabaseRecordManager';
+import {
+  DatabaseRecord,
+  DatabaseInfo,
+} from '../managers/DatabaseRecordManager';
 
-export type ViewType = 'table' | 'list' | 'gallery' | 'board' | 'calendar' | 'timeline';
+export type ViewType =
+  | 'table'
+  | 'list'
+  | 'gallery'
+  | 'board'
+  | 'calendar'
+  | 'timeline';
 
 export interface RenderOptions {
   viewType?: ViewType;
@@ -39,7 +48,7 @@ export class DatabaseViewRenderer {
     if (DatabaseViewRenderer.instance) {
       return DatabaseViewRenderer.instance;
     }
-    
+
     DatabaseViewRenderer.instance = this;
   }
 
@@ -69,7 +78,7 @@ export class DatabaseViewRenderer {
       maxRecords: 50,
       enableInteraction: true,
       responsive: true,
-      ...options
+      ...options,
     };
 
     // 清空容器
@@ -218,7 +227,12 @@ export class DatabaseViewRenderer {
     const groupedRecords = this.groupRecordsByStatus(records);
 
     Object.entries(groupedRecords).forEach(([status, statusRecords]) => {
-      const column = this.createBoardColumn(status, statusRecords, databaseInfo, options);
+      const column = this.createBoardColumn(
+        status,
+        statusRecords,
+        databaseInfo,
+        options
+      );
       board.appendChild(column);
     });
 
@@ -235,7 +249,8 @@ export class DatabaseViewRenderer {
   ): HTMLElement {
     const calendar = document.createElement('div');
     calendar.className = 'notion-database-calendar';
-    calendar.innerHTML = '<div class="calendar-placeholder">日历视图开发中...</div>';
+    calendar.innerHTML =
+      '<div class="calendar-placeholder">日历视图开发中...</div>';
     return calendar;
   }
 
@@ -249,7 +264,8 @@ export class DatabaseViewRenderer {
   ): HTMLElement {
     const timeline = document.createElement('div');
     timeline.className = 'notion-database-timeline';
-    timeline.innerHTML = '<div class="timeline-placeholder">时间线视图开发中...</div>';
+    timeline.innerHTML =
+      '<div class="timeline-placeholder">时间线视图开发中...</div>';
     return timeline;
   }
 
@@ -284,8 +300,9 @@ export class DatabaseViewRenderer {
 
     Object.entries(databaseInfo.properties).forEach(([name, config]) => {
       // 检查是否应该显示此属性
-      const shouldShow = options.showProperties.length === 0 || 
-                        options.showProperties.includes(name);
+      const shouldShow =
+        options.showProperties.length === 0 ||
+        options.showProperties.includes(name);
       const shouldHide = options.hideProperties.includes(name);
 
       if (shouldShow && !shouldHide) {
@@ -294,7 +311,7 @@ export class DatabaseViewRenderer {
           type: config.type || 'text',
           visible: true,
           width: this.getPropertyWidth(config.type),
-          format: this.getPropertyFormat(config.type)
+          format: this.getPropertyFormat(config.type),
         });
       }
     });
@@ -313,11 +330,11 @@ export class DatabaseViewRenderer {
       const cell = document.createElement('div');
       cell.className = 'notion-table-header-cell';
       cell.textContent = property.name;
-      
+
       if (property.width) {
         cell.style.width = property.width;
       }
-      
+
       header.appendChild(cell);
     });
 
@@ -362,14 +379,14 @@ export class DatabaseViewRenderer {
   ): HTMLElement {
     const cell = document.createElement('div');
     cell.className = 'notion-table-cell';
-    
+
     if (property.width) {
       cell.style.width = property.width;
     }
 
     const value = record.properties[property.name];
     const formattedValue = this.formatPropertyValue(value, property);
-    
+
     if (typeof formattedValue === 'string') {
       cell.textContent = formattedValue;
     } else {
@@ -402,7 +419,11 @@ export class DatabaseViewRenderer {
     item.appendChild(title);
 
     // 添加属性
-    const properties = this.createRecordProperties(record, databaseInfo, options);
+    const properties = this.createRecordProperties(
+      record,
+      databaseInfo,
+      options
+    );
     item.appendChild(properties);
 
     // 添加交互功能
@@ -441,7 +462,11 @@ export class DatabaseViewRenderer {
     const title = this.createRecordTitle(record);
     content.appendChild(title);
 
-    const properties = this.createRecordProperties(record, databaseInfo, options);
+    const properties = this.createRecordProperties(
+      record,
+      databaseInfo,
+      options
+    );
     content.appendChild(properties);
 
     card.appendChild(content);
@@ -504,7 +529,11 @@ export class DatabaseViewRenderer {
     const title = this.createRecordTitle(record);
     card.appendChild(title);
 
-    const properties = this.createRecordProperties(record, databaseInfo, options);
+    const properties = this.createRecordProperties(
+      record,
+      databaseInfo,
+      options
+    );
     card.appendChild(properties);
 
     // 添加交互功能
@@ -521,15 +550,20 @@ export class DatabaseViewRenderer {
   /**
    * 按状态分组记录
    */
-  private groupRecordsByStatus(records: DatabaseRecord[]): Record<string, DatabaseRecord[]> {
+  private groupRecordsByStatus(
+    records: DatabaseRecord[]
+  ): Record<string, DatabaseRecord[]> {
     const grouped: Record<string, DatabaseRecord[]> = {};
 
     records.forEach(record => {
       // 查找状态属性
       let status = '未分类';
-      
+
       Object.entries(record.properties).forEach(([name, value]) => {
-        if (name.toLowerCase().includes('status') || name.toLowerCase().includes('状态')) {
+        if (
+          name.toLowerCase().includes('status') ||
+          name.toLowerCase().includes('状态')
+        ) {
           if (value && typeof value === 'object' && 'name' in value) {
             status = value.name;
           } else if (typeof value === 'string') {
@@ -602,10 +636,18 @@ export class DatabaseViewRenderer {
 
     // 查找标题属性
     let title = '无标题';
-    
+
     Object.entries(record.properties).forEach(([name, value]) => {
-      if (name.toLowerCase().includes('title') || name.toLowerCase().includes('名称')) {
-        if (value && typeof value === 'object' && 'title' in value && Array.isArray(value.title)) {
+      if (
+        name.toLowerCase().includes('title') ||
+        name.toLowerCase().includes('名称')
+      ) {
+        if (
+          value &&
+          typeof value === 'object' &&
+          'title' in value &&
+          Array.isArray(value.title)
+        ) {
           title = value.title.map((t: any) => t.plain_text || '').join('');
         } else if (typeof value === 'string') {
           title = value;
@@ -629,27 +671,28 @@ export class DatabaseViewRenderer {
     propertiesElement.className = 'notion-record-properties';
 
     const visibleProperties = this.getVisibleProperties(databaseInfo, options);
-    
-    visibleProperties.slice(0, 3).forEach(property => { // 只显示前3个属性
+
+    visibleProperties.slice(0, 3).forEach(property => {
+      // 只显示前3个属性
       const value = record.properties[property.name];
       if (value) {
         const propertyElement = document.createElement('div');
         propertyElement.className = 'notion-record-property';
-        
+
         const label = document.createElement('span');
         label.className = 'notion-property-label';
         label.textContent = property.name + ': ';
-        
+
         const valueElement = document.createElement('span');
         valueElement.className = 'notion-property-value';
-        
+
         const formattedValue = this.formatPropertyValue(value, property);
         if (typeof formattedValue === 'string') {
           valueElement.textContent = formattedValue;
         } else {
           valueElement.appendChild(formattedValue);
         }
-        
+
         propertyElement.appendChild(label);
         propertyElement.appendChild(valueElement);
         propertiesElement.appendChild(propertyElement);
@@ -662,7 +705,10 @@ export class DatabaseViewRenderer {
   /**
    * 格式化属性值
    */
-  private formatPropertyValue(value: any, property: PropertyConfig): string | HTMLElement {
+  private formatPropertyValue(
+    value: any,
+    property: PropertyConfig
+  ): string | HTMLElement {
     if (!value) return '';
 
     switch (property.type) {
@@ -766,19 +812,19 @@ export class DatabaseViewRenderer {
   static detectViewType(databaseInfo: DatabaseInfo): ViewType {
     // 根据数据库属性检测最适合的视图类型
     const properties = Object.keys(databaseInfo.properties);
-    
+
     if (properties.some(p => p.toLowerCase().includes('status'))) {
       return 'board';
     }
-    
+
     if (properties.some(p => p.toLowerCase().includes('date'))) {
       return 'calendar';
     }
-    
+
     if (properties.length > 5) {
       return 'table';
     }
-    
+
     return 'list';
   }
 }

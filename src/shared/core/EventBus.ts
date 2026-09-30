@@ -81,7 +81,9 @@ export class EventBusImpl implements EventBus {
     }
 
     // 移除特定监听器
-    const index = listeners.findIndex(listener => listener.callback === callback);
+    const index = listeners.findIndex(
+      listener => listener.callback === callback
+    );
     if (index !== -1) {
       listeners.splice(index, 1);
       this.log(`Removed listener for event: ${event}`);
@@ -105,7 +107,7 @@ export class EventBusImpl implements EventBus {
     const customEvent: CustomEventData = {
       type: event,
       detail: args[0],
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.log(`Emitting event: ${event} with ${listeners.length} listeners`);
@@ -161,7 +163,12 @@ export class EventBusImpl implements EventBus {
   /**
    * 添加监听器的内部方法
    */
-  private addListener(event: string, callback: EventCallback, once: boolean, priority: number): void {
+  private addListener(
+    event: string,
+    callback: EventCallback,
+    once: boolean,
+    priority: number
+  ): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
@@ -170,14 +177,16 @@ export class EventBusImpl implements EventBus {
 
     // 检查最大监听器数量
     if (listeners.length >= this.maxListeners) {
-      console.warn(`Maximum listeners (${this.maxListeners}) exceeded for event: ${event}`);
+      console.warn(
+        `Maximum listeners (${this.maxListeners}) exceeded for event: ${event}`
+      );
     }
 
     // 创建监听器对象
     const listener: EventListener = {
       callback,
       once,
-      priority
+      priority,
     };
 
     // 按优先级插入（优先级越小越先执行）
@@ -190,7 +199,9 @@ export class EventBusImpl implements EventBus {
     }
 
     listeners.splice(insertIndex, 0, listener);
-    this.log(`Added ${once ? 'once' : 'on'} listener for event: ${event} (priority: ${priority})`);
+    this.log(
+      `Added ${once ? 'once' : 'on'} listener for event: ${event} (priority: ${priority})`
+    );
   }
 
   /**
@@ -243,12 +254,20 @@ export class WordPressHooks {
   /**
    * 添加WordPress过滤器钩子
    */
-  addFilter<T = any>(tag: string, callback: (value: T, ...args: any[]) => T, priority = 10): void {
-    this.eventBus.on(`filter:${tag}`, (event: any, value: T, ...args: any[]) => {
-      const result = callback(value, ...args);
-      // 将结果存储在事件对象中
-      event.result = result;
-    }, priority);
+  addFilter<T = any>(
+    tag: string,
+    callback: (value: T, ...args: any[]) => T,
+    priority = 10
+  ): void {
+    this.eventBus.on(
+      `filter:${tag}`,
+      (event: any, value: T, ...args: any[]) => {
+        const result = callback(value, ...args);
+        // 将结果存储在事件对象中
+        event.result = result;
+      },
+      priority
+    );
   }
 
   /**
@@ -259,7 +278,7 @@ export class WordPressHooks {
       type: `filter:${tag}`,
       detail: value,
       timestamp: Date.now(),
-      result: value
+      result: value,
     } as any;
 
     this.eventBus.emit(`filter:${tag}`, event, value, ...args);
@@ -281,22 +300,34 @@ if (typeof window !== 'undefined' && window.wp?.hooks) {
   const originalApplyFilters = window.wp.hooks.applyFilters;
 
   // 扩展WordPress钩子系统
-  window.wp.hooks.addAction = function(tag: string, callback: Function, priority = 10) {
+  window.wp.hooks.addAction = function (
+    tag: string,
+    callback: (...args: any[]) => unknown,
+    priority = 10
+  ) {
     originalAddAction.call(this, tag, callback, priority);
     wpHooks.addAction(tag, callback as EventCallback, priority);
   };
 
-  window.wp.hooks.doAction = function(tag: string, ...args: any[]) {
+  window.wp.hooks.doAction = function (tag: string, ...args: any[]) {
     originalDoAction.call(this, tag, ...args);
     wpHooks.doAction(tag, ...args);
   };
 
-  window.wp.hooks.addFilter = function(tag: string, callback: Function, priority = 10) {
+  window.wp.hooks.addFilter = function (
+    tag: string,
+    callback: (...args: any[]) => unknown,
+    priority = 10
+  ) {
     originalAddFilter.call(this, tag, callback, priority);
     wpHooks.addFilter(tag, callback as any, priority);
   };
 
-  window.wp.hooks.applyFilters = function(tag: string, value: any, ...args: any[]) {
+  window.wp.hooks.applyFilters = function (
+    tag: string,
+    value: any,
+    ...args: any[]
+  ) {
     const wpResult = originalApplyFilters.call(this, tag, value, ...args);
     return wpHooks.applyFilters(tag, wpResult, ...args);
   };
