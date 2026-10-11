@@ -83,7 +83,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-admin',
 			Helper::plugin_url( 'assets/css/admin-modern.css' ),
 			array(),
-			$this->version,
+			Helper::asset_version( 'assets/css/admin-modern.css', $this->version ),
 			'all'
 		);
 
@@ -91,7 +91,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-tooltip',
 			Helper::plugin_url( 'assets/css/tooltip.css' ),
 			array(),
-			$this->version,
+			Helper::asset_version( 'assets/css/tooltip.css', $this->version ),
 			'all'
 		);
 
@@ -99,7 +99,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-custom',
 			Helper::plugin_url( 'assets/css/custom-styles.css' ),
 			array(),
-			$this->version,
+			Helper::asset_version( 'assets/css/custom-styles.css', $this->version ),
 			'all'
 		);
 	}
@@ -125,7 +125,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-runtime',
 			Helper::plugin_url( 'assets/dist/js/runtime.js' ),
 			array(),
-			$this->version,
+			Helper::asset_version( 'assets/dist/js/runtime.js', $this->version ),
 			true
 		);
 
@@ -134,7 +134,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-vendors',
 			Helper::plugin_url( 'assets/dist/js/vendors.js' ),
 			array( $this->plugin_name . '-runtime' ),
-			$this->version,
+			Helper::asset_version( 'assets/dist/js/vendors.js', $this->version ),
 			true
 		);
 
@@ -143,7 +143,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-common',
 			Helper::plugin_url( 'assets/dist/js/common.js' ),
 			array( $this->plugin_name . '-vendors' ),
-			$this->version,
+			Helper::asset_version( 'assets/dist/js/common.js', $this->version ),
 			true
 		);
 
@@ -152,7 +152,7 @@ class Notion_To_WordPress_Admin {
 			$this->plugin_name . '-admin',
 			Helper::plugin_url( 'assets/dist/js/admin.js' ),
 			array( 'jquery', $this->plugin_name . '-common' ),
-			$this->version,
+			Helper::asset_version( 'assets/dist/js/admin.js', $this->version ),
 			true
 		);
 

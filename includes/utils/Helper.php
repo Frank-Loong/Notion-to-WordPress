@@ -108,6 +108,24 @@ class Helper {
 	}
 
 	/**
+	 * 获取静态资源版本号。
+	 *
+	 * 将插件版本与文件修改时间组合，确保覆盖安装新构建后浏览器和代理不会继续
+	 * 使用同一插件版本下的旧脚本或样式。文件不存在时安全回退到插件版本。
+	 *
+	 * @since 2.0.0-beta.1
+	 * @param string $path     相对于插件根目录的资源路径。
+	 * @param string $fallback 文件不可用时的回退版本。
+	 * @return string 静态资源版本号。
+	 */
+	public static function asset_version( string $path, string $fallback ): string {
+		$file     = self::plugin_path( $path );
+		$modified = is_file( $file ) ? filemtime( $file ) : false;
+
+		return false === $modified ? $fallback : $fallback . '.' . $modified;
+	}
+
+	/**
 	 * 获取WordPress文章状态映射
 	 *
 	 * @since 1.0.9
