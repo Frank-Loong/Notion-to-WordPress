@@ -76,6 +76,10 @@ export class ErrorDisplayComponent extends BaseComponent {
     };
     super(finalOptions);
     this.options = finalOptions;
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   /**

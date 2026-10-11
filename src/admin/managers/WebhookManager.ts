@@ -10,6 +10,7 @@
 
 import { emit, on } from '../../shared/core/EventBus';
 import { post } from '../../shared/utils/ajax';
+import type { AjaxResponse } from '../../shared/types/wordpress';
 import { showSuccess, showError, showInfo } from '../../shared/utils/toast';
 import {
   WebhookValidator,
@@ -197,10 +198,13 @@ export class WebhookManager {
    */
   private async loadCurrentConfig(): Promise<void> {
     try {
-      const response = await post('notion_to_wordpress_get_webhook_config', {});
+      const response = await post<AjaxResponse<WebhookConfig>>(
+        'notion_to_wordpress_get_webhook_config',
+        {}
+      );
 
-      if (response?.data) {
-        const config = response.data;
+      if (response.data.success) {
+        const config = response.data.data;
         this.updateStatus({
           enabled: config.enabled || false,
           configured: !!(config.token && config.url),
@@ -350,20 +354,20 @@ export class WebhookManager {
     }
 
     try {
-      const response = await post(
+      const response = await post<AjaxResponse<{ verification_token: string }>>(
         'notion_to_wordpress_refresh_verification_token',
         {}
       );
 
-      if (response?.data?.verification_token) {
+      if (response.data.success) {
         if (this.elements.verificationTokenInput) {
           this.elements.verificationTokenInput.value =
-            response.data.verification_token;
+            response.data.data.verification_token;
         }
 
         showSuccess('验证令牌已刷新');
         emit('webhook:verification:refreshed', {
-          token: response.data.verification_token,
+          token: response.data.data.verification_token,
         });
       } else {
         showError('刷新验证令牌失败');

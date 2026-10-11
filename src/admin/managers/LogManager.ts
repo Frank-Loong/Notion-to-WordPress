@@ -10,6 +10,7 @@
 
 import { emit } from '../../shared/core/EventBus';
 import { post } from '../../shared/utils/ajax';
+import type { AjaxResponse } from '../../shared/types/wordpress';
 import { showSuccess, showError, showInfo } from '../../shared/utils/toast';
 
 export interface LogEntry {
@@ -126,10 +127,13 @@ export class LogManager {
    */
   async loadLogFiles(): Promise<string[]> {
     try {
-      const response = await post('notion_to_wordpress_get_log_files', {});
+      const response = await post<AjaxResponse<string[]>>(
+        'notion_to_wordpress_get_log_files',
+        {}
+      );
 
-      if (response?.data) {
-        this.logFiles = response.data;
+      if (response.data.success && Array.isArray(response.data.data)) {
+        this.logFiles = response.data.data;
         emit('log:files:loaded', { files: this.logFiles });
         return this.logFiles;
       } else {
@@ -156,16 +160,19 @@ export class LogManager {
     }
 
     try {
-      const response = await post('notion_to_wordpress_view_log', {
-        file: targetFile,
-      });
+      const response = await post<AjaxResponse<string>>(
+        'notion_to_wordpress_view_log',
+        {
+          file: targetFile,
+        }
+      );
 
-      if (response?.data) {
+      if (response.data.success && typeof response.data.data === 'string') {
         emit('log:content:loaded', {
           file: targetFile,
-          content: response.data,
+          content: response.data.data,
         });
-        return response.data;
+        return response.data.data;
       } else {
         throw new Error('加载日志内容失败');
       }
@@ -182,26 +189,21 @@ export class LogManager {
     this.setLoading(true);
 
     try {
-      const response = await post('notion_to_wordpress_get_logs', {
-        limit: this.options.maxEntries,
-        ...filter,
+      this.currentFilter = filter;
+      const content = await this.loadLogContent(filter.file);
+      this.logs = this.parseLogEntries(content).slice(
+        0,
+        this.options.maxEntries
+      );
+      this.applyFilters();
+
+      emit('log:entries:loaded', {
+        logs: this.logs,
+        filtered: this.filteredLogs,
+        filter,
       });
 
-      if (response?.data) {
-        this.logs = this.parseLogEntries(response.data);
-        this.currentFilter = filter;
-        this.applyFilters();
-
-        emit('log:entries:loaded', {
-          logs: this.logs,
-          filtered: this.filteredLogs,
-          filter,
-        });
-
-        return this.logs;
-      } else {
-        throw new Error('获取日志失败');
-      }
+      return this.logs;
     } catch (error) {
       console.error('获取日志失败:', error);
       showError(`获取日志失败: ${(error as Error).message}`);
@@ -441,9 +443,12 @@ export class LogManager {
     }
 
     try {
-      const response = await post('notion_to_wordpress_clear_logs', {});
+      const response = await post<AjaxResponse<{ message: string }>>(
+        'notion_to_wordpress_clear_logs',
+        {}
+      );
 
-      if (response?.data) {
+      if (response.data.success) {
         this.logs = [];
         this.filteredLogs = [];
 

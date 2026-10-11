@@ -86,6 +86,10 @@ export class DatabaseViewComponent extends BaseComponent {
     super(finalOptions);
     this.options = finalOptions;
     this.currentViewType = finalOptions.defaultViewType;
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   /**

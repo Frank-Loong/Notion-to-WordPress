@@ -1182,6 +1182,46 @@ class Notion_To_WordPress_Admin {
 		}
 	}
 
+	/**
+	 * 获取可查看的日志文件列表。
+	 */
+	public function handle_get_log_files() {
+		$validation_result = $this->validate_ajax_request( 'notion_to_wordpress_nonce' );
+		if ( ! $validation_result['is_valid'] ) {
+			wp_send_json_error( array( 'message' => $validation_result['error_message'] ), $validation_result['http_code'] );
+		}
+
+		wp_send_json_success( Logger::get_log_files() );
+	}
+
+	/**
+	 * 获取 Webhook 管理界面所需的当前配置。
+	 *
+	 * 首次打开设置页时持久化一次随机令牌，确保页面展示的 URL 与实际端点一致。
+	 */
+	public function handle_get_webhook_config() {
+		$validation_result = $this->validate_ajax_request( 'notion_to_wordpress_nonce' );
+		if ( ! $validation_result['is_valid'] ) {
+			wp_send_json_error( array( 'message' => $validation_result['error_message'] ), $validation_result['http_code'] );
+		}
+
+		$options = get_option( 'notion_to_wordpress_options', array() );
+		if ( empty( $options['webhook_token'] ) ) {
+			$options['webhook_token'] = \NTWP\Core\HTTP_Client::generate_token( 32 );
+			update_option( 'notion_to_wordpress_options', $options );
+		}
+
+		$token = (string) $options['webhook_token'];
+		wp_send_json_success(
+			array(
+				'enabled'           => ! empty( $options['webhook_enabled'] ),
+				'token'             => $token,
+				'url'               => site_url( 'wp-json/notion-to-wordpress/v1/webhook/' . rawurlencode( $token ) ),
+				'verificationToken' => (string) ( $options['webhook_verify_token'] ?? '' ),
+			)
+		);
+	}
+
 	public function handle_view_log() {
 
 		try {
@@ -1995,9 +2035,13 @@ class Notion_To_WordPress_Admin {
 		}
 
 		return array(
-			'performance_level' => $performance_desc,
-			'field_template'    => $field_desc,
-			'reason'            => $reasons,
+			'performance_level'  => $performance_level,
+			'performance_label'  => $performance_desc,
+			'performance_config' => Config_Simplifier::get_performance_config( $performance_level ),
+			'field_template'     => $field_template,
+			'field_template_label' => $field_desc,
+			'field_mapping'      => Config_Simplifier::get_field_mapping_template( $field_template ),
+			'reason'             => $reasons,
 		);
 	}
 

@@ -219,19 +219,25 @@ export class ToastManager {
     toast.className = `toast toast-${options.type || 'info'} ${options.className || ''}`;
     toast.setAttribute('data-toast-id', id);
 
-    const icon = this.getIcon(options.type || 'info');
-    const closeButton =
-      options.closable !== false
-        ? '<button class="toast-close" type="button">&times;</button>'
-        : '';
+    const content = document.createElement('div');
+    content.className = 'toast-content';
+    const icon = document.createElement('div');
+    icon.className = 'toast-icon';
+    icon.textContent = this.getIcon(options.type || 'info');
+    const messageElement = document.createElement('div');
+    messageElement.className = 'toast-message';
+    messageElement.textContent = message;
+    content.append(icon, messageElement);
 
-    toast.innerHTML = `
-      <div class="toast-content">
-        <div class="toast-icon">${icon}</div>
-        <div class="toast-message">${message}</div>
-        ${closeButton}
-      </div>
-    `;
+    if (options.closable !== false) {
+      const closeButton = document.createElement('button');
+      closeButton.className = 'toast-close';
+      closeButton.type = 'button';
+      closeButton.setAttribute('aria-label', '关闭通知');
+      closeButton.textContent = '×';
+      content.appendChild(closeButton);
+    }
+    toast.appendChild(content);
 
     // 添加事件监听
     if (options.closable !== false) {

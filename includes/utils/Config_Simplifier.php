@@ -153,6 +153,7 @@ class Config_Simplifier {
 		foreach ( self::FIELD_MAPPING_TEMPLATES as $key => $config ) {
 			$templates[ $key ] = $config['description'];
 		}
+		$templates['custom'] = '自定义 - 手动配置所有字段';
 		return $templates;
 	}
 

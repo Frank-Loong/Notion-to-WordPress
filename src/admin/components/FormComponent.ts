@@ -52,6 +52,10 @@ export class FormComponent extends BaseComponent {
     };
 
     this.throttledValidate = throttle(this.validateField.bind(this), 300);
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   protected onInit(): void {

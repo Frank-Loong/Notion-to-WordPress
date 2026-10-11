@@ -88,29 +88,29 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 
 	<div class="notion-wp-layout">
 		<div class="notion-wp-sidebar">
-			<div class="notion-wp-menu">
-				<button class="notion-wp-menu-item active" data-tab="api-settings">
+			<div class="notion-wp-menu" role="tablist" aria-label="<?php esc_attr_e( '插件设置', 'notion-to-wordpress' ); ?>">
+				<button type="button" class="notion-wp-menu-item active" data-tab="api-settings" role="tab" aria-selected="true" aria-controls="api-settings">
 					<?php esc_html_e( '🔄 同步设置', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="field-mapping">
+				<button type="button" class="notion-wp-menu-item" data-tab="field-mapping" role="tab" aria-selected="false" aria-controls="field-mapping" tabindex="-1">
 					<?php esc_html_e( '🔗 字段映射', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="performance-config">
+				<button type="button" class="notion-wp-menu-item" data-tab="performance-config" role="tab" aria-selected="false" aria-controls="performance-config" tabindex="-1">
 					<?php esc_html_e( '⚡ 性能配置', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="performance">
+				<button type="button" class="notion-wp-menu-item" data-tab="performance" role="tab" aria-selected="false" aria-controls="performance" tabindex="-1">
 					<?php esc_html_e( '📊 性能监控', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="other-settings">
+				<button type="button" class="notion-wp-menu-item" data-tab="other-settings" role="tab" aria-selected="false" aria-controls="other-settings" tabindex="-1">
 					<?php esc_html_e( '⚙️ 其他设置', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="debug">
+				<button type="button" class="notion-wp-menu-item" data-tab="debug" role="tab" aria-selected="false" aria-controls="debug" tabindex="-1">
 					<?php esc_html_e( '🐞 调试工具', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="help">
+				<button type="button" class="notion-wp-menu-item" data-tab="help" role="tab" aria-selected="false" aria-controls="help" tabindex="-1">
 					<?php esc_html_e( '📖 使用帮助', 'notion-to-wordpress' ); ?>
 				</button>
-				<button class="notion-wp-menu-item" data-tab="about-author">
+				<button type="button" class="notion-wp-menu-item" data-tab="about-author" role="tab" aria-selected="false" aria-controls="about-author" tabindex="-1">
 					<?php esc_html_e( '👨‍💻 关于作者', 'notion-to-wordpress' ); ?>
 				</button>
 			</div>
@@ -248,9 +248,8 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 														title="<?php esc_attr_e( '刷新验证令牌', 'notion-to-wordpress' ); ?>">
 														<span class="dashicons dashicons-update"></span>
 													</button>
-													<button type="button" class="button button-secondary copy-to-clipboard"
-														data-clipboard-target="#verification_token"
-														onclick="window.copyTextToClipboard(document.getElementById('verification_token').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
+											<button type="button" class="button button-secondary copy-to-clipboard"
+												data-clipboard-target="#verification_token"
 														title="<?php esc_attr_e( '复制令牌', 'notion-to-wordpress' ); ?>">
 														<span class="dashicons dashicons-clipboard"></span>
 													</button>
@@ -261,9 +260,8 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 												<label for="webhook_url"><?php esc_html_e( 'Webhook 地址', 'notion-to-wordpress' ); ?></label>
 												<div class="input-with-button">
 													<input type="text" id="webhook_url" value="<?php echo esc_url( $webhook_url ); ?>" class="regular-text" readonly>
-													<button type="button" class="button button-secondary copy-to-clipboard"
-														data-clipboard-target="#webhook_url"
-														onclick="window.copyTextToClipboard(document.getElementById('webhook_url').value, function(success) { if(success) window.showModal(notionToWp.i18n.copied, 'success'); });"
+											<button type="button" class="button button-secondary copy-to-clipboard"
+												data-clipboard-target="#webhook_url"
 														title="<?php esc_attr_e( '复制 URL', 'notion-to-wordpress' ); ?>">
 														<span class="dashicons dashicons-clipboard"></span>
 													</button>
@@ -358,7 +356,7 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 							<h3><?php esc_html_e( '同步操作', 'notion-to-wordpress' ); ?></h3>
 							<div class="sync-buttons">
 								<button type="button" class="button button-primary notion-wp-sync-btn" id="notion-manual-import"
-										data-sync-type="manual" data-original-text="<?php esc_attr_e( '智能同步', 'notion-to-wordpress' ); ?>">
+												data-sync-type="smart" data-original-text="<?php esc_attr_e( '智能同步', 'notion-to-wordpress' ); ?>">
 									<span class="dashicons dashicons-lightbulb"></span>
 									<span class="button-text"><?php esc_html_e( '智能同步', 'notion-to-wordpress' ); ?></span>
 								</button>
@@ -603,81 +601,6 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 									<span class="dashicons dashicons-database-import"></span> <?php esc_html_e( '添加自定义字段', 'notion-to-wordpress' ); ?>
 								</button>
 							</div>
-
-							<script>
-								document.addEventListener('DOMContentLoaded', function() {
-									const container = document.getElementById('custom-field-mappings');
-									const addButton = document.getElementById('add-custom-field');
-
-									// 添加新字段
-									addButton.addEventListener('click', function() {
-										const fields = container.querySelectorAll('.custom-field-mapping');
-										const newIndex = fields.length;
-										const fieldTemplate = fields[0].cloneNode(true);
-
-										// 重置字段值
-										const inputs = fieldTemplate.querySelectorAll('input');
-										inputs.forEach(input => {
-											input.value = '';
-											input.name = input.name.replace(/\[\d+\]/, '[' + newIndex + ']');
-										});
-
-										// 更新选择框名称
-										const selects = fieldTemplate.querySelectorAll('select');
-										selects.forEach(select => {
-											select.name = select.name.replace(/\[\d+\]/, '[' + newIndex + ']');
-										});
-
-										// 显示删除按钮
-										const removeButton = fieldTemplate.querySelector('.remove-field');
-										removeButton.style.display = 'inline-block';
-
-										container.appendChild(fieldTemplate);
-
-										// 确保所有删除按钮可见
-										document.querySelectorAll('.remove-field').forEach(btn => {
-											btn.style.display = 'inline-block';
-										});
-									});
-
-									// 删除字段（使用事件委托）
-									container.addEventListener('click', function(e) {
-										if (e.target.classList.contains('remove-field') || e.target.closest('.remove-field')) {
-											const fieldRow = e.target.closest('.custom-field-mapping');
-
-											// 如果只剩一个字段，则不删除
-											const fields = container.querySelectorAll('.custom-field-mapping');
-											if (fields.length > 1) {
-												fieldRow.remove();
-
-												// 如果只剩两个字段，则隐藏删除按钮
-												if (fields.length === 2) {
-													container.querySelector('.remove-field').style.display = 'none';
-												}
-
-												// 重新索引字段
-												reindexFields();
-											}
-										}
-									});
-
-									// 重新索引字段
-									function reindexFields() {
-										const fields = container.querySelectorAll('.custom-field-mapping');
-										fields.forEach((field, index) => {
-											const inputs = field.querySelectorAll('input');
-											inputs.forEach(input => {
-												input.name = input.name.replace(/\[\d+\]/, '[' + index + ']');
-											});
-
-											const selects = field.querySelectorAll('select');
-											selects.forEach(select => {
-												select.name = select.name.replace(/\[\d+\]/, '[' + index + ']');
-											});
-										});
-									}
-								});
-							</script>
 
 							<style>
 								.custom-field-mapping {
@@ -1398,7 +1321,6 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 		</div>
 	</div>
 </div>
-
 <!-- Toast提示组件 -->
 <div id="notion-wp-toast" class="notion-wp-toast">
 	<div class="notion-wp-toast-icon">
@@ -1409,102 +1331,9 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 		<span class="dashicons dashicons-no-alt"></span>
 	</button>
 </div>
-
 <div id="loading-overlay" class="notion-wp-hidden">
 	<div class="loading-message">
 		<span class="spinner is-active"></span>
 		<?php esc_html_e( '处理中，请稍候...', 'notion-to-wordpress' ); ?>
 	</div>
 </div>
-
-<script type="text/javascript">
-jQuery(document).ready(function($) {
-
-	// Toast提示函数 - 定义为全局函数
-	window.showToast = function(type, message) {
-		var $ = jQuery;
-		var toast = $('#notion-wp-toast');
-		var icon = toast.find('.dashicons');
-
-		// 设置图标
-		icon.removeClass().addClass('dashicons');
-		if (type === 'success') {
-			icon.addClass('dashicons-yes-alt');
-			toast.removeClass('error').addClass('success');
-		} else {
-			icon.addClass('dashicons-warning');
-			toast.removeClass('success').addClass('error');
-		}
-
-		// 设置消息
-		toast.find('.notion-wp-toast-content').text(message);
-
-		// 显示toast
-		toast.addClass('show');
-
-		// 3秒后自动隐藏
-		setTimeout(function() {
-			toast.removeClass('show');
-		}, 3000);
-	};
-
-	// Toast关闭按钮
-	$('.notion-wp-toast-close').on('click', function() {
-		$('#notion-wp-toast').removeClass('show');
-	});
-
-	// 智能推荐功能
-	$('#get-smart-recommendations').on('click', function() {
-		const button = $(this);
-		const resultDiv = $('#recommendations-result');
-
-		button.prop('disabled', true).text('<?php esc_html_e( '分析中...', 'notion-to-wordpress' ); ?>');
-
-		$.ajax({
-			url: notionToWp.ajax_url,
-			type: 'POST',
-			data: {
-				action: 'notion_to_wordpress_get_smart_recommendations',
-				nonce: notionToWp.nonce
-			},
-			success: function(response) {
-				if (response.success) {
-					const recommendations = response.data;
-					let html = '<div class="notice notice-info"><h4><?php esc_html_e( '💡 智能推荐结果', 'notion-to-wordpress' ); ?></h4>';
-
-					html += '<p><strong><?php esc_html_e( '推荐性能级别:', 'notion-to-wordpress' ); ?></strong> ' + recommendations.performance_level + '</p>';
-					html += '<p><strong><?php esc_html_e( '推荐字段模板:', 'notion-to-wordpress' ); ?></strong> ' + recommendations.field_template + '</p>';
-
-					if (recommendations.reason && recommendations.reason.length > 0) {
-						html += '<p><strong><?php esc_html_e( '推荐理由:', 'notion-to-wordpress' ); ?></strong></p><ul>';
-						recommendations.reason.forEach(function(reason) {
-							html += '<li>' + reason + '</li>';
-						});
-						html += '</ul>';
-					}
-
-					html += '<button type="button" class="button button-primary notion-wp-apply-recommendations" id="apply-recommendations"><?php esc_html_e( '应用推荐配置', 'notion-to-wordpress' ); ?></button>';
-					html += '</div>';
-
-					resultDiv.html(html).removeClass('notion-wp-hidden').show();
-
-					// 应用推荐配置
-					$('#apply-recommendations').on('click', function() {
-						$('#performance_level').val(recommendations.performance_level);
-						$('#field_template').val(recommendations.field_template);
-						showToast('success', '<?php esc_html_e( '推荐配置已应用', 'notion-to-wordpress' ); ?>');
-					});
-				} else {
-					resultDiv.html('<div class="notice notice-error"><p>' + response.data + '</p></div>').removeClass('notion-wp-hidden').show();
-				}
-			},
-			error: function(xhr, status, error) {
-				resultDiv.html('<div class="notice notice-error"><p><?php esc_html_e( '获取推荐配置失败，请稍后重试', 'notion-to-wordpress' ); ?></p></div>').removeClass('notion-wp-hidden').show();
-			},
-			complete: function() {
-				button.prop('disabled', false).text('<?php esc_html_e( '获取配置建议', 'notion-to-wordpress' ); ?>');
-			}
-		});
-	});
-});
-</script>

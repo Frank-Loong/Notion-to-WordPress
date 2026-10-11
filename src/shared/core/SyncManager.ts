@@ -56,26 +56,27 @@ export class SyncManager {
 
     try {
       // 发送同步请求
-      const response = await post('notion_to_wordpress_sync', {
-        sync_type: options.syncType,
-        sync_id: syncId,
-        incremental: options.incremental || false,
-        check_deletions: options.checkDeletions || false,
-        batch_size: options.batchSize || 10,
-      });
+      const response = await post(
+        'notion_to_wordpress_manual_sync',
+        {
+          sync_type: options.syncType,
+          task_id: syncId,
+          incremental: options.incremental || false,
+          check_deletions: options.checkDeletions || false,
+          batch_size: options.batchSize || 10,
+        },
+        { timeout: 300000 }
+      );
 
       if (response.data.success) {
-        // 开始状态监控
-        this.startStatusMonitoring();
-
-        // 尝试建立SSE连接
-        this.setupSSEConnection(syncId);
-
-        showInfo(`${options.syncType}已开始`);
+        // 当前 PHP 处理器会在请求内完成同步并返回最终结果。
+        appStateManager.completeSync();
+        this.currentSyncId = null;
+        showSuccess(response.data.data?.message || '同步已完成');
 
         return {
           success: true,
-          message: '同步已开始',
+          message: response.data.data?.message || '同步已完成',
           data: response.data.data,
         };
       } else {
@@ -386,62 +387,6 @@ export class SyncManager {
       console.error('状态检查失败次数过多，停止监控');
       this.stopStatusMonitoring();
       this.retryCount = 0;
-    }
-  }
-
-  /**
-   * 设置SSE连接
-   */
-  private setupSSEConnection(syncId: string): void {
-    if (!window.EventSource) {
-      console.warn('浏览器不支持SSE，使用轮询方式');
-      return;
-    }
-
-    try {
-      const sseUrl = `${window.ajaxurl}?action=notion_to_wordpress_sync_sse&sync_id=${syncId}&nonce=${window.notionToWp?.nonce}`;
-      this.sseConnection = new EventSource(sseUrl);
-
-      this.sseConnection.onmessage = event => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handleSSEMessage(data);
-        } catch (error) {
-          console.error('SSE消息解析失败:', error);
-        }
-      };
-
-      this.sseConnection.onerror = error => {
-        console.error('SSE连接错误:', error);
-        this.closeSSEConnection();
-      };
-
-      console.log('SSE连接已建立');
-    } catch (error) {
-      console.error('建立SSE连接失败:', error);
-    }
-  }
-
-  /**
-   * 处理SSE消息
-   */
-  private handleSSEMessage(data: any): void {
-    switch (data.type) {
-      case 'progress':
-        appStateManager.updateSyncProgress(
-          data.progress,
-          data.total,
-          data.current_item
-        );
-        break;
-      case 'complete':
-        this.handleSyncComplete();
-        break;
-      case 'error':
-        this.handleSyncError(new Error(data.message));
-        break;
-      default:
-        console.log('未知SSE消息类型:', data.type);
     }
   }
 

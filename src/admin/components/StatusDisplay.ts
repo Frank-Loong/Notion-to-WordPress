@@ -39,6 +39,10 @@ export class StatusDisplay extends BaseComponent {
       autoRefresh: true,
       ...options,
     };
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   protected onInit(): void {

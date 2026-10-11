@@ -22,6 +22,7 @@ import { databaseRecordManager } from './managers/DatabaseRecordManager';
 import { logManager } from './managers/LogManager';
 import { settingsManager } from './managers/SettingsManager';
 import { errorManager } from './managers/ErrorManager';
+import { adminControls } from './AdminControls';
 import { post } from '../shared/utils/ajax';
 import { showSuccess, showError, showInfo } from '../shared/utils/toast';
 
@@ -79,6 +80,9 @@ class AdminApp {
 
     // 初始化组件管理器
     this.initializeComponentManager();
+
+    // 初始化当前后台页面的直接交互控件
+    adminControls.init();
 
     // 初始化管理界面交互系统
     this.initializeAdminInteractions();

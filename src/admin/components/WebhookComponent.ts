@@ -41,6 +41,10 @@ export class WebhookComponent extends BaseComponent {
     };
     super(finalOptions);
     this.options = finalOptions;
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   private elements: {

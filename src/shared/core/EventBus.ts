@@ -291,44 +291,6 @@ export class WordPressHooks {
  */
 export const wpHooks = new WordPressHooks(eventBus);
 
-// 如果WordPress钩子系统存在，集成到全局
-if (typeof window !== 'undefined' && window.wp?.hooks) {
-  // 将我们的事件系统与WordPress钩子系统集成
-  const originalAddAction = window.wp.hooks.addAction;
-  const originalDoAction = window.wp.hooks.doAction;
-  const originalAddFilter = window.wp.hooks.addFilter;
-  const originalApplyFilters = window.wp.hooks.applyFilters;
-
-  // 扩展WordPress钩子系统
-  window.wp.hooks.addAction = function (
-    tag: string,
-    callback: (...args: any[]) => unknown,
-    priority = 10
-  ) {
-    originalAddAction.call(this, tag, callback, priority);
-    wpHooks.addAction(tag, callback as EventCallback, priority);
-  };
-
-  window.wp.hooks.doAction = function (tag: string, ...args: any[]) {
-    originalDoAction.call(this, tag, ...args);
-    wpHooks.doAction(tag, ...args);
-  };
-
-  window.wp.hooks.addFilter = function (
-    tag: string,
-    callback: (...args: any[]) => unknown,
-    priority = 10
-  ) {
-    originalAddFilter.call(this, tag, callback, priority);
-    wpHooks.addFilter(tag, callback as any, priority);
-  };
-
-  window.wp.hooks.applyFilters = function (
-    tag: string,
-    value: any,
-    ...args: any[]
-  ) {
-    const wpResult = originalApplyFilters.call(this, tag, value, ...args);
-    return wpHooks.applyFilters(tag, wpResult, ...args);
-  };
-}
+// WordPress exposes wp.hooks as a module namespace whose properties can be
+// read-only. Keep the plugin event bus independent instead of monkey-patching
+// global WordPress APIs; consumers can explicitly choose eventBus or wpHooks.

@@ -41,6 +41,10 @@ export class TabManager extends BaseComponent {
       animationDuration: 300,
       ...options,
     };
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   protected onInit(): void {

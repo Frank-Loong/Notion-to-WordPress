@@ -78,6 +78,10 @@ export class LogViewerComponent extends BaseComponent {
     super(finalOptions);
     this.options = finalOptions;
     this.currentViewMode = finalOptions.viewMode;
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   /**

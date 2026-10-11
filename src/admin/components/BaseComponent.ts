@@ -32,6 +32,7 @@ export abstract class BaseComponent {
     handler: EventListener;
   }> = [];
   protected stateUnsubscribe: (() => void) | null = null;
+  private isDestroying = false;
 
   constructor(options: ComponentOptions = {}) {
     this.options = {
@@ -46,9 +47,9 @@ export abstract class BaseComponent {
       destroyed: false,
     };
 
-    if (this.options.autoInit) {
-      this.init();
-    }
+    // Subclasses finish assigning their own fields before calling init().
+    // Calling virtual lifecycle methods from this base constructor observes
+    // uninitialized subclass state and can abort the entire admin bundle.
   }
 
   /**
@@ -127,7 +128,7 @@ export abstract class BaseComponent {
     this.emit('component:unmount', { component: this });
 
     // 如果设置了自动销毁，则销毁组件
-    if (this.options.destroyOnUnmount) {
+    if (this.options.destroyOnUnmount && !this.isDestroying) {
       this.destroy();
     }
 
@@ -142,7 +143,9 @@ export abstract class BaseComponent {
       return;
     }
 
-    // 先卸载
+    this.isDestroying = true;
+
+    // 先卸载；销毁过程中的卸载不能再次递归调用 destroy()。
     if (this.state.mounted) {
       this.unmount();
     }
@@ -164,6 +167,7 @@ export abstract class BaseComponent {
 
     // 发送销毁事件
     this.emit('component:destroy', { component: this });
+    this.isDestroying = false;
 
     console.log(`Component destroyed: ${this.constructor.name}`);
   }

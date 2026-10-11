@@ -248,6 +248,8 @@ class Main {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_stats', $this->admin, 'handle_get_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_clear_logs', $this->admin, 'handle_clear_logs' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_log_files', $this->admin, 'handle_get_log_files' );
+		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_webhook_config', $this->admin, 'handle_get_webhook_config' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_index_status', $this->admin, 'handle_get_index_status' );

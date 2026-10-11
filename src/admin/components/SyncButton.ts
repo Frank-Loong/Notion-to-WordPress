@@ -25,6 +25,10 @@ export class SyncButton extends BaseComponent {
   constructor(options: SyncButtonOptions) {
     super(options);
     this.syncOptions = options;
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   protected onInit(): void {
@@ -137,7 +141,7 @@ export class SyncButton extends BaseComponent {
     const result = await syncManager.startSync({
       syncType,
       incremental: true,
-      checkDeletions: this.syncOptions.checkDeletions || true,
+      checkDeletions: this.syncOptions.checkDeletions ?? true,
       batchSize: 10,
     });
 
@@ -155,7 +159,7 @@ export class SyncButton extends BaseComponent {
     const result = await syncManager.startSync({
       syncType,
       incremental: false,
-      checkDeletions: this.syncOptions.checkDeletions || true,
+      checkDeletions: this.syncOptions.checkDeletions ?? true,
       batchSize: 10,
     });
 

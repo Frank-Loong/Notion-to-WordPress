@@ -63,6 +63,10 @@ export class SettingsComponent extends BaseComponent {
     };
     super(finalOptions);
     this.options = finalOptions;
+
+    if (this.options.autoInit) {
+      this.init();
+    }
   }
 
   /**
