@@ -12,7 +12,7 @@ use Exception;
  * 支持并发请求、错误处理、超时控制、重试机制和进度监控。
  *
  * @since      1.9.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

@@ -4,7 +4,7 @@
  * 使用 Intersection Observer API 实现图片的延迟加载，并为 Notion 数据库视图提供渐进式加载功能。
  *
  * @since 1.1.1
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  * @package Notion_To_WordPress
  * @author Frank-Loong
  * @license GPL-3.0-or-later

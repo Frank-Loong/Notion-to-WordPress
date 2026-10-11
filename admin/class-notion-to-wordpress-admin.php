@@ -19,7 +19,7 @@ use NTWP\Core\Progress_Tracker;
  * 负责插件后台设置页面的功能，包括表单处理、选项保存等。
  *
  * @since      1.0.9
- * @version    1.8.3-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -482,6 +482,8 @@ class Notion_To_WordPress_Admin {
 		$options['notion_database_id'] = isset( $request['notion_to_wordpress_database_id'] ) ? sanitize_text_field( $request['notion_to_wordpress_database_id'] ) : '';
 		// Sync Schedule
 		$options['sync_schedule'] = isset( $request['sync_schedule'] ) ? sanitize_text_field( $request['sync_schedule'] ) : '';
+		$options['cron_incremental_sync'] = isset( $request['cron_incremental_sync'] ) ? 1 : 0;
+		$options['cron_check_deletions']  = isset( $request['cron_check_deletions'] ) ? 1 : 0;
 		// Delete on Uninstall
 		$options['delete_on_uninstall'] = isset( $request['delete_on_uninstall'] ) ? 1 : 0;
 		// Webhook 设置
@@ -514,6 +516,9 @@ class Notion_To_WordPress_Admin {
 
 		// Debug Level
 		$options['debug_level'] = isset( $request['debug_level'] ) ? intval( $request['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
+		$allowed_retention_days         = array( 0, 7, 14, 30, 60 );
+		$requested_retention_days       = isset( $request['log_retention_days'] ) ? intval( $request['log_retention_days'] ) : 0;
+		$options['log_retention_days']  = in_array( $requested_retention_days, $allowed_retention_days, true ) ? $requested_retention_days : 0;
 		// 新增设置项
 		// iframe 白名单域名
 		$options['iframe_whitelist'] = isset( $request['iframe_whitelist'] ) ? sanitize_textarea_field( $request['iframe_whitelist'] ) : 'www.youtube.com,youtu.be,player.bilibili.com,b23.tv,v.qq.com';
@@ -568,8 +573,8 @@ class Notion_To_WordPress_Admin {
 		}
 
 		// 自定义字段映射
+		$custom_field_mappings = array();
 		if ( isset( $request['custom_field_mappings'] ) && is_array( $request['custom_field_mappings'] ) ) {
-			$custom_field_mappings = array();
 
 			foreach ( $request['custom_field_mappings'] as $mapping ) {
 				if ( empty( $mapping['notion_property'] ) || empty( $mapping['wp_field'] ) ) {
@@ -583,8 +588,8 @@ class Notion_To_WordPress_Admin {
 				);
 			}
 
-			$options['custom_field_mappings'] = $custom_field_mappings;
 		}
+		$options['custom_field_mappings'] = $custom_field_mappings;
 
 		// 应用简化配置（如果配置简化器可用）
 		if ( class_exists( 'NTWP\\Utils\\Config_Simplifier' ) ) {
@@ -1804,13 +1809,22 @@ class Notion_To_WordPress_Admin {
 			if ( ! $validation_result['is_valid'] ) {
 				wp_send_json_error( array( 'message' => $validation_result['error_message'] ), $validation_result['http_code'] );
 			}
-			if ( class_exists( 'NTWP\\Core\\Async_Processor' ) ) {
-				$async_status = \NTWP\Core\Async_Processor::get_async_status();
+			if ( class_exists( 'NTWP\\Core\\Modern_Async_Engine' ) ) {
+				$engine_status = Modern_Async_Engine::getStatus();
+				$async_status  = array(
+					'status'     => ( $engine_status['queue_size'] > 0 || ! empty( $engine_status['active_tasks'] ) ) ? 'running' : 'idle',
+					'operation'  => ! empty( $engine_status['active_tasks'] ) ? 'background_queue' : '',
+					'started_at' => '',
+					'updated_at' => '',
+					'data_count' => (int) $engine_status['queue_size'],
+					'progress'   => 0,
+					'details'    => $engine_status,
+				);
 
 				wp_send_json_success(
 					array(
 						'status'  => $async_status,
-						'message' => '异步状态获取成功',
+						'message' => '后台队列状态获取成功',
 					)
 				);
 			} else {
@@ -1828,7 +1842,7 @@ class Notion_To_WordPress_Admin {
 				wp_send_json_success(
 					array(
 						'status'  => $default_status,
-						'message' => '异步处理器不可用，返回默认状态',
+						'message' => '后台队列引擎不可用，返回默认状态',
 					)
 				);
 			}

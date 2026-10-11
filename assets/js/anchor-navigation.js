@@ -4,7 +4,7 @@
  * 实现平滑滚动到 Notion 区块锚点，并处理固定头部的偏移
  *
  * @since 1.1.1
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  * @package Notion_To_WordPress
  * @author Frank-Loong
  * @license GPL-3.0-or-later

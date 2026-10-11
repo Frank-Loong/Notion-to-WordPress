@@ -7,7 +7,7 @@
  * 保证版本号一致，并支持语义化版本（patch、minor、major、beta）。
  * 
  * @author Frank-Loong
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  */
 
 const fs = require('fs');

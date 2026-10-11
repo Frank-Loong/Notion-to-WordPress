@@ -12,7 +12,7 @@ use WP_Error;
  * 提供智能的网络错误重试功能，支持指数退避策略和错误类型分类。
  *
  * @since      1.9.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

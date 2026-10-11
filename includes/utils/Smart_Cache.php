@@ -10,7 +10,7 @@ namespace NTWP\Utils;
  * 解决API缓存被移除的问题，提供高效的缓存管理
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

@@ -9,7 +9,7 @@ namespace NTWP\Utils;
  * 在单次同步会话中缓存API响应，避免重复请求
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

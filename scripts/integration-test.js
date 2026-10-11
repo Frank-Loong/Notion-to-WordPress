@@ -6,7 +6,7 @@
  * 本套件全面校验自动化发布系统的所有组件，确保其稳定性、可靠性和集成正确。
  * 
  * @author Frank-Loong
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  */
 
 const fs = require('fs');

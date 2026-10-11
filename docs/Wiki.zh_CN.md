@@ -1731,6 +1731,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
 **[⬆️ 返回顶部](#-notion-to-wordpress---用户指南) • [🏠 主页](../README-zh_CN.md) • [📊 项目概览](PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](DEVELOPER_GUIDE-zh_CN.md) • [🇺🇸 English Version](Wiki.md)**
 
-© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.2
 
 </div>

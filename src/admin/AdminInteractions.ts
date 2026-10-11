@@ -244,18 +244,18 @@ export class AdminInteractions {
    */
   private handleGlobalKeyboard(e: KeyboardEvent): void {
     // Ctrl/Cmd + S 保存设置
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       const settingsForm = document.getElementById(
         'notion-to-wordpress-settings-form'
       ) as HTMLFormElement;
       if (settingsForm) {
         e.preventDefault();
-        settingsForm.dispatchEvent(new Event('submit'));
+        settingsForm.requestSubmit();
       }
     }
 
     // Ctrl/Cmd + R 刷新统计（在我们的页面上）
-    if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r') {
       const isOurPage = document.querySelector('.notion-wp-admin');
       if (isOurPage) {
         e.preventDefault();

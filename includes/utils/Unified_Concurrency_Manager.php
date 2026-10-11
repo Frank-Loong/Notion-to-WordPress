@@ -10,7 +10,7 @@ namespace NTWP\Utils;
  * 使用配置文件控制并发参数，简化系统负载检查
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

@@ -13,7 +13,7 @@ use Exception;
  * 专为同步插件设计，不使用任何缓存，确保数据实时性
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

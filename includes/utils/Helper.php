@@ -16,7 +16,7 @@ namespace NTWP\Utils;
  * 本类保留委托方法以确保向后兼容性，建议使用对应的专门类。
  *
  * @since      1.0.9
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

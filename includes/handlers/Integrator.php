@@ -15,7 +15,7 @@ use WP_Error;
  * WordPress 系统的所有交互，确保数据一致性和错误处理。
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

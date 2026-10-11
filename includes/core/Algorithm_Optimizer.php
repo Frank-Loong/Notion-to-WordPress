@@ -10,7 +10,7 @@ namespace NTWP\Core;
  * 专注于算法层面的优化，提升基础操作的效率
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

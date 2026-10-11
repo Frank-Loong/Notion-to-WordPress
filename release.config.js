@@ -4,7 +4,7 @@
  * 包含自动化发布系统的所有配置选项，可以根据项目需求自定义这些设置。
  * 
  * @since      1.8.2
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

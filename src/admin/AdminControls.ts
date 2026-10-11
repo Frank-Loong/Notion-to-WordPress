@@ -34,14 +34,34 @@ export class AdminControls {
   }
 
   private bindTabs(): void {
-    document
-      .querySelectorAll<HTMLButtonElement>('.notion-wp-menu-item')
-      .forEach(button => {
-        button.addEventListener('click', () => {
-          const tabId = button.dataset.tab;
-          if (tabId) this.activateTab(tabId, true);
-        });
+    const buttons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('.notion-wp-menu-item')
+    );
+    buttons.forEach((button, index) => {
+      button.addEventListener('click', () => {
+        const tabId = button.dataset.tab;
+        if (tabId) this.activateTab(tabId, true);
       });
+
+      button.addEventListener('keydown', event => {
+        let targetIndex: number | null = null;
+        if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+          targetIndex = (index + 1) % buttons.length;
+        } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+          targetIndex = (index - 1 + buttons.length) % buttons.length;
+        } else if (event.key === 'Home') {
+          targetIndex = 0;
+        } else if (event.key === 'End') {
+          targetIndex = buttons.length - 1;
+        }
+        if (targetIndex === null) return;
+        event.preventDefault();
+        const target = buttons[targetIndex];
+        const tabId = target.dataset.tab;
+        if (tabId) this.activateTab(tabId, false);
+        target.focus();
+      });
+    });
 
     const savedTab = window.sessionStorage.getItem('ntwp_active_admin_tab');
     if (savedTab && document.getElementById(savedTab)) {
@@ -91,6 +111,17 @@ export class AdminControls {
         this.activateTab('field-mapping', true);
         document.getElementById('mapping_title')?.focus();
         showInfo('已切换到字段映射，请完成配置后保存设置。');
+      }
+    });
+
+    const performanceLevel = document.getElementById(
+      'performance_level'
+    ) as HTMLSelectElement | null;
+    performanceLevel?.addEventListener('change', () => {
+      if (performanceLevel.value === 'custom') {
+        this.activateTab('performance-config', true);
+        document.getElementById('api_page_size')?.focus();
+        showInfo('已切换到性能配置，请完成参数配置后保存设置。');
       }
     });
   }
@@ -423,20 +454,6 @@ export class AdminControls {
       ?.addEventListener('click', () => {
         void this.refreshAsyncStatus();
       });
-    (['pause', 'resume', 'stop'] as const).forEach(action => {
-      document
-        .getElementById(`${action}-async-operation`)
-        ?.addEventListener('click', () => {
-          void this.runAjaxAction<{ message: string }>(
-            'notion_to_wordpress_control_async_operation',
-            { action_type: action },
-            data => {
-              showSuccess(data.message);
-              void this.refreshAsyncStatus();
-            }
-          );
-        });
-    });
     this.bindActionButton(
       'cleanup-queue',
       'notion_to_wordpress_cleanup_queue',
@@ -461,18 +478,6 @@ export class AdminControls {
         '#async-status-container .status-value'
       );
       if (value) value.textContent = labels[status] || status;
-      document
-        .getElementById('pause-async-operation')
-        ?.classList.toggle('notion-wp-hidden', status !== 'running');
-      document
-        .getElementById('resume-async-operation')
-        ?.classList.toggle('notion-wp-hidden', status !== 'paused');
-      document
-        .getElementById('stop-async-operation')
-        ?.classList.toggle(
-          'notion-wp-hidden',
-          status !== 'running' && status !== 'paused'
-        );
       showSuccess(data.message || '异步状态已刷新。');
     });
   }

@@ -9,7 +9,7 @@ namespace NTWP\Framework;
  * 负责加载插件的文本域 (text domain)，并根据用户设置覆盖默认语言。
  *
  * @since      1.0.8
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

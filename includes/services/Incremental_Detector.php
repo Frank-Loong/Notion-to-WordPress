@@ -10,7 +10,7 @@ namespace NTWP\Services;
  * 实时检测内容变化，不使用任何缓存，确保检测的准确性和实时性
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

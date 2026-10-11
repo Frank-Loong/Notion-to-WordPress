@@ -7,7 +7,7 @@
  * 确保结构正确且包含所有必需元素。
  * 
  * @author Frank-Loong
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  */
 
 const fs = require('fs');

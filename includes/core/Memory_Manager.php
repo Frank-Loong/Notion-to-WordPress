@@ -10,7 +10,7 @@ namespace NTWP\Core;
  * 专为同步插件设计，减少50%以上的内存占用，避免内存溢出
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

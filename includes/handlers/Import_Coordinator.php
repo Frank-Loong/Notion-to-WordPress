@@ -15,7 +15,7 @@ use WP_Error;
  * 同步管理器(Sync_Manager)和WordPress集成器(Integrator)等。
  *
  * @since      1.0.9
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

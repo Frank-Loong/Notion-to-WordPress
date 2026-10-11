@@ -7,7 +7,7 @@ declare(strict_types=1);
  * 此文件负责渲染插件的主设置页面，包括 API 配置、数据库同步、字段映射等。
  *
  * @since      1.0.9
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -948,9 +948,12 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 									'details'    => array(),
 								);
 
-								if ( class_exists( 'NTWP\\Core\\Async_Processor' ) ) {
+								if ( class_exists( 'NTWP\\Core\\Modern_Async_Engine' ) ) {
 									try {
-										$async_status = \NTWP\Core\Async_Processor::get_async_status();
+										$engine_status          = \NTWP\Core\Modern_Async_Engine::getStatus();
+										$async_status['status'] = ( $engine_status['queue_size'] > 0 || ! empty( $engine_status['active_tasks'] ) ) ? 'running' : 'idle';
+										$async_status['operation'] = ! empty( $engine_status['active_tasks'] ) ? __( '后台队列任务', 'notion-to-wordpress' ) : '';
+										$async_status['data_count'] = (int) $engine_status['queue_size'];
 									} catch ( Exception $e ) {
 										// 使用默认状态
 									}
@@ -987,12 +990,6 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 									if ( $async_status['status'] === 'running' ) {
 										$status_class = 'status-running';
 										$status_text  = __( '运行中', 'notion-to-wordpress' );
-									} elseif ( $async_status['status'] === 'paused' ) {
-										$status_class = 'status-paused';
-										$status_text  = __( '已暂停', 'notion-to-wordpress' );
-									} elseif ( $async_status['status'] === 'error' ) {
-										$status_class = 'status-error';
-										$status_text  = __( '错误', 'notion-to-wordpress' );
 									}
 									?>
 									<div class="async-status-display <?php echo esc_attr( $status_class ); ?>">
@@ -1010,19 +1007,7 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 											<?php if ( $async_status['data_count'] > 0 ) : ?>
 											<div class="detail-item">
 												<span class="detail-label"><?php esc_html_e( '数据量:', 'notion-to-wordpress' ); ?></span>
-												<span class="detail-value"><?php echo esc_html( $async_status['data_count'] ); ?></span>
-											</div>
-											<?php endif; ?>
-											<?php if ( $async_status['progress'] > 0 ) : ?>
-											<div class="detail-item">
-												<span class="detail-label"><?php esc_html_e( '进度:', 'notion-to-wordpress' ); ?></span>
-												<span class="detail-value"><?php echo esc_html( $async_status['progress'] . '%' ); ?></span>
-											</div>
-											<?php endif; ?>
-											<?php if ( ! empty( $async_status['updated_at'] ) ) : ?>
-											<div class="detail-item">
-												<span class="detail-label"><?php esc_html_e( '更新时间:', 'notion-to-wordpress' ); ?></span>
-												<span class="detail-value"><?php echo esc_html( $async_status['updated_at'] ); ?></span>
+												<span class="detail-value"><?php echo esc_html( number_format_i18n( $async_status['data_count'] ) ); ?></span>
 											</div>
 											<?php endif; ?>
 										</div>
@@ -1038,23 +1023,23 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 										<div class="queue-stats">
 											<div class="queue-stat-item">
 												<span class="stat-label"><?php esc_html_e( '总任务:', 'notion-to-wordpress' ); ?></span>
-												<span class="stat-value"><?php echo esc_html( $queue_status['total_tasks'] ?? 0 ); ?></span>
+												<span class="stat-value" id="queue-total"><?php echo esc_html( $queue_status['total_tasks'] ?? 0 ); ?></span>
 											</div>
 											<div class="queue-stat-item">
 												<span class="stat-label"><?php esc_html_e( '等待中:', 'notion-to-wordpress' ); ?></span>
-												<span class="stat-value"><?php echo esc_html( $queue_status['pending'] ?? 0 ); ?></span>
+												<span class="stat-value" id="queue-pending"><?php echo esc_html( $queue_status['pending'] ?? 0 ); ?></span>
 											</div>
 											<div class="queue-stat-item">
 												<span class="stat-label"><?php esc_html_e( '处理中:', 'notion-to-wordpress' ); ?></span>
-												<span class="stat-value"><?php echo esc_html( $queue_status['processing'] ?? 0 ); ?></span>
+												<span class="stat-value" id="queue-processing"><?php echo esc_html( $queue_status['processing'] ?? 0 ); ?></span>
 											</div>
 											<div class="queue-stat-item">
 												<span class="stat-label"><?php esc_html_e( '已完成:', 'notion-to-wordpress' ); ?></span>
-												<span class="stat-value"><?php echo esc_html( $queue_status['completed'] ?? 0 ); ?></span>
+												<span class="stat-value" id="queue-completed"><?php echo esc_html( $queue_status['completed'] ?? 0 ); ?></span>
 											</div>
 											<div class="queue-stat-item">
 												<span class="stat-label"><?php esc_html_e( '失败:', 'notion-to-wordpress' ); ?></span>
-												<span class="stat-value"><?php echo esc_html( $queue_status['failed'] ?? 0 ); ?></span>
+												<span class="stat-value" id="queue-failed"><?php echo esc_html( $queue_status['failed'] ?? 0 ); ?></span>
 											</div>
 										</div>
 									</div>
@@ -1064,18 +1049,6 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 									<button type="button" class="button button-secondary" id="refresh-async-status">
 										<span class="dashicons dashicons-update"></span>
 										<?php esc_html_e( '刷新状态', 'notion-to-wordpress' ); ?>
-									</button>
-									<button type="button" class="button button-secondary notion-wp-hidden" id="pause-async-operation">
-										<span class="dashicons dashicons-controls-pause"></span>
-										<?php esc_html_e( '暂停操作', 'notion-to-wordpress' ); ?>
-									</button>
-									<button type="button" class="button button-secondary notion-wp-hidden" id="resume-async-operation">
-										<span class="dashicons dashicons-controls-play"></span>
-										<?php esc_html_e( '恢复操作', 'notion-to-wordpress' ); ?>
-									</button>
-									<button type="button" class="button button-link-delete notion-wp-hidden" id="stop-async-operation">
-										<span class="dashicons dashicons-controls-stop"></span>
-										<?php esc_html_e( '停止操作', 'notion-to-wordpress' ); ?>
 									</button>
 									<button type="button" class="button button-secondary" id="cleanup-queue">
 										<span class="dashicons dashicons-trash"></span>

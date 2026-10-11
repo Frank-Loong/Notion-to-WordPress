@@ -12,7 +12,7 @@ use Exception;
  * 支持分块处理、动态内存监控、智能垃圾回收
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

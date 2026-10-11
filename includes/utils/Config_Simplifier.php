@@ -16,7 +16,7 @@ namespace NTWP\Utils;
  * - 智能环境检测和配置推荐
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -140,6 +140,7 @@ class Config_Simplifier {
 		foreach ( self::PERFORMANCE_PRESETS as $key => $config ) {
 			$levels[ $key ] = $config['description'];
 		}
+		$levels['custom'] = '自定义 - 使用性能配置标签页中的参数';
 		return $levels;
 	}
 
@@ -342,7 +343,7 @@ class Config_Simplifier {
 		$updated = $options;
 
 		// 应用性能级别配置
-		if ( isset( $options['performance_level'] ) ) {
+		if ( isset( $options['performance_level'] ) && isset( self::PERFORMANCE_PRESETS[ $options['performance_level'] ] ) ) {
 			$performance_config = self::get_performance_config( $options['performance_level'] );
 			foreach ( $performance_config as $key => $value ) {
 				if ( $key !== 'description' ) {

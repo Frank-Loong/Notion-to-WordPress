@@ -1731,6 +1731,6 @@ We appreciate all community members who contribute to the project:
 
 **[⬆️ Back to Top](#-notion-to-wordpress---user-guide) • [🏠 Home](../README.md) • [📊 Project Overview](PROJECT_OVERVIEW.md) • [🚀 Developer Guide](DEVELOPER_GUIDE.md) • [🇨🇳 中文版本](Wiki.zh_CN.md)**
 
- © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+ © 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.2
 
 </div>

@@ -103,8 +103,10 @@ class Modern_Async_Engine {
 		);
 
 		// 将数据分片并加入队列
-		$chunks = self::createDataChunks( $data, $config['batch_size'] );
+		$chunks          = self::createDataChunks( $data, $config['batch_size'] );
+		$hasQueueItems   = false;
 		foreach ( $chunks as $index => $chunk ) {
+			$hasQueueItems = true;
 			self::$queue->enqueue(
 				array(
 					'task_id'     => $taskId,
@@ -120,8 +122,12 @@ class Modern_Async_Engine {
 		// 保存任务信息
 		self::$tracker->createTask( $taskId, $task );
 
-		// 触发异步处理
-		self::triggerAsyncProcessing();
+		if ( $hasQueueItems ) {
+			// 触发异步处理
+			self::triggerAsyncProcessing();
+		} else {
+			self::$tracker->updateStatus( $taskId, self::STATUS_COMPLETED );
+		}
 
 		Logger::info_log(
 			sprintf(
@@ -197,6 +203,23 @@ class Modern_Async_Engine {
 			wp_die( 'Invalid async request', 'Async Processing', array( 'response' => 403 ) );
 		}
 
+		self::processPendingQueue();
+
+		wp_die(); // 正常结束异步请求
+	}
+
+	/**
+	 * Process queued work through WP-Cron when the loopback transport cannot
+	 * dispatch a non-blocking HTTP request.
+	 */
+	public static function handleScheduledRequest(): void {
+		self::processPendingQueue();
+	}
+
+	/**
+	 * Drain the queue within a bounded execution window.
+	 */
+	private static function processPendingQueue(): void {
 		self::initializeComponents();
 
 		$startTime        = microtime( true );
@@ -239,8 +262,6 @@ class Modern_Async_Engine {
 			),
 			'Modern Async Engine'
 		);
-
-		wp_die(); // 正常结束异步请求
 	}
 
 	/**
@@ -296,10 +317,20 @@ class Modern_Async_Engine {
 	 * 触发异步处理
 	 */
 	private static function triggerAsyncProcessing(): void {
+		$token      = wp_generate_password( 32, false, false );
+		$token_hash = hash( 'sha256', $token );
+		set_transient( 'ntwp_async_' . $token_hash, 1, 5 * MINUTE_IN_SECONDS );
+
+		// WP-Cron is the durable fallback for hosts where non-blocking loopback
+		// requests are disabled or aborted by the HTTP transport.
+		if ( ! wp_next_scheduled( 'notion_async_process_queue' ) ) {
+			wp_schedule_single_event( time(), 'notion_async_process_queue' );
+		}
+
 		$url = add_query_arg(
 			array(
 				'action' => 'notion_async_process',
-				'nonce'  => wp_create_nonce( 'notion_async_process' ),
+				'token'  => $token,
 			),
 			admin_url( 'admin-ajax.php' )
 		);
@@ -307,9 +338,11 @@ class Modern_Async_Engine {
 		wp_remote_post(
 			$url,
 			array(
-				'timeout'   => 0.01,
+				// A sub-second timeout can abort before DNS/TCP setup on Windows.
+				// The request remains non-blocking, so one second is only a
+				// connection budget and does not delay the admin response.
+				'timeout'   => 1,
 				'blocking'  => false,
-				'sslverify' => false,
 				'body'      => array( 'async' => '1' ),
 			)
 		);
@@ -320,9 +353,21 @@ class Modern_Async_Engine {
 	 */
 	private static function validateAsyncRequest(): bool {
 
+		// A WordPress user nonce cannot validate on the unauthenticated loopback
+		// endpoint, so this request uses the one-time transient token created above.
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified by one-time token below.
 		$async = sanitize_text_field( wp_unslash( $_POST['async'] ?? '' ) );
-		$nonce = sanitize_text_field( wp_unslash( $_GET['nonce'] ?? '' ) );
-		return $async === '1' && wp_verify_nonce( $nonce, 'notion_async_process' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified by one-time token below.
+		$token     = sanitize_text_field( wp_unslash( $_GET['token'] ?? '' ) );
+		$transient = 'ntwp_async_' . hash( 'sha256', $token );
+
+		if ( $async !== '1' || $token === '' || get_transient( $transient ) !== 1 ) {
+			return false;
+		}
+
+		// Tokens are one-time credentials for unauthenticated loopback requests.
+		delete_transient( $transient );
+		return true;
 	}
 
 	/**
@@ -341,15 +386,26 @@ class Modern_Async_Engine {
 		$executor = new Task_Executor();
 		$result   = $executor->execute( $operation, $data, $config );
 
-		// 更新进度
+		$current_progress = self::$tracker->getProgress( $taskId );
+		$progress         = $current_progress['progress'] ?? array();
+		$processed        = (int) ( $progress['processed'] ?? 0 ) + count( $data );
+		$success          = (int) ( $progress['success'] ?? 0 ) + (int) ( $result['success_count'] ?? 0 );
+		$failed           = (int) ( $progress['failed'] ?? 0 ) + (int) ( $result['error_count'] ?? 0 );
+
+		// Accumulate progress across chunks instead of replacing it with the
+		// size of only the most recently processed chunk.
 		self::$tracker->updateProgress(
 			$taskId,
 			array(
-				'processed' => count( $data ),
-				'success'   => $result['success_count'] ?? 0,
-				'failed'    => $result['error_count'] ?? 0,
+				'processed' => $processed,
+				'success'   => $success,
+				'failed'    => $failed,
 			)
 		);
+
+		if ( $processed >= (int) ( $progress['total'] ?? 0 ) ) {
+			self::$tracker->updateStatus( $taskId, self::STATUS_COMPLETED );
+		}
 	}
 
 	/**
@@ -394,6 +450,7 @@ class Modern_Async_Engine {
 		// 注册AJAX处理器
 		add_action( 'wp_ajax_notion_async_process', array( __CLASS__, 'handleAsyncRequest' ) );
 		add_action( 'wp_ajax_nopriv_notion_async_process', array( __CLASS__, 'handleAsyncRequest' ) );
+		add_action( 'notion_async_process_queue', array( __CLASS__, 'handleScheduledRequest' ) );
 
 		// 注册清理钩子
 		add_action( 'notion_async_cleanup', array( __CLASS__, 'cleanup' ) );

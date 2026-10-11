@@ -4,7 +4,7 @@
  * 负责渲染 Notion 页面中的 LaTeX 数学公式和 Mermaid.js 图表，并提供资源加载失败时的备用方案。
  * 
  * @since 1.0.8
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  * @package Notion_To_WordPress
  * @author Frank-Loong
  * @license GPL-3.0-or-later

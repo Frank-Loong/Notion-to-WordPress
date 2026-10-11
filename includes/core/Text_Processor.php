@@ -10,7 +10,7 @@ namespace NTWP\Core;
  * 统一所有文本相关的处理逻辑，实现单一职责原则，从Helper类中分离出来。
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

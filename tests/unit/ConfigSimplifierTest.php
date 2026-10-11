@@ -23,4 +23,26 @@ class ConfigSimplifierTest extends \PHPUnit\Framework\TestCase {
 
         $this->assertSame( [ 'title' => 'My title' ], $result['field_mapping'] );
     }
+
+    public function test_custom_performance_level_is_available(): void {
+        $levels = Config_Simplifier::get_available_performance_levels();
+
+        $this->assertArrayHasKey( 'custom', $levels );
+    }
+
+    public function test_custom_performance_level_preserves_manual_values(): void {
+        $options = [
+            'performance_level'       => 'custom',
+            'api_page_size'           => 150,
+            'concurrent_requests'     => 7,
+            'batch_size'              => 35,
+            'log_buffer_size'         => 80,
+            'enable_performance_mode' => 0,
+        ];
+
+        $this->assertSame(
+            $options,
+            Config_Simplifier::apply_simplified_config( $options )
+        );
+    }
 }

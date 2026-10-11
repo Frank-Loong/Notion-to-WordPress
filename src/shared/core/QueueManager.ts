@@ -79,7 +79,37 @@ export class QueueManager {
       const response = await post('notion_to_wordpress_get_queue_status', {});
 
       if (response.data.success) {
-        return response.data.data;
+        type QueueStatusResponse = Partial<QueueState> & {
+          total_tasks?: number;
+          pending?: number;
+          processing?: number;
+          completed?: number;
+          failed?: number;
+        };
+
+        const payload = response.data.data as
+          | QueueStatusResponse
+          | { status: QueueStatusResponse };
+        const status = 'status' in payload ? payload.status : payload;
+
+        // The PHP queue uses task-oriented field names while the shared app
+        // state uses job-oriented names. Normalize the boundary explicitly.
+        return {
+          total_jobs: Number(status.total_jobs ?? status.total_tasks ?? 0),
+          pending_jobs: Number(status.pending_jobs ?? status.pending ?? 0),
+          processing_jobs: Number(
+            status.processing_jobs ?? status.processing ?? 0
+          ),
+          completed_jobs: Number(
+            status.completed_jobs ?? status.completed ?? 0
+          ),
+          failed_jobs: Number(status.failed_jobs ?? status.failed ?? 0),
+          queue_size: Number(
+            status.queue_size ?? status.pending_jobs ?? status.pending ?? 0
+          ),
+          is_processing: Boolean(status.is_processing),
+          last_processed: String(status.last_processed ?? ''),
+        };
       } else {
         console.error('获取队列状态失败:', response.data.message);
         return null;

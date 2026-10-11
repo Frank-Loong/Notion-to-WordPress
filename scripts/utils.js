@@ -7,7 +7,7 @@
  * 字符串处理和校验等。
  * 
  * @author Frank-Loong
- * @version 2.0.0-beta.1
+ * @version 2.0.0-beta.2
  */
 
 const fs = require('fs');

@@ -9,7 +9,7 @@ namespace NTWP\Utils;
  * 标准化API调用结果，提供明确的成功/失败状态和详细信息
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

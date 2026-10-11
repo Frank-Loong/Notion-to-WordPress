@@ -10,7 +10,7 @@ namespace NTWP\Core;
  * 基于现有API.php的错误分类逻辑，确保兼容性
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

@@ -14,7 +14,7 @@ use Exception;
  * 时间戳比较、增量同步过滤等核心同步逻辑，提升同步效率和准确性。
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

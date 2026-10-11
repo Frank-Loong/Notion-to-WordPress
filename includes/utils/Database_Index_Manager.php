@@ -12,7 +12,7 @@ use Exception;
  * 专为性能优化设计，提供50-70%查询速度提升
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

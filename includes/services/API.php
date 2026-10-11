@@ -17,7 +17,7 @@ use NTWP\Contracts\API_Interface;
  * 功能封装，支持数据库查询、页面操作、内容同步等核心功能。
  *
  * @since      1.0.9
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
@@ -954,23 +954,12 @@ class API implements API_Interface {
 				'Content-Type'   => 'application/json',
 				'Notion-Version' => '2022-06-28',
 			),
-			'timeout'     => 45,  // 增加超时时间以处理SSL连接问题
-			'sslverify'   => false,  // 在Windows环境下禁用SSL验证以避免SSL_ERROR_SYSCALL错误
-			'httpversion' => '1.1',  // 强制使用HTTP/1.1避免HTTP/2问题
-			'user-agent'  => 'Notion-to-WordPress/2.0.0-beta.1 (WordPress)',
+			'timeout'     => 45,
+			'sslverify'   => true,
+			'httpversion' => '1.1',
+			'user-agent'  => 'Notion-to-WordPress/' . NOTION_TO_WORDPRESS_VERSION . ' (WordPress)',
 			'redirection' => 5,
 			'blocking'    => true,
-			// 添加额外的cURL选项来改善Windows SSL兼容性
-			'curl'        => array(
-				CURLOPT_SSL_VERIFYPEER => false,
-				CURLOPT_SSL_VERIFYHOST => false,
-				CURLOPT_FOLLOWLOCATION => true,
-				CURLOPT_MAXREDIRS      => 5,
-				CURLOPT_CONNECTTIMEOUT => 30,
-				CURLOPT_TCP_NODELAY    => true,
-				CURLOPT_FRESH_CONNECT  => true,
-				CURLOPT_FORBID_REUSE   => true,
-			),
 		);
 
 		if ( ! empty( $data ) && $method !== 'GET' ) {

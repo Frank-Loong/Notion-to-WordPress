@@ -13,7 +13,7 @@ use WP_Error;
  * 基于DataLoader模式实现智能API调用合并，优化Notion API的批处理效率
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

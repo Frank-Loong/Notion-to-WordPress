@@ -205,14 +205,7 @@ export class SettingsManager {
       }
     });
 
-    // 监听键盘快捷键
-    document.addEventListener('keydown', e => {
-      // Ctrl/Cmd + S 保存设置
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        this.saveSettings();
-      }
-    });
+    // 保存快捷键由 AdminInteractions 统一处理，避免重复提交。
   }
 
   /**
@@ -712,8 +705,6 @@ export class SettingsManager {
 
     // 清理事件监听器
     window.removeEventListener('beforeunload', () => {});
-    document.removeEventListener('keydown', () => {});
-
     SettingsManager.instance = null;
     emit('settings:manager:destroyed');
     console.log('⚙️ [设置管理器] 已销毁');

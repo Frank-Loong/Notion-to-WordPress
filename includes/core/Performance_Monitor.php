@@ -10,7 +10,7 @@ namespace NTWP\Core;
  * 性能指标收集等。帮助用户了解优化效果和系统性能状况。
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later

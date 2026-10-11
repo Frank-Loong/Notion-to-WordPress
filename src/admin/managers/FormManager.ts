@@ -10,8 +10,7 @@
 
 import { emit } from '../../shared/core/EventBus';
 import { AdminUtils } from '../utils/AdminUtils';
-import { showSuccess, showError, showInfo } from '../../shared/utils/toast';
-import { post } from '../../shared/utils/ajax';
+import { showSuccess, showError } from '../../shared/utils/toast';
 
 export interface FormSubmitOptions {
   validateBeforeSubmit?: boolean;
@@ -151,19 +150,6 @@ export class FormManager {
       // 初始状态
       toggleScheduleField();
     }
-
-    // 验证令牌刷新
-    const refreshTokenButton = document.getElementById(
-      'refresh-verification-token'
-    ) as HTMLButtonElement;
-    if (refreshTokenButton) {
-      const debouncedRefresh = AdminUtils.debounce((e: Event) => {
-        e.preventDefault();
-        this.handleRefreshVerificationToken(refreshTokenButton);
-      }, 500);
-
-      refreshTokenButton.addEventListener('click', debouncedRefresh);
-    }
   }
 
   /**
@@ -283,8 +269,11 @@ export class FormManager {
       if (response.success) {
         // 检查是否需要刷新页面
         const languageChanged = originalValues.plugin_language !== newLanguage;
-        const webhookChanged =
-          originalValues.webhook_enabled !== newWebhookEnabled;
+        const originalWebhookEnabled = Object.prototype.hasOwnProperty.call(
+          originalValues,
+          'webhook_enabled'
+        );
+        const webhookChanged = originalWebhookEnabled !== newWebhookEnabled;
         const needsRefresh = languageChanged || webhookChanged;
 
         if (needsRefresh) {
@@ -351,50 +340,6 @@ export class FormManager {
       xhr.timeout = 30000; // 30秒超时
       xhr.send(formData);
     });
-  }
-
-  /**
-   * 处理验证令牌刷新
-   */
-  private async handleRefreshVerificationToken(
-    button: HTMLButtonElement
-  ): Promise<void> {
-    if (button.disabled) return;
-
-    const tokenInput = document.getElementById(
-      'verification_token'
-    ) as HTMLInputElement;
-
-    AdminUtils.setButtonLoading(button, true, { loadingText: '刷新中...' });
-
-    try {
-      const response = await post(
-        'notion_to_wordpress_refresh_verification_token',
-        {}
-      );
-
-      if (response.data.success) {
-        if (tokenInput) {
-          tokenInput.value = response.data.data.verification_token || '';
-        }
-
-        if (response.data.data.verification_token) {
-          showSuccess(response.data.data.message || '验证令牌已更新');
-        } else {
-          showInfo('没有新的验证令牌');
-        }
-
-        emit('form:token:refreshed', response.data.data);
-      } else {
-        throw new Error(response.data.data.message || '刷新失败');
-      }
-    } catch (error) {
-      console.error('❌ [令牌刷新] 失败:', error);
-      showError(`刷新失败: ${(error as Error).message}`);
-      emit('form:token:error', error);
-    } finally {
-      AdminUtils.setButtonLoading(button, false);
-    }
   }
 
   /**

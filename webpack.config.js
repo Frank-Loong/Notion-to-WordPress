@@ -25,7 +25,9 @@ module.exports = {
     // PHP enqueues these files by name. Keep public entrypoint filenames stable.
     filename: 'js/[name].js',
     chunkFilename: 'js/[name].chunk.js',
-    publicPath: '/wp-content/plugins/notion-to-wordpress/assets/dist/',
+    // Resolve lazy chunks relative to the loaded runtime file so WordPress
+    // installations remain functional even when the plugin directory is renamed.
+    publicPath: 'auto',
     clean: true,
   },
 

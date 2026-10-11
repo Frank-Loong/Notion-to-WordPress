@@ -6,7 +6,7 @@
  * 替代传统的AJAX轮询，提供更高性能的实时通信
  *
  * @since      2.0.0-beta.1
- * @version    2.0.0-beta.1
+ * @version    2.0.0-beta.2
  * @package    Notion_To_WordPress
  * @author     Frank-Loong
  * @license    GPL-3.0-or-later
