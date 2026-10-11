@@ -891,7 +891,7 @@ class Notion_To_WordPress_Admin {
 					$coordinator = new Import_Coordinator( $notion_api, $db['id'], $db['field_mapping'] ?? $field_mapping );
 					$coordinator->set_custom_field_mappings( $custom_field_mappings );
 
-					if ( $progress_tracker && ! empty( $task_id ) && method_exists( $coordinator, 'setProgressTracker' ) ) {
+					if ( $progress_tracker && ! empty( $task_id ) ) {
 						$coordinator->setProgressTracker( $task_id, $progress_tracker );
 					}
 

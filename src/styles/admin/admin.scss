@@ -2,7 +2,13 @@
  * 管理界面主样式
  */
 
-@import "../shared/variables";
+@use "sass:color";
+@use "../shared/variables" as *;
+@use "sync-progress";
+@use "database-view";
+@use "log-viewer";
+@use "settings";
+@use "error-display";
 
 // 基础样式重置
 .notion-wp-admin {
@@ -290,8 +296,8 @@
     border-color: $success-color;
 
     &:hover:not(:disabled) {
-      background: darken($success-color, 10%);
-      border-color: darken($success-color, 10%);
+      background: color.adjust($success-color, $lightness: -10%);
+      border-color: color.adjust($success-color, $lightness: -10%);
     }
   }
 
@@ -302,8 +308,8 @@
     border-color: $error-color;
 
     &:hover:not(:disabled) {
-      background: darken($error-color, 10%);
-      border-color: darken($error-color, 10%);
+      background: color.adjust($error-color, $lightness: -10%);
+      border-color: color.adjust($error-color, $lightness: -10%);
     }
   }
 
@@ -314,8 +320,8 @@
     border-color: $warning-color;
 
     &:hover:not(:disabled) {
-      background: darken($warning-color, 10%);
-      border-color: darken($warning-color, 10%);
+      background: color.adjust($warning-color, $lightness: -10%);
+      border-color: color.adjust($warning-color, $lightness: -10%);
     }
   }
 
@@ -378,8 +384,3 @@
 }
 
 // 导入功能样式
-@import "sync-progress";
-@import "database-view";
-@import "log-viewer";
-@import "settings";
-@import "error-display";

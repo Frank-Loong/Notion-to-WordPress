@@ -394,9 +394,10 @@ class Database_Helper {
 			return self::batch_get_sync_times( $notion_ids );
 		}
 
+		// 提前确定表名，确保任何异常路径都能安全执行清理。
+		$temp_table = $wpdb->prefix . 'temp_notion_sync_' . uniqid();
 		try {
 			// 创建临时表
-			$temp_table = $wpdb->prefix . 'temp_notion_sync_' . uniqid();
 
 			$create_temp_table_sql = "
                 CREATE TEMPORARY TABLE {$temp_table} (

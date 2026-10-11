@@ -296,7 +296,7 @@ export class AdminUtils {
     type: 'api-key' | 'database-id'
   ): ValidationResult {
     const value = input.value.trim();
-    let result: ValidationResult = {
+    const result: ValidationResult = {
       isValid: false,
       message: '',
       level: 'error',

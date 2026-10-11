@@ -680,8 +680,14 @@ class Image_Processor {
 			return null;
 		}
 
-		// 生成附件元数据
-		require_once ABSPATH . 'wp-admin/includes/image.php';
+		// 生成附件元数据。前台请求不会自动加载该组件，因此先验证安装完整性。
+		$image_functions = trailingslashit( ABSPATH ) . 'wp-admin/includes/image.php';
+		if ( ! is_readable( $image_functions ) ) {
+			wp_delete_attachment( $attachment_id, true );
+			\NTWP\Core\Logger::error_log( 'WordPress image metadata component is unavailable.', 'Async Image' );
+			return null;
+		}
+		require_once $image_functions;
 		$attachment_data = wp_generate_attachment_metadata( $attachment_id, $upload['file'] );
 		wp_update_attachment_metadata( $attachment_id, $attachment_data );
 		update_post_meta( $attachment_id, '_notion_image_hash', self::get_stable_image_hash( $image_info['url'] ) );
@@ -973,7 +979,7 @@ class Image_Processor {
 	 */
 	private static function get_stable_image_url( string $url ): string {
 		$base_url = strtok( $url, '?' );
-		return is_string( $base_url ) && '' !== $base_url ? $base_url : $url;
+		return false !== $base_url ? $base_url : $url;
 	}
 
 	/**

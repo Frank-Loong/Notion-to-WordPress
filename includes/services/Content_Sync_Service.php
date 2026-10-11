@@ -173,12 +173,12 @@ class Content_Sync_Service extends \NTWP\Core\Abstract_Service {
 	private function create_source_scoped_coordinator( array $page_data, array $options ): \NTWP\Handlers\Import_Coordinator {
 
 		$plugin_options = get_option( 'notion_to_wordpress_options', array() );
-		$api_key        = is_array( $plugin_options ) ? ( $plugin_options['notion_api_key'] ?? '' ) : '';
+		$api_key        = $plugin_options['notion_api_key'] ?? '';
 		if ( ! is_string( $api_key ) || $api_key === '' ) {
 			throw new InvalidArgumentException( '未配置 Notion API 密钥' );
 		}
 
-		$field_mapping = $options['field_mapping'] ?? ( is_array( $plugin_options ) ? ( $plugin_options['field_mapping'] ?? array() ) : array() );
+		$field_mapping = $options['field_mapping'] ?? ( $plugin_options['field_mapping'] ?? array() );
 		if ( ! is_array( $field_mapping ) ) {
 			$field_mapping = array();
 		}

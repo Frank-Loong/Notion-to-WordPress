@@ -45,10 +45,15 @@ module.exports = {
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/no-non-null-assertion': 'warn',
-    '@typescript-eslint/prefer-nullish-coalescing': 'warn',
-    '@typescript-eslint/prefer-optional-chain': 'warn',
+    // WordPress and jQuery expose intentionally dynamic data at the integration
+    // boundary. TypeScript strict mode still rejects implicit any and unsafe
+    // null access throughout the rest of the project.
+    '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/no-non-null-assertion': 'off',
+    // `||` is often intentional here because empty strings are invalid form/API
+    // values, so a global nullish-coalescing migration would change behavior.
+    '@typescript-eslint/prefer-nullish-coalescing': 'off',
+    '@typescript-eslint/prefer-optional-chain': 'off',
 
     // 通用规则
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',

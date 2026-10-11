@@ -525,7 +525,7 @@ function ntwp_test_lifecycle(): void {
 
 		ntwp_test_assert( 'second_import_does_not_duplicate_source', 1 === count( $second_posts ), array( 'posts' => count( $second_posts ) ) );
 		ntwp_test_assert( 'second_import_preserves_content', hash_equals( $first_hash, ntwp_test_fingerprint( $second_posts ) ) );
-		ntwp_test_assert( 'second_import_is_idempotent', is_array( $second ) && 0 === ( $second['failed'] ?? -1 ) && 1 === ( ( $second['skipped'] ?? 0 ) + ( $second['updated'] ?? 0 ) ), is_array( $second ) ? array_intersect_key( $second, array_flip( array( 'total', 'imported', 'updated', 'skipped', 'failed' ) ) ) : array() );
+		ntwp_test_assert( 'forced_second_import_rewrites_existing_source', is_array( $second ) && 0 === ( $second['failed'] ?? -1 ) && 1 === ( $second['updated'] ?? 0 ) && 0 === ( $second['skipped'] ?? -1 ), is_array( $second ) ? array_intersect_key( $second, array_flip( array( 'total', 'imported', 'updated', 'skipped', 'failed' ) ) ) : array() );
 	} finally {
 		ntwp_test_delete_source_posts( $database_id );
 		update_option( 'notion_to_wordpress_options', $original_option );
@@ -1112,7 +1112,7 @@ try {
 			update_option( 'notion_to_wordpress_options', $options );
 			$coordinator = new Import_Coordinator( $api, $database_id, $options['field_mapping'] ?? array() );
 			$stats       = $coordinator->import_pages( true, true, true );
-			ntwp_test_assert( 'full_sync_completed', is_array( $stats ) && 0 === ( $stats['failed'] ?? -1 ) && 0 === ( $stats['errors'] ?? -1 ) && empty( $stats['interrupted'] ), is_array( $stats ) ? array_intersect_key( $stats, array_flip( array( 'total', 'imported', 'updated', 'failed', 'errors', 'interrupted' ) ) ) : array() );
+			ntwp_test_assert( 'full_sync_completed', is_array( $stats ) && 0 === ( $stats['failed'] ?? -1 ) && 0 === ( $stats['errors'] ?? -1 ) && empty( $stats['interrupted'] ) && ( $stats['total'] ?? -1 ) === ( ( $stats['imported'] ?? 0 ) + ( $stats['updated'] ?? 0 ) ) && 0 === ( $stats['skipped'] ?? -1 ), is_array( $stats ) ? array_intersect_key( $stats, array_flip( array( 'total', 'imported', 'updated', 'skipped', 'failed', 'errors', 'interrupted' ) ) ) : array() );
 		} elseif ( 'incremental' === $mode ) {
 			$before      = ntwp_test_source_posts( $database_id );
 			$fingerprint = ntwp_test_fingerprint( $before );

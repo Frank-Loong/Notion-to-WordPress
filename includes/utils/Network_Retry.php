@@ -822,11 +822,9 @@ class Network_Retry {
 		$stats = self::get_enhanced_retry_stats();
 
 		// 记录重试性能数据
-		if ( method_exists( '\NTWP\Core\Performance_Monitor', 'record_custom_metric' ) ) {
-			\NTWP\Core\Performance_Monitor::record_custom_metric( 'network_retry_success_rate', $stats['success_rate'] );
-			\NTWP\Core\Performance_Monitor::record_custom_metric( 'network_retry_avg_delay', $stats['avg_delay_time'] );
-			\NTWP\Core\Performance_Monitor::record_custom_metric( 'network_retry_smart_count', $stats['smart_retries'] );
-		}
+		\NTWP\Core\Performance_Monitor::record_custom_metric( 'network_retry_success_rate', $stats['success_rate'] );
+		\NTWP\Core\Performance_Monitor::record_custom_metric( 'network_retry_avg_delay', $stats['avg_delay_time'] );
+		\NTWP\Core\Performance_Monitor::record_custom_metric( 'network_retry_smart_count', $stats['smart_retries'] );
 
 		// 记录到日志以便监控
 		if ( $stats['total_attempts'] > 0 ) {

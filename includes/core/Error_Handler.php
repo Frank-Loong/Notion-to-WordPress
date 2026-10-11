@@ -477,8 +477,7 @@ class Error_Handler {
 			// 测试Exception转换
 			$test_exception = new \Exception( 'Test exception', 500 );
 			$wp_error       = self::exception_to_wp_error( $test_exception );
-
-			if ( ! is_wp_error( $wp_error ) ) {
+			if ( 'Test exception' !== $wp_error->get_error_message() ) {
 				return false;
 			}
 

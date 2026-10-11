@@ -23,6 +23,7 @@ final class AttachmentProcessorTest extends TestCase {
 
 	public function test_attachment_url_safety_rejects_private_targets(): void {
 		$method = new ReflectionMethod( Attachment_Processor::class, 'is_safe_download_url' );
+		$method->setAccessible( true );
 
 		$this->assertFalse( $method->invoke( null, 'http://8.8.8.8/file.pdf' ) );
 		$this->assertFalse( $method->invoke( null, 'https://127.0.0.1/file.pdf' ) );
@@ -33,6 +34,7 @@ final class AttachmentProcessorTest extends TestCase {
 
 	public function test_filename_uses_validated_extension_instead_of_source_suffix(): void {
 		$method   = new ReflectionMethod( Attachment_Processor::class, 'build_filename' );
+		$method->setAccessible( true );
 		$filename = $method->invoke( null, 'Quarterly Report.php', 'https://example.test/payload.php', 'abc', 'pdf' );
 
 		$this->assertSame( 'Quarterly-Report.pdf', $filename );
@@ -40,6 +42,7 @@ final class AttachmentProcessorTest extends TestCase {
 
 	public function test_content_type_normalization_removes_parameters(): void {
 		$method = new ReflectionMethod( Attachment_Processor::class, 'normalize_content_type' );
+		$method->setAccessible( true );
 
 		$this->assertSame( 'application/pdf', $method->invoke( null, 'Application/PDF; charset=binary' ) );
 	}

@@ -151,6 +151,12 @@ class WordPressBuildTool {
         const version = this.getPluginVersion();
         const zipFileName = `${this.pluginName}-${version}.zip`;
         const zipPath = path.join(this.buildDir, zipFileName);
+        const archiveDate = new Date('1980-01-01T00:00:00.000Z');
+        const files = (await glob('**/*', {
+            cwd: sourceDir,
+            dot: false,
+            nodir: true
+        })).sort((left, right) => left.localeCompare(right, 'en'));
         
         this.log(`正在创建 ZIP 包: ${zipFileName}`);
         
@@ -173,8 +179,15 @@ class WordPressBuildTool {
             
             archive.pipe(output);
             
-            // 添加临时目录中的所有文件
-            archive.directory(sourceDir, this.pluginName);
+            // Add files in a stable order with normalized metadata so the same
+            // source tree always produces the same release checksum.
+            for (const file of files) {
+                archive.append(fs.readFileSync(path.join(sourceDir, file)), {
+                    name: `${this.pluginName}/${file.replace(/\\/g, '/')}`,
+                    date: archiveDate,
+                    mode: 0o100644
+                });
+            }
             
             archive.finalize();
         });

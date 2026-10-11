@@ -874,9 +874,7 @@ class Content_Converter {
 				}
 				try {
 					$children = $notion_api->get_block_children( $child_block_id );
-					if ( is_array( $children ) ) {
-						$html .= self::convert_blocks_to_html( $children, $notion_api, null, self::$gutenberg_mode ? 'gutenberg' : 'classic' );
-					}
+					$html    .= self::convert_blocks_to_html( $children, $notion_api, null, self::$gutenberg_mode ? 'gutenberg' : 'classic' );
 				} catch ( \Exception $e ) {
 					\NTWP\Core\Logger::warning_log( 'Unable to load a meeting-notes section: ' . $e->getMessage(), 'Meeting Notes' );
 				}

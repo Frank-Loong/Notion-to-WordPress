@@ -76,7 +76,7 @@ class Attachment_Processor {
 		}
 
 		$body = wp_remote_retrieve_body( $response );
-		if ( ! is_string( $body ) || '' === $body || strlen( $body ) > self::MAX_ATTACHMENT_SIZE ) {
+		if ( '' === $body || strlen( $body ) > self::MAX_ATTACHMENT_SIZE ) {
 			return $url;
 		}
 
@@ -88,7 +88,7 @@ class Attachment_Processor {
 
 		$filename = self::build_filename( $name, $url, $hash, $extension );
 		$upload   = wp_upload_bits( $filename, null, $body );
-		if ( ! is_array( $upload ) || ! empty( $upload['error'] ) || empty( $upload['file'] ) || empty( $upload['url'] ) ) {
+		if ( ! empty( $upload['error'] ) || empty( $upload['file'] ) || empty( $upload['url'] ) ) {
 			return $url;
 		}
 
@@ -201,6 +201,6 @@ class Attachment_Processor {
 
 	private static function get_stable_url( string $url ): string {
 		$base_url = strtok( $url, '?' );
-		return is_string( $base_url ) && '' !== $base_url ? $base_url : $url;
+		return false !== $base_url ? $base_url : $url;
 	}
 }

@@ -441,14 +441,14 @@ export class WebhookTester {
 
     try {
       // 基础URL检查
-      if (!url || !url.trim()) {
+      if (!url?.trim()) {
         issues.push('Webhook URL为空');
         recommendations.push('请配置有效的Webhook URL');
         return { issues, recommendations };
       }
 
       // 令牌检查
-      if (!token || !token.trim()) {
+      if (!token?.trim()) {
         issues.push('Webhook令牌为空');
         recommendations.push('请生成并配置Webhook令牌');
         return { issues, recommendations };

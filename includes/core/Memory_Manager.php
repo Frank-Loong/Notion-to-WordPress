@@ -499,7 +499,7 @@ class Memory_Manager {
 
 		// 基于当前系统负载调整
 		$load_avg = function_exists( 'sys_getloadavg' ) ? sys_getloadavg() : null;
-		if ( $load_avg && is_array( $load_avg ) && isset( $load_avg[0] ) ) {
+		if ( $load_avg ) {
 			if ( $load_avg[0] > self::CPU_HIGH_THRESHOLD ) {
 				$base_concurrent = max( self::MIN_CONCURRENT, intval( $base_concurrent * 0.6 ) );
 			} elseif ( $load_avg[0] < 0.5 ) {
@@ -569,7 +569,7 @@ class Memory_Manager {
 		// 检查系统负载
 		if ( function_exists( 'sys_getloadavg' ) ) {
 			$load_avg = sys_getloadavg();
-			if ( $load_avg && is_array( $load_avg ) && isset( $load_avg[0] ) ) {
+			if ( $load_avg ) {
 				if ( $load_avg[0] > self::CPU_HIGH_THRESHOLD ) {
 					return 0.6; // 高负载时减少批量大小
 				} elseif ( $load_avg[0] < 0.5 ) {

@@ -199,7 +199,7 @@ export class WebhookManager {
     try {
       const response = await post('notion_to_wordpress_get_webhook_config', {});
 
-      if (response && response.data) {
+      if (response?.data) {
         const config = response.data;
         this.updateStatus({
           enabled: config.enabled || false,
@@ -355,7 +355,7 @@ export class WebhookManager {
         {}
       );
 
-      if (response && response.data?.verification_token) {
+      if (response?.data?.verification_token) {
         if (this.elements.verificationTokenInput) {
           this.elements.verificationTokenInput.value =
             response.data.verification_token;

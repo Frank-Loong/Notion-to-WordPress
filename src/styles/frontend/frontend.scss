@@ -2,7 +2,7 @@
  * 前端样式
  */
 
-@import "../shared/variables";
+@use "../shared/variables" as *;
 
 // Notion块基础样式
 .notion-block {

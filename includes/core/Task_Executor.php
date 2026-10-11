@@ -412,12 +412,12 @@ class Task_Executor {
 		}
 
 		$options = get_option( 'notion_to_wordpress_options', array() );
-		$api_key = is_array( $options ) ? ( $options['notion_api_key'] ?? '' ) : '';
+		$api_key = $options['notion_api_key'] ?? '';
 		if ( ! is_string( $api_key ) || $api_key === '' ) {
 			throw new InvalidArgumentException( '未配置 Notion API 密钥' );
 		}
 
-		$field_mapping = $config['field_mapping'] ?? ( is_array( $options ) ? ( $options['field_mapping'] ?? array() ) : array() );
+		$field_mapping = $config['field_mapping'] ?? ( $options['field_mapping'] ?? array() );
 		if ( ! is_array( $field_mapping ) ) {
 			$field_mapping = array();
 		}

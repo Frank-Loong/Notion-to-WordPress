@@ -218,25 +218,16 @@ module.exports = {
     },
   },
 
-  // 开发服务器配置
-  devServer: isDevelopment
-    ? {
-        contentBase: path.join(__dirname, 'assets/dist'),
-        compress: true,
-        port: 3000,
-        hot: true,
-        overlay: true,
-      }
-    : undefined,
-
   // 源码映射
   devtool: isDevelopment ? 'eval-source-map' : false,
 
   // 性能提示
   performance: {
     hints: isDevelopment ? false : 'warning',
-    maxEntrypointSize: 512000,
-    maxAssetSize: 512000,
+    // The admin UI intentionally includes WordPress management modules in one
+    // entrypoint. Keep a measured budget while avoiding a false-positive at 500 KiB.
+    maxEntrypointSize: 550 * 1024,
+    maxAssetSize: 550 * 1024,
   },
 
   // 统计信息

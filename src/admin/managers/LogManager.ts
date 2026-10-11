@@ -128,7 +128,7 @@ export class LogManager {
     try {
       const response = await post('notion_to_wordpress_get_log_files', {});
 
-      if (response && response.data) {
+      if (response?.data) {
         this.logFiles = response.data;
         emit('log:files:loaded', { files: this.logFiles });
         return this.logFiles;
@@ -160,7 +160,7 @@ export class LogManager {
         file: targetFile,
       });
 
-      if (response && response.data) {
+      if (response?.data) {
         emit('log:content:loaded', {
           file: targetFile,
           content: response.data,
@@ -187,7 +187,7 @@ export class LogManager {
         ...filter,
       });
 
-      if (response && response.data) {
+      if (response?.data) {
         this.logs = this.parseLogEntries(response.data);
         this.currentFilter = filter;
         this.applyFilters();
@@ -443,7 +443,7 @@ export class LogManager {
     try {
       const response = await post('notion_to_wordpress_clear_logs', {});
 
-      if (response && response.data) {
+      if (response?.data) {
         this.logs = [];
         this.filteredLogs = [];
 

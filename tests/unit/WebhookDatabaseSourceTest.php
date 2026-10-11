@@ -16,6 +16,7 @@ final class WebhookDatabaseSourceTest extends \PHPUnit\Framework\TestCase {
         $reflection = new \ReflectionClass( Webhook::class );
         $this->webhook = $reflection->newInstanceWithoutConstructor();
         $this->extract_database_id = $reflection->getMethod( 'extract_database_id' );
+        $this->extract_database_id->setAccessible( true );
     }
 
     public function test_reads_database_from_page_parent_payload(): void {

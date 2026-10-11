@@ -145,7 +145,7 @@ export async function request<T = any>(
   } = config;
 
   // 准备请求数据
-  let requestData: any = data || {};
+  const requestData: any = data || {};
 
   if (action) {
     requestData.action = action;

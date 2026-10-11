@@ -830,7 +830,7 @@ class AdminApp {
       // 懒加载设置模块
       const settingsModule = await codeSplitter.loadChunk('admin-settings');
 
-      if (settingsModule && settingsModule.default) {
+      if (settingsModule?.default) {
         settingsModule.default(settingsContainer as HTMLElement);
         console.log('Settings module loaded and initialized');
       }
@@ -864,7 +864,7 @@ class AdminApp {
       // 懒加载日志模块
       const logsModule = await codeSplitter.loadChunk('admin-logs');
 
-      if (logsModule && logsModule.default) {
+      if (logsModule?.default) {
         logsModule.default(logsContainer as HTMLElement);
         console.log('Logs module loaded and initialized');
       }

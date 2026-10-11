@@ -154,7 +154,7 @@ export class SettingsModule extends BaseComponent {
   private async handleSave(event: Event): Promise<void> {
     event.preventDefault();
 
-    if (!this.formComponent || !this.formComponent.isValid()) {
+    if (!this.formComponent?.isValid()) {
       showError('请修正表单中的错误');
       return;
     }

@@ -220,10 +220,11 @@ class Import_Coordinator {
 	 * 导入单个Notion页面（主协调器方法）
 	 *
 	 * @since    1.0.5
-	 * @param    array $page         Notion页面数据
+	 * @param    array $page          Notion页面数据
+	 * @param    bool  $force_refresh 是否强制刷新并跳过增量内容检测
 	 * @return   bool|string             导入成功返回true，失败返回false，跳过返回'skipped'
 	 */
-	public function import_notion_page( array $page ) {
+	public function import_notion_page( array $page, $force_refresh = false ) {
 		\NTWP\Core\Logger::debug_log( 'import_notion_page() 开始执行（主协调器）', 'Page Import' );
 
 		// 1. 验证输入数据
@@ -252,8 +253,8 @@ class Import_Coordinator {
 			// 更新进度：开始处理页面
 			$this->updatePageProgress( 'processing', "正在处理页面: {$page_title}" );
 
-			// 2. 增量检测（如果可用）
-			if ( class_exists( '\\NTWP\\Services\\Incremental_Detector' ) ) {
+			// 2. 增量检测（强制刷新必须重新转换和保存每个页面）
+			if ( ! $force_refresh && class_exists( '\\NTWP\\Services\\Incremental_Detector' ) ) {
 				// 更新进度：检查增量更新
 				$this->updatePageProgress( 'processing', "正在检查页面更新状态: {$page_title}" );
 
@@ -633,7 +634,7 @@ class Import_Coordinator {
 						if ( ! $performance_mode ) {
 							\NTWP\Core\Logger::debug_log( '开始导入单个页面...', 'Pages Import' );
 						}
-						$result = $this->import_notion_page( $page );
+						$result = $this->import_notion_page( $page, $force_refresh );
 						if ( ! $performance_mode ) {
 							\NTWP\Core\Logger::debug_log( '单个页面导入结果: ' . ( $result ? 'success' : 'failed' ), 'Pages Import' );
 						}
@@ -832,10 +833,20 @@ class Import_Coordinator {
 			return (int) $existing;
 		}
 
-		// 引入 WP 媒体处理
-		require_once ABSPATH . 'wp-admin/includes/media.php';
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/image.php';
+		// 前台请求不会自动加载媒体处理函数；在调用前验证安装是否完整，
+		// 避免损坏或不完整的 WordPress 安装直接触发不可恢复的 fatal error。
+		$wp_admin_includes = trailingslashit( ABSPATH ) . 'wp-admin/includes/';
+		$media_files       = array( 'media.php', 'file.php', 'image.php' );
+		foreach ( $media_files as $media_file ) {
+			$media_file_path = $wp_admin_includes . $media_file;
+			if ( ! is_readable( $media_file_path ) ) {
+				return new \WP_Error(
+					'ntwp_wordpress_media_unavailable',
+					__( 'WordPress 媒体处理组件不可用，请检查安装完整性。', 'notion-to-wordpress' )
+				);
+			}
+			require_once $media_file_path;
+		}
 
 		// 下载到临时文件
 		$tmp = download_url( $url );
@@ -1438,8 +1449,8 @@ class Import_Coordinator {
 
 		$metadata = \NTWP\Services\Metadata_Extractor::extract_page_metadata(
 			$page,
-			$this->field_mapping ?? array(),
-			$this->custom_field_mappings ?? array()
+			$this->field_mapping,
+			$this->custom_field_mappings
 		);
 
 		\NTWP\Core\Logger::debug_log(
@@ -1977,7 +1988,7 @@ class Import_Coordinator {
 					'fallback_error_message' => $fallback_e->getMessage(),
 					'fallback_error_code'    => $fallback_e->getCode(),
 					'database_id'            => $this->database_id,
-					'api_key_status'         => ! empty( $this->notion_api ) ? 'available' : 'missing',
+					'api_key_status'         => 'available',
 				);
 
 				\NTWP\Core\Logger::debug_log(

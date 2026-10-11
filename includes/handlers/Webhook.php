@@ -346,12 +346,8 @@ class Webhook {
 			\NTWP\Core\Logger::warning_log( 'Webhook 已拒绝：无法确认事件来源数据库', 'Notion Webhook' );
 			return __( '无法确认事件来源数据库，已跳过处理', 'notion-to-wordpress' );
 		}
-		// P1-07 API 缓存清除：Webhook 事件触发同步时，清除 Notion API 响应缓存，
-		// 确保本次同步获取最新数据（而非过期的缓存）。
-		if ( method_exists( $this->notion_pages, 'notion_api' ) || property_exists( $this->notion_pages, 'notion_api' ) ) {
-			// Import_Coordinator 有 notion_api 属性
-		}
-		// 只清除当前事件来源数据库的缓存，避免跨库事件影响其他同步状态。
+		// P1-07 API 缓存清除：Webhook 事件触发同步时，只清除当前事件来源数据库的缓存，
+		// 避免跨库事件影响其他同步状态，同时确保本次同步获取最新数据。
 		$db_id = $this->notion_pages->get_database_id();
 		if ( ! empty( $db_id ) ) {
 			$cache_key = 'ntwp_api_dbpages_' . md5( $db_id );

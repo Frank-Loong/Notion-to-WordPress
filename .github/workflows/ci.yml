@@ -25,6 +25,8 @@ jobs:
           coverage: none
           tools: composer
       - run: composer install --no-interaction --prefer-dist
+      - run: composer validate --strict
+      - run: composer audit --locked
       - name: PHP syntax
         run: find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*' -not -path './build/*' -print0 | xargs -0 -n1 php -l
       - run: vendor/bin/phpcs
@@ -32,15 +34,17 @@ jobs:
       - run: vendor/bin/phpunit
 
   node:
-    name: Node 18
+    name: Node 22
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npm audit --audit-level=low
       - run: npm run check
       - run: npm run build
+      - run: npm run build:reproducible
       - run: npm run build:verify

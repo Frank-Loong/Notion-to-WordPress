@@ -174,7 +174,7 @@ export class DatabaseRecordManager {
         finalQuery
       );
 
-      if (response && response.data) {
+      if (response?.data) {
         const { records, has_more, next_cursor, total_count } = response.data;
 
         // 更新状态
@@ -232,7 +232,7 @@ export class DatabaseRecordManager {
         moreQuery
       );
 
-      if (response && response.data) {
+      if (response?.data) {
         const { records, has_more, next_cursor } = response.data;
 
         // 合并记录
@@ -315,7 +315,7 @@ export class DatabaseRecordManager {
     }
 
     return this.getDatabaseRecords(databaseId, {
-      sorts: sorts,
+      sorts,
     });
   }
 

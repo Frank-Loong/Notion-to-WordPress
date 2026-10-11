@@ -1026,7 +1026,7 @@ class API implements API_Interface {
 		$decoded_response = json_decode( $body, true ) ?: array();
 
 		// 🚀 智能缓存：存储响应到适当的缓存层
-		if ( $use_smart_cache && $cache_strategy && class_exists( '\\NTWP\\Utils\\Smart_Cache' ) ) {
+		if ( $use_smart_cache ) {
 			// 根据同步模式调整TTL
 			$ttl = $cache_strategy['ttl'];
 			if ( $this->sync_mode === 'manual' ) {

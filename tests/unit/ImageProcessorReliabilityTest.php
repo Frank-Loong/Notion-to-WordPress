@@ -36,6 +36,7 @@ final class ImageProcessorReliabilityTest extends TestCase {
 
 	public function test_rotating_signatures_share_one_stable_hash(): void {
 		$hash_method = new ReflectionMethod( Image_Processor::class, 'get_stable_image_hash' );
+		$hash_method->setAccessible( true );
 		$first       = $hash_method->invoke( null, 'https://prod-files-secure.example/image.png?X-Amz-Signature=one' );
 		$second      = $hash_method->invoke( null, 'https://prod-files-secure.example/image.png?X-Amz-Signature=two' );
 
@@ -76,6 +77,7 @@ final class ImageProcessorReliabilityTest extends TestCase {
 
 	public function test_temp_url_detection_requires_a_trusted_host(): void {
 		$method = new ReflectionMethod( Image_Processor::class, 'is_notion_temp_url' );
+		$method->setAccessible( true );
 
 		$this->assertTrue( $method->invoke( null, 'https://prod-files-secure.s3.us-west-2.amazonaws.com/image.png?X-Amz-Signature=one' ) );
 		$this->assertTrue( $method->invoke( null, 'https://secure.notion-static.com/image.png' ) );
@@ -85,6 +87,7 @@ final class ImageProcessorReliabilityTest extends TestCase {
 
 	public function test_download_url_safety_rejects_local_and_insecure_targets(): void {
 		$method = new ReflectionMethod( Image_Processor::class, 'is_safe_download_url' );
+		$method->setAccessible( true );
 
 		$this->assertFalse( $method->invoke( null, 'http://8.8.8.8/image.png' ) );
 		$this->assertFalse( $method->invoke( null, 'https://127.0.0.1/image.png' ) );
@@ -96,6 +99,7 @@ final class ImageProcessorReliabilityTest extends TestCase {
 
 	public function test_only_safe_raster_content_types_are_accepted(): void {
 		$method = new ReflectionMethod( Image_Processor::class, 'get_extension_from_content_type' );
+		$method->setAccessible( true );
 
 		$this->assertSame( 'jpg', $method->invoke( null, 'image/jpeg; charset=binary' ) );
 		$this->assertSame( 'png', $method->invoke( null, 'IMAGE/PNG' ) );

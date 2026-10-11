@@ -239,7 +239,7 @@ export class SettingsManager {
     try {
       const response = await post('notion_to_wordpress_get_settings', {});
 
-      if (response && response.data) {
+      if (response?.data) {
         this.settings = this.normalizeSettings(response.data);
         this.hasUnsavedChanges = false;
 
@@ -324,7 +324,7 @@ export class SettingsManager {
         this.settings
       );
 
-      if (response && response.data) {
+      if (response?.data) {
         this.hasUnsavedChanges = false;
 
         if (!silent) {
@@ -421,7 +421,7 @@ export class SettingsManager {
     try {
       const response = await post('notion_to_wordpress_reset_settings', {});
 
-      if (response && response.data) {
+      if (response?.data) {
         this.settings = this.normalizeSettings(response.data);
         this.hasUnsavedChanges = false;
 
@@ -453,7 +453,7 @@ export class SettingsManager {
         database_id: this.settings.notion_database_id,
       });
 
-      if (response && response.data && response.data.success) {
+      if (response?.data?.success) {
         showSuccess('连接测试成功');
         emit('settings:connection:success');
         return true;

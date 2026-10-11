@@ -6,6 +6,7 @@
   "scripts": {
     "build": "npm run build:webpack && node scripts/build.js",
     "build:clean": "node -e \"const fs=require('fs'); if(fs.existsSync('build')) fs.rmSync('build', {recursive:true}); console.log('Build directory cleaned')\"",
+    "build:reproducible": "node scripts/verify-reproducible-build.js",
     "build:verify": "node scripts/verify-build.js",
     "build:webpack": "cross-env NODE_ENV=production webpack --mode=production",
     "build:webpack:dev": "cross-env NODE_ENV=development webpack --mode=development",
@@ -13,15 +14,14 @@
     "clean:dist": "node -e \"const fs=require('fs'); if(fs.existsSync('assets/dist')) fs.rmSync('assets/dist', {recursive:true}); console.log('Dist directory cleaned')\"",
     "dev": "npm run build:webpack:dev",
     "dev:watch": "cross-env NODE_ENV=development webpack --mode=development --watch",
-    "dev:server": "cross-env NODE_ENV=development webpack serve --mode=development",
     "test": "npm run test:unit",
     "test:unit": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
-    "lint": "eslint src/**/*.{ts,js} --fix",
-    "lint:check": "eslint src/**/*.{ts,js}",
+    "lint": "eslint src/**/*.{ts,js} --fix --max-warnings=0",
+    "lint:check": "eslint src/**/*.{ts,js} --max-warnings=0",
     "format": "prettier --write src/**/*.{ts,js,scss,css}",
     "format:check": "prettier --check src/**/*.{ts,js,scss,css}",
     "check": "npm run format:check && npm run lint:check && npm run type-check && npm run test"
@@ -51,8 +51,11 @@
   },
   "homepage": "https://github.com/Frank-Loong/Notion-to-WordPress#readme",
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "node": ">=22.15.0",
+    "npm": ">=10.9.0"
+  },
+  "overrides": {
+    "js-yaml": "$js-yaml"
   },
   "devDependencies": {
     "@babel/core": "^7.23.0",
@@ -74,7 +77,7 @@
     "cross-env": "^7.0.3",
     "css-loader": "^6.8.1",
     "css-minimizer-webpack-plugin": "^8.0.0",
-    "cssnano": "^6.0.1",
+    "cssnano": "^9.6.0",
     "eslint": "^8.50.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",
@@ -82,8 +85,8 @@
     "fs-extra": "^11.1.1",
     "glob": "^10.4.5",
     "husky": "^8.0.3",
-    "jest": "^29.7.0",
-    "jest-environment-jsdom": "^29.7.0",
+    "jest": "^30.5.2",
+    "jest-environment-jsdom": "^30.5.2",
     "js-yaml": "^4.1.0",
     "mini-css-extract-plugin": "^2.7.6",
     "minimist": "^1.2.8",
@@ -91,14 +94,13 @@
     "postcss-loader": "^7.3.3",
     "prettier": "^3.0.3",
     "sass": "^1.69.0",
-    "sass-loader": "^13.3.2",
+    "sass-loader": "^17.0.1",
     "semver": "^7.7.2",
     "style-loader": "^3.3.3",
     "terser-webpack-plugin": "^5.3.9",
     "typescript": "^5.2.2",
     "webpack": "^5.88.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^6.0.0"
+    "webpack-cli": "^5.1.4"
   },
   "files": [
     "admin/",

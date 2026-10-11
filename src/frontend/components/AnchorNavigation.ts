@@ -170,7 +170,7 @@ export class AnchorNavigation {
    * 平滑滚动到锚点
    */
   scrollToAnchor(targetId: string): boolean {
-    if (!targetId || !targetId.startsWith('#notion-block-')) {
+    if (!targetId?.startsWith('#notion-block-')) {
       return false;
     }
 
@@ -239,7 +239,7 @@ export class AnchorNavigation {
    * 高亮区块
    */
   private highlightBlock(element: HTMLElement): void {
-    if (!element || !element.classList) return;
+    if (!element?.classList) return;
 
     // 移除现有高亮
     element.classList.remove('notion-block-highlight');

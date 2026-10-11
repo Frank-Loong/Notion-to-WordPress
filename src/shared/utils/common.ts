@@ -21,7 +21,7 @@ export function deepClone<T>(obj: T): T {
   if (typeof obj === 'object') {
     const cloned = {} as T;
     for (const key in obj) {
-      if (obj.hasOwnProperty(key)) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
         cloned[key] = deepClone(obj[key]);
       }
     }
@@ -76,7 +76,7 @@ export function generateId(prefix = 'id'): string {
  * 生成UUID v4
  */
 export function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
@@ -267,6 +267,10 @@ export function groupBy<T>(
  * 数组分块
  */
 export function chunk<T>(array: T[], size: number): T[][] {
+  if (!Number.isInteger(size) || size <= 0) {
+    throw new RangeError('Chunk size must be a positive integer');
+  }
+
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += size) {
     chunks.push(array.slice(i, i + size));
@@ -321,6 +325,10 @@ export async function retry<T>(
   delay = 1000,
   backoff = 'linear'
 ): Promise<T> {
+  if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) {
+    throw new RangeError('Maximum attempts must be a positive integer');
+  }
+
   let lastError: Error;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -347,6 +355,10 @@ export async function promiseAllLimit<T>(
   promises: (() => Promise<T>)[],
   limit: number
 ): Promise<T[]> {
+  if (!Number.isInteger(limit) || limit <= 0) {
+    throw new RangeError('Concurrency limit must be a positive integer');
+  }
+
   const results: T[] = [];
   const executing: Promise<void>[] = [];
 

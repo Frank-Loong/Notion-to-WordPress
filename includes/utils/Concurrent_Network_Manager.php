@@ -346,7 +346,7 @@ class Concurrent_Network_Manager {
 				CURLOPT_FRESH_CONNECT  => false,
 
 				// 🚀 性能优化设置
-				CURLOPT_TCP_NODELAY    => 1,
+				CURLOPT_TCP_NODELAY    => true,
 				CURLOPT_ENCODING       => '',
 			)
 		);

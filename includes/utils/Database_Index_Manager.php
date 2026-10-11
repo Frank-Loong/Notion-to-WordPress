@@ -467,7 +467,7 @@ class Database_Index_Manager {
 		}
 
 		foreach ( $columns as $column ) {
-			if ( ! is_string( $column ) || preg_match( '/\A[A-Za-z_][A-Za-z0-9_]*(?:\((?:[1-9]|[1-9][0-9]{1,2})\))?\z/', $column ) !== 1 ) {
+			if ( preg_match( '/\A[A-Za-z_][A-Za-z0-9_]*(?:\((?:[1-9]|[1-9][0-9]{1,2})\))?\z/', $column ) !== 1 ) {
 				return false;
 			}
 		}

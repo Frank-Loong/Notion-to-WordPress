@@ -119,6 +119,7 @@ final class IncrementalDetectorTest extends TestCase {
         ]);
 
         $reflection = new \ReflectionMethod(Incremental_Detector::class, 'analyze_properties_changes');
+        $reflection->setAccessible(true);
         $changes = $reflection->invoke(null, $old, $new);
 
         $this->assertContains('Name', $changes, '标题属性变化应被识别');
