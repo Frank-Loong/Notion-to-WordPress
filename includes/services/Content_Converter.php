@@ -621,8 +621,9 @@ class Content_Converter {
 	 * 转换子页面块
 	 */
 	private static function _convert_block_child_page( array $block, \NTWP\Services\API $notion_api ): string {
-		$title = $block['child_page']['title'];
-		return '<div class="notion-child-page"><span>' . esc_html( $title ) . '</span></div>';
+		$title = $block['child_page']['title'] ?? '';
+		$url = 'https://www.notion.so/' . str_replace( '-', '', $block['id'] );
+		return '<div class="notion-child-page"><a href="' . esc_url( $url ) . '">' . esc_html( $title ) . '</a></div>';
 	}
 
 	/**

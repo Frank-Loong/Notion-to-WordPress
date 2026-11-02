@@ -68,3 +68,15 @@
 - 活跃目标已建立，保持 active，后续自动继续本计划；不得将本检查点当作整体完成。
 
 参考：[官方 Views API 指南](https://developers.notion.com/guides/data-apis/working-with-views)、[视图对象](https://developers.notion.com/reference/view)。
+
+## 子页面开发检查点
+
+- Import_Coordinator 复用原同步链路递归导入 child_page，深度保护 32 级；新子页面用 page，现有对象保留 post_type。
+- page 父节点使用 post_parent；post 父节点通过 `_notion_parent_post_id` 和返回导航关联，不修改已有文章类型和固定链接。
+- 存储 `_notion_child_page_ids` 供未变更父页面同步；数据库行未变更时单独轮询已知子页面，子同步失败不推进增量游标。
+- child_page 块生成来源链接，复用延迟链接转换得到本地地址；完成根节点导入后执行转换，避免首次导入顺序导致永久保留外链。
+- 子页面 archived/in_trash 进入回收站，恢复后复用原 WordPress ID。
+- `tests/integration/knowledge-hierarchy-runtime.php` 在标记的隔离 WordPress 中验证 16 个断言：三级层级、本地链接、返回导航、重复导入、子页面独立增量更新、回收站恢复、保留已有 post 类型，全部通过。
+- PHP 单测 99/99、262 断言及 PHPCS 通过；PHPStan 子页面修改后通过。
+
+下一轮优先：全库清空删除、keyset 批处理、防止父级状态变更后子页面漏更新、原视图分组与画廊可见属性、真实媒体和浏览器测试、最终交付。整体目标仍为 active。

@@ -28,6 +28,75 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class Import_Coordinator {
+	private array $child_page_ids = array();
+	private array $child_parent_posts = array();
+	private array $active_page_imports = array();
+	private array $synced_child_pages = array();
+
+	/** Import descendants through the same content, media and persistence path. */
+	private function sync_child_pages( string $page_id, int $parent_post_id, bool $force ): bool {
+		$children = $this->child_page_ids[ $page_id ] ?? get_post_meta( $parent_post_id, '_notion_child_page_ids', true );
+		$children = is_array( $children ) ? $children : array();
+		foreach ( $children as $child_id ) {
+			if ( isset( $this->synced_child_pages[ $child_id ] ) ) {
+				continue;
+			}
+			$child = $this->notion_api->get_page( $child_id );
+			if ( ! empty( $child['archived'] ) || ! empty( $child['in_trash'] ) ) {
+				$child_post = Integrator::get_post_by_notion_id( $child_id, $this->database_id );
+				if ( $child_post > 0 ) {
+					wp_trash_post( $child_post );
+				}
+				continue;
+			}
+			$this->child_parent_posts[ $child_id ] = $parent_post_id;
+			try {
+				if ( $this->import_notion_page( $child, $force ) === false ) {
+					return false;
+				}
+				$this->synced_child_pages[ $child_id ] = true;
+			} finally {
+				unset( $this->child_parent_posts[ $child_id ] );
+			}
+		}
+		update_post_meta( $parent_post_id, '_notion_child_page_ids', $children );
+		return true;
+	}
+
+	/** Children may change without advancing the database row's edit timestamp. */
+	private function sync_known_child_pages( array &$stats, bool $force ): void {
+		if ( ! function_exists( 'get_posts' ) ) {
+			return;
+		}
+		$posts = get_posts( array(
+			'post_type' => 'any', 'post_status' => array( 'publish', 'draft', 'private', 'pending', 'trash' ),
+			'posts_per_page' => -1, 'fields' => 'ids',
+			'meta_query' => array(
+				array( 'key' => '_notion_parent_post_id', 'compare' => 'EXISTS' ),
+				array( 'key' => \NTWP\Services\Database_Config::META_DATABASE_ID, 'value' => $this->database_id ),
+			),
+		) );
+		foreach ( $posts as $post_id ) {
+			$child_id = (string) get_post_meta( $post_id, '_notion_page_id', true );
+			if ( $child_id === '' || isset( $this->synced_child_pages[ $child_id ] ) ) continue;
+			try {
+				$page = $this->notion_api->get_page( $child_id );
+				if ( ! empty( $page['archived'] ) || ! empty( $page['in_trash'] ) ) {
+					if ( get_post_status( $post_id ) !== 'trash' ) wp_trash_post( $post_id );
+					continue;
+				}
+				$this->child_parent_posts[ $child_id ] = (int) get_post_meta( $post_id, '_notion_parent_post_id', true );
+				$result = $this->import_notion_page( $page, $force || get_post_status( $post_id ) === 'trash' );
+				if ( $result === false ) ++$stats['failed'];
+				elseif ( $result !== 'skipped' ) ++$stats['updated'];
+			} catch ( \Exception $error ) {
+				++$stats['failed'];
+				\NTWP\Core\Logger::warning_log( '子页面同步失败，保留本地内容。', 'Child Page' );
+			} finally {
+				unset( $this->child_parent_posts[ $child_id ] );
+			}
+		}
+	}
 
 	// ==================== 核心依赖服务 ====================
 
@@ -234,6 +303,9 @@ class Import_Coordinator {
 		}
 
 		$page_id = $page['id'];
+		if ( isset( $this->active_page_imports[ $page_id ] ) || count( $this->active_page_imports ) >= 32 ) {
+			return false;
+		}
 
 		// 使用统一验证框架验证页面ID
 		if ( class_exists( '\\NTWP\\Core\\Security' ) ) {
@@ -250,6 +322,7 @@ class Import_Coordinator {
 		$page_title = $page['properties']['title']['title'][0]['plain_text'] ?? $page['properties']['Name']['title'][0]['plain_text'] ?? '未知页面';
 
 		try {
+			$this->active_page_imports[ $page_id ] = true;
 			// 更新进度：开始处理页面
 			$this->updatePageProgress( 'processing', "正在处理页面: {$page_title}" );
 
@@ -269,7 +342,7 @@ class Import_Coordinator {
 						);
 						// 更新进度：跳过页面
 						$this->updatePageProgress( 'processing', "页面无变化，跳过: {$page_title}" );
-						return 'skipped'; // 返回特殊值表示跳过
+						return $this->sync_child_pages( $page_id, $existing_post_id, false ) ? 'skipped' : false;
 					} else {
 						\NTWP\Core\Logger::debug_log(
 							"增量检测器确认页面需要同步: {$page_id}",
@@ -282,6 +355,12 @@ class Import_Coordinator {
 			// 3. 协调元数据提取
 			$this->updatePageProgress( 'processing', "正在提取页面元数据: {$page_title}" );
 			$metadata = $this->coordinate_metadata_extraction( $page );
+			$parent_post_id = $this->child_parent_posts[ $page_id ] ?? 0;
+			if ( $parent_post_id > 0 ) {
+				$metadata['post_type'] = 'page';
+				$parent = get_post( $parent_post_id );
+				$metadata['status'] = $parent && $parent->post_status === 'publish' ? 'publish' : 'draft';
+			}
 
 			// 为空标题提供默认值，而不是跳过导入
 			if ( empty( $metadata['title'] ) ) {
@@ -302,6 +381,9 @@ class Import_Coordinator {
 				$this->updatePageProgress( 'processing', "页面内容获取失败: {$page_title}" );
 				return false;
 			}
+			if ( $parent_post_id > 0 && get_post_status( $parent_post_id ) === 'publish' ) {
+				$content = '<nav class="notion-parent-page"><a href="' . esc_url( get_permalink( $parent_post_id ) ) . '">' . esc_html( get_the_title( $parent_post_id ) ) . '</a></nav>' . $content;
+			}
 
 			// 4. 协调WordPress集成
 			$this->updatePageProgress( 'processing', "正在保存到WordPress: {$page_title}" );
@@ -309,6 +391,15 @@ class Import_Coordinator {
 			if ( is_wp_error( $post_id ) ) {
 				$this->updatePageProgress( 'processing', "WordPress保存失败: {$page_title}" );
 				return false;
+			}
+			if ( $parent_post_id > 0 ) {
+				update_post_meta( $post_id, '_notion_parent_post_id', $parent_post_id );
+				$parent = get_post( $parent_post_id );
+				wp_update_post( array( 'ID' => $post_id, 'post_parent' => $parent && $parent->post_type === 'page' ? $parent_post_id : 0 ) );
+			}
+			if ( ! $this->sync_child_pages( $page_id, $post_id, (bool) $force_refresh ) ) return false;
+			if ( count( $this->active_page_imports ) === 1 ) {
+				Integrator::process_delayed_link_conversion();
 			}
 
 			// 5. 协调同步状态更新
@@ -328,6 +419,8 @@ class Import_Coordinator {
 		} catch ( \Exception $e ) {
 			\NTWP\Core\Logger::error_log( '页面导入异常: ' . $e->getMessage(), 'Page Import' );
 			return false;
+		} finally {
+			unset( $this->active_page_imports[ $page_id ] );
 		}
 	}
 
@@ -499,12 +592,13 @@ class Import_Coordinator {
 			}
 
 			if ( empty( $pages ) ) {
+				$this->sync_known_child_pages( $stats, (bool) $force_refresh );
 				// 如果增量同步后没有页面需要处理，返回成功但无操作的结果
 				\NTWP\Core\Logger::info_log( '增量同步无页面需要更新', 'Pages Import' );
 
 				// 缓存已禁用，记录无页面更新状态
 				\NTWP\Core\Logger::debug_log( '增量同步完成，无页面需要更新（缓存已禁用）', 'Incremental Sync' );
-				\NTWP\Services\Database_Config::mark_database_sync_completed( $this->database_id, $sync_cursor_candidate );
+				if ( empty( $stats['failed'] ) ) \NTWP\Services\Database_Config::mark_database_sync_completed( $this->database_id, $sync_cursor_candidate );
 				return $stats;
 			}
 
@@ -760,6 +854,7 @@ class Import_Coordinator {
 			// 添加性能统计到返回结果
 			$stats['performance'] = $performance_stats;
 
+			$this->sync_known_child_pages( $stats, (bool) $force_refresh );
 			// 执行延迟链接转换处理
 			\NTWP\Core\Logger::debug_log( '开始执行延迟链接转换处理', 'Pages Import' );
 			$link_conversion_stats = \NTWP\Handlers\Integrator::process_delayed_link_conversion();
@@ -1502,6 +1597,16 @@ class Import_Coordinator {
 
 		// 获取页面内容
 		$blocks = $this->notion_api->get_page_content( $page_id );
+		$this->child_page_ids[ $page_id ] = array();
+		$pending = $blocks;
+		while ( ! empty( $pending ) ) {
+			$block = array_pop( $pending );
+			if ( ( $block['type'] ?? '' ) === 'child_page' ) {
+				$this->child_page_ids[ $page_id ][] = $block['id'];
+			} else {
+				$pending = array_merge( $pending, $block['children'] ?? array() );
+			}
+		}
 
 		\NTWP\Core\Logger::debug_log( '获取到内容块数量: ' . count( $blocks ), 'Page Import' );
 
@@ -1649,6 +1754,10 @@ class Import_Coordinator {
 		// 更新进度：检查现有文章
 		$this->updatePageProgress( 'processing', '正在检查是否存在现有文章...' );
 		$existing_post_id = \NTWP\Handlers\Integrator::get_post_by_notion_id( $page_id, $this->database_id );
+		if ( $existing_post_id > 0 ) {
+			$existing = get_post( $existing_post_id );
+			if ( $existing ) $metadata['post_type'] = $existing->post_type;
+		}
 		$author_id        = \NTWP\Handlers\Integrator::get_default_author_id();
 
 		\NTWP\Core\Logger::debug_log(
