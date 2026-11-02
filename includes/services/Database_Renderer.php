@@ -280,6 +280,7 @@ class Database_Renderer {
         $database_id = strtolower(str_replace('-', '', $database_info['id'] ?? ''));
         $configured_view = $options['embedded_database_views'][$database_id] ?? ($options['embedded_database_view'] ?? 'auto');
         $source_view = $database_info['notion_view'] ?? [];
+        $database_info['_all_properties'] = $database_info['properties'] ?? [];
         $view_type = $database_data['view_type'] ?? $database_info['view_type'] ?? $configured_view;
         if ($view_type === 'auto' && isset($source_view['type'])) {
             $view_type = $source_view['type'];
@@ -477,7 +478,8 @@ class Database_Renderer {
         $html .= '<div class="notion-gallery-grid">';
         
         foreach ($records as $record) {
-            $html .= self::render_gallery_item($record);
+            $visible = isset($database_info['notion_view']['configuration']['properties']) ? array_keys($database_info['properties']) : null;
+            $html .= self::render_gallery_item($record, $visible);
         }
         
         $html .= '</div></div>';
@@ -492,7 +494,7 @@ class Database_Renderer {
      * @param array $record 记录数据
      * @return string HTML内容
      */
-    private static function render_gallery_item(array $record): string {
+    private static function render_gallery_item(array $record, ?array $visible = null): string {
         $properties = $record['properties'] ?? [];
         $title = self::extract_title($properties);
         $icon = self::extract_icon($record);
@@ -517,7 +519,7 @@ class Database_Renderer {
         $html .= '</div>';
         
         // 显示主要属性
-        $html .= self::render_gallery_properties($properties);
+        $html .= self::render_gallery_properties($visible === null ? $properties : array_intersect_key($properties, array_flip($visible)), $visible === null ? 2 : PHP_INT_MAX);
         
         $html .= '</div></div>';
         
@@ -543,7 +545,7 @@ class Database_Renderer {
         $title = $title ?: __('看板视图', 'notion-to-wordpress');
         
         // 按状态分组
-        $grouped_records = self::group_records_by_status($records);
+        $grouped_records = self::group_records_by_status($records, $database_info);
         
         $html = '<div class="notion-database notion-database-board">';
         $html .= '<h4 class="notion-database-title">' . esc_html($title) . '</h4>';
@@ -778,10 +780,9 @@ class Database_Renderer {
      * @param array $properties 记录属性
      * @return string HTML内容
      */
-    private static function render_gallery_properties(array $properties): string {
+    private static function render_gallery_properties(array $properties, int $max_props = 2): string {
         $html = '<div class="notion-gallery-properties">';
         $count = 0;
-        $max_props = 2; // 画廊视图只显示2个主要属性
         
         foreach ($properties as $prop_name => $prop_value) {
             if ($count >= $max_props) break;
@@ -812,12 +813,48 @@ class Database_Renderer {
      * @param array $records 记录数组
      * @return array 分组后的记录
      */
-    private static function group_records_by_status(array $records): array {
+    private static function group_records_by_status(array $records, array $database_info = []): array {
         $grouped = [];
+        $config = $database_info['notion_view']['configuration']['group_by'] ?? [];
+        $group_property = '';
+        $schema = [];
+        foreach (($database_info['_all_properties'] ?? $database_info['properties'] ?? []) as $name => $property) {
+            if (($property['id'] ?? '') === ($config['property_id'] ?? '') && !empty($config['property_id'])) {
+                $group_property = $name;
+                $schema = $property;
+                break;
+            }
+        }
+        $option_groups = [];
+        if (($config['type'] ?? '') === 'status' && ($config['group_by'] ?? '') === 'group') {
+            foreach (($schema['status']['groups'] ?? []) as $group) {
+                foreach (($group['option_ids'] ?? []) as $option_id) $option_groups[$option_id] = $group['name'];
+                $grouped[$group['name']] = [];
+            }
+        } elseif ($group_property !== '') {
+            foreach (($schema[$schema['type']]['options'] ?? []) as $option) {
+                $grouped[$option['name']] = [];
+            }
+        }
 
         foreach ($records as $record) {
             $properties = $record['properties'] ?? [];
             $status = __('未分类', 'notion-to-wordpress');
+            if ($group_property !== '') {
+                $value = $properties[$group_property] ?? [];
+                $type = $value['type'] ?? '';
+                $labels = [];
+                if ($type === 'multi_select') {
+                    $labels = array_column($value['multi_select'] ?? [], 'name');
+                } elseif ($type === 'status' || $type === 'select') {
+                    $option = $value[$type] ?? [];
+                    $labels[] = $option_groups[$option['id'] ?? ''] ?? ($option['name'] ?? $status);
+                } else {
+                    $labels[] = strip_tags(self::format_property_value($value, $type)) ?: $status;
+                }
+                foreach (array_unique($labels ?: [$status]) as $label) $grouped[$label][] = $record;
+                continue;
+            }
 
             // 查找状态属性 - 修复逻辑错误
             foreach ($properties as $prop_name => $prop_value) {
@@ -845,6 +882,10 @@ class Database_Renderer {
             $grouped[$status][] = $record;
         }
 
+        $sort = $config['sort']['type'] ?? 'manual';
+        if (!empty($config['hide_empty_groups'])) $grouped = array_filter($grouped, static function (array $items): bool { return !empty($items); });
+        if ($sort === 'ascending') ksort($grouped, SORT_NATURAL | SORT_FLAG_CASE);
+        elseif ($sort === 'descending') krsort($grouped, SORT_NATURAL | SORT_FLAG_CASE);
         return $grouped;
     }
 

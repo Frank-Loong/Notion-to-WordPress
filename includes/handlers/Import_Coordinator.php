@@ -333,9 +333,19 @@ class Import_Coordinator {
 
 				// 检查是否存在对应的WordPress文章
 				$existing_post_id = \NTWP\Utils\Database_Helper::batch_get_posts_by_notion_ids( array( $page_id ), $this->database_id )[ $page_id ] ?? 0;
+				$parent_post_id = $this->child_parent_posts[ $page_id ] ?? 0;
+				if ( $existing_post_id > 0 && $parent_post_id > 0 ) {
+					$parent = get_post( $parent_post_id );
+					$expected_status = $parent && $parent->post_status === 'publish' ? 'publish' : 'draft';
+					$expected_parent = $parent && $parent->post_type === 'page' ? $parent_post_id : 0;
+					$existing = get_post( $existing_post_id );
+					if ( $existing && ( $existing->post_status !== $expected_status || (int) $existing->post_parent !== $expected_parent ) ) {
+						$force_refresh = true;
+					}
+				}
 				if ( $existing_post_id > 0 ) {
 					// 使用增量检测器判断是否需要同步
-					if ( \NTWP\Services\Incremental_Detector::should_skip_sync( $page, $existing_post_id ) ) {
+					if ( ! $force_refresh && \NTWP\Services\Incremental_Detector::should_skip_sync( $page, $existing_post_id ) ) {
 						\NTWP\Core\Logger::debug_log(
 							"增量检测器判断页面无需同步，跳过导入: {$page_id}",
 							'Page Import'
@@ -515,9 +525,6 @@ class Import_Coordinator {
 				\NTWP\Core\Logger::info_log( '获取到所有页面数量: ' . count( $pages ), 'Pages Import' );
 			}
 
-			if ( empty( $pages ) && ! $incremental ) {
-				return new WP_Error( 'no_pages', __( '未检索到任何页面。', 'notion-to-wordpress' ) );
-			}
 			$stats = array(
 				'total'       => count( $pages ),
 				'imported'    => 0,
@@ -551,26 +558,15 @@ class Import_Coordinator {
 			if ( $check_deletions ) {
 				\NTWP\Core\Logger::info_log( '开始执行删除检测...', 'Pages Import' );
 				$pages_for_deletion = $incremental && ! $force_refresh ? $this->notion_api->get_database_pages( $this->database_id ) : $pages;
-				// 安全检查：确保全量页面列表不为空，避免 API 异常时误删除。
-				if ( empty( $pages_for_deletion ) ) {
-					\NTWP\Core\Logger::error_log( '删除检测跳过：页面列表为空，可能是API调用失败', 'Pages Import' );
+				// Empty is a valid complete query. Each missing page still requires
+				// explicit archived/in_trash evidence before entering the recycle bin.
+				try {
+					$stats['deleted'] = $this->cleanup_deleted_pages( $pages_for_deletion );
+					\NTWP\Core\Logger::info_log( '删除检测完成，删除了 ' . $stats['deleted'] . ' 个页面', 'Pages Import' );
+				} catch ( \Exception $e ) {
+					\NTWP\Core\Logger::error_log( '删除检测失败: ' . $e->getMessage(), 'Pages Import' );
 					$stats['deleted'] = 0;
-				} else {
-					try {
-						$deleted_count    = $this->cleanup_deleted_pages( $pages_for_deletion );
-						$stats['deleted'] = $deleted_count;
-						\NTWP\Core\Logger::info_log( '删除检测完成，删除了 ' . $deleted_count . ' 个页面', 'Pages Import' );
-					} catch ( \Exception $e ) {
-						\NTWP\Core\Logger::error_log( '删除检测失败: ' . $e->getMessage(), 'Pages Import' );
-						\NTWP\Core\Logger::error_log( '删除检测异常堆栈: ' . $e->getTraceAsString(), 'Pages Import' );
-						$stats['deleted'] = 0;
-
-						// 记录详细的错误信息以便调试
-						\NTWP\Core\Logger::error_log(
-							'删除检测失败详情 - 页面数量: ' . count( $pages ) . ', 错误: ' . $e->getMessage(),
-							'Pages Import'
-						);
-					}
+					++$stats['errors'];
 				}
 			}
 
@@ -1048,7 +1044,7 @@ class Import_Coordinator {
 	 * @param    array $current_pages    当前Notion数据库中的页面
 	 * @return   int                        删除的页面数量
 	 */
-	private function cleanup_deleted_pages( array $current_pages ): int {
+	private function cleanup_deleted_pages( array $current_pages, int $batch_size = 1000 ): int {
 		// 确保数据库索引已优化
 		$this->ensure_database_indexes_optimized();
 
@@ -1060,22 +1056,14 @@ class Import_Coordinator {
 			$current_pages
 		);
 
-		if ( empty( $current_notion_ids ) ) {
-			\NTWP\Core\Logger::warning_log(
-				'当前页面列表为空，跳过删除检测',
-				'Cleanup Optimized'
-			);
-			return 0;
-		}
-
 		global $wpdb;
 
 		// 🚀 优化后的SQL查询 - 使用索引优化和批量处理
 		$start_time = microtime( true );
 
 		// 分批处理大量数据，避免内存问题
-		$batch_size      = 1000;
-		$offset          = 0;
+		$batch_size      = max( 1, $batch_size );
+		$last_post_id    = 0;
 		$total_deleted   = 0;
 		$total_processed = 0;
 
@@ -1096,15 +1084,16 @@ class Import_Coordinator {
                     AND source_meta.meta_key = %s
                     AND source_meta.meta_value = %s
                 WHERE pm.meta_key = '_notion_page_id'
-                AND p.post_type = 'post'
+                AND p.post_type NOT IN ('attachment', 'revision', 'nav_menu_item')
                 AND p.post_status IN ('publish', 'draft', 'private', 'pending')
+                AND p.ID > %d
                 ORDER BY p.ID
-                LIMIT %d OFFSET %d
+                LIMIT %d
             ",
 				\NTWP\Services\Database_Config::META_DATABASE_ID,
 				$this->database_id,
-				$batch_size,
-				$offset
+				$last_post_id,
+				$batch_size
 			);
 			$results          = $wpdb->get_results( $query );
 			$batch_processed  = count( $results );
@@ -1112,15 +1101,14 @@ class Import_Coordinator {
 
 			if ( $batch_processed > 0 ) {
 				\NTWP\Core\Logger::debug_log(
-					"处理批次: 偏移{$offset}, 大小{$batch_processed}",
+					"处理批次: 上次ID={$last_post_id}, 大小{$batch_processed}",
 					'Cleanup Optimized'
 				);
 
 				$batch_deleted  = $this->process_deletion_batch( $results, $current_notion_ids );
 				$total_deleted += $batch_deleted;
+				$last_post_id = (int) $results[ $batch_processed - 1 ]->post_id;
 			}
-
-			$offset += $batch_size;
 
 		} while ( $batch_processed === $batch_size );
 
@@ -1158,18 +1146,20 @@ class Import_Coordinator {
 		$batch_deleted = 0;
 
 		// 🚀 性能优化：使用array_flip将数组转换为哈希表，提升查找性能
-		$notion_ids_hash = array_flip( $current_notion_ids );
+		$notion_ids_hash = array_flip( array_map( static function ( string $id ): string {
+			return strtolower( str_replace( '-', '', $id ) );
+		}, $current_notion_ids ) );
 
 		foreach ( $batch_results as $row ) {
 			// 使用哈希表查找，O(1)时间复杂度代替O(n)的in_array
-			if ( ! isset( $notion_ids_hash[ $row->notion_id ] ) ) {
+			if ( ! isset( $notion_ids_hash[ strtolower( str_replace( '-', '', $row->notion_id ) ) ] ) ) {
 				\NTWP\Core\Logger::debug_log(
 					"发现孤儿文章: WordPress ID={$row->post_id}, Notion ID={$row->notion_id}",
 					'Cleanup Optimized'
 				);
 
 				// 验证文章是否真的应该被删除
-				if ( $this->should_delete_post( $row->post_id, $row->notion_id ) ) {
+				if ( $this->should_delete_post( (int) $row->post_id, $row->notion_id ) ) {
 					$result = wp_trash_post( $row->post_id );
 
 					if ( $result ) {

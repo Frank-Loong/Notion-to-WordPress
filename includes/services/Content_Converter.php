@@ -1021,7 +1021,7 @@ class Content_Converter {
 
 		// 通用网页嵌入：仅对显式白名单域保留 iframe，避免安全过滤后只剩空容器。
 		$html  = '<div class="notion-embed">';
-		if ( \NTWP\Core\Security::is_iframe_url_allowed( $url ) ) {
+		if ( \NTWP\Core\Security::is_iframe_url_allowed( $url ) && self::allows_webpage_frame( $url ) ) {
 			$html .= '<iframe src="' . esc_url( $url ) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
 		} else {
 			$html .= self::render_embed_card( $url );
@@ -1032,6 +1032,31 @@ class Content_Converter {
 		$html .= '</div>';
 
 		return $html;
+	}
+
+	/** Detect explicit framing restrictions before emitting an empty iframe. */
+	private static function allows_webpage_frame( string $url ): bool {
+		if ( ! function_exists( 'wp_safe_remote_head' ) ) return true;
+		$key = 'ntwp_frame_' . hash( 'sha256', $url );
+		$cached = get_transient( $key );
+		if ( $cached !== false ) return $cached === 'allowed';
+		$response = wp_safe_remote_head( $url, array( 'timeout' => 3, 'redirection' => 0 ) );
+		$allowed = ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) >= 200 && wp_remote_retrieve_response_code( $response ) < 300;
+		if ( $allowed ) {
+			$frame = strtolower( trim( (string) wp_remote_retrieve_header( $response, 'x-frame-options' ) ) );
+			$csp = (string) wp_remote_retrieve_header( $response, 'content-security-policy' );
+			$parts = parse_url( home_url() );
+			$origin = ( $parts['scheme'] ?? 'https' ) . '://' . ( $parts['host'] ?? '' ) . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' );
+			$remote = parse_url( $url );
+			$same_origin = ( $remote['scheme'] ?? '' ) === ( $parts['scheme'] ?? '' ) && ( $remote['host'] ?? '' ) === ( $parts['host'] ?? '' ) && ( $remote['port'] ?? null ) === ( $parts['port'] ?? null );
+			if ( str_contains( $frame, 'deny' ) || ( $frame !== '' && ! $same_origin ) ) $allowed = false;
+			if ( preg_match( '/(?:^|;)\s*frame-ancestors\s+([^;]+)/i', $csp, $match ) ) {
+				$sources = preg_split( '/\s+/', trim( $match[1] ) ) ?: array();
+				$allowed = ! in_array( "'none'", $sources, true ) && ( in_array( '*', $sources, true ) || in_array( $origin, $sources, true ) || ( $same_origin && in_array( "'self'", $sources, true ) ) );
+			}
+		}
+		set_transient( $key, $allowed ? 'allowed' : 'blocked', 60 * MINUTE_IN_SECONDS );
+		return $allowed;
 	}
 
 	/**
@@ -1045,7 +1070,7 @@ class Content_Converter {
 			if ( is_array( $cached ) ) {
 				$metadata = $cached;
 			} else {
-				$response = wp_safe_remote_get( $url, array( 'timeout' => 3, 'redirection' => 0, 'limit_response_size' => 262144, 'headers' => array( 'Accept' => 'text/html' ) ) );
+				$response = wp_safe_remote_get( $url, array( 'timeout' => 3, 'redirection' => 3, 'limit_response_size' => 262144, 'headers' => array( 'Accept' => 'text/html' ) ) );
 				if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) === 200 ) {
 					$metadata = self::parse_embed_metadata( wp_remote_retrieve_body( $response ), $url );
 				}

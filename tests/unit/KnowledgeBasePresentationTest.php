@@ -76,6 +76,44 @@ final class KnowledgeBasePresentationTest extends PHPUnit\Framework\TestCase {
         $this->assertStringNotContainsString('notion-database-gallery', $html);
     }
 
+    public function test_board_uses_configured_group_property_even_when_hidden_on_cards(): void {
+        $GLOBALS['__wp_options'] = [];
+        $html = Database_Renderer::render_database([
+            'database_info' => [
+                'properties' => ['Priority' => ['id' => 'priority', 'type' => 'select', 'select' => ['options' => [['name' => 'High'], ['name' => 'Low']]]]],
+                'notion_view' => ['type' => 'board', 'configuration' => [
+                    'properties' => [],
+                    'group_by' => ['type' => 'select', 'property_id' => 'priority', 'sort' => ['type' => 'ascending'], 'hide_empty_groups' => true],
+                ]],
+            ],
+            'records' => [['properties' => [
+                'Name' => ['type' => 'title', 'title' => [['plain_text' => 'Priority card']]],
+                'Status' => ['type' => 'status', 'status' => ['name' => 'Wrong grouping']],
+                'Priority' => ['type' => 'select', 'select' => ['name' => 'High']],
+            ]]],
+        ]);
+        $this->assertStringContainsString('<h5>High</h5>', $html);
+        $this->assertStringNotContainsString('Wrong grouping', $html);
+        $this->assertStringNotContainsString('<h5>Low</h5>', $html);
+    }
+
+    public function test_gallery_does_not_leak_hidden_properties(): void {
+        $GLOBALS['__wp_options'] = [];
+        $html = Database_Renderer::render_database([
+            'database_info' => [
+                'properties' => ['Visible' => ['id' => 'v', 'type' => 'rich_text'], 'Hidden' => ['id' => 'h', 'type' => 'rich_text']],
+                'notion_view' => ['type' => 'gallery', 'configuration' => ['properties' => [['property_id' => 'v', 'visible' => true], ['property_id' => 'h', 'visible' => false]]]],
+            ],
+            'records' => [['properties' => [
+                'Name' => ['type' => 'title', 'title' => [['plain_text' => 'Card']]],
+                'Visible' => ['type' => 'rich_text', 'rich_text' => [['plain_text' => 'Shown text']]],
+                'Hidden' => ['type' => 'rich_text', 'rich_text' => [['plain_text' => 'Hidden text']]],
+            ]]],
+        ]);
+        $this->assertStringContainsString('Shown text', $html);
+        $this->assertStringNotContainsString('Hidden text', $html);
+    }
+
     public function test_layout_parser_accepts_chinese_labels_and_rejects_bad_configuration(): void {
         $id = '123456781234123412341234567890ab';
         $this->assertSame([$id => 'board'], NTWP\Services\Database_Config::parse_embedded_views("12345678-1234-1234-1234-1234567890AB|看板\n"));

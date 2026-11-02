@@ -76,6 +76,14 @@ try {
     $poll = new Import_Coordinator($api, $database_id, $mapping);
     $method->invokeArgs($poll, [&$stats, false]);
     hierarchy_check('restored_child_reuses_original_id', get_post_status($created[2]) === 'publish' && Integrator::get_post_by_notion_id(str_repeat('56', 16), $database_id) === $created[2]);
+    wp_update_post(['ID' => $created[0], 'post_status' => 'draft']);
+    $poll = new Import_Coordinator($api, $database_id, $mapping);
+    $method->invokeArgs($poll, [&$stats, false]);
+    hierarchy_check('parent_draft_hides_unchanged_descendants', get_post_status($created[1]) === 'draft' && get_post_status($created[2]) === 'draft');
+    wp_update_post(['ID' => $created[0], 'post_status' => 'publish']);
+    $poll = new Import_Coordinator($api, $database_id, $mapping);
+    $method->invokeArgs($poll, [&$stats, false]);
+    hierarchy_check('parent_publish_restores_unchanged_descendants', get_post_status($created[1]) === 'publish' && get_post_status($created[2]) === 'publish');
     wp_update_post(['ID' => $created[0], 'post_type' => 'post']);
     $third = new Import_Coordinator($api, $database_id, $mapping);
     hierarchy_check('post_root_import', $third->import_notion_page($api->get_page(str_repeat('12', 16)), true) === true);
