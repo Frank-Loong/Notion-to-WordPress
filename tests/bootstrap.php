@@ -29,6 +29,14 @@ if (!defined('NOTION_TO_WORDPRESS_VERSION')) {
 
 // ==================== 最小 WordPress 全局函数桩 ====================
 
+// Unit tests must never use the network. Runtime integration exercises the
+// actual WordPress transport, MIME validation and media persistence.
+if (!function_exists('wp_safe_remote_get')) {
+    function wp_safe_remote_get($url, $args = []) {
+        return new WP_Error('unit_test_network_disabled', 'Network disabled in unit tests');
+    }
+}
+
 // 全局 post meta 存储（模拟数据库）
 $GLOBALS['__wp_post_meta'] = [];
 $GLOBALS['__wp_options'] = [];

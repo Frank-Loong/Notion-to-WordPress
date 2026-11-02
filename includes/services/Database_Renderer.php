@@ -31,6 +31,25 @@ if (!defined('ABSPATH')) {
 
 class Database_Renderer {
 
+    /** Share view-aware reads between the legacy rendering entry points. */
+    private static function read_view_records(string $database_id, array &$database_info, \NTWP\Services\API $api): array {
+        try {
+            $snapshot = $api->get_database_view_snapshot($database_id);
+            if (!empty($snapshot)) {
+                $database_info['notion_view'] = $snapshot['view'];
+                return $snapshot['records'];
+            }
+        } catch (Exception $error) {
+            $options = get_option('notion_to_wordpress_options', []);
+            $key = strtolower(str_replace('-', '', $database_id));
+            if (!empty($options['embedded_database_view_ids'][$key])) {
+                throw $error;
+            }
+            \NTWP\Core\Logger::warning_log('视图读取不可用，使用兼容数据库布局: ' . $error->getMessage(), 'Database View');
+        }
+        return $api->get_database_pages($database_id, [], false);
+    }
+
     // 数据库视图类型常量
     const VIEW_TYPE_GALLERY = 'gallery';
     const VIEW_TYPE_TABLE = 'table';
@@ -69,11 +88,12 @@ class Database_Renderer {
             foreach ($database_ids as $db_id) {
                 try {
                     // 限制每个数据库最多获取20条记录，避免超时
-                    $records = $notion_api->get_database_pages($db_id, [], false);
-                    $limited_records = array_slice($records, 0, 20);
+                    $info = $batch_info[$db_id] ?? [];
+                    $records = self::read_view_records($db_id, $info, $notion_api);
+                    $limited_records = $records;
 
                     $preprocessed_data[$db_id] = [
-                        'info' => $batch_info[$db_id] ?? [],
+                        'info' => $info,
                         'records' => $limited_records,
                         'processed_at' => time(),
                         'record_count' => count($limited_records),
@@ -132,6 +152,7 @@ class Database_Renderer {
         }
 
         $database_info = $preprocessed_data['info'] ?? [];
+        $database_info['id'] = $database_id;
         $records = $preprocessed_data['records'] ?? [];
         $record_count = $preprocessed_data['record_count'] ?? 0;
         $total_available = $preprocessed_data['total_available'] ?? 0;
@@ -180,6 +201,7 @@ class Database_Renderer {
 
             // 获取数据库信息
             $database_info = $notion_api->get_database($database_id);
+            $database_info['id'] = $database_id;
 
             // 检查超时
             if ((microtime(true) - $start_time) > $timeout_seconds) {
@@ -187,8 +209,8 @@ class Database_Renderer {
             }
 
             // 获取数据库记录（限制数量）
-            $records = $notion_api->get_database_pages($database_id, [], false);
-            $limited_records = array_slice($records, 0, 15); // 限制15条
+            $records = self::read_view_records($database_id, $database_info, $notion_api);
+            $limited_records = $records;
 
             // 检查超时
             if ((microtime(true) - $start_time) > $timeout_seconds) {
@@ -253,8 +275,31 @@ class Database_Renderer {
             return self::render_empty_database($title);
         }
 
-        // 根据标题判断视图类型
-        $view_type = self::detect_view_type($title);
+        // Explicit layout wins; legacy title detection remains compatible.
+        $options = get_option('notion_to_wordpress_options', []);
+        $database_id = strtolower(str_replace('-', '', $database_info['id'] ?? ''));
+        $configured_view = $options['embedded_database_views'][$database_id] ?? ($options['embedded_database_view'] ?? 'auto');
+        $source_view = $database_info['notion_view'] ?? [];
+        $view_type = $database_data['view_type'] ?? $database_info['view_type'] ?? $configured_view;
+        if ($view_type === 'auto' && isset($source_view['type'])) {
+            $view_type = $source_view['type'];
+        }
+        // Preserve the view's visible column order using Notion property IDs.
+        if (isset($source_view['configuration']['properties'])) {
+            $ordered = [];
+            foreach ($source_view['configuration']['properties'] as $column) {
+                if (empty($column['visible'])) continue;
+                foreach (($database_info['properties'] ?? []) as $name => $property) {
+                    if (($property['id'] ?? '') === ($column['property_id'] ?? '')) {
+                        $ordered[$name] = $property;
+                    }
+                }
+            }
+            $database_info['properties'] = $ordered;
+        }
+        if (!in_array($view_type, ['table', 'gallery', 'list', 'board'], true)) {
+            $view_type = self::detect_view_type($title);
+        }
         
         switch ($view_type) {
             case 'table':
@@ -263,6 +308,8 @@ class Database_Renderer {
                 return self::render_gallery_view($records, $database_info);
             case 'board':
                 return self::render_board_view($records, $database_info);
+            case 'list':
+                return self::render_list_view($records, $title);
             default:
                 return self::render_table_view($records, $database_info); // 默认表格视图
         }
@@ -284,6 +331,9 @@ class Database_Renderer {
         
         if (strpos($title_lower, 'board') !== false || strpos($title_lower, '看板') !== false) {
             return 'board';
+        }
+        if (strpos($title_lower, 'list') !== false || strpos($title_lower, '列表') !== false) {
+            return 'list';
         }
         
         // 默认为表格视图
@@ -386,7 +436,7 @@ class Database_Renderer {
         if ($icon) {
             $html .= '<span class="notion-icon">' . $icon . '</span>';
         }
-        $html .= esc_html($title);
+        $html .= self::render_record_link($record, $title);
         $html .= '</td>';
         
         // 属性单元格
@@ -463,7 +513,7 @@ class Database_Renderer {
         if ($icon) {
             $html .= '<span class="notion-icon">' . $icon . '</span>';
         }
-        $html .= esc_html($title);
+        $html .= self::render_record_link($record, $title);
         $html .= '</div>';
         
         // 显示主要属性
@@ -557,7 +607,7 @@ class Database_Renderer {
         if ($icon) {
             $html .= '<span class="notion-icon">' . $icon . '</span>';
         }
-        $html .= esc_html($title);
+        $html .= self::render_record_link($record, $title);
         $html .= '</div>';
         
         $html .= '</div>';
@@ -566,6 +616,39 @@ class Database_Renderer {
     }
 
     // ==================== 辅助方法 ====================
+
+    private static function render_list_view(array $records, string $title): string {
+        $html = '<div class="notion-database notion-database-list"><h4 class="notion-database-title">' . esc_html($title) . '</h4><ul class="notion-database-list-items">';
+        foreach ($records as $record) {
+            $html .= '<li>' . self::extract_icon($record) . self::render_record_link($record, self::extract_title($record['properties'] ?? [])) . '</li>';
+        }
+        return $html . '</ul></div>';
+    }
+
+    private static function render_record_link(array $record, string $title): string {
+        $notion_id = $record['id'] ?? '';
+        if ($notion_id !== '' && function_exists('get_permalink')) {
+            $normalized = strtolower(str_replace('-', '', $notion_id));
+            if (preg_match('/^[a-f0-9]{32}$/', $normalized)) {
+                $hyphenated = substr($normalized, 0, 8) . '-' . substr($normalized, 8, 4) . '-' . substr($normalized, 12, 4) . '-' . substr($normalized, 16, 4) . '-' . substr($normalized, 20);
+                foreach (array_unique([$notion_id, $normalized, $hyphenated]) as $candidate) {
+                    $post_id = \NTWP\Handlers\Integrator::get_post_by_notion_id($candidate);
+                    $post = $post_id > 0 ? get_post($post_id) : null;
+                    if ($post && $post->post_status === 'publish') {
+                        $permalink = get_permalink($post_id);
+                        if ($permalink) {
+                            return '<a href="' . esc_url($permalink) . '">' . esc_html($title) . '</a>';
+                        }
+                    }
+                }
+            }
+        }
+        $url = esc_url($record['url'] ?? '');
+        if ($url === '') {
+            return esc_html($title);
+        }
+        return '<a href="' . $url . '" target="_blank" rel="noopener noreferrer">' . esc_html($title) . '</a>';
+    }
 
     /**
      * 提取记录标题
@@ -580,7 +663,9 @@ class Database_Renderer {
             if (is_array($prop_value) && isset($prop_value['type']) && $prop_value['type'] === 'title') {
                 $title_array = $prop_value['title'] ?? [];
                 if (!empty($title_array) && is_array($title_array)) {
-                    return $title_array[0]['plain_text'] ?? '';
+                    return implode('', array_map(static function (array $part): string {
+                        return $part['plain_text'] ?? ($part['text']['content'] ?? '');
+                    }, $title_array));
                 }
             }
         }
@@ -601,7 +686,7 @@ class Database_Renderer {
         }
         
         if (isset($icon['emoji'])) {
-            return $icon['emoji'];
+            return esc_html($icon['emoji']);
         }
         
         if (isset($icon['external']['url'])) {
@@ -626,11 +711,11 @@ class Database_Renderer {
         }
         
         if (isset($cover['external']['url'])) {
-            return $cover['external']['url'];
+            return Attachment_Processor::resolve_url($cover['external']['url'], '', '', 'image');
         }
         
         if (isset($cover['file']['url'])) {
-            return $cover['file']['url'];
+            return Attachment_Processor::resolve_url($cover['file']['url'], '', '', 'image');
         }
         
         return '';
@@ -778,7 +863,7 @@ class Database_Renderer {
         try {
             // 获取数据库中的记录
             // 使用with_details=true获取包含封面图片和图标的完整信息
-            $records = $notion_api->get_database_pages($database_id, [], true);
+            $records = self::read_view_records($database_id, $database_info, $notion_api);
 
             if (empty($records)) {
                 \NTWP\Core\Logger::debug_log(
@@ -794,27 +879,7 @@ class Database_Renderer {
                 'Database Block'
             );
 
-            // 检测视图类型
-            $view_type = self::detect_view_type_advanced($database_info);
-
-            // 实现渐进式加载：先显示基本信息，后续加载详细内容
-            $initial_load_count = min(6, count($records)); // 首次加载最多6条记录
-            $initial_records = array_slice($records, 0, $initial_load_count);
-            $remaining_records = array_slice($records, $initial_load_count);
-
-            // 渲染初始内容
-            $database_data = [
-                'database_info' => $database_info,
-                'records' => $initial_records
-            ];
-            $html = self::render_database($database_data);
-
-            // 如果有剩余记录，添加懒加载容器
-            if (!empty($remaining_records)) {
-                $html .= self::render_progressive_loading_container($remaining_records, $database_info, $view_type, $database_id);
-            }
-
-            return $html;
+            return self::render_database_preview_records_with_data($database_id, $database_info, $records);
 
         } catch (Exception $e) {
             \NTWP\Core\Logger::error_log(
@@ -867,33 +932,6 @@ class Database_Renderer {
     }
 
     /**
-     * 渐进式加载容器
-     *
-     * @since 2.0.0-beta.1
-     * @param array $records 剩余记录
-     * @param array $database_info 数据库信息
-     * @param string $view_type 视图类型
-     * @param string $database_id 数据库ID
-     * @return string HTML内容
-     */
-    private static function render_progressive_loading_container(array $records, array $database_info, string $view_type, string $database_id): string {
-        // 简化版：直接渲染剩余记录，不使用JavaScript懒加载
-        $database_data = [
-            'database_info' => $database_info,
-            'records' => $records
-        ];
-
-        $html = '<div class="notion-database-more-records">';
-        $html .= '<div class="notion-database-more-header">';
-        $html .= '<span>更多记录 (' . count($records) . ')</span>';
-        $html .= '</div>';
-        $html .= self::render_database($database_data);
-        $html .= '</div>';
-
-        return $html;
-    }
-
-    /**
      * 渲染数据库预览记录（使用预处理数据）
      *
      * @since 2.0.0-beta.1
@@ -903,6 +941,7 @@ class Database_Renderer {
      * @return string HTML内容
      */
     public static function render_database_preview_records_with_data(string $database_id, array $database_info, array $records): string {
+        $database_info['id'] = $database_id;
         try {
             if (empty($records)) {
                 \NTWP\Core\Logger::debug_log(
@@ -936,24 +975,12 @@ class Database_Renderer {
                 'Database View'
             );
 
-            // 实现渐进式加载：先显示基本信息，后续加载详细内容
-            $initial_load_count = min(6, count($records)); // 首次加载最多6条记录
-            $initial_records = array_slice($records, 0, $initial_load_count);
-            $remaining_records = array_slice($records, $initial_load_count);
-
-            // 渲染初始内容
-            $database_data = [
+            // Render one complete view: splitting a board repeats groups and
+            // splitting a table repeats its title and column headers.
+            return self::render_database([
                 'database_info' => $database_info,
-                'records' => $initial_records
-            ];
-            $html = self::render_database($database_data);
-
-            // 如果有剩余记录，添加懒加载容器
-            if (!empty($remaining_records)) {
-                $html .= self::render_progressive_loading_container($remaining_records, $database_info, $view_type, $database_id);
-            }
-
-            return $html;
+                'records' => $records,
+            ]);
 
         } catch (Exception $e) {
             \NTWP\Core\Logger::error_log(
@@ -1030,7 +1057,9 @@ class Database_Renderer {
 
                 // 批量查询数据库记录
                 $db_records_start = microtime(true);
-                $database_records = $notion_api->batch_query_databases($valid_database_ids, $query_filters);
+                foreach ($valid_database_ids as $database_id) {
+                    $database_records[$database_id] = self::read_view_records($database_id, $database_infos[$database_id], $notion_api);
+                }
                 $db_records_time = microtime(true) - $db_records_start;
 
                 \NTWP\Core\Logger::debug_log(
@@ -1301,7 +1330,7 @@ class Database_Renderer {
             }
 
             // 获取数据库记录（使用with_details=true获取完整信息）
-            $records = $notion_api->get_database_pages($database_id, [], true);
+            $records = self::read_view_records($database_id, $database_info, $notion_api);
             if (empty($records)) {
                 \NTWP\Core\Logger::debug_log(
                     "数据库无记录或无权限访问: {$database_title} (ID: {$database_id})",

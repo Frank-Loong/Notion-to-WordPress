@@ -221,6 +221,7 @@ class Image_Processor {
 
 		// 检查是否为Notion临时URL，只有临时URL才需要下载
 		if ( ! self::is_notion_temp_url( $url ) ) {
+			$url = Attachment_Processor::resolve_url( $url, '', $caption, 'image' );
 			// 外部永久链接，直接生成HTML，不下载
 			// 性能模式下减少日志调用
 			if ( ! $performance_mode ) {

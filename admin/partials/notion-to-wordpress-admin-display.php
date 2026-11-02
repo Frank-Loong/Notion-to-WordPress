@@ -187,6 +187,8 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 										<select id="sync_schedule" name="sync_schedule" class="regular-text">
 											<?php
 											$schedules = array(
+												'ntwp_ten_minutes' => __( '每10分钟（推荐）', 'notion-to-wordpress' ),
+												'hourly' => __( '每小时', 'notion-to-wordpress' ),
 												'manual'   => __( '手动同步', 'notion-to-wordpress' ),
 												'twicedaily' => __( '每天两次', 'notion-to-wordpress' ),
 												'daily'    => __( '每天一次', 'notion-to-wordpress' ),
@@ -455,6 +457,34 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 
 				<div class="notion-wp-tab-content" id="field-mapping">
 					<div class="notion-wp-settings-section">
+						<p>
+							<label for="embedded_database_view"><?php esc_html_e( '内嵌数据库默认视图', 'notion-to-wordpress' ); ?></label>
+							<select id="embedded_database_view" name="embedded_database_view">
+								<?php foreach ( array( 'auto' => '兼容原有自动识别', 'table' => '表格', 'gallery' => '画廊', 'list' => '列表', 'board' => '看板' ) as $view => $label ) : ?>
+									<option value="<?php echo esc_attr( $view ); ?>" <?php selected( $options['embedded_database_view'] ?? 'auto', $view ); ?>><?php echo esc_html( $label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</p>
+						<p class="description"><?php esc_html_e( '选择同步后内嵌数据库的展示布局，保存后重新同步生效。此设置不会改变 Notion 原视图。', 'notion-to-wordpress' ); ?></p>
+						<details>
+							<summary><?php esc_html_e( '为不同数据库指定视图', 'notion-to-wordpress' ); ?></summary>
+							<?php
+							$embedded_view_lines = array();
+							foreach ( ( $options['embedded_database_views'] ?? array() ) as $database_view_id => $database_view_type ) {
+								$embedded_view_lines[] = $database_view_id . '|' . $database_view_type;
+							}
+							?>
+							<label for="embedded_database_views"><?php esc_html_e( '每行填写：数据库ID|视图，例如 数据库ID|画廊。支持表格、画廊、列表、看板，也支持 table、gallery、list、board。留空使用默认布局。', 'notion-to-wordpress' ); ?></label>
+							<textarea id="embedded_database_views" name="embedded_database_views" rows="4" class="large-text"><?php echo esc_textarea( implode( "\n", $embedded_view_lines ) ); ?></textarea>
+							<?php
+							$embedded_source_lines = array();
+							foreach ( ( $options['embedded_database_view_ids'] ?? array() ) as $source_database_id => $source_view_id ) {
+								$embedded_source_lines[] = $source_database_id . '|' . $source_view_id;
+							}
+							?>
+							<label for="embedded_database_view_ids"><?php esc_html_e( '指定 Notion 来源视图：每行填写 数据库ID|视图ID；视图ID是 Notion 视图链接中 v= 后的值。留空使用第一个视图。', 'notion-to-wordpress' ); ?></label>
+							<textarea id="embedded_database_view_ids" name="embedded_database_view_ids" rows="4" class="large-text"><?php echo esc_textarea( implode( "\n", $embedded_source_lines ) ); ?></textarea>
+						</details>
 						<h2><?php esc_html_e( '字段映射', 'notion-to-wordpress' ); ?></h2>
 						<p class="description"><?php esc_html_e( '设置您的Notion数据库属性名称与WordPress字段的对应关系。多个备选名称请用英文逗号隔开。', 'notion-to-wordpress' ); ?></p>
 						<table class="form-table">

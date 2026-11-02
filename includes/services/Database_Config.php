@@ -21,6 +21,43 @@ class Database_Config {
 	private const SYNC_STATE_KEY       = 'database_sync_state';
 	private const LEGACY_MIGRATION_KEY = 'database_source_migration_complete';
 
+	/** Parse explicit layouts without relying on database titles. */
+	public static function parse_embedded_views( string $raw ): array {
+		$views = array();
+		$labels = array( '表格' => 'table', '画廊' => 'gallery', '列表' => 'list', '看板' => 'board' );
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: array() as $line ) {
+			if ( trim( $line ) === '' ) {
+				continue;
+			}
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			$id = strtolower( str_replace( '-', '', $parts[0] ) );
+			$view = $labels[ $parts[1] ?? '' ] ?? ( $parts[1] ?? '' );
+			if ( count( $parts ) !== 2 || ! preg_match( '/^[a-f0-9]{32}$/', $id ) || ! in_array( $view, array( 'table', 'gallery', 'list', 'board' ), true ) ) {
+				throw new \InvalidArgumentException( '内嵌数据库视图格式应为：数据库ID|表格、画廊、列表或看板（每行一项）' );
+			}
+			$views[ $id ] = $view;
+		}
+		return $views;
+	}
+
+	/** Optional source view IDs, separate from local layout overrides. */
+	public static function parse_embedded_view_ids( string $raw ): array {
+		$views = array();
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: array() as $line ) {
+			if ( trim( $line ) === '' ) {
+				continue;
+			}
+			$parts = array_map( static function ( string $value ): string {
+				return strtolower( str_replace( '-', '', trim( $value ) ) );
+			}, explode( '|', $line ) );
+			if ( count( $parts ) !== 2 || ! preg_match( '/^[a-f0-9]{32}$/', $parts[0] ) || ! preg_match( '/^[a-f0-9]{32}$/', $parts[1] ) ) {
+				throw new \InvalidArgumentException( '指定视图格式应为：数据库ID|视图ID（每行一项）' );
+			}
+			$views[ $parts[0] ] = $parts[1];
+		}
+		return $views;
+	}
+
 	/**
 	 * 返回需要同步的数据库列表。
 	 *

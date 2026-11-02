@@ -426,7 +426,7 @@ class Notion_To_WordPress_Admin {
 		}
 
 		// 验证同步计划选项
-		$valid_schedules = array( 'manual', 'hourly', 'twicedaily', 'daily', 'weekly', 'biweekly', 'monthly' );
+		$valid_schedules = array( 'manual', 'ntwp_ten_minutes', 'hourly', 'twicedaily', 'daily', 'weekly', 'biweekly', 'monthly' );
 		if ( ! empty( $options['sync_schedule'] ) && ! in_array( $options['sync_schedule'], $valid_schedules ) ) {
 			$errors[] = __( '同步计划选项无效。', 'notion-to-wordpress' );
 		}
@@ -513,6 +513,14 @@ class Notion_To_WordPress_Admin {
 		// 主数据库仍由 notion_database_id（React 前端管理）提供，此处仅补充额外库。
 		$raw_additional              = isset( $request['additional_databases'] ) ? sanitize_textarea_field( $request['additional_databases'] ) : '';
 		$options['notion_databases'] = \NTWP\Services\Database_Config::parse_database_list( $raw_additional );
+		$embedded_view = $request['embedded_database_view'] ?? ( $options['embedded_database_view'] ?? 'auto' );
+		$options['embedded_database_view'] = in_array( $embedded_view, array( 'auto', 'table', 'gallery', 'list', 'board' ), true ) ? $embedded_view : 'auto';
+		if ( isset( $request['embedded_database_views'] ) ) {
+			$options['embedded_database_views'] = \NTWP\Services\Database_Config::parse_embedded_views( sanitize_textarea_field( $request['embedded_database_views'] ) );
+		}
+		if ( isset( $request['embedded_database_view_ids'] ) ) {
+			$options['embedded_database_view_ids'] = \NTWP\Services\Database_Config::parse_embedded_view_ids( sanitize_textarea_field( $request['embedded_database_view_ids'] ) );
+		}
 
 		// Debug Level
 		$options['debug_level'] = isset( $request['debug_level'] ) ? intval( $request['debug_level'] ) : Logger::DEBUG_LEVEL_ERROR;
@@ -610,6 +618,10 @@ class Notion_To_WordPress_Admin {
 	 */
 	private function update_cron_schedule( array $options ): void {
 		$schedule = $options['sync_schedule'] ?? 'manual';
+		$current = wp_get_schedule( 'notion_cron_import' );
+		if ( $current && $current !== $schedule ) {
+			wp_clear_scheduled_hook( 'notion_cron_import' );
+		}
 		if ( 'manual' !== $schedule && ! wp_next_scheduled( 'notion_cron_import' ) ) {
 			wp_schedule_event( time(), $schedule, 'notion_cron_import' );
 		} elseif ( 'manual' === $schedule && wp_next_scheduled( 'notion_cron_import' ) ) {

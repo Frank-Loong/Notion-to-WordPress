@@ -4,6 +4,46 @@
 
 @use "../shared/variables" as *;
 
+.notion-embed-card {
+  display: flex;
+  overflow: hidden;
+  margin: 1rem 0;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  color: inherit;
+  text-decoration: none;
+
+  .notion-embed-card-cover {
+    width: 30%;
+    max-width: 180px;
+    object-fit: cover;
+  }
+
+  .notion-embed-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 1rem;
+    overflow-wrap: anywhere;
+
+    > span {
+      font-size: 0.85em;
+      opacity: 0.7;
+    }
+  }
+}
+
+.notion-database-list-items {
+  list-style: none;
+  padding: 0;
+
+  > li {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #eee;
+  }
+}
+
 // Notion块基础样式
 .notion-block {
   margin-bottom: $spacing-4;

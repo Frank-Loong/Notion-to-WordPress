@@ -12,6 +12,12 @@ class Attachment_Processor {
 
 	/** @var array<string, array<string, string>> */
 	private const ALLOWED_MIMES = array(
+		'image' => array(
+			'image/jpeg' => 'jpg',
+			'image/png' => 'png',
+			'image/gif' => 'gif',
+			'image/webp' => 'webp',
+		),
 		'file'  => array(
 			'application/pdf' => 'pdf',
 			'text/plain'      => 'txt',
@@ -47,7 +53,7 @@ class Attachment_Processor {
 	 * downloaded safely; otherwise preserve the original URL.
 	 */
 	public static function resolve_url( string $url, string $name, string $caption, string $kind ): string {
-		if ( '' === $url || ! isset( self::ALLOWED_MIMES[ $kind ] ) || ! self::is_notion_temp_url( $url ) ) {
+		if ( '' === $url || ! isset( self::ALLOWED_MIMES[ $kind ] ) || ( $kind !== 'image' && ! self::is_notion_temp_url( $url ) ) ) {
 			return $url;
 		}
 

@@ -743,6 +743,7 @@ class Content_Converter {
 			return \NTWP\Services\Image_Processor::collect_image_for_download( $url, $caption, self::$image_state_id );
 		} else {
 			// 同步模式：直接生成图片HTML
+			$url = Attachment_Processor::resolve_url( $url, '', $caption, 'image' );
 			$alt_text = ! empty( $caption ) ? esc_attr( $caption ) : '';
 			$html     = '<figure class="notion-image">';
 			$html    .= '<img src="' . esc_url( $url ) . '" alt="' . $alt_text . '" loading="lazy">';
@@ -1022,7 +1023,7 @@ class Content_Converter {
 		if ( \NTWP\Core\Security::is_iframe_url_allowed( $url ) ) {
 			$html .= '<iframe src="' . esc_url( $url ) . '" width="100%" height="500" frameborder="0" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
 		} else {
-			$html .= '<p class="notion-embed-fallback"><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">查看嵌入内容</a></p>';
+			$html .= self::render_embed_card( $url );
 		}
 		if ( ! empty( $caption ) ) {
 			$html .= '<div class="notion-embed-caption">' . $caption . '</div>';
@@ -1030,6 +1031,76 @@ class Content_Converter {
 		$html .= '</div>';
 
 		return $html;
+	}
+
+	/**
+	 * Preserve a usable source link even when metadata is unavailable.
+	 */
+	private static function render_embed_card( string $url ): string {
+		$metadata = array( 'title' => $url, 'image' => '' );
+		$cache_key = 'ntwp_embed_' . hash( 'sha256', $url );
+		if ( function_exists( 'wp_safe_remote_get' ) && function_exists( 'get_transient' ) ) {
+			$cached = get_transient( $cache_key );
+			if ( is_array( $cached ) ) {
+				$metadata = $cached;
+			} else {
+				$response = wp_safe_remote_get( $url, array( 'timeout' => 3, 'redirection' => 0, 'limit_response_size' => 262144, 'headers' => array( 'Accept' => 'text/html' ) ) );
+				if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) === 200 ) {
+					$metadata = self::parse_embed_metadata( wp_remote_retrieve_body( $response ), $url );
+				}
+				// Cache failures briefly too, avoiding repeated delays during sync.
+				set_transient( $cache_key, $metadata, $metadata['title'] === $url ? 5 * MINUTE_IN_SECONDS : DAY_IN_SECONDS );
+			}
+		}
+		$html = '<a class="notion-embed-card notion-embed-fallback" href="' . esc_url( $url ) . '" target="_blank" rel="noopener noreferrer">';
+		if ( ! empty( $metadata['image'] ) ) {
+			$metadata['image'] = Attachment_Processor::resolve_url( $metadata['image'], '', '', 'image' );
+			$html .= '<img class="notion-embed-card-cover" src="' . esc_url( $metadata['image'] ) . '" alt="" loading="lazy" referrerpolicy="no-referrer">';
+		}
+		return $html . '<span class="notion-embed-card-body"><strong>' . esc_html( $metadata['title'] ) . '</strong><span>' . esc_html( $url ) . '</span></span></a>';
+	}
+
+	/** Parse inert HTML; never fetch resources or execute remote markup. */
+	private static function parse_embed_metadata( string $html, string $url ): array {
+		$result = array( 'title' => $url, 'image' => '' );
+		if ( trim( $html ) === '' || ! class_exists( '\\DOMDocument' ) ) {
+			return $result;
+		}
+		$document = new \DOMDocument();
+		$previous = libxml_use_internal_errors( true );
+		try {
+			$document->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_NONET );
+			$titles = $document->getElementsByTagName( 'title' );
+			if ( $titles->length > 0 ) {
+				$result['title'] = trim( $titles->item( 0 )->textContent ) ?: $url;
+			}
+			foreach ( $document->getElementsByTagName( 'meta' ) as $meta ) {
+				$property = strtolower( $meta->getAttribute( 'property' ) ?: $meta->getAttribute( 'name' ) );
+				$content = trim( $meta->getAttribute( 'content' ) );
+				if ( $property === 'og:title' && $content !== '' ) {
+					$result['title'] = $content;
+				} elseif ( $property === 'og:image' && $content !== '' ) {
+					// Relative images are common on static sites. Resolve against the
+					// fetched URL, never an untrusted HTML base element.
+					if ( preg_match( '#^https?://#i', $content ) ) {
+						$result['image'] = $content;
+					} elseif ( ! preg_match( '#^[a-z][a-z0-9+.-]*:#i', $content ) ) {
+						$parts = parse_url( $url );
+						$origin = ( $parts['scheme'] ?? 'https' ) . '://' . ( $parts['host'] ?? '' ) . ( isset( $parts['port'] ) ? ':' . $parts['port'] : '' );
+						if ( str_starts_with( $content, '//' ) ) {
+							$result['image'] = ( $parts['scheme'] ?? 'https' ) . ':' . $content;
+						} else {
+							$path = str_starts_with( $content, '/' ) ? $content : rtrim( str_replace( '\\', '/', dirname( $parts['path'] ?? '/' ) ), '/' ) . '/' . $content;
+							$result['image'] = $origin . $path;
+						}
+					}
+				}
+			}
+		} finally {
+			libxml_clear_errors();
+			libxml_use_internal_errors( $previous );
+		}
+		return $result;
 	}
 
 	/**

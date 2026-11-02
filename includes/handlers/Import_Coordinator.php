@@ -1075,7 +1075,7 @@ class Import_Coordinator {
 
 				// 验证文章是否真的应该被删除
 				if ( $this->should_delete_post( $row->post_id, $row->notion_id ) ) {
-					$result = wp_delete_post( $row->post_id, true );
+					$result = wp_trash_post( $row->post_id );
 
 					if ( $result ) {
 						++$batch_deleted;
@@ -1135,7 +1135,15 @@ class Import_Coordinator {
 			return false;
 		}
 
-		return true;
+		// Missing from a query can mean filtering, lost permission or a moved
+		// page. Only an explicit archived/trash flag is deletion evidence.
+		try {
+			$page = $this->notion_api->get_page( $notion_id );
+			return ! empty( $page['archived'] ) || ! empty( $page['in_trash'] );
+		} catch ( \Exception $error ) {
+			\NTWP\Core\Logger::warning_log( '无法确认来源页面已删除，保留本地内容。', 'Deletion Guard' );
+			return false;
+		}
 	}
 
 	/**

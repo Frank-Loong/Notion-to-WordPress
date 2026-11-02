@@ -492,28 +492,33 @@ export class MathRenderer {
       const options = {
         ...KATEX_OPTIONS,
         displayMode: isDisplayDelimited || !isInline,
-        throwOnError: false,
+        throwOnError: true,
         errorColor: '#cc0000',
         strict: 'warn',
       };
 
       // 渲染数学公式
+      element.setAttribute('data-expression', expression);
       (window as any).katex.render(normalizedExpression, element, options);
 
       // 添加成功渲染的标记
       element.classList.add('katex-rendered');
+      if (element.classList.contains('katex-error')) {
+        element.removeAttribute('title');
+      }
+      element.classList.remove('katex-error');
       element.setAttribute('data-rendered', 'true');
 
       console.log('✅ 数学公式渲染成功:', expression.substring(0, 50) + '...');
     } catch (error) {
       console.error('❌ KaTeX渲染错误:', error);
 
-      // 显示错误信息
-      element.innerHTML = `
-        <span style="color: #cc0000; background: #ffe6e6; padding: 2px 4px; border-radius: 3px; font-family: monospace;">
-          数学公式错误: ${expression.substring(0, 100)}${expression.length > 100 ? '...' : ''}
-        </span>
-      `;
+      // Preserve the full source as text, including characters that resemble
+      // HTML. Failed expressions must remain retryable and never look rendered.
+      element.textContent = expression;
+      element.setAttribute('data-rendered', 'false');
+      element.setAttribute('title', '公式暂时无法渲染，已保留原始表达式');
+      element.classList.remove('katex-rendered');
       element.classList.add('katex-error');
     }
   }
@@ -527,11 +532,13 @@ export class MathRenderer {
       return;
     }
 
+    if (element.getAttribute('data-rendered') === 'true') return;
+
     // 获取化学表达式
     const expression =
-      element.textContent ||
       element.getAttribute('data-chemistry') ||
-      element.getAttribute('data-chem');
+      element.getAttribute('data-chem') ||
+      element.textContent;
 
     if (!expression || expression.trim() === '') {
       console.warn('化学表达式为空，跳过渲染');
@@ -547,23 +554,27 @@ export class MathRenderer {
       const options = {
         ...KATEX_OPTIONS,
         displayMode: false,
-        throwOnError: false,
+        throwOnError: true,
       };
 
+      element.setAttribute('data-chemistry', expression);
       (window as any).katex.render(chemExpression, element, options);
 
       element.classList.add('chemistry-rendered');
+      if (element.classList.contains('chemistry-error')) {
+        element.removeAttribute('title');
+      }
+      element.classList.remove('chemistry-error');
       element.setAttribute('data-rendered', 'true');
 
       console.log('✅ 化学公式渲染成功:', expression);
     } catch (error) {
       console.error('❌ 化学公式渲染错误:', error);
 
-      element.innerHTML = `
-        <span style="color: #cc0000; background: #ffe6e6; padding: 2px 4px; border-radius: 3px; font-family: monospace;">
-          化学公式错误: ${expression}
-        </span>
-      `;
+      element.textContent = expression;
+      element.setAttribute('data-rendered', 'false');
+      element.setAttribute('title', '公式暂时无法渲染，已保留原始表达式');
+      element.classList.remove('chemistry-rendered');
       element.classList.add('chemistry-error');
     }
   }

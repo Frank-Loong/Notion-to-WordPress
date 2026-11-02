@@ -792,6 +792,62 @@ class API implements API_Interface {
 		return ! empty( $this->api_key );
 	}
 
+	/** Read the first saved view, including its filtered and sorted records. */
+	public function get_database_view_snapshot( string $database_id ): array {
+		$options = get_option( 'notion_to_wordpress_options', array() );
+		$key = strtolower( str_replace( '-', '', $database_id ) );
+		$view_id = $options['embedded_database_view_ids'][ $key ] ?? '';
+		if ( $view_id === '' ) {
+			$views = $this->send_request( 'views?database_id=' . rawurlencode( $database_id ) );
+			$view_id = $views['results'][0]['id'] ?? '';
+		}
+		if ( $view_id === '' ) {
+			return array();
+		}
+		$view = $this->send_request( 'views/' . rawurlencode( $view_id ) );
+		$parent_id = strtolower( str_replace( '-', '', $view['parent']['database_id'] ?? '' ) );
+		if ( $parent_id !== $key ) {
+			throw new \RuntimeException( '所选视图不属于当前内嵌数据库。' );
+		}
+		$source_id = $view['data_source_id'] ?? '';
+		if ( $source_id === '' ) {
+			return array();
+		}
+		$records = array();
+		$cursor = null;
+		$seen = array();
+		do {
+			$data = array( 'page_size' => 100 );
+			if ( ! empty( $view['filter'] ) ) {
+				$data['filter'] = $view['filter'];
+			}
+			foreach ( ( $view['quick_filters'] ?? array() ) as $property => $condition ) {
+				if ( ! empty( $condition ) ) {
+					$quick_filter = array_merge( array( 'property' => $property ), $condition );
+					$data['filter'] = isset( $data['filter'] ) ? array( 'and' => array( $data['filter'], $quick_filter ) ) : $quick_filter;
+				}
+			}
+			if ( ! empty( $view['sorts'] ) ) {
+				$data['sorts'] = $view['sorts'];
+			}
+			if ( $cursor !== null ) {
+				$data['start_cursor'] = $cursor;
+			}
+			$page = $this->send_request( 'data_sources/' . rawurlencode( $source_id ) . '/query', 'POST', $data );
+			$records = array_merge( $records, $page['results'] ?? array() );
+			$cursor = ! empty( $page['has_more'] ) ? ( $page['next_cursor'] ?? null ) : null;
+			if ( $cursor !== null ) {
+				if ( isset( $seen[ $cursor ] ) ) {
+					throw new \RuntimeException( 'Notion 视图分页游标重复，已中止以避免内容不完整。' );
+				}
+				$seen[ $cursor ] = true;
+			} elseif ( ! empty( $page['has_more'] ) ) {
+				throw new \RuntimeException( 'Notion 视图分页缺少下一页游标。' );
+			}
+		} while ( $cursor !== null );
+		return array( 'view' => $view, 'records' => $records );
+	}
+
 	/**
 	 * 向 Notion API 发送请求（智能合并版本）
 	 *
@@ -952,7 +1008,7 @@ class API implements API_Interface {
 			'headers'     => array(
 				'Authorization'  => 'Bearer ' . $this->api_key,
 				'Content-Type'   => 'application/json',
-				'Notion-Version' => '2022-06-28',
+				'Notion-Version' => preg_match( '#^(views(?:[/?]|$)|data_sources/)#', $endpoint ) ? '2026-03-11' : '2022-06-28',
 			),
 			'timeout'     => 45,
 			'sslverify'   => true,

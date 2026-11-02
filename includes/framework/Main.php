@@ -473,7 +473,7 @@ class Main {
 		$default_options = array(
 			'notion_api_key'         => '',
 			'notion_database_id'     => '',
-			'sync_schedule'          => 'manual',
+			'sync_schedule'          => 'ntwp_ten_minutes',
 			'delete_on_uninstall'    => 0,
 			'field_mapping'          => array(
 				'title'          => 'Title,标题',
@@ -848,6 +848,10 @@ class Main {
 	 * @return array 修改后的计划数组
 	 */
 	public function add_custom_cron_schedules( array $schedules ): array {
+		$schedules['ntwp_ten_minutes'] = array(
+			'interval' => 10 * MINUTE_IN_SECONDS,
+			'display' => did_action( 'init' ) ? __( '每10分钟', 'notion-to-wordpress' ) : '每10分钟',
+		);
 		// 每周一次（7 天）
 		if ( ! isset( $schedules['weekly'] ) ) {
 			$schedules['weekly'] = array(

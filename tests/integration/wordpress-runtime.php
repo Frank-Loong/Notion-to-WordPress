@@ -1081,7 +1081,8 @@ function ntwp_test_failure_guard(): void {
 $mode = $argv[1] ?? 'smoke';
 
 try {
-	ntwp_test_assert( 'plugin_is_active', is_plugin_active( 'notion-to-wordpress/notion-to-wordpress.php' ) );
+	$plugin_basename = defined( 'NOTION_TO_WORDPRESS_FILE' ) ? plugin_basename( NOTION_TO_WORDPRESS_FILE ) : 'notion-to-wordpress/notion-to-wordpress.php';
+	ntwp_test_assert( 'plugin_is_active', is_plugin_active( $plugin_basename ) || is_plugin_active_for_network( $plugin_basename ) );
 
 	if ( 'failure-guard' === $mode ) {
 		ntwp_test_failure_guard();
