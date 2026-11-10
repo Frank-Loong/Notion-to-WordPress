@@ -9,8 +9,7 @@
  */
 
 import { emit } from '../../shared/core/EventBus';
-import { post } from '../../shared/utils/ajax';
-import { showError, showInfo } from '../../shared/utils/toast';
+import { showInfo } from '../../shared/utils/toast';
 
 export interface DatabaseRecord {
   id: string;
@@ -169,10 +168,17 @@ export class DatabaseRecordManager {
     this.updateDatabaseState(databaseId, { loading: true, error: undefined });
 
     try {
-      const response = await post(
-        'notion_to_wordpress_get_database_records',
-        finalQuery
-      );
+      // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_get_database_records
+      // （DatabaseViewComponent 当前 0 实例化）。停用无效请求，返回空记录集，
+      // 保留状态与事件契约，避免必然的 400。
+      const response: any = {
+        data: {
+          records: [],
+          has_more: false,
+          next_cursor: undefined,
+          total_count: 0,
+        },
+      };
 
       if (response?.data) {
         const { records, has_more, next_cursor, total_count } = response.data;
@@ -221,44 +227,15 @@ export class DatabaseRecordManager {
       return [];
     }
 
-    try {
-      const moreQuery = {
-        ...query,
-        start_cursor: state.nextCursor,
-      };
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_get_database_records；
+    // 停用该分页请求。由于 getDatabaseRecords 现在恒返回 hasMore:false，
+    // 上面的 guard 已提前 return，这里保留为明确的本地停用结果兜底。
+    this.updateDatabaseState(databaseId, {
+      hasMore: false,
+      nextCursor: undefined,
+    });
 
-      const response = await post(
-        'notion_to_wordpress_get_database_records',
-        moreQuery
-      );
-
-      if (response?.data) {
-        const { records, has_more, next_cursor } = response.data;
-
-        // 合并记录
-        const allRecords = [...state.records, ...(records || [])];
-
-        this.updateDatabaseState(databaseId, {
-          records: allRecords,
-          hasMore: has_more || false,
-          nextCursor: next_cursor,
-        });
-
-        emit('database:records:more:loaded', {
-          databaseId,
-          newRecords: records || [],
-          allRecords,
-        });
-
-        return records || [];
-      } else {
-        throw new Error('加载更多记录失败');
-      }
-    } catch (error) {
-      console.error('加载更多记录失败:', error);
-      showError(`加载更多记录失败: ${(error as Error).message}`);
-      throw error;
-    }
+    return [];
   }
 
   /**

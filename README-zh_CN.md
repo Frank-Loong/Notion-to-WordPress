@@ -116,6 +116,6 @@
 
 **[⬆️ 返回顶部](#简介) • [📚 用户指南](docs/Wiki.zh_CN.md) • [📊 项目概览](docs/PROJECT_OVERVIEW-zh_CN.md) • [🚀 开发者指南](docs/DEVELOPER_GUIDE-zh_CN.md) • [🔄 更新日志](https://github.com/Frank-Loong/Notion-to-WordPress/commits)**
 
-© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.2
 
 </div>

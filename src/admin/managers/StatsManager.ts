@@ -233,38 +233,12 @@ export class StatsManager {
    * 执行单页面刷新请求
    */
   private async performSingleRefresh(
-    pageId: string,
-    timeout: number
+    _pageId: string,
+    _timeout: number
   ): Promise<any> {
-    const notionToWp = (window as any).notionToWp;
-
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.open('POST', notionToWp.ajax_url);
-      xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-      xhr.timeout = timeout;
-
-      xhr.onload = () => {
-        try {
-          const response = JSON.parse(xhr.responseText);
-          resolve(response);
-        } catch {
-          reject(new Error('响应解析失败'));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('网络错误'));
-      xhr.ontimeout = () => reject(new Error('请求超时'));
-
-      const params = new URLSearchParams({
-        action: 'notion_to_wordpress_refresh_single',
-        nonce: notionToWp.nonce,
-        page_id: pageId,
-      });
-
-      xhr.send(params.toString());
-    });
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_refresh_single；
+    // 停用该 XHR，返回明确的停用结果，避免必然的 `0`/400。
+    return { success: false, data: { message: '单页刷新端点未启用' } };
   }
 
   /**

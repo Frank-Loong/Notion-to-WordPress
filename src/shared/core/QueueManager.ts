@@ -5,20 +5,7 @@
 import { eventBus } from './EventBus';
 import { appStateManager, QueueState } from './StateManager';
 import { post } from '../utils/ajax';
-import { showSuccess, showInfo } from '../utils/toast';
-
-export interface QueueJob {
-  id: string;
-  type: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  data: any;
-  created_at: number;
-  started_at?: number;
-  completed_at?: number;
-  error?: string;
-  retry_count: number;
-  max_retries: number;
-}
+import { showSuccess } from '../utils/toast';
 
 export interface QueueOperationResult {
   success: boolean;
@@ -121,86 +108,6 @@ export class QueueManager {
   }
 
   /**
-   * 获取队列任务列表
-   */
-  async getQueueJobs(limit = 50, offset = 0): Promise<QueueJob[]> {
-    try {
-      const response = await post('notion_to_wordpress_get_queue_jobs', {
-        limit,
-        offset,
-      });
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        console.error('获取队列任务失败:', response.data.message);
-        return [];
-      }
-    } catch (error) {
-      console.error('获取队列任务请求失败:', error);
-      return [];
-    }
-  }
-
-  /**
-   * 暂停队列处理
-   */
-  async pauseQueue(): Promise<QueueOperationResult> {
-    try {
-      const response = await post('notion_to_wordpress_pause_queue', {});
-
-      if (response.data.success) {
-        showInfo('队列处理已暂停');
-        this.checkQueueStatus(); // 立即更新状态
-
-        return {
-          success: true,
-          message: '队列处理已暂停',
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '暂停队列失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '暂停队列请求失败',
-      };
-    }
-  }
-
-  /**
-   * 恢复队列处理
-   */
-  async resumeQueue(): Promise<QueueOperationResult> {
-    try {
-      const response = await post('notion_to_wordpress_resume_queue', {});
-
-      if (response.data.success) {
-        showInfo('队列处理已恢复');
-        this.checkQueueStatus(); // 立即更新状态
-
-        return {
-          success: true,
-          message: '队列处理已恢复',
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '恢复队列失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '恢复队列请求失败',
-      };
-    }
-  }
-
-  /**
    * 清理队列
    */
   async cleanupQueue(
@@ -238,106 +145,6 @@ export class QueueManager {
         success: false,
         message: (error as Error).message || '清理队列请求失败',
       };
-    }
-  }
-
-  /**
-   * 重试失败的任务
-   */
-  async retryFailedJobs(jobIds?: string[]): Promise<QueueOperationResult> {
-    try {
-      const response = await post('notion_to_wordpress_retry_failed_jobs', {
-        job_ids: jobIds,
-      });
-
-      if (response.data.success) {
-        const message = `已重试 ${response.data.data.retried_count} 个失败任务`;
-        showSuccess(message);
-        this.checkQueueStatus(); // 立即更新状态
-
-        return {
-          success: true,
-          message,
-          data: response.data.data,
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '重试失败任务失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '重试失败任务请求失败',
-      };
-    }
-  }
-
-  /**
-   * 删除队列任务
-   */
-  async deleteJobs(jobIds: string[]): Promise<QueueOperationResult> {
-    if (!jobIds.length) {
-      return {
-        success: false,
-        message: '没有指定要删除的任务',
-      };
-    }
-
-    try {
-      const response = await post('notion_to_wordpress_delete_queue_jobs', {
-        job_ids: jobIds,
-      });
-
-      if (response.data.success) {
-        const message = `已删除 ${response.data.data.deleted_count} 个任务`;
-        showSuccess(message);
-        this.checkQueueStatus(); // 立即更新状态
-
-        return {
-          success: true,
-          message,
-          data: response.data.data,
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '删除任务失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '删除任务请求失败',
-      };
-    }
-  }
-
-  /**
-   * 获取队列统计信息
-   */
-  async getQueueStats(): Promise<{
-    total: number;
-    pending: number;
-    processing: number;
-    completed: number;
-    failed: number;
-    success_rate: number;
-    average_processing_time: number;
-  } | null> {
-    try {
-      const response = await post('notion_to_wordpress_get_queue_stats', {});
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        console.error('获取队列统计失败:', response.data.message);
-        return null;
-      }
-    } catch (error) {
-      console.error('获取队列统计请求失败:', error);
-      return null;
     }
   }
 

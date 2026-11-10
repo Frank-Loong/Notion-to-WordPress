@@ -227,24 +227,16 @@ export class SettingsManager {
    * 加载设置
    */
   async loadSettings(): Promise<SettingsData> {
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_get_settings；
+    // 停用无效请求，返回本地默认设置，保留状态与事件契约，避免必然的 400。
     this.setLoading(true);
 
     try {
-      const response = await post('notion_to_wordpress_get_settings', {});
+      this.settings = this.normalizeSettings({});
+      this.hasUnsavedChanges = false;
 
-      if (response?.data) {
-        this.settings = this.normalizeSettings(response.data);
-        this.hasUnsavedChanges = false;
-
-        emit('settings:loaded', { settings: this.settings });
-        return this.settings;
-      } else {
-        throw new Error('获取设置失败');
-      }
-    } catch (error) {
-      console.error('加载设置失败:', error);
-      showError(`加载设置失败: ${(error as Error).message}`);
-      throw error;
+      emit('settings:loaded', { settings: this.settings });
+      return this.settings;
     } finally {
       this.setLoading(false);
     }
@@ -411,24 +403,13 @@ export class SettingsManager {
    * 重置设置
    */
   async resetSettings(): Promise<void> {
-    try {
-      const response = await post('notion_to_wordpress_reset_settings', {});
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_reset_settings；
+    // 停用无效请求，重置为本地默认设置并保留状态与事件契约，避免必然的 400。
+    this.settings = this.normalizeSettings({});
+    this.hasUnsavedChanges = false;
 
-      if (response?.data) {
-        this.settings = this.normalizeSettings(response.data);
-        this.hasUnsavedChanges = false;
-
-        emit('settings:reset', { settings: this.settings });
-        showSuccess('设置已重置为默认值');
-        return;
-      } else {
-        throw new Error('重置设置失败');
-      }
-    } catch (error) {
-      console.error('重置设置失败:', error);
-      showError(`重置设置失败: ${(error as Error).message}`);
-      throw error;
-    }
+    emit('settings:reset', { settings: this.settings });
+    showSuccess('设置已重置为本地默认值');
   }
 
   /**

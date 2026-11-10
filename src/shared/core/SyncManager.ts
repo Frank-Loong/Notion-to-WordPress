@@ -1,11 +1,17 @@
 /**
  * 同步管理器
+ *
+ * 收口迭代（2026-11-10）：同步在单次长 AJAX 请求内完成，后端当前没有
+ * stop/pause/resume/get_sync_status 这几个 action 的 handler，故移除原先
+ * 依赖它们的一整套状态轮询与 SSE 连接代码，避免维护永不生效的死链。
+ * 进度反馈改由事件驱动：sync:start / sync:complete / sync:error，
+ * 由 admin.ts 统一驱动 PHP 直出的进度条 DOM。
  */
 
 import { eventBus } from './EventBus';
-import { appStateManager, SyncState, SyncError } from './StateManager';
+import { appStateManager, SyncError } from './StateManager';
 import { post } from '../utils/ajax';
-import { showError, showSuccess, showInfo } from '../utils/toast';
+import { showError, showSuccess } from '../utils/toast';
 
 export interface SyncOptions {
   syncType: string;
@@ -26,15 +32,9 @@ export interface SyncResult {
  */
 export class SyncManager {
   private currentSyncId: string | null = null;
-  private statusCheckTimer: NodeJS.Timeout | null = null;
-  private sseConnection: EventSource | null = null;
-  private checkInterval = 5000; // 5秒
-  private maxRetries = 3;
-  private retryCount = 0;
 
   constructor() {
     this.setupEventListeners();
-    this.setupVisibilityHandling();
   }
 
   /**
@@ -51,8 +51,9 @@ export class SyncManager {
     const syncId = this.generateSyncId();
     this.currentSyncId = syncId;
 
-    // 更新状态
+    // 更新状态并广播开始事件（后台进度条据此显示「正在同步」）。
     appStateManager.startSync(options.syncType, syncId);
+    eventBus.emit('sync:start', { syncId, syncType: options.syncType });
 
     try {
       // 发送同步请求
@@ -73,6 +74,7 @@ export class SyncManager {
         appStateManager.completeSync();
         this.currentSyncId = null;
         showSuccess(response.data.data?.message || '同步已完成');
+        eventBus.emit('sync:complete', { syncId });
 
         return {
           success: true,
@@ -94,157 +96,6 @@ export class SyncManager {
         success: false,
         message: (error as Error).message || '同步请求失败',
       };
-    }
-  }
-
-  /**
-   * 停止同步
-   */
-  async stopSync(): Promise<SyncResult> {
-    if (!this.currentSyncId) {
-      return {
-        success: false,
-        message: '没有正在运行的同步任务',
-      };
-    }
-
-    try {
-      const response = await post('notion_to_wordpress_stop_sync', {
-        sync_id: this.currentSyncId,
-      });
-
-      if (response.data.success) {
-        this.cleanup();
-        showInfo('同步已停止');
-
-        return {
-          success: true,
-          message: '同步已停止',
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '停止同步失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '停止同步请求失败',
-      };
-    }
-  }
-
-  /**
-   * 暂停同步
-   */
-  async pauseSync(): Promise<SyncResult> {
-    if (!this.currentSyncId) {
-      return {
-        success: false,
-        message: '没有正在运行的同步任务',
-      };
-    }
-
-    try {
-      const response = await post('notion_to_wordpress_pause_sync', {
-        sync_id: this.currentSyncId,
-      });
-
-      if (response.data.success) {
-        appStateManager.setState({
-          sync: {
-            ...appStateManager.getState().sync,
-            status: 'paused',
-          },
-        });
-
-        showInfo('同步已暂停');
-
-        return {
-          success: true,
-          message: '同步已暂停',
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '暂停同步失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '暂停同步请求失败',
-      };
-    }
-  }
-
-  /**
-   * 恢复同步
-   */
-  async resumeSync(): Promise<SyncResult> {
-    if (!this.currentSyncId) {
-      return {
-        success: false,
-        message: '没有暂停的同步任务',
-      };
-    }
-
-    try {
-      const response = await post('notion_to_wordpress_resume_sync', {
-        sync_id: this.currentSyncId,
-      });
-
-      if (response.data.success) {
-        appStateManager.setState({
-          sync: {
-            ...appStateManager.getState().sync,
-            status: 'running',
-          },
-        });
-
-        showInfo('同步已恢复');
-
-        return {
-          success: true,
-          message: '同步已恢复',
-        };
-      } else {
-        return {
-          success: false,
-          message: response.data.message || '恢复同步失败',
-        };
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: (error as Error).message || '恢复同步请求失败',
-      };
-    }
-  }
-
-  /**
-   * 获取同步状态
-   */
-  async getSyncStatus(): Promise<SyncState | null> {
-    if (!this.currentSyncId) {
-      return null;
-    }
-
-    try {
-      const response = await post('notion_to_wordpress_get_sync_status', {
-        sync_id: this.currentSyncId,
-      });
-
-      if (response.data.success) {
-        return response.data.data;
-      } else {
-        console.error('获取同步状态失败:', response.data.message);
-        return null;
-      }
-    } catch (error) {
-      console.error('获取同步状态请求失败:', error);
-      return null;
     }
   }
 
@@ -292,125 +143,6 @@ export class SyncManager {
   }
 
   /**
-   * 设置页面可见性处理
-   */
-  private setupVisibilityHandling(): void {
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        // 页面隐藏时降低检查频率
-        this.checkInterval = 15000; // 15秒
-      } else {
-        // 页面可见时恢复正常频率
-        this.checkInterval = 5000; // 5秒
-        // 立即检查一次状态
-        if (this.currentSyncId) {
-          this.checkSyncStatus();
-        }
-      }
-
-      // 重新设置定时器
-      if (this.statusCheckTimer) {
-        this.restartStatusMonitoring();
-      }
-    });
-  }
-
-  /**
-   * 开始状态监控
-   */
-  private startStatusMonitoring(): void {
-    this.stopStatusMonitoring();
-
-    this.statusCheckTimer = setInterval(() => {
-      this.checkSyncStatus();
-    }, this.checkInterval);
-
-    console.log(`开始状态监控，检查间隔: ${this.checkInterval}ms`);
-  }
-
-  /**
-   * 停止状态监控
-   */
-  private stopStatusMonitoring(): void {
-    if (this.statusCheckTimer) {
-      clearInterval(this.statusCheckTimer);
-      this.statusCheckTimer = null;
-    }
-  }
-
-  /**
-   * 重启状态监控
-   */
-  private restartStatusMonitoring(): void {
-    this.stopStatusMonitoring();
-    this.startStatusMonitoring();
-  }
-
-  /**
-   * 检查同步状态
-   */
-  private async checkSyncStatus(): Promise<void> {
-    if (!this.currentSyncId) {
-      this.stopStatusMonitoring();
-      return;
-    }
-
-    try {
-      const status = await this.getSyncStatus();
-      if (status) {
-        // 更新状态
-        appStateManager.setState({ sync: status });
-
-        // 检查是否完成
-        if (status.status === 'completed') {
-          this.handleSyncComplete();
-        } else if (status.status === 'error') {
-          this.handleSyncError(new Error('同步过程中发生错误'));
-        }
-
-        this.retryCount = 0; // 重置重试计数
-      } else {
-        this.handleStatusCheckError();
-      }
-    } catch {
-      this.handleStatusCheckError();
-    }
-  }
-
-  /**
-   * 处理状态检查错误
-   */
-  private handleStatusCheckError(): void {
-    this.retryCount++;
-
-    if (this.retryCount >= this.maxRetries) {
-      console.error('状态检查失败次数过多，停止监控');
-      this.stopStatusMonitoring();
-      this.retryCount = 0;
-    }
-  }
-
-  /**
-   * 关闭SSE连接
-   */
-  private closeSSEConnection(): void {
-    if (this.sseConnection) {
-      this.sseConnection.close();
-      this.sseConnection = null;
-      console.log('SSE连接已关闭');
-    }
-  }
-
-  /**
-   * 处理同步完成
-   */
-  private handleSyncComplete(): void {
-    appStateManager.completeSync();
-    showSuccess('同步完成');
-    eventBus.emit('sync:complete', { syncId: this.currentSyncId });
-  }
-
-  /**
    * 处理同步错误
    */
   private handleSyncError(error: Error): void {
@@ -433,10 +165,7 @@ export class SyncManager {
    * 清理资源
    */
   private cleanup(): void {
-    this.stopStatusMonitoring();
-    this.closeSSEConnection();
     this.currentSyncId = null;
-    this.retryCount = 0;
 
     // 清理存储的状态
     appStateManager.clearStoredState();

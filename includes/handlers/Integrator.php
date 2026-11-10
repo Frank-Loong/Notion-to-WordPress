@@ -304,8 +304,8 @@ class Integrator {
 		// 如果不是Notion临时链接，尝试直接使用外链
 		if ( ! self::is_notion_temp_url( $image_url ) ) {
 			// 对于外链，我们可以选择直接使用或者仍然下载
-			// 这里提供一个选项，默认直接使用外链以节约资源
-			$use_external_featured_image = apply_filters( 'notion_to_wordpress_use_external_featured_image', true );
+			// 默认持久化到媒体库，保留过滤器供已有站点显式选择外链。
+			$use_external_featured_image = apply_filters( 'notion_to_wordpress_use_external_featured_image', false );
 
 			if ( $use_external_featured_image ) {
 				// 直接使用外链作为特色图片（通过自定义字段）
@@ -327,13 +327,13 @@ class Integrator {
 			$thumbnail_id = (int) $attachment_id;
 			if ( $thumbnail_id > 0 ) {
 				set_post_thumbnail( $post_id, $thumbnail_id );
+				delete_post_meta( $post_id, '_notion_featured_image_url' );
+				delete_post_meta( $post_id, '_notion_featured_image_placeholder' );
 				return true;
 			}
-		} elseif ( is_string( $attachment_id ) && strpos( $attachment_id, 'pending_image_' ) === 0 ) {
-			// 异步模式：存储占位符，稍后处理
-			update_post_meta( $post_id, '_notion_featured_image_placeholder', $attachment_id );
-			return true;
 		} elseif ( is_wp_error( $attachment_id ) ) {
+			// 下载失败仍保留可访问的来源封面，下次同步可重试。
+			update_post_meta( $post_id, '_notion_featured_image_url', esc_url_raw( $image_url ) );
 			\NTWP\Core\Logger::error_log(
 				'Featured image download failed: ' . $attachment_id->get_error_message()
 			);
@@ -454,12 +454,9 @@ class Integrator {
 	 * @since 2.0.0-beta.1
 	 * @param string $image_url 图片URL
 	 * @param string $title 图片标题
-	 * @return string|WP_Error 外部图片 URL 或错误对象
+	 * @return int|WP_Error 媒体库附件 ID 或错误对象
 	 */
 	private static function download_and_insert_image( string $image_url, string $title = '' ) {
-		// 这个方法需要与图片处理器协调
-		// 暂时返回简化的处理结果
-
 		if ( empty( $image_url ) ) {
 			return new WP_Error( 'empty_url', '图片URL为空' );
 		}
@@ -469,15 +466,9 @@ class Integrator {
 			return new WP_Error( 'invalid_url', '无效的图片URL' );
 		}
 
-		// 简化处理：直接返回URL作为外部图片
-		// 实际的下载和处理逻辑将在图片处理器中实现
-		\NTWP\Core\Logger::debug_log(
-			"图片处理委托给图片处理器: {$image_url}",
-			'Image Processing'
-		);
-
-		// 返回一个占位符，表示需要异步处理
-		return 'pending_image_' . md5( $image_url );
+		$local_url = \NTWP\Services\Attachment_Processor::resolve_url( $image_url, $title, '', 'image' );
+		$attachment_id = attachment_url_to_postid( $local_url );
+		return $attachment_id > 0 ? $attachment_id : new WP_Error( 'image_download_failed', '图片未能保存到媒体库' );
 	}
 
 	/**

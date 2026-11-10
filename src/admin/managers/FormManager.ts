@@ -65,7 +65,6 @@ export class FormManager {
   private init(): void {
     this.setupFormHandlers();
     this.setupValidationHandlers();
-    this.setupSpecialHandlers();
 
     console.log('📝 [表单管理器] 已初始化');
   }
@@ -119,36 +118,6 @@ export class FormManager {
 
       dbIdInput.addEventListener('input', debouncedValidation);
       dbIdInput.addEventListener('blur', debouncedValidation);
-    }
-  }
-
-  /**
-   * 设置特殊处理器
-   */
-  private setupSpecialHandlers(): void {
-    // 自动导入选项切换
-    const autoImportCheckbox = document.getElementById(
-      'notion_to_wordpress_auto_import'
-    ) as HTMLInputElement;
-    if (autoImportCheckbox) {
-      const scheduleField = document.getElementById(
-        'auto_import_schedule_field'
-      );
-
-      const toggleScheduleField = AdminUtils.debounce(() => {
-        if (scheduleField) {
-          if (autoImportCheckbox.checked) {
-            scheduleField.style.display = 'block';
-          } else {
-            scheduleField.style.display = 'none';
-          }
-        }
-      }, 200);
-
-      autoImportCheckbox.addEventListener('change', toggleScheduleField);
-
-      // 初始状态
-      toggleScheduleField();
     }
   }
 

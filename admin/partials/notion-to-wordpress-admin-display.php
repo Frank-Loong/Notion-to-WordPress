@@ -632,41 +632,6 @@ $script_nonce = wp_create_nonce( 'notion_wp_script_nonce' );
 								</button>
 							</div>
 
-							<style>
-								.custom-field-mapping {
-									margin-bottom: 15px;
-									padding: 15px;
-									background-color: #f9f9f9;
-									border: 1px solid #e5e5e5;
-									border-radius: 4px;
-								}
-								.custom-field-row {
-									display: flex;
-									flex-wrap: wrap;
-									gap: 15px;
-									align-items: flex-start;
-								}
-								.custom-field-col {
-									flex: 1;
-									min-width: 200px;
-								}
-								.custom-field-col label {
-									display: block;
-									margin-bottom: 5px;
-									font-weight: 500;
-								}
-								.custom-field-actions {
-									display: flex;
-									align-items: center;
-									padding-top: 25px;
-								}
-								.remove-field {
-									color: #cc0000;
-								}
-								.remove-field .dashicons {
-									margin-top: 3px;
-								}
-							</style>
 						</div>
 					</div>
 				</div>

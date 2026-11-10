@@ -352,10 +352,13 @@ class Config_Simplifier {
 			}
 		}
 
-		// 应用字段映射模板
+		// 应用字段映射模板：模板只补齐用户未提供的键，绝不覆盖用户已填写的值。
+		// 修复 2026-11-10：此前 array_merge( $user, $template ) 会把模板值后写，
+		// 导致用户手填的字段映射在每次保存时被静默改回模板默认值（静默数据损失）。
 		if ( isset( $options['field_template'] ) && $options['field_template'] !== 'custom' ) {
 			$template_mapping         = self::get_field_mapping_template( $options['field_template'] );
-			$updated['field_mapping'] = array_merge( $updated['field_mapping'] ?? array(), $template_mapping );
+			$user_mapping             = $updated['field_mapping'] ?? array();
+			$updated['field_mapping'] = array_merge( $template_mapping, $user_mapping );
 		}
 
 		return $updated;

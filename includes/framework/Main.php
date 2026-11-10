@@ -250,31 +250,21 @@ class Main {
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_view_log', $this->admin, 'handle_view_log' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_log_files', $this->admin, 'handle_get_log_files' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_webhook_config', $this->admin, 'handle_get_webhook_config' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_test_debug', $this->admin, 'handle_test_debug' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_verification_token', $this->admin, 'handle_refresh_verification_token' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_index_status', $this->admin, 'handle_get_index_status' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_create_database_indexes', $this->admin, 'handle_create_database_indexes' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_optimize_all_indexes', $this->admin, 'handle_optimize_all_indexes' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_remove_database_indexes', $this->admin, 'handle_remove_database_indexes' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_async_status', $this->admin, 'handle_get_async_status' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_queue_status', $this->admin, 'handle_get_queue_status' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_control_async_operation', $this->admin, 'handle_control_async_operation' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cleanup_queue', $this->admin, 'handle_cleanup_queue' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_queue_task', $this->admin, 'handle_cancel_queue_task' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_refresh_performance_stats', $this->admin, 'handle_refresh_performance_stats' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_reset_performance_stats', $this->admin, 'handle_reset_performance_stats' );
 
-		// 同步控制相关AJAX钩子
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_cancel_sync', $this->admin, 'handle_cancel_sync' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_retry_failed', $this->admin, 'handle_retry_failed' );
 
 		// SSE进度流AJAX钩子
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_sse_progress', $this->admin, 'handle_sse_progress' );
 		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_get_smart_recommendations', $this->admin, 'handle_smart_recommendations' );
 
-		// 数据库索引优化相关AJAX钩子
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_database_indexes_request', $this->admin, 'handle_database_indexes_request' );
-		$this->loader->add_action( 'wp_ajax_notion_to_wordpress_analyze_query_performance', $this->admin, 'handle_analyze_query_performance' );
 
 		// 定时任务钩子
 		$options = get_option( 'notion_to_wordpress_options', array() );
@@ -569,6 +559,15 @@ class Main {
 				$this->version
 			);
 		}
+
+		// The frontend entry imports scoped content styles; enqueue its extracted
+		// CSS as well as the legacy styles so cards and lists receive their layout.
+		wp_enqueue_style(
+			$this->plugin_name . '-frontend',
+			\NTWP\Utils\Helper::plugin_url( 'assets/dist/css/frontend.css' ),
+			array( $this->plugin_name . '-custom' ),
+			\NTWP\Utils\Helper::asset_version( 'assets/dist/css/frontend.css', $this->version )
+		);
 
 		// ---------------- 宽松加载：公式和图表相关（KaTeX & Mermaid） ----------------
 		// 在前端页面总是加载KaTeX和Mermaid资源，确保首页摘要等场景也能正常渲染

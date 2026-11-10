@@ -467,7 +467,9 @@ class Content_Converter {
 			$new_opening_tag = '<' . $tag_name . $new_attrs . $tag_end;
 
 			// 替换原始HTML中的第一个标签
-			return preg_replace( $tag_pattern, $new_opening_tag, $html, 1 );
+			return preg_replace_callback( $tag_pattern, static function () use ( $new_opening_tag ) {
+				return $new_opening_tag;
+			}, $html, 1 );
 		}
 
 		// 如果无法解析第一个标签，则用div包装（兜底方案）
@@ -516,7 +518,9 @@ class Content_Converter {
 			$new_opening_tag = '<' . $tag_name . $id_attr . $new_attrs . $tag_end;
 
 			// 替换原始HTML中的第一个标签
-			return preg_replace( $tag_pattern, $new_opening_tag, $html, 1 );
+			return preg_replace_callback( $tag_pattern, static function () use ( $new_opening_tag ) {
+				return $new_opening_tag;
+			}, $html, 1 );
 		}
 
 		// 如果无法解析第一个标签，则用div包装（兜底方案）

@@ -53,6 +53,7 @@ class Validation_Rules {
 	 */
 	const SYNC_SCHEDULES = array(
 		'manual',
+		'ntwp_ten_minutes',
 		'hourly',
 		'twicedaily',
 		'daily',

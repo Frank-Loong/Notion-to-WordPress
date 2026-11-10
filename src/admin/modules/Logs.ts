@@ -133,24 +133,13 @@ export class LogsModule extends BaseComponent {
    * 加载日志
    */
   private async loadLogs(): Promise<void> {
-    try {
-      const response = await post('notion_to_wordpress_get_logs', {
-        limit: 1000,
-        ...this.currentFilter,
-      });
-
-      if (response.data.success) {
-        this.logs = response.data.data;
-        this.applyFilters();
-        this.render();
-        console.log(`Loaded ${this.logs.length} log entries`);
-      } else {
-        throw new Error(response.data.message || '加载日志失败');
-      }
-    } catch (error) {
-      console.error('Failed to load logs:', error);
-      showError(`加载日志失败: ${(error as Error).message}`);
-    }
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_get_logs
+    // （真实端点为 clear_logs）。停用无效请求，保留过滤/渲染契约，
+    // 避免必然的 400。
+    this.logs = [];
+    this.applyFilters();
+    this.render();
+    console.log('Logs module: 远程加载日志已停用');
   }
 
   /**

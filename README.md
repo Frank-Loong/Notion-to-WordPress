@@ -116,6 +116,6 @@ This project is open-source under the [GPL-3.0](LICENSE) license.
 
 **[⬆️ Back to Top](#overview) • [📚 User Guide](docs/Wiki.md) • [📊 Project Overview](docs/PROJECT_OVERVIEW.md) • [🚀 Developer Guide](docs/DEVELOPER_GUIDE.md) • [🔄 Changelog](https://github.com/Frank-Loong/Notion-to-WordPress/commits)**
 
-© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.1
+© 2025 Frank-Loong · Notion-to-WordPress v2.0.0-beta.2
 
 </div>

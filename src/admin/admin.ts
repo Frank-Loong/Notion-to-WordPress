@@ -6,7 +6,6 @@ import { ready } from '../shared/utils/dom';
 import { eventBus, on, emit } from '../shared/core/EventBus';
 import {
   appStateManager,
-  syncManager,
   queueManager,
   progressManager,
   lazyLoader,
@@ -16,15 +15,14 @@ import {
 } from '../shared/core';
 import { componentManager } from './components';
 import { adminInteractions } from './AdminInteractions';
-import { syncProgressManager } from './SyncProgressManager';
 import { webhookManager } from './managers/WebhookManager';
 import { databaseRecordManager } from './managers/DatabaseRecordManager';
 import { logManager } from './managers/LogManager';
 import { settingsManager } from './managers/SettingsManager';
 import { errorManager } from './managers/ErrorManager';
 import { adminControls } from './AdminControls';
-import { post } from '../shared/utils/ajax';
-import { showSuccess, showError, showInfo } from '../shared/utils/toast';
+import { showSuccess, showError } from '../shared/utils/toast';
+import { AdminUtils } from './utils/AdminUtils';
 
 // 导入样式
 import '../styles/admin/admin.scss';
@@ -86,9 +84,6 @@ class AdminApp {
 
     // 初始化管理界面交互系统
     this.initializeAdminInteractions();
-
-    // 初始化同步进度管理系统
-    this.initializeSyncProgressManager();
 
     // 初始化Webhook处理系统
     this.initializeWebhookManager();
@@ -206,32 +201,6 @@ class AdminApp {
     });
 
     console.log('✅ 管理界面交互系统已初始化');
-  }
-
-  /**
-   * 初始化同步进度管理系统
-   */
-  private initializeSyncProgressManager(): void {
-    // 同步进度管理器已经通过导入自动初始化
-    // 这里可以设置一些全局事件监听
-
-    // 监听同步进度事件
-    on('sync:progress:started', (_event, data) => {
-      console.log('📊 同步进度已启动:', data.taskId);
-    });
-
-    on('sync:progress:completed', (_event, data) => {
-      console.log('📊 同步进度已完成:', data);
-    });
-
-    on('sync:progress:error', (_event, data) => {
-      console.error('📊 同步进度错误:', data.error);
-    });
-
-    // 确保同步进度管理器可用
-    if (syncProgressManager) {
-      console.log('✅ 同步进度管理系统已初始化');
-    }
   }
 
   /**
@@ -486,22 +455,26 @@ class AdminApp {
 
   /**
    * 初始化同步功能
+   *
+   * 收口迭代（2026-11-10）：进度条以 PHP 直出的 #sync-progress DOM 为唯一通道，
+   * AdminUtils.updateProgress / hideProgress 是唯一写入者。由于同步在单次长 AJAX
+   * 内完成、后端没有可轮询的中间进度，这里只给「开始 / 完成 / 失败」的诚实状态，
+   * 不伪造中间百分比。toast 由 SyncManager 负责，避免重复提示。
    */
   private initializeSyncFeatures(): void {
-    // 监听同步事件
-    on('sync:start', (_event, data) => {
-      console.log('同步开始:', data);
-      showInfo(`${data.syncType}已开始`);
+    on('sync:start', () => {
+      AdminUtils.updateProgress(0, '正在同步...');
     });
 
-    on('sync:complete', (_event, data) => {
-      console.log('同步完成:', data);
-      showSuccess('同步完成');
+    on('sync:complete', () => {
+      AdminUtils.updateProgress(100, '同步完成');
+      setTimeout(() => AdminUtils.hideProgress(), 3000);
     });
 
     on('sync:error', (_event, data) => {
-      console.log('同步错误:', data);
-      showError(`同步失败: ${data.error.message}`);
+      const message = data?.error?.message || '未知错误';
+      AdminUtils.updateProgress(0, `同步失败: ${message}`);
+      setTimeout(() => AdminUtils.hideProgress(), 5000);
     });
 
     console.log('✅ 同步功能已初始化');
@@ -527,11 +500,6 @@ class AdminApp {
    * 根据状态更新UI
    */
   private updateUIFromState(state: any, prevState: any): void {
-    // 更新同步状态显示
-    if (state.sync !== prevState.sync) {
-      this.updateSyncDisplay(state.sync);
-    }
-
     // 更新队列状态显示
     if (state.queue !== prevState.queue) {
       this.updateQueueDisplay(state.queue);
@@ -540,28 +508,6 @@ class AdminApp {
     // 更新活动标签
     if (state.ui.activeTab !== prevState.ui.activeTab) {
       this.updateActiveTab(state.ui.activeTab);
-    }
-  }
-
-  /**
-   * 更新同步状态显示
-   */
-  private updateSyncDisplay(syncState: any): void {
-    const statusElement = document.querySelector('#sync-status');
-    if (statusElement) {
-      statusElement.textContent = this.getSyncStatusText(syncState.status);
-      statusElement.className = `sync-status sync-status-${syncState.status}`;
-    }
-
-    // 更新进度显示
-    if (syncState.status === 'running' && syncState.total > 0) {
-      const percentage = Math.round(
-        (syncState.progress / syncState.total) * 100
-      );
-      const progressElement = document.querySelector('#sync-progress');
-      if (progressElement) {
-        progressElement.textContent = `${percentage}% (${syncState.progress}/${syncState.total})`;
-      }
     }
   }
 
@@ -601,22 +547,6 @@ class AdminApp {
   }
 
   /**
-   * 获取同步状态文本
-   */
-  private getSyncStatusText(status: string): string {
-    const statusTexts: Record<string, string> = {
-      idle: '空闲',
-      running: '运行中',
-      paused: '已暂停',
-      completed: '已完成',
-      error: '错误',
-      cancelled: '已取消',
-    };
-
-    return statusTexts[status] || status;
-  }
-
-  /**
    * 获取当前标签
    */
   private getCurrentTab(): string {
@@ -647,68 +577,6 @@ class AdminApp {
         visible: !document.hidden,
       });
     });
-  }
-
-  /**
-   * 开始同步
-   */
-  async startSync(syncType: string, options: any = {}): Promise<void> {
-    try {
-      const result = await syncManager.startSync({
-        syncType,
-        incremental: options.incremental || false,
-        checkDeletions: options.checkDeletions || false,
-        batchSize: options.batchSize || 10,
-      });
-
-      if (!result.success) {
-        showError(result.message);
-      }
-    } catch (error) {
-      showError(`启动同步失败: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 停止同步
-   */
-  async stopSync(): Promise<void> {
-    try {
-      const result = await syncManager.stopSync();
-      if (!result.success) {
-        showError(result.message);
-      }
-    } catch (error) {
-      showError(`停止同步失败: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 暂停同步
-   */
-  async pauseSync(): Promise<void> {
-    try {
-      const result = await syncManager.pauseSync();
-      if (!result.success) {
-        showError(result.message);
-      }
-    } catch (error) {
-      showError(`暂停同步失败: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 恢复同步
-   */
-  async resumeSync(): Promise<void> {
-    try {
-      const result = await syncManager.resumeSync();
-      if (!result.success) {
-        showError(result.message);
-      }
-    } catch (error) {
-      showError(`恢复同步失败: ${(error as Error).message}`);
-    }
   }
 
   /**
@@ -743,10 +611,6 @@ class AdminApp {
 
     // 根据活动标签执行特定逻辑
     switch (activeTab) {
-      case 'sync':
-        // 刷新同步状态
-        this.refreshSyncStatus();
-        break;
       case 'queue':
         // 刷新队列状态
         this.refreshQueueStatus();
@@ -779,20 +643,6 @@ class AdminApp {
     } catch (error) {
       console.error('表单提交处理失败:', error);
       showError(`表单提交失败: ${(error as Error).message}`);
-    }
-  }
-
-  /**
-   * 刷新同步状态
-   */
-  private async refreshSyncStatus(): Promise<void> {
-    try {
-      const status = await syncManager.getSyncStatus();
-      if (status) {
-        appStateManager.setState({ sync: status });
-      }
-    } catch (error) {
-      console.error('刷新同步状态失败:', error);
     }
   }
 
@@ -903,9 +753,6 @@ class AdminApp {
     // 清理管理界面交互系统
     adminInteractions.destroy();
 
-    // 清理同步进度管理系统
-    syncProgressManager.destroy();
-
     // 清理Webhook处理系统
     webhookManager.destroy();
 
@@ -950,25 +797,6 @@ window.NotionWpAdmin = adminApp;
  */
 ready(() => {
   adminApp.init();
-});
-
-/**
- * 示例：测试AJAX功能
- */
-on('admin:test:ajax', async () => {
-  try {
-    console.log('Testing AJAX functionality...');
-
-    const response = await post('notion_to_wordpress_test', {
-      test_data: 'Hello from TypeScript!',
-    });
-
-    console.log('AJAX test successful:', response);
-    emit('admin:test:ajax:success', response);
-  } catch (error) {
-    console.error('AJAX test failed:', error);
-    emit('admin:test:ajax:error', error);
-  }
 });
 
 /**

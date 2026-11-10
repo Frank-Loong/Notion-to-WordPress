@@ -621,6 +621,30 @@ class Security {
 					}
 					break;
 
+				case 'database_id_list':
+					// 附加数据库列表：逐条校验 32 位十六进制 ID，错误要指明行号与具体 ID。
+					if ( ! is_array( $value ) ) {
+						$errors[] = sprintf( __( '%s: 附加数据库列表格式不正确', 'notion-to-wordpress' ), $field );
+						break;
+					}
+					$line_number = 0;
+					foreach ( $value as $entry ) {
+						++$line_number;
+						$entry_id = is_array( $entry ) ? (string) ( $entry['id'] ?? '' ) : (string) $entry;
+						$result   = self::validate_database_id( $entry_id );
+						if ( ! $result['is_valid'] ) {
+							/* translators: 1: field name, 2: line number, 3: database ID, 4: validation error */
+							$errors[] = sprintf(
+								__( '%1$s: 第%2$d行（%3$s）%4$s', 'notion-to-wordpress' ),
+								$field,
+								$line_number,
+								$entry_id,
+								$result['error_message']
+							);
+						}
+					}
+					break;
+
 				case 'url':
 					if ( ! self::is_safe_url( $value ) ) {
 						$errors[] = sprintf( __( '%s: URL格式不正确或不安全', 'notion-to-wordpress' ), $field );
@@ -659,6 +683,10 @@ class Security {
 			),
 			'notion_database_id'  => array(
 				'type'     => 'database_id',
+				'required' => false,
+			),
+			'notion_databases'    => array(
+				'type'     => 'database_id_list',
 				'required' => false,
 			),
 			'debug_level'         => array(

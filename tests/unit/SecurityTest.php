@@ -121,4 +121,69 @@ final class SecurityTest extends TestCase {
     public function test_is_safe_url_accepts_https(): void {
         $this->assertTrue(Security::is_safe_url('https://www.notion.so/page'), '正常 HTTPS URL 应被接受');
     }
+
+    /**
+     * 回归：SYNC_SCHEDULES 必须包含 ntwp_ten_minutes（后台默认 10 分钟增量）。
+     * 修复前 Validation_Rules::SYNC_SCHEDULES 漏了它，选「每10分钟」保存设置会 400。
+     */
+    public function test_sync_schedules_include_ten_minutes(): void {
+        $this->assertContains(
+            'ntwp_ten_minutes',
+            \NTWP\Core\Validation_Rules::SYNC_SCHEDULES
+        );
+    }
+
+    /**
+     * 回归：validate_plugin_options 接受 ntwp_ten_minutes 同步计划。
+     */
+    public function test_validate_plugin_options_accepts_ten_minutes_schedule(): void {
+        $result = Security::validate_plugin_options([
+            'sync_schedule' => 'ntwp_ten_minutes',
+        ]);
+
+        $this->assertTrue($result['is_valid'], json_encode($result['errors']));
+    }
+
+    /**
+     * 回归：附加数据库列表合法 32 位十六进制 ID 应通过。
+     */
+    public function test_validate_plugin_options_accepts_valid_additional_databases(): void {
+        $result = Security::validate_plugin_options([
+            'notion_databases' => [
+                ['id' => 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4', 'name' => 'Blog'],
+                ['id' => 'b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5', 'name' => ''],
+            ],
+        ]);
+
+        $this->assertTrue($result['is_valid'], json_encode($result['errors']));
+    }
+
+    /**
+     * 回归：附加数据库列表非法 ID 应报错，且错误指明行号与具体 ID。
+     */
+    public function test_validate_plugin_options_rejects_invalid_additional_databases(): void {
+        $result = Security::validate_plugin_options([
+            'notion_databases' => [
+                ['id' => 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4', 'name' => 'OK'],
+                ['id' => 'not-a-valid-id', 'name' => 'Bad'],
+            ],
+        ]);
+
+        $this->assertFalse($result['is_valid']);
+        $this->assertNotEmpty($result['errors']);
+        $joined = implode(' ', $result['errors']);
+        $this->assertStringContainsString('第2行', $joined, '错误应指明行号');
+        $this->assertStringContainsString('not-a-valid-id', $joined, '错误应指明具体 ID');
+    }
+
+    /**
+     * 回归：空附加数据库列表不得误报（required=false）。
+     */
+    public function test_validate_plugin_options_accepts_empty_additional_databases(): void {
+        $result = Security::validate_plugin_options([
+            'notion_databases' => [],
+        ]);
+
+        $this->assertTrue($result['is_valid'], json_encode($result['errors']));
+    }
 }

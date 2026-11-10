@@ -93,16 +93,8 @@ body.wp-admin {
     background: #f5f7fa;
 }
 
-/* 按钮微调 */
-#notion-to-wordpress-plugin-admin .button {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-}
-#notion-to-wordpress-plugin-admin .button .dashicons {
-    line-height: 20px;
-    font-size: 18px;
-}
+/* 收口迭代（2026-11-10）：删除 #notion-to-wordpress-plugin-admin .button 死规则。
+ * 该 id 在后台模板中从未出现（全仓 PHP 0 命中），规则永不生效。 */
 
 /* Loading Overlay */
 #loading-overlay {
@@ -432,7 +424,10 @@ body.wp-admin {
 .notion-wp-logo {
     width: 20px !important;
     height: 20px !important;
-    background-image: url('../icon.svg') !important;
+    /* 收口迭代（2026-11-10）：本文件现位于 src/styles/admin/，
+     * 原 '../icon.svg' 是相对 assets/css/ 旧手写副本的路径，已失效。
+     * 改由 css-loader 解析此相对路径并 emit 到 assets/dist/。 */
+    background-image: url('../../../assets/icon.svg') !important;
     background-size: contain !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
@@ -1294,129 +1289,10 @@ body.admin-color-dark .ncf-admin-aside {
     color: white !important;
 }
 
-/* ==================== 简洁光泽进度条样式 ==================== */
-
-/* 简洁进度容器 */
-.notion-sync-progress-container {
-    margin: 16px 0;
-    padding: 0;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    font-size: 14px;
-}
-
-/* 旧版本UI组件已完全移除 */
-
-/* 简洁光泽动画进度条 */
-.sync-main-progress {
-    margin-bottom: 8px;
-}
-
-.progress-bar-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.progress-bar {
-    flex: 1;
-    height: 16px;
-    background: #f3f4f6;
-    border-radius: 8px;
-    overflow: hidden;
-    position: relative;
-}
-
-.progress-fill {
-    height: 100%;
-    background: #3b82f6;
-    border-radius: 8px;
-    width: 0%;
-    transition: width 1s ease-in-out;
-    position: relative;
-    overflow: hidden;
-}
-
-/* 光泽动画效果 */
-.progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    animation: shine 2s infinite;
-}
-
-@keyframes shine {
-    100% {
-        left: 150%;
-    }
-}
-
-.progress-percentage {
-    font-size: 14px;
-    font-weight: 600;
-    color: #3b82f6;
-    min-width: 40px;
-    text-align: right;
-}
-
-.progress-status {
-    font-size: 14px;
-    color: #6b7280;
-    text-align: left;
-}
-
-.current-step-text {
-    font-weight: 500;
-    color: #374151;
-}
-
-/* 简洁进度条响应式设计 */
-@media (max-width: 768px) {
-    .progress-bar-container {
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .progress-percentage {
-        text-align: center;
-        min-width: auto;
-    }
-
-    .progress-status {
-        text-align: center;
-    }
-
-}
-
-@media (max-width: 480px) {
-    .notion-sync-progress-container {
-        margin: 8px 0;
-    }
-}
-
-/* 简洁进度条动画优化 */
-@media (prefers-reduced-motion: reduce) {
-    .progress-fill::after {
-        animation: none;
-    }
-
-    .progress-fill {
-        transition-duration: 0.01ms !important;
-    }
-}
-
-/* 简洁进度条高对比度模式 */
-@media (prefers-contrast: high) {
-    .progress-bar {
-        border: 1px solid #6b7280;
-    }
-}
+/* 收口迭代（2026-11-10）：删除第二套「简洁光泽进度条」样式。
+ * 该套属于已移除的 SyncProgressUI 组件，且用同名 .progress-bar /
+ * .progress-fill 覆盖了上方「同步进度指示器」的 8px 渐变进度条。
+ * 后台进度 DOM 由 admin/partials 直出，统一使用上方第一套样式。 */
 
 .notion-wp-sync-btn.error {
     background-color: var(--notion-error) !important;

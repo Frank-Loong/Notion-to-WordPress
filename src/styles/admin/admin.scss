@@ -1,386 +1,181 @@
 /**
- * 管理界面主样式
+ * 管理界面主样式 —— 收口迭代后后台样式的唯一编辑入口
+ *
+ * 背景（2026-11-10 收口迭代 / E4-a）：
+ * - admin-modern.scss 是后台现代化样式的真实来源（原 assets/css/admin-modern.css
+ *   的逐字副本，SHA256 E6956D31…DCF02），此处通过 @use 并入；webpack 的
+ *   MiniCssExtractPlugin 把本文件产物输出为 assets/dist/css/admin.css，
+ *   由 PHP 后台 enqueue_styles() 加载。编辑后台样式只需改本目录下的 SCSS。
+ * - 本文件此前维护的骨架 / .notion-wp-form / .btn 三大块从未被加载（后台实际
+ *   只 enqueue admin-modern.css），且与 admin-modern 内同名类重复定义，已整体
+ *   删除以消除双份维护；删后零视觉影响。
+ * - 5 个死组件 SCSS 模块（sync-progress / database-view / log-viewer /
+ *   settings / error-display）对应 0 实例化组件，已删除；其中仍被后台模板使用
+ *   的 .stat-label / .status-indicator，以及原先写在模板内联 <style> 里的自定义
+ *   字段映射样式，统一在此补齐，使 SCSS 成为唯一来源。
+ * - tooltip.css / custom-styles.css 仍由 PHP 独立 enqueue（custom-styles.css
+ *   前后端共用，includes/framework/Main.php 前端也在用），不并入本文件。
  */
 
-@use "sass:color";
-@use "../shared/variables" as *;
-@use "sync-progress";
-@use "database-view";
-@use "log-viewer";
-@use "settings";
-@use "error-display";
+@use "admin-modern";
 
-// 基础样式重置
-.notion-wp-admin {
-  font-family: $font-family-base;
-  font-size: $font-size-base;
-  line-height: $line-height-normal;
-  color: $text-primary;
-
-  * {
-    box-sizing: border-box;
-  }
-
-  // 清除浮动
-  &::after {
-    content: "";
-    display: table;
-    clear: both;
-  }
+/* ============================================================
+ * 自定义字段映射
+ * 原位于 admin/partials/notion-to-wordpress-admin-display.php 内联 <style>，
+ * 2026-11-10 迁入，保持原有取值；.remove-field 提高特异性以覆盖 WP .button。
+ * ============================================================ */
+.custom-field-mapping {
+  margin-bottom: 15px;
+  padding: 15px;
+  background-color: #f9f9f9;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
 }
 
-// 头部样式
-.notion-wp-header {
-  background: $bg-primary;
-  border-bottom: 1px solid $border-color;
-  padding: $spacing-4 $spacing-6;
-  margin-bottom: $spacing-6;
-
-  &-content {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    max-width: $content-max-width;
-    margin: 0 auto;
-  }
-
-  h1 {
-    margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-semibold;
-    color: $text-primary;
-    display: flex;
-    align-items: center;
-    gap: $spacing-3;
-  }
-
-  .notion-wp-logo {
-    width: 32px;
-    height: 32px;
-    background: #0073aa;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 14px;
-
-    &::before {
-      content: "N";
-    }
-  }
-
-  .notion-wp-version {
-    background: $gray-100;
-    color: $text-secondary;
-    padding: $spacing-1 $spacing-2;
-    border-radius: $border-radius-base;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-  }
-}
-
-// 布局容器
-.notion-wp-layout {
+.custom-field-row {
   display: flex;
-  max-width: $content-max-width;
-  margin: 0 auto;
-  gap: $spacing-6;
-  min-height: 600px;
+  flex-wrap: wrap;
+  gap: 15px;
+  align-items: flex-start;
 }
 
-// 侧边栏
-.notion-wp-sidebar {
-  flex: 0 0 $sidebar-width;
-  background: $bg-secondary;
-  border-radius: $border-radius-lg;
-  padding: $spacing-4;
-  height: fit-content;
-  position: sticky;
-  top: $spacing-4;
-}
-
-// 菜单
-.notion-wp-menu {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-1;
-
-  &-item {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: $spacing-3 $spacing-4;
-    background: transparent;
-    border: none;
-    border-radius: $border-radius-base;
-    color: $text-secondary;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-    text-align: left;
-    cursor: pointer;
-    transition: all $transition-fast;
-
-    &:hover {
-      background: $bg-primary;
-      color: $text-primary;
-      transform: translateX(2px);
-    }
-
-    &.active {
-      background: $primary-color;
-      color: $white;
-      box-shadow: $shadow-sm;
-
-      &:hover {
-        background: $secondary-color;
-        transform: none;
-      }
-    }
-
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-
-      &:hover {
-        background: transparent;
-        color: $text-secondary;
-        transform: none;
-      }
-    }
-  }
-}
-
-// 内容区域
-.notion-wp-content {
+.custom-field-col {
   flex: 1;
-  background: $bg-primary;
-  border-radius: $border-radius-lg;
-  padding: $spacing-6;
-  box-shadow: $shadow-sm;
+  min-width: 200px;
 }
 
-// 标签页内容
-.notion-wp-tab-content {
-  display: none;
-
-  &.active {
-    display: block;
-    animation: fadeIn 0.3s ease-in-out;
-  }
+.custom-field-col label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-// 表单样式
-.notion-wp-form {
-  .form-group {
-    margin-bottom: $spacing-5;
-
-    label {
-      display: block;
-      margin-bottom: $spacing-2;
-      font-weight: $font-weight-medium;
-      color: $text-primary;
-    }
-
-    .form-control {
-      width: 100%;
-      height: $input-height;
-      padding: $input-padding-y $input-padding-x;
-      border: $input-border-width solid $input-border-color;
-      border-radius: $input-border-radius;
-      font-size: $font-size-base;
-      transition: all $transition-fast;
-
-      &:focus {
-        outline: none;
-        border-color: $input-focus-border-color;
-        box-shadow: $input-focus-box-shadow;
-      }
-
-      &.is-invalid {
-        border-color: $error-color;
-      }
-
-      &.is-valid {
-        border-color: $success-color;
-      }
-    }
-
-    textarea.form-control {
-      height: auto;
-      min-height: 100px;
-      resize: vertical;
-    }
-
-    .form-text {
-      margin-top: $spacing-1;
-      font-size: $font-size-sm;
-      color: $text-muted;
-    }
-
-    .invalid-feedback {
-      margin-top: $spacing-1;
-      font-size: $font-size-sm;
-      color: $error-color;
-    }
-
-    .valid-feedback {
-      margin-top: $spacing-1;
-      font-size: $font-size-sm;
-      color: $success-color;
-    }
-  }
-}
-
-// 按钮样式
-.btn {
-  display: inline-flex;
+.custom-field-actions {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  height: $button-height;
-  padding: $button-padding-y $button-padding-x;
-  border: 1px solid transparent;
-  border-radius: $button-border-radius;
-  font-size: $font-size-base;
-  font-weight: $button-font-weight;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all $transition-fast;
-  gap: $spacing-2;
+  padding-top: 25px;
+}
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+.button.remove-field {
+  color: #cc0000;
+}
 
-  // 主要按钮
-  &-primary {
-    background: $primary-color;
-    color: $white;
-    border-color: $primary-color;
+.remove-field .dashicons {
+  margin-top: 3px;
+}
 
-    &:hover:not(:disabled) {
-      background: $secondary-color;
-      border-color: $secondary-color;
-    }
-  }
+/* ============================================================
+ * 后台模板补齐样式
+ * 这些 class 在 admin-modern.scss / 已删除的死模块 / tooltip.css /
+ * custom-styles.css 中均无定义，此前在后台裸奔。配色统一使用
+ * admin-modern.scss 的 --notion-* 变量，@keyframes pulse 复用其定义。
+ * ============================================================ */
 
-  // 次要按钮
-  &-secondary {
-    background: $gray-100;
-    color: $text-primary;
-    border-color: $border-color;
+/* 危险按钮（清除所有日志） */
+.button.button-danger {
+  color: #fff;
+  background: var(--notion-danger);
+  border-color: var(--notion-danger);
 
-    &:hover:not(:disabled) {
-      background: $gray-200;
-      border-color: $border-color-dark;
-    }
-  }
-
-  // 成功按钮
-  &-success {
-    background: $success-color;
-    color: $white;
-    border-color: $success-color;
-
-    &:hover:not(:disabled) {
-      background: color.adjust($success-color, $lightness: -10%);
-      border-color: color.adjust($success-color, $lightness: -10%);
-    }
-  }
-
-  // 危险按钮
-  &-danger {
-    background: $error-color;
-    color: $white;
-    border-color: $error-color;
-
-    &:hover:not(:disabled) {
-      background: color.adjust($error-color, $lightness: -10%);
-      border-color: color.adjust($error-color, $lightness: -10%);
-    }
-  }
-
-  // 警告按钮
-  &-warning {
-    background: $warning-color;
-    color: $white;
-    border-color: $warning-color;
-
-    &:hover:not(:disabled) {
-      background: color.adjust($warning-color, $lightness: -10%);
-      border-color: color.adjust($warning-color, $lightness: -10%);
-    }
-  }
-
-  // 小尺寸按钮
-  &-sm {
-    height: 32px;
-    padding: $spacing-1 $spacing-3;
-    font-size: $font-size-sm;
-  }
-
-  // 大尺寸按钮
-  &-lg {
-    height: 48px;
-    padding: $spacing-3 $spacing-6;
-    font-size: $font-size-lg;
+  &:hover,
+  &:focus {
+    color: #fff;
+    background: #991b1b;
+    border-color: #991b1b;
+    box-shadow: none;
   }
 }
 
-// 响应式设计
-@media (max-width: $breakpoint-lg) {
-  .notion-wp-layout {
-    flex-direction: column;
-  }
+/* 插件信息卡片：.info-grid / .info-item / .info-label 已由 admin-modern 定义 */
+.info-value {
+  color: var(--notion-gray-700);
+}
 
-  .notion-wp-sidebar {
-    flex: none;
-    position: static;
-  }
+/* 同步方式说明 */
+.sync-info {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--notion-gray-50);
+  border-left: 3px solid var(--notion-primary);
+  border-radius: 4px;
+  color: var(--notion-gray-600);
+  font-size: 13px;
 
-  .notion-wp-menu {
-    flex-direction: row;
-    overflow-x: auto;
-    gap: $spacing-2;
-
-    &-item {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
+  p {
+    margin: 4px 0;
   }
 }
 
-@media (max-width: $breakpoint-md) {
-  .notion-wp-header {
-    padding: $spacing-3 $spacing-4;
-
-    &-content {
-      flex-direction: column;
-      gap: $spacing-2;
-      text-align: center;
-    }
-
-    h1 {
-      font-size: $font-size-xl;
-    }
-  }
-
-  .notion-wp-content {
-    padding: $spacing-4;
-  }
+/* 异步状态 / 队列状态面板 */
+.status-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
-// 导入功能样式
+.status-indicator {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--notion-gray-400);
+}
+
+.async-status-display.status-running .status-indicator {
+  background: var(--notion-primary);
+  animation: pulse 2s infinite;
+}
+
+.status-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 8px;
+}
+
+.detail-item {
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: var(--notion-gray-700);
+}
+
+.detail-value {
+  color: var(--notion-gray-800);
+}
+
+.queue-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.queue-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.stat-label {
+  color: var(--notion-gray-600);
+}
+
+/* 无障碍：尊重「减少动态效果」偏好。
+ * 原第二套进度样式内含此回退，该套被删除后在此补回，作用于第一套
+ * .progress-fill:after 的 shimmer 动画与宽度过渡。 */
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill::after {
+    animation: none;
+  }
+
+  .progress-fill {
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -37,7 +37,6 @@ export interface WebhookTestOptions {
 export class WebhookTester {
   private static readonly DEFAULT_TIMEOUT = 10000; // 10秒
   private static readonly TEST_ENDPOINTS = {
-    connection: '/wp-admin/admin-ajax.php',
     webhook: '/wp-json/notion-to-wordpress/v1/webhook/',
   };
 
@@ -79,76 +78,29 @@ export class WebhookTester {
 
   /**
    * 测试基础连接
+   *
+   * 收口迭代（2026-11-10）：原实现向 admin-ajax 发送
+   * `notion_to_wordpress_webhook_test`，但插件并未注册该 action（Webhook
+   * 仅暴露 REST 路由 /wp-json/notion-to-wordpress/v1/webhook/{token}）。
+   * 该请求必然得到 admin-ajax 的 `0`/400，旧代码却因 `response.ok` 误报成功。
+   * 按评审「漂移从 TS 移除」停用该探测，返回明确的本地结果，不再发起无效请求。
    */
   private static async testConnection(
-    baseUrl: string,
-    timeout: number
+    _baseUrl: string,
+    _timeout: number
   ): Promise<WebhookTestResult> {
-    const startTime = Date.now();
-
-    try {
-      // 构建测试URL
-      const testUrl = this.buildTestUrl(
-        baseUrl,
-        this.TEST_ENDPOINTS.connection
-      );
-
-      // 发送测试请求
-      const response = await this.sendTestRequest(
-        testUrl,
-        {
-          action: 'notion_to_wordpress_webhook_test',
-          test_type: 'connection',
-        },
-        timeout
-      );
-
-      const responseTime = Date.now() - startTime;
-
-      if (response.ok) {
-        return {
-          success: true,
-          status: 'success',
-          message: '连接测试成功',
-          details: {
-            responseTime,
-            statusCode: response.status,
-          },
-        };
-      } else {
-        return {
-          success: false,
-          status: 'error',
-          message: `连接测试失败 (${response.status})`,
-          details: {
-            responseTime,
-            statusCode: response.status,
-          },
-          suggestions: [
-            '检查服务器是否正常运行',
-            '确认URL是否正确',
-            '检查防火墙设置',
-          ],
-        };
-      }
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-
-      return {
-        success: false,
-        status: 'error',
-        message: '连接失败',
-        details: {
-          responseTime,
-          error: (error as Error).message,
-        },
-        suggestions: [
-          '检查网络连接',
-          '确认服务器地址正确',
-          '检查是否存在网络限制',
-        ],
-      };
-    }
+    return {
+      success: false,
+      status: 'warning',
+      message: '连接测试未启用',
+      details: {
+        error: '后端未提供 notion_to_wordpress_webhook_test 端点',
+      },
+      suggestions: [
+        'Webhook 请通过 REST 路由 /wp-json/notion-to-wordpress/v1/webhook/{token} 验证',
+        '使用“验证令牌测试”检查 Webhook 配置',
+      ],
+    };
   }
 
   /**

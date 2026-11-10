@@ -11,48 +11,10 @@
  * @link       https://github.com/Frank-Loong/Notion-to-WordPress
  */
 
-#notion-to-wordpress-plugin-admin {
-    padding: 5px 20px;
-}
-
-
-#notion-to-wordpress-plugin-admin .widefat {
-    width: 100%; /* Makes the text fields use full width */
-    max-width: 900px; /* Set a maximum width if desired */
-    min-height: 40px; /* Adjust height if necessary */
-    padding: 10px; /* Add some padding */
-}
-
-
-#notion-to-wordpress-plugin-admin .widetable {
-    max-width: 100%;
-}
-
-#notion-to-wordpress-plugin-admin .red-text {
-    color: red;
-}
-
-#notion-to-wordpress-plugin-admin #loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 9999;
-    display: none;
-}
-
-#notion-to-wordpress-plugin-admin .loading-message {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #fff;
-    font-size: 18px;
-    font-weight: bold;
-}
-
+/* 收口迭代（2026-11-10 / E4-b）：删除 #notion-to-wordpress-plugin-admin 死段。
+ * 该 id 在后台模板中从未出现（全仓 PHP 0 命中），规则永不生效。
+ * 本文件 :57 起的 .notion-to-wordpress-header 与 2000+ 行 Notion 前端渲染样式
+ * 由 includes/framework/Main.php 前端 enqueue，前后端共用，必须保留。 */
 
 .notion-to-wordpress-header {
     background-color: #2e65a8; /* Dark blue background */

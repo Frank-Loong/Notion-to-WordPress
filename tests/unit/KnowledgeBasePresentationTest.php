@@ -63,6 +63,17 @@ final class KnowledgeBasePresentationTest extends PHPUnit\Framework\TestCase {
         $this->assertStringNotContainsString('<iframe', $html);
     }
 
+    public function test_complete_block_conversion_preserves_matrix_row_separators(): void {
+        $expression = '\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}';
+        $api = (new ReflectionClass(NTWP\Services\API::class))->newInstanceWithoutConstructor();
+        foreach (['classic', 'gutenberg'] as $format) {
+            $GLOBALS['__wp_options']['notion_to_wordpress_options'] = ['output_format' => $format];
+            $html = Content_Converter::convert_blocks_to_html([['id' => 'matrix', 'type' => 'equation', 'has_children' => false, 'equation' => ['expression' => $expression]]], $api);
+            preg_match('/data-expression="([^"]*)"/', $html, $matches);
+            $this->assertSame($expression, html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        }
+    }
+
     public function test_per_database_view_normalizes_ids_and_overrides_default(): void {
         $id = '123456781234123412341234567890ab';
         $GLOBALS['__wp_options']['notion_to_wordpress_options'] = [

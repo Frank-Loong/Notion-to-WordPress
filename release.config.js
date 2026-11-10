@@ -216,24 +216,9 @@ if (!defined('ABSPATH')) {
                     'third-party.*'
                 ]
             }
-        },
-
-        // 文件描述映射（可选，用于自动生成描述）
-        descriptions: {
-            'includes/framework/Main.php': '核心插件类',
-            'includes/class-notion-api.php': 'Notion API 接口类',
-            'includes/class-notion-pages.php': 'Notion 页面处理类',
-            'includes/class-notion-to-wordpress-helper.php': '插件辅助工具类',
-            'includes/class-notion-to-wordpress-i18n.php': '国际化处理类',
-            'includes/class-notion-to-wordpress-loader.php': '插件加载器类',
-            'includes/class-notion-to-wordpress-webhook.php': 'Webhook 处理类',
-            'includes/class-notion-concurrent-manager.php': '并发管理类',
-            'admin/class-notion-to-wordpress-admin.php': '后台管理类',
-            'assets/js/anchor-navigation.js': 'Notion 区块锚点导航功能',
-            'assets/js/admin.js': '后台管理界面脚本',
-            'assets/css/admin-modern.css': 'Notion 内容导入器现代化后台样式',
-            'assets/css/public.css': '前台样式文件'
         }
+        // 收口迭代（2026-11-10 / E4-b）：删除 descriptions 死配置。
+        // 全仓零消费者（仅此处定义），且 13 条路径中 10 条指向已删除的旧类/旧 js/旧 css。
     },
 
     // ========================================
@@ -306,45 +291,10 @@ if (!defined('ABSPATH')) {
             method: 'zip'
         },
 
-        // 前端资源优化设置
-        assets: {
-            // JavaScript压缩合并
-            js: {
-                enabled: true,
-                minify: true,
-                combine: true,
-                sourceMap: false,
-                files: [
-                    'assets/js/lazy-loading.js',
-                    'assets/js/resource-optimizer.js',
-                    'assets/js/admin-interactions.js'
-                ],
-                output: 'assets/js/notion-combined.min.js'
-            },
-
-            // CSS压缩合并
-            css: {
-                enabled: true,
-                minify: true,
-                combine: true,
-                autoprefixer: true,
-                files: [
-                    'assets/css/admin-modern.css',
-                    'assets/css/custom-styles.css',
-                    'assets/css/notion-database.css'
-                ],
-                output: 'assets/css/notion-combined.min.css'
-            },
-
-            // 图片优化
-            images: {
-                enabled: true,
-                quality: 85,
-                progressive: true,
-                formats: ['webp', 'jpg', 'png'],
-                sizes: [320, 640, 1024, 1920]
-            }
-        },
+        // 收口迭代（2026-11-10 / E4-b）：删除 build.assets 死配置块。
+        // js.combine / css.combine / images 从未被 scripts/build.js 执行（build.js 不读本文件），
+        // 全仓 scripts/*.js 也从不访问 cfg.build.assets；其 files 还指向即将删除的旧 js。
+        // 删除后 build.output / build.include / build.exclude / validation 均不受影响。
 
         // 验证设置
         validation: {

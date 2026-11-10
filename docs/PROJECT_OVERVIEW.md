@@ -7,12 +7,14 @@
 # 🚀 Notion-to-WordPress - Project Overview & Feature Comparison
 
 > **Current Version**: 2.0.0-beta.2
-> **Status**: Production Ready ✅  
-> **Last Updated**: 2025-07-07
+> **Status**: Beta Stage (2.0.0-beta.2)
+> **Last Updated**: 2026-11-02
+
+> This release is still in beta: core sync capabilities are usable, while browser-level visual verification of the knowledge-base rendering and the final release regression are not finished. See the [Notion Knowledge Base Roadmap](KNOWLEDGE_BASE_ROADMAP.md) for the remaining work.
 
 ## 📊 Project Overview
 
-**Notion-to-WordPress** has evolved into the most advanced, reliable, and feature-rich Notion-to-WordPress synchronization plugin available. With recent major improvements, it now offers enterprise-grade performance and reliability.
+**Notion-to-WordPress** is a WordPress plugin focused on Notion content synchronization. The current release is in beta: core sync and content rendering are usable, and knowledge-base restoration and delivery acceptance are still being completed.
 
 ### 🎯 Mission Statement
 *Transform your Notion workspace into a powerful WordPress publishing platform with seamless, intelligent, and reliable synchronization.*
@@ -103,42 +105,42 @@
 
 ## 📈 Current Capabilities
 
-### ✅ **Core Sync Features**
+### **Core Sync Features**
 | Feature | Status | Performance | Notes |
 |---------|--------|-------------|-------|
-| **Manual Sync** | ✅ Production | Excellent | Real-time feedback, batch processing |
-| **Incremental Sync** | ✅ Production | Advanced | Smart change detection technology |
-| **Webhook Sync** | ✅ Production | Outstanding | Fast response times |
-| **Deletion Detection** | ✅ Production | Intelligent | Automatic orphan cleanup |
-| **Error Recovery** | ✅ Production | Robust | Auto-retry with exponential backoff |
+| **Manual Sync** | Completed | Excellent | Real-time feedback, batch processing |
+| **Incremental Sync** | Completed | Advanced | Smart change detection technology |
+| **Webhook Sync** | Completed | Outstanding | Fast response times |
+| **Deletion Detection** | Completed | Intelligent | Automatic orphan cleanup |
+| **Error Recovery** | Completed | Robust | Auto-retry with exponential backoff |
 
-### ✅ **Content Support**
+### **Content Support**
 | Content Type | Support Level | Quality | Notes |
 |--------------|---------------|---------|-------|
-| **Text Blocks** | ✅ Full | Perfect | Rich formatting preserved |
-| **Headings** | ✅ Full | Perfect | H1-H6 with proper hierarchy |
-| **Lists** | ✅ Full | Perfect | Ordered, unordered, nested |
-| **Images** | ✅ Full | Excellent | Auto-upload to WordPress media |
-| **Links** | ✅ Full | Perfect | Internal and external links |
-| **Code Blocks** | ✅ Full | Excellent | Syntax highlighting support |
-| **Quotes** | ✅ Full | Perfect | Blockquote formatting |
-| **Dividers** | ✅ Full | Perfect | HR elements |
-| **Tables** | ✅ Full | Good | Basic table structure |
-| **Formulas** | ✅ Full | Excellent | LaTeX rendering with KaTeX |
-| **Databases** | ✅ Partial | Good | Gallery, table, board views |
-| **Embeds** | ✅ Partial | Good | YouTube, Twitter, etc. |
+| **Text Blocks** | Completed | Perfect | Rich formatting preserved |
+| **Headings** | Completed | Perfect | H1-H6 with proper hierarchy |
+| **Lists** | Completed | Perfect | Ordered, unordered, nested |
+| **Images** | Completed | Excellent | Auto-upload to WordPress media |
+| **Links** | Completed | Perfect | Internal and external links |
+| **Code Blocks** | Beta Implemented | Good | Code and language markup preserved, no bundled highlighting library |
+| **Quotes** | Completed | Perfect | Blockquote formatting |
+| **Dividers** | Completed | Perfect | HR elements |
+| **Tables** | Completed | Good | Basic table structure |
+| **Formulas** | Beta Implemented | Good | LaTeX rendering with KaTeX, browser rendering re-check pending |
+| **Databases** | Beta Implemented | Good | Table, gallery, list and board views, local link resolution still pending |
+| **Embeds** | Beta Implemented | Good | Allowlisted iframes such as YouTube, other sites fall back to cards |
 
-### ✅ **Advanced Features**
+### **Advanced Features**
 | Feature | Status | Impact | Description |
 |---------|--------|--------|-------------|
-| **Bilingual Interface** | ✅ Production | High | Chinese/English admin interface |
-| **Custom Field Mapping** | ✅ Production | High | Flexible property mapping |
-| **Author Assignment** | ✅ Production | Medium | Configurable post authors |
-| **Category Mapping** | ✅ Production | Medium | Notion properties to WP categories |
-| **Tag Support** | ✅ Production | Medium | Multi-select to WordPress tags |
-| **Featured Images** | ✅ Production | High | Auto-set from Notion covers |
-| **SEO Optimization** | ✅ Production | High | Meta descriptions, titles |
-| **Anchor Links** | ✅ Production | Medium | Block-level navigation |
+| **Bilingual Interface** | Completed | High | Chinese/English admin interface |
+| **Custom Field Mapping** | Completed | High | Flexible property mapping |
+| **Author Assignment** | Beta Implemented | Medium | Defaults to the first administrator account, no per-post selection yet |
+| **Category Mapping** | Completed | Medium | Notion properties to WP categories |
+| **Tag Support** | Completed | Medium | Multi-select to WordPress tags |
+| **Featured Images** | Completed | High | Auto-set from Notion covers |
+| **SEO Optimization** | Planned | — | Meta descriptions and titles are not implemented in the current release |
+| **Anchor Links** | Completed | Medium | Block-level navigation |
 
 ---
 
@@ -223,23 +225,13 @@
 
 ## 🎯 Future Roadmap
 
-### **Short Term (6 months)**
-- **Enhanced Database Views**: Calendar, timeline, chart improvements
-- **Advanced Filtering**: Complex sync rules and conditions
-- **Performance Optimization**: Further speed improvements
-- **Mobile Responsiveness**: Enhanced mobile admin interface
+> Peripheral feature expansion is on hold: the scope of the current stage is defined by the [Notion Knowledge Base Roadmap](KNOWLEDGE_BASE_ROADMAP.md), so no separate peripheral expansion schedule is listed here.
 
-### **Medium Term (1 year)**
-- **Multi-Database Support**: Sync multiple Notion databases
-- **Advanced Customization**: Custom block rendering
-- **Integration Expansion**: Third-party service integrations
-- **Analytics Dashboard**: Detailed sync statistics and insights
-
-### **Long Term (2 years)**
-- **AI-Powered Features**: Content optimization suggestions
-- **Enterprise Suite**: Advanced user management and permissions
-- **Cloud Service**: Hosted synchronization service
-- **API Ecosystem**: Third-party developer platform
+### **Current Stage (Knowledge Base Restoration)**
+- **Four-view acceptance**: re-test content, ordering and item links for table, gallery, list and board views
+- **Complex formulas and web cards**: verify screenshots and click behaviour on a dedicated browser sample
+- **Media and cron regression**: real media integration and cron run verification
+- **Final delivery**: ZIP installation package verification and release preparation
 
 ---
 

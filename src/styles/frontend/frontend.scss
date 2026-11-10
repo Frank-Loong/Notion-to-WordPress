@@ -4,6 +4,27 @@
 
 @use "../shared/variables" as *;
 
+.notion-embed {
+  max-width: 100%;
+
+  > iframe {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  &.notion-embed-youtube > iframe,
+  &.notion-embed-vimeo > iframe,
+  &.notion-embed-bilibili > iframe {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+.notion-equation-block {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .notion-embed-card {
   display: flex;
   overflow: hidden;

@@ -15,7 +15,6 @@ module.exports = {
   entry: {
     admin: './src/admin/admin.ts',
     frontend: './src/frontend/frontend.ts',
-    'sync-progress': './src/admin/components/SyncProgress.ts',
     'katex-mermaid': './src/frontend/components/MathRenderer.ts',
   },
 

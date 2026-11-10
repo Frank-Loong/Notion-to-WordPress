@@ -9,7 +9,6 @@
  */
 
 import { emit } from '../../shared/core/EventBus';
-import { post } from '../../shared/utils/ajax';
 import { showError, showWarning } from '../../shared/utils/toast';
 
 export type ErrorType =
@@ -552,12 +551,10 @@ export class ErrorManager {
   /**
    * 报告错误到服务器
    */
-  private async reportError(errorData: any): Promise<void> {
-    try {
-      await post('notion_to_wordpress_report_error', errorData);
-    } catch (error) {
-      console.error('错误报告失败:', error);
-    }
+  private async reportError(_errorData: any): Promise<void> {
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_report_error；
+    // 停用无效请求，仅保留本地日志（enableReporting 默认 false）。
+    console.warn('错误上报端点未启用，已跳过远程报告');
   }
 
   /**

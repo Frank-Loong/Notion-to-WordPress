@@ -100,20 +100,12 @@ export class SettingsModule extends BaseComponent {
    * 加载设置
    */
   private async loadSettings(): Promise<void> {
-    try {
-      const response = await post('notion_to_wordpress_get_settings', {});
-
-      if (response.data.success) {
-        this.settings = response.data.data;
-        this.populateForm();
-        console.log('Settings loaded successfully');
-      } else {
-        throw new Error(response.data.message || '加载设置失败');
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-      showError(`加载设置失败: ${(error as Error).message}`);
-    }
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_get_settings
+    // （真实端点为 save_settings / test_connection）。该懒加载模块当前无
+    // 实例化调用点；停用无效请求，保留表单渲染契约，避免必然的 400。
+    console.log('Settings module: 远程加载设置已停用');
+    this.populateForm();
+    this.updateSettingsDisplay();
   }
 
   /**
@@ -270,21 +262,11 @@ export class SettingsModule extends BaseComponent {
       return;
     }
 
-    try {
-      const response = await post('notion_to_wordpress_reset_settings', {});
-
-      if (response.data.success) {
-        this.settings = response.data.data;
-        this.populateForm();
-        this.updateSettingsDisplay();
-        showSuccess('设置已重置');
-      } else {
-        throw new Error(response.data.message || '重置设置失败');
-      }
-    } catch (error) {
-      console.error('Failed to reset settings:', error);
-      showError(`重置设置失败: ${(error as Error).message}`);
-    }
+    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_reset_settings；
+    // 停用无效请求，保留确认流程与表单刷新契约，给出明确说明，避免必然的 400。
+    this.populateForm();
+    this.updateSettingsDisplay();
+    showError('重置设置端点未启用，请在主设置页面手动修改配置');
   }
 
   /**
