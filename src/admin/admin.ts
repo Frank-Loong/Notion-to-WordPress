@@ -7,7 +7,6 @@ import { eventBus, on, emit } from '../shared/core/EventBus';
 import {
   appStateManager,
   queueManager,
-  progressManager,
   lazyLoader,
   resourcePreloader,
   performanceMonitor,
@@ -556,7 +555,6 @@ class AdminApp {
 
     // 停止所有管理器
     queueManager.stopMonitoring();
-    progressManager.hide();
     componentManager.destroyAll();
 
     // 清理性能优化系统

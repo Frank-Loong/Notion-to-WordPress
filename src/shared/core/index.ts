@@ -14,9 +14,6 @@ export * from './SyncManager';
 // 队列管理
 export * from './QueueManager';
 
-// 进度管理
-export * from './ProgressManager';
-
 // 性能优化
 export * from './LazyLoader';
 export * from './ResourcePreloader';

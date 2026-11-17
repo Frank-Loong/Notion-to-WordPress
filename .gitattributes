@@ -1,0 +1,43 @@
+# 统一行尾策略
+# ------------------------------------------------------------------
+# 背景：本仓库没有 .gitattributes 时，行尾完全取决于每位贡献者的
+# core.autocrlf 设置。Windows 上 core.autocrlf=true 会让工作树变成
+# CRLF，而 Linux/macOS 与 CI 是 LF，于是同一个文件在不同机器上
+# `git diff` 会互相打架，prettier 的 endOfLine:"lf" 也无从保证。
+#
+# 策略：仓库内一律 LF（text=auto eol=lf），二进制文件显式排除，
+# 避免 Git 尝试做行尾转换而破坏字节。
+# ------------------------------------------------------------------
+
+* text=auto eol=lf
+
+# ---- 二进制资源：禁止任何行尾转换 ----
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.mo binary
+*.zip binary
+*.pdf binary
+# SVG 虽为文本，但 webpack 会按内容哈希 emit 成 assets/icon.<hash>.svg，
+# 行尾转换会改变哈希与产物字节，故按不转换处理。
+*.svg -text
+
+# ---- Windows 专用脚本保留 CRLF（如将来加入 .bat/.cmd）----
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# ---- 语言包与 diff 可读性 ----
+*.po text
+*.pot text
+*.mo binary
+
+# ---- 构建产物视为生成内容，避免 diff 噪声（仍纳入版本控制）----
+assets/dist/** linguist-generated=true
