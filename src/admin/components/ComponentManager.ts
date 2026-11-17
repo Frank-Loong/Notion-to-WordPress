@@ -5,9 +5,6 @@
 import { eventBus } from '../../shared/core/EventBus';
 import { BaseComponent } from './BaseComponent';
 import { SyncButton } from './SyncButton';
-import { StatusDisplay } from './StatusDisplay';
-import { FormComponent } from './FormComponent';
-import { TabManager } from './TabManager';
 
 export interface ComponentConfig {
   type: string;
@@ -35,13 +32,15 @@ export class ComponentManager {
 
   /**
    * 注册内置组件
+   *
+   * 收口迭代（2026-11-16）：只保留真实生效的同步按钮。原注册表里的
+   * status-display / form-component / tab-manager 三项对应的发现器
+   * 在后台模板中 0 命中（无 data-status-type、无 form[data-component]、
+   * 无 [data-component="tab-manager"]），从未实例化过任何组件。
    */
   private registerBuiltinComponents(): void {
     this.registry = {
       'sync-button': SyncButton,
-      'status-display': StatusDisplay,
-      'form-component': FormComponent,
-      'tab-manager': TabManager,
     };
   }
 
@@ -85,19 +84,15 @@ export class ComponentManager {
 
   /**
    * 自动发现组件
+   *
+   * 收口迭代（2026-11-16）：后台模板中只有同步按钮带 data-* 标记，
+   * 其余三个发现器的选择器（[data-status-type]、form[data-component="form"]、
+   * [data-component="tab-manager"]）在模板里 0 命中，永远不会实例化任何组件。
+   * 这些死发现器与其组件类已一并移除，只保留真实生效的同步按钮发现。
    */
   private autoDiscoverComponents(): void {
     // 发现同步按钮
     this.discoverSyncButtons();
-
-    // 发现状态显示组件
-    this.discoverStatusDisplays();
-
-    // 发现表单组件
-    this.discoverFormComponents();
-
-    // 发现标签管理器
-    this.discoverTabManagers();
   }
 
   /**
@@ -112,8 +107,17 @@ export class ComponentManager {
         | 'smart'
         | 'full'
         | 'test';
-      const incremental = element.hasAttribute('data-incremental');
-      const checkDeletions = element.hasAttribute('data-check-deletions');
+      // 收口迭代（2026-11-16）：属性缺失时必须传 undefined，而不是
+      // hasAttribute() 得到的 false —— 否则 SyncButton 内的 `?? true`
+      // 默认值永远不生效（缺属性被当成「显式关闭」）。
+      const incremental = this.readBooleanAttribute(
+        element,
+        'data-incremental'
+      );
+      const checkDeletions = this.readBooleanAttribute(
+        element,
+        'data-check-deletions'
+      );
       const confirmMessage = element.getAttribute('data-confirm');
 
       const componentId = `sync-button-${syncType}-${index}`;
@@ -131,102 +135,21 @@ export class ComponentManager {
   }
 
   /**
-   * 发现状态显示组件
+   * 读取布尔型 data 属性
+   *
+   * 返回 undefined 表示「属性不存在，交由调用方的默认值决定」；
+   * `data-x` / `data-x="true"` / `data-x="1"` 为 true；
+   * `data-x="false"` / `data-x="0"` 为 false。
    */
-  private discoverStatusDisplays(): void {
-    const displays = document.querySelectorAll('[data-status-type]');
-
-    displays.forEach((display, index) => {
-      const element = display as HTMLElement;
-      const statusType = element.getAttribute('data-status-type') as
-        | 'sync'
-        | 'queue'
-        | 'async';
-      const refreshInterval = parseInt(
-        element.getAttribute('data-refresh-interval') || '5000'
-      );
-      const autoRefresh = !element.hasAttribute('data-no-auto-refresh');
-
-      const componentId = `status-display-${statusType}-${index}`;
-
-      const statusDisplay = new StatusDisplay({
-        element,
-        type: statusType,
-        refreshInterval,
-        autoRefresh,
-      });
-
-      this.components.set(componentId, statusDisplay);
-    });
-  }
-
-  /**
-   * 发现表单组件
-   */
-  private discoverFormComponents(): void {
-    const forms = document.querySelectorAll('form[data-component="form"]');
-
-    forms.forEach((form, index) => {
-      const element = form as HTMLElement;
-      const validateOnInput = !element.hasAttribute('data-no-validate-input');
-      const validateOnBlur = !element.hasAttribute('data-no-validate-blur');
-      const submitOnEnter = element.hasAttribute('data-submit-enter');
-      const autoSave = element.hasAttribute('data-auto-save');
-      const autoSaveDelay = parseInt(
-        element.getAttribute('data-auto-save-delay') || '2000'
-      );
-
-      const componentId = `form-component-${index}`;
-
-      const formComponent = new FormComponent({
-        element,
-        validateOnInput,
-        validateOnBlur,
-        submitOnEnter,
-        autoSave,
-        autoSaveDelay,
-      });
-
-      this.components.set(componentId, formComponent);
-    });
-  }
-
-  /**
-   * 发现标签管理器
-   */
-  private discoverTabManagers(): void {
-    const tabContainers = document.querySelectorAll(
-      '[data-component="tab-manager"]'
-    );
-
-    tabContainers.forEach((container, index) => {
-      const element = container as HTMLElement;
-      const activeTabClass =
-        element.getAttribute('data-active-class') || 'active';
-      const tabContentClass =
-        element.getAttribute('data-content-class') || 'tab-content';
-      const saveActiveTab = !element.hasAttribute('data-no-save-tab');
-      const storageKey =
-        element.getAttribute('data-storage-key') || 'active_tab';
-      const animationDuration = parseInt(
-        element.getAttribute('data-animation-duration') || '300'
-      );
-      const defaultTab = element.getAttribute('data-default-tab') || undefined;
-
-      const componentId = `tab-manager-${index}`;
-
-      const tabManager = new TabManager({
-        element,
-        activeTabClass,
-        tabContentClass,
-        saveActiveTab,
-        storageKey,
-        animationDuration,
-        defaultTab,
-      });
-
-      this.components.set(componentId, tabManager);
-    });
+  private readBooleanAttribute(
+    element: HTMLElement,
+    name: string
+  ): boolean | undefined {
+    const raw = element.getAttribute(name);
+    if (raw === null) {
+      return undefined;
+    }
+    return raw !== 'false' && raw !== '0';
   }
 
   /**

@@ -16,9 +16,7 @@ import {
 import { componentManager } from './components';
 import { adminInteractions } from './AdminInteractions';
 import { webhookManager } from './managers/WebhookManager';
-import { databaseRecordManager } from './managers/DatabaseRecordManager';
 import { logManager } from './managers/LogManager';
-import { settingsManager } from './managers/SettingsManager';
 import { errorManager } from './managers/ErrorManager';
 import { adminControls } from './AdminControls';
 import { showSuccess, showError } from '../shared/utils/toast';
@@ -88,14 +86,8 @@ class AdminApp {
     // 初始化Webhook处理系统
     this.initializeWebhookManager();
 
-    // 初始化数据库视图管理系统
-    this.initializeDatabaseManager();
-
     // 初始化日志管理系统
     this.initializeLogManager();
-
-    // 初始化设置管理系统
-    this.initializeSettingsManager();
 
     // 初始化错误处理系统
     this.initializeErrorManager();
@@ -236,41 +228,6 @@ class AdminApp {
   }
 
   /**
-   * 初始化数据库视图管理系统
-   */
-  private initializeDatabaseManager(): void {
-    // 数据库记录管理器已经通过导入自动初始化
-    // 这里可以设置一些全局事件监听
-
-    // 监听数据库记录事件
-    on('database:records:loaded', (_event, data) => {
-      console.log(
-        '📊 数据库记录已加载:',
-        data.databaseId,
-        '记录数:',
-        data.totalCount
-      );
-    });
-
-    on('database:records:error', (_event, data) => {
-      console.error('📊 数据库记录加载错误:', data.databaseId, data.error);
-    });
-
-    on('database:state:changed', (_event, data) => {
-      console.log('📊 数据库状态变化:', data.databaseId, data.state);
-    });
-
-    on('database:view:type:changed', (_event, data) => {
-      console.log('📊 数据库视图类型变化:', data.databaseId, data.viewType);
-    });
-
-    // 确保数据库记录管理器可用
-    if (databaseRecordManager) {
-      console.log('✅ 数据库视图管理系统已初始化');
-    }
-  }
-
-  /**
    * 初始化日志管理系统
    */
   private initializeLogManager(): void {
@@ -313,72 +270,6 @@ class AdminApp {
     // 确保日志管理器可用
     if (logManager) {
       console.log('✅ 日志管理系统已初始化');
-    }
-  }
-
-  /**
-   * 初始化设置管理系统
-   */
-  private initializeSettingsManager(): void {
-    // 设置管理器已经通过导入自动初始化
-    // 这里可以设置一些全局事件监听
-
-    // 监听设置管理器事件
-    on('settings:manager:initialized', () => {
-      console.log('⚙️ 设置管理器已初始化');
-    });
-
-    on('settings:loaded', (_event, data) => {
-      console.log(
-        '⚙️ 设置已加载:',
-        Object.keys(data.settings).length,
-        '个配置项'
-      );
-    });
-
-    on('settings:saved', (_event, data) => {
-      console.log(
-        '⚙️ 设置已保存:',
-        Object.keys(data.settings).length,
-        '个配置项'
-      );
-    });
-
-    on('settings:reset', (_event, data) => {
-      console.log(
-        '⚙️ 设置已重置:',
-        Object.keys(data.settings).length,
-        '个配置项'
-      );
-    });
-
-    on('settings:changed', (_event, data) => {
-      console.log('⚙️ 设置项变化:', data.key, '=', data.value);
-    });
-
-    on('settings:imported', (_event, data) => {
-      console.log(
-        '⚙️ 设置已导入:',
-        Object.keys(data.settings).length,
-        '个配置项'
-      );
-    });
-
-    on('settings:exported', (_event, data) => {
-      console.log('⚙️ 设置已导出:', data.filename);
-    });
-
-    on('settings:connection:success', () => {
-      console.log('⚙️ 连接测试成功');
-    });
-
-    on('settings:connection:failed', (_event, data) => {
-      console.log('⚙️ 连接测试失败:', data.message);
-    });
-
-    // 确保设置管理器可用
-    if (settingsManager) {
-      console.log('✅ 设置管理系统已初始化');
     }
   }
 
@@ -615,14 +506,6 @@ class AdminApp {
         // 刷新队列状态
         this.refreshQueueStatus();
         break;
-      case 'settings':
-        // 懒加载设置模块
-        this.loadSettingsModule();
-        break;
-      case 'logs':
-        // 懒加载日志模块
-        this.loadLogsModule();
-        break;
     }
 
     // 更新URL参数
@@ -661,74 +544,6 @@ class AdminApp {
   }
 
   /**
-   * 懒加载设置模块
-   */
-  private async loadSettingsModule(): Promise<void> {
-    try {
-      const settingsContainer = document.querySelector('#settings-container');
-      if (!settingsContainer) {
-        console.warn('Settings container not found');
-        return;
-      }
-
-      // 检查是否已经加载
-      if (codeSplitter.isChunkLoaded('admin-settings')) {
-        console.log('Settings module already loaded');
-        return;
-      }
-
-      // 显示加载指示器
-      settingsContainer.innerHTML =
-        '<div class="loading-indicator">加载设置中...</div>';
-
-      // 懒加载设置模块
-      const settingsModule = await codeSplitter.loadChunk('admin-settings');
-
-      if (settingsModule?.default) {
-        settingsModule.default(settingsContainer as HTMLElement);
-        console.log('Settings module loaded and initialized');
-      }
-    } catch (error) {
-      console.error('Failed to load settings module:', error);
-      showError('加载设置模块失败');
-    }
-  }
-
-  /**
-   * 懒加载日志模块
-   */
-  private async loadLogsModule(): Promise<void> {
-    try {
-      const logsContainer = document.querySelector('#logs-container');
-      if (!logsContainer) {
-        console.warn('Logs container not found');
-        return;
-      }
-
-      // 检查是否已经加载
-      if (codeSplitter.isChunkLoaded('admin-logs')) {
-        console.log('Logs module already loaded');
-        return;
-      }
-
-      // 显示加载指示器
-      logsContainer.innerHTML =
-        '<div class="loading-indicator">加载日志中...</div>';
-
-      // 懒加载日志模块
-      const logsModule = await codeSplitter.loadChunk('admin-logs');
-
-      if (logsModule?.default) {
-        logsModule.default(logsContainer as HTMLElement);
-        console.log('Logs module loaded and initialized');
-      }
-    } catch (error) {
-      console.error('Failed to load logs module:', error);
-      showError('加载日志模块失败');
-    }
-  }
-
-  /**
    * 销毁应用
    */
   destroy(): void {
@@ -756,14 +571,8 @@ class AdminApp {
     // 清理Webhook处理系统
     webhookManager.destroy();
 
-    // 清理数据库视图管理系统
-    databaseRecordManager.destroy();
-
     // 清理日志管理系统
     logManager.destroy();
-
-    // 清理设置管理系统
-    settingsManager.destroy();
 
     // 清理错误处理系统
     errorManager.destroy();

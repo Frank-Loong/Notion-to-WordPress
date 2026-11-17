@@ -37,18 +37,10 @@ export class CodeSplitter {
    * 注册内置代码块
    */
   private registerBuiltinChunks(): void {
-    // 注册管理界面的懒加载模块
-    this.registerChunk({
-      name: 'admin-settings',
-      path: () => import('../../admin/modules/Settings'),
-      priority: 'medium',
-    });
-
-    this.registerChunk({
-      name: 'admin-logs',
-      path: () => import('../../admin/modules/Logs'),
-      priority: 'low',
-    });
+    // 收口迭代（2026-11-16）：移除 admin-settings / admin-logs 两个懒加载块。
+    // 它们对应的模块（admin/modules/Settings.ts、admin/modules/Logs.ts）从未被
+    // 实例化——后台模板中不存在 #settings-container / #logs-container 容器，
+    // 因此这两个 chunk 永远不会被加载。保留注册只会让 webpack 白打两个空包。
 
     // 注册第三方库（如果需要的话）
     // this.registerChunk({
@@ -254,7 +246,7 @@ export class CodeSplitter {
    */
   private predictChunksForPage(pageType: string): string[] {
     const predictions: Record<string, string[]> = {
-      'admin-plugin': ['admin-settings', 'admin-logs'],
+      'admin-plugin': [],
       admin: [],
       frontend: ['frontend-comments', 'frontend-search'],
     };

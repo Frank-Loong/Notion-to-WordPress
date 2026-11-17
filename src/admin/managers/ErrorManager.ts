@@ -52,9 +52,7 @@ export interface ErrorManagerOptions {
   enableGlobalHandling?: boolean;
   enableRetry?: boolean;
   enableNotifications?: boolean;
-  enableReporting?: boolean;
   maxErrorHistory?: number;
-  reportingEndpoint?: string;
 }
 
 /**
@@ -85,9 +83,7 @@ export class ErrorManager {
       enableGlobalHandling: true,
       enableRetry: true,
       enableNotifications: true,
-      enableReporting: false,
       maxErrorHistory: 100,
-      reportingEndpoint: '',
       ...options,
     };
 
@@ -343,9 +339,6 @@ export class ErrorManager {
     // 添加到错误历史
     this.addToHistory(errorInfo);
 
-    // 记录错误日志
-    this.logError(errorInfo);
-
     // 根据错误类型采取不同策略
     this.executeErrorStrategy(errorInfo);
 
@@ -367,27 +360,6 @@ export class ErrorManager {
         0,
         this.options.maxErrorHistory
       );
-    }
-  }
-
-  /**
-   * 记录错误日志
-   */
-  private logError(errorInfo: ErrorInfo): void {
-    const logData = {
-      id: errorInfo.id,
-      type: errorInfo.type,
-      severity: errorInfo.severity,
-      message: errorInfo.message,
-      context: errorInfo.context,
-      timestamp: errorInfo.timestamp,
-      stack: errorInfo.stack,
-      url: errorInfo.url,
-    };
-
-    // 发送到后端记录
-    if (this.options.enableReporting) {
-      this.reportError(logData).catch(console.error);
     }
   }
 
@@ -546,15 +518,6 @@ export class ErrorManager {
 
     // 这里可以集成邮件通知或其他通知机制
     emit('error:admin:notify', { message, errorInfo });
-  }
-
-  /**
-   * 报告错误到服务器
-   */
-  private async reportError(_errorData: any): Promise<void> {
-    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_report_error；
-    // 停用无效请求，仅保留本地日志（enableReporting 默认 false）。
-    console.warn('错误上报端点未启用，已跳过远程报告');
   }
 
   /**

@@ -3,13 +3,16 @@
  *
  * 从原有admin-interactions.js的统计功能完全迁移，包括：
  * - 统计数据获取和显示
- * - 单页面刷新功能
  * - 数据格式化和展示
+ *
+ * 收口迭代（2026-11-16）：移除单页面刷新功能。后端从未注册
+ * notion_to_wordpress_refresh_single，且后台模板没有 .refresh-single
+ * 按钮，该链路从入口到请求都是死的。
  */
 
 import { emit } from '../../shared/core/EventBus';
 import { AdminUtils } from '../utils/AdminUtils';
-import { showSuccess, showError, showInfo } from '../../shared/utils/toast';
+import { showError, showInfo } from '../../shared/utils/toast';
 import { post } from '../../shared/utils/ajax';
 
 export interface StatsData {
@@ -17,12 +20,6 @@ export interface StatsData {
   published_count: number;
   last_update: string | null;
   next_run: string | null;
-}
-
-export interface RefreshSingleOptions {
-  pageId: string;
-  showOverlay?: boolean;
-  timeout?: number;
 }
 
 /**
@@ -66,16 +63,6 @@ export class StatsManager {
    * 设置事件处理器
    */
   private setupEventHandlers(): void {
-    // 单页面刷新按钮
-    document.addEventListener('click', e => {
-      const target = e.target as HTMLElement;
-
-      if (target.classList.contains('refresh-single')) {
-        e.preventDefault();
-        this.handleRefreshSingle(target);
-      }
-    });
-
     // 统计刷新按钮
     const refreshStatsButton = document.getElementById('refresh-stats');
     if (refreshStatsButton) {
@@ -163,131 +150,6 @@ export class StatsManager {
     }
 
     console.log('📊 [统计显示] 已更新:', stats);
-  }
-
-  /**
-   * 处理单页面刷新
-   */
-  private async handleRefreshSingle(element: HTMLElement): Promise<void> {
-    const pageId = element.dataset.pageId;
-
-    if (!pageId || typeof pageId !== 'string' || pageId.trim() === '') {
-      showError('无效的页面ID');
-      return;
-    }
-
-    const notionToWp = (window as any).notionToWp;
-    if (!notionToWp?.nonce || !notionToWp?.ajax_url) {
-      showError('安全参数缺失');
-      return;
-    }
-
-    await this.refreshSinglePage({ pageId, showOverlay: true });
-  }
-
-  /**
-   * 刷新单个页面
-   */
-  async refreshSinglePage(options: RefreshSingleOptions): Promise<void> {
-    const { pageId, showOverlay = false, timeout = 60000 } = options;
-
-    let overlay: HTMLElement | null = null;
-
-    if (showOverlay) {
-      overlay = this.showLoadingOverlay();
-    }
-
-    try {
-      const response = await this.performSingleRefresh(pageId, timeout);
-
-      if (response.success) {
-        showSuccess('页面刷新成功');
-
-        // 刷新统计信息
-        await this.fetchStats();
-
-        emit('stats:single:refreshed', { pageId, response });
-      } else {
-        throw new Error(response.data?.message || '刷新失败');
-      }
-    } catch (error) {
-      console.error('❌ [单页刷新] 失败:', error);
-
-      let errorMessage = '页面刷新失败';
-      if ((error as Error).message.includes('timeout')) {
-        errorMessage = '刷新超时，请稍后重试';
-      } else if ((error as Error).message) {
-        errorMessage += `: ${(error as Error).message}`;
-      }
-
-      showError(errorMessage);
-      emit('stats:single:error', { pageId, error });
-    } finally {
-      if (overlay) {
-        this.hideLoadingOverlay(overlay);
-      }
-    }
-  }
-
-  /**
-   * 执行单页面刷新请求
-   */
-  private async performSingleRefresh(
-    _pageId: string,
-    _timeout: number
-  ): Promise<any> {
-    // 收口迭代（2026-11-10）：后端未注册 notion_to_wordpress_refresh_single；
-    // 停用该 XHR，返回明确的停用结果，避免必然的 `0`/400。
-    return { success: false, data: { message: '单页刷新端点未启用' } };
-  }
-
-  /**
-   * 显示加载遮罩
-   */
-  private showLoadingOverlay(): HTMLElement {
-    const overlay = document.createElement('div');
-    overlay.className = 'notion-loading-overlay';
-    overlay.innerHTML = `
-      <div class="loading-content">
-        <div class="spinner"></div>
-        <p>正在刷新页面...</p>
-      </div>
-    `;
-
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    `;
-
-    document.body.appendChild(overlay);
-
-    // 淡入动画
-    setTimeout(() => {
-      overlay.style.opacity = '1';
-    }, 10);
-
-    return overlay;
-  }
-
-  /**
-   * 隐藏加载遮罩
-   */
-  private hideLoadingOverlay(overlay: HTMLElement): void {
-    overlay.style.opacity = '0';
-
-    setTimeout(() => {
-      if (overlay.parentNode) {
-        overlay.parentNode.removeChild(overlay);
-      }
-    }, 300);
   }
 
   /**

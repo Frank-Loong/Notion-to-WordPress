@@ -52,18 +52,40 @@ class DatabaseConfigTest extends \PHPUnit\Framework\TestCase {
 
     /**
      * 解析表单文本：支持纯 ID 与 “名称|ID”，忽略空行。
+     *
+     * 注意：parse_database_list() 现在会做源头 32 位十六进制校验，
+     * 因此这里必须使用合法的 Notion 数据库 ID（此前用 aaaa1111 之类假 ID）。
      */
     public function test_parse_database_list(): void {
-        $raw = "Blog|aaaa1111\nbbbb2222\n\n  \nDocs|cccc3333";
+        $raw = "Blog|aaaaaaaa1111aaaa1111aaaa1111aaaa\nbbbbbbbb2222bbbb2222bbbb2222bbbb\n\n  \nDocs|cccccccc3333cccc3333cccc3333cccc";
         $dbs = Database_Config::parse_database_list( $raw );
 
-        $this->assertSame( 'aaaa1111', $dbs[0]['id'] );
+        $this->assertSame( 'aaaaaaaa1111aaaa1111aaaa1111aaaa', $dbs[0]['id'] );
         $this->assertSame( 'Blog', $dbs[0]['name'] );
-        $this->assertSame( 'bbbb2222', $dbs[1]['id'] );
+        $this->assertSame( 'bbbbbbbb2222bbbb2222bbbb2222bbbb', $dbs[1]['id'] );
         $this->assertSame( '', $dbs[1]['name'] );
-        $this->assertSame( 'cccc3333', $dbs[2]['id'] );
+        $this->assertSame( 'cccccccc3333cccc3333cccc3333cccc', $dbs[2]['id'] );
         $this->assertSame( 'Docs', $dbs[2]['name'] );
         $this->assertCount( 3, $dbs );
+    }
+
+    /**
+     * 连字符形式的 UUID 应被去除连字符并转小写后接受。
+     */
+    public function test_parse_database_list_normalizes_hyphenated_id(): void {
+        $dbs = Database_Config::parse_database_list( 'AAAAAAAA-1111-AAAA-1111-AAAA1111AAAA' );
+
+        $this->assertCount( 1, $dbs );
+        $this->assertSame( 'aaaaaaaa1111aaaa1111aaaa1111aaaa', $dbs[0]['id'] );
+    }
+
+    /**
+     * 非法 ID 必须在解析阶段就抛异常，不能流到选项里。
+     */
+    public function test_parse_database_list_rejects_invalid_id(): void {
+        $this->expectException( \InvalidArgumentException::class );
+
+        Database_Config::parse_database_list( "Blog|aaaaaaaa1111aaaa1111aaaa1111aaaa\nBAD_ID" );
     }
 
     public function test_migrates_legacy_cursor_only_to_primary_database(): void {

@@ -120,6 +120,7 @@ class Database_Config {
 	 * @since 2.0.0
 	 * @param string $raw 文本框原始内容
 	 * @return array
+	 * @throws \InvalidArgumentException 当某行 ID 不是 32 位十六进制时。
 	 */
 	public static function parse_database_list( string $raw ): array {
 		$databases = array();
@@ -128,7 +129,9 @@ class Database_Config {
 			return $databases;
 		}
 
+		$line_number = 0;
 		foreach ( $lines as $line ) {
+			++$line_number;
 			$line = trim( $line );
 			if ( $line === '' ) {
 				continue;
@@ -143,8 +146,27 @@ class Database_Config {
 			if ( $id === '' ) {
 				continue;
 			}
+
+			// 收口迭代（2026-11-16）：在此处做源头校验。
+			// 此前只有 Security::validate_plugin_options() 在表单/AJAX 主链路上兜底，
+			// 任何直接调用本方法的旁路都能把非法 ID 写进选项，导致后续 API 调用
+			// 带着无效 ID 反复失败。校验与同类的 parse_embedded_views() /
+			// parse_embedded_view_ids() 保持一致：非法即抛 InvalidArgumentException，
+			// 由调用方（handle_settings_form / handle_save_settings_ajax）转成用户可见错误。
+			$normalized_id = strtolower( str_replace( '-', '', $id ) );
+			if ( ! preg_match( '/^[a-f0-9]{32}$/', $normalized_id ) ) {
+				/* translators: %1$d: line number, %2$s: the offending value. */
+				$message = sprintf(
+					__( '附加数据库第%1$d行的 ID「%2$s」格式不正确，应为 32 位十六进制字符串。', 'notion-to-wordpress' ),
+					$line_number,
+					$id
+				);
+				// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- Exception message is surfaced by the caller, not rendered as output here.
+				throw new \InvalidArgumentException( $message );
+			}
+
 			$databases[] = array(
-				'id'   => $id,
+				'id'   => $normalized_id,
 				'name' => $name,
 			);
 		}
